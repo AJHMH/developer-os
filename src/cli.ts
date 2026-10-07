@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { DeliveryController, DeliveryError } from "./controller.js";
 import { inspectLocalRepository } from "./onboarding.js";
+import { SbxHostAdapter } from "./sbx-host.js";
 
 const usage =
   "Use start --repo <absolute-directory> --request <text> [--issue <reference>] [--owner-policy <external-file>], status [--id <delivery-id>], or qualify/pause/resume/cancel/recover/release --id <delivery-id>, with optional --state-dir <directory>.";
@@ -46,6 +47,7 @@ try {
         ? {}
         : { policyPath: values["owner-policy"] }),
     },
+    { worker: new SbxHostAdapter() },
   );
   let result;
   if (

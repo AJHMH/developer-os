@@ -24,6 +24,12 @@ export interface WorkerQualification {
   checkedAt: string;
   policySha256?: string;
   bindingSha256?: string;
+  host?: {
+    sbxVersion?: string;
+    virtualization: "verified" | "unknown" | "conflicting";
+    daemon: "verified" | "unknown" | "conflicting";
+    authentication: "verified" | "unknown" | "conflicting";
+  };
   probes: {
     name: IsolationProbe;
     outcome: "passed" | "failed" | "not-run";
