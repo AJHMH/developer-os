@@ -6,7 +6,7 @@ import { DeliveryController, DeliveryError } from "./controller.js";
 import { inspectLocalRepository } from "./onboarding.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text> [--issue <reference>] [--owner-policy <external-file>], status [--id <delivery-id>], or pause/resume/cancel/recover/release --id <delivery-id>, with optional --state-dir <directory>.";
+  "Use start --repo <absolute-directory> --request <text> [--issue <reference>] [--owner-policy <external-file>], status [--id <delivery-id>], or qualify/pause/resume/cancel/recover/release --id <delivery-id>, with optional --state-dir <directory>.";
 
 function argumentsForCommand() {
   try {
@@ -78,7 +78,8 @@ try {
       values.request === undefined &&
       values.issue === undefined &&
       values["owner-policy"] === undefined &&
-      (command === "pause" ||
+      (command === "qualify" ||
+        command === "pause" ||
         command === "resume" ||
         command === "cancel" ||
         command === "recover" ||

@@ -20,6 +20,10 @@ import {
 import { DatabaseSync } from "node:sqlite";
 import { redact } from "./redaction.js";
 import {
+  unavailableQualification,
+  type WorkerQualification,
+} from "./qualification.js";
+import {
   inspectOnboarding,
   type OnboardingReport,
   type OnboardingOptions,
@@ -100,8 +104,15 @@ export interface WorkerReceipt extends WorkerSession {
  * sandbox files for an explicit session resume rather than deleting work.
  * Ticket 4 supplies a qualified implementation; the CLI has no worker adapter. */
 export interface WorkerAdapter {
+  probe?(
+    delivery: Delivery,
+    authorityDirectory: string,
+  ): Promise<WorkerQualification>;
   qualified(delivery: Delivery, authorityDirectory: string): boolean;
-  start(session: WorkerSession): Promise<WorkerReceipt>;
+  start(
+    session: WorkerSession,
+    mayDispatch?: () => boolean,
+  ): Promise<WorkerReceipt>;
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
@@ -136,6 +147,7 @@ export interface Delivery {
   issue: string | null;
   createdAt: string;
   onboarding: OnboardingReport;
+  qualification?: WorkerQualification;
   authorityPolicySha256: string | null;
   blocker: {
     code: "DELIVERY_NOT_ENABLED" | "UNCERTAIN_SESSION";
@@ -403,12 +415,48 @@ export class DeliveryController {
     session.state = "dispatched";
     try {
       const response = await this.observe(
-        worker.start(structuredClone(session)),
+        worker.start(structuredClone(session), () => {
+          const current = this.status(id);
+          return (
+            current.phase === "implementing" &&
+            current.ownership.held &&
+            current.ownership.fence === session.fence &&
+            current.execution?.operationId === session.operationId
+          );
+        }),
       );
       return this.recordReceipt(id, session, response, false);
     } catch {
       return this.recordReceipt(id, session, undefined, false);
     }
+  }
+
+  async qualify(id: string): Promise<Delivery> {
+    const snapshot = this.status(id);
+    if (snapshot.execution && snapshot.execution.state !== "stopped")
+      throw new DeliveryError(
+        "Stop and reconcile the worker before qualification probes.",
+      );
+    let qualification = unavailableQualification();
+    try {
+      qualification =
+        (await this.coordination.worker?.probe?.(
+          structuredClone(snapshot),
+          this.stateDirectory,
+        )) ?? qualification;
+    } catch {
+      /* Retain fixed unknown evidence, never provider error text. */
+    }
+    return this.change(id, (delivery) => {
+      if (
+        delivery.ownership.fence !== snapshot.ownership.fence ||
+        delivery.phase !== snapshot.phase
+      )
+        throw new DeliveryError(
+          "Delivery authority changed during qualification.",
+        );
+      delivery.qualification = qualification;
+    });
   }
 
   private async observe(
