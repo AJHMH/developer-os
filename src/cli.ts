@@ -3,9 +3,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { DeliveryController, DeliveryError } from "./controller.js";
+import { inspectLocalRepository } from "./onboarding.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text> [--issue <reference>], or status [--id <delivery-id>], with optional --state-dir <directory>.";
+  "Use start --repo <absolute-directory> --request <text> [--issue <reference>] [--owner-policy <external-file>], or status [--id <delivery-id>], with optional --state-dir <directory>.";
 
 function argumentsForCommand() {
   try {
@@ -14,6 +15,7 @@ function argumentsForCommand() {
       tokens: true,
       options: {
         "state-dir": { type: "string" },
+        "owner-policy": { type: "string" },
         repo: { type: "string" },
         request: { type: "string" },
         issue: { type: "string" },
@@ -38,6 +40,12 @@ try {
     throw new DeliveryError(usage);
   const controller = new DeliveryController(
     values["state-dir"] ?? join(homedir(), ".developer-os"),
+    {
+      inspect: inspectLocalRepository,
+      ...(values["owner-policy"] === undefined
+        ? {}
+        : { policyPath: values["owner-policy"] }),
+    },
   );
   let result;
   if (
@@ -55,7 +63,8 @@ try {
     positionals[0] === "status" &&
     values.repo === undefined &&
     values.request === undefined &&
-    values.issue === undefined
+    values.issue === undefined &&
+    values["owner-policy"] === undefined
   ) {
     result =
       values.id === undefined

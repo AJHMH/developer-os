@@ -34,6 +34,29 @@ Requests, optional issue references and separately referenced JSON request artif
 
 Input redaction removes common labeled credentials, private-key blocks, recognizable provider tokens, bearer tokens and URL user information before persistence. Redaction is defense in depth, not a detector for arbitrary secrets: **do not put secrets in requests, issue references or paths**. Raw input and parser errors are not logged. State is owned by the local user and is not an isolation boundary against that user.
 
-Pause/resume/cancel, repository onboarding, isolated workers, signing and remote effects are later tickets. Their commands are not accepted yet. Windows and macOS host qualification remain unperformed; these local intake tests do not prove complete platform support.
+Pause/resume/cancel, isolated workers, signing and remote effects are later tickets. Their commands are not accepted yet. Windows and macOS host qualification remain unperformed; these local intake tests do not prove complete platform support.
 
 See the [approved v1 specification](.scratch/aios-feature-delivery/spec.md) and [implementation ticket index](.scratch/aios-v1-implementation/README.md).
+
+## Repository onboarding report
+
+Every accepted request now stores `onboarding`: timestamped verified/unknown/conflicting facts and a missing-prerequisite checklist. Unknown or conflicting evidence prevents onboarding readiness. Execution remains blocked even when every prerequisite is verified; subsequent tickets implement the delivery gates.
+
+For local inspection, add `--owner-policy "/absolute/path/outside/repository/owner-policy.json"` to `start`. This is an explicit owner input, never discovered from candidate files. The ordinary external file is validated and its SHA-256 and Factory commit are recorded with the report; status preserves that snapshot even if the file later changes. Keep it in owner-controlled storage excluded from worker mounts. Example schema (illustrative pins, not verified setup):
+
+```json
+{
+  "repository": "AJHMH/profile-page",
+  "defaultBranch": "main",
+  "factoryCommit": "0000000000000000000000000000000000000000",
+  "approver": "aaron-howard",
+  "appLogin": "your-factory-app[bot]",
+  "publicationLogin": "aaron-howard",
+  "requiredChecks": ["owner-declared-check-name"],
+  "validation": ["owner-declared-isolated-validation-resource"]
+}
+```
+
+The CLI reads origin and its cached default-branch hint using bounded read-only Git commands. It neither fetches nor rewrites a mismatch. Cached hints cannot prove live identity. Live App access/authorship, effective protections and check publishers, sole approver, Factory revision, publication identity, signature evidence and validation resources remain unknown in this CLI slice. Configuration alone does not prove signing: the trusted integration must demonstrate valid local and GitHub signatures on the same commit for the pinned publication identity.
+
+`DeliveryController` accepts a host-supplied read-only `inspect` boundary for trusted verification integrations. Controlled test observations exercise complete and conflicting reports; they are not live qualification. This boundary must not consume assertions supplied by workers or candidate configuration. No inspection provider is loaded from a repository, and no repository scripts or credentials are read. Neither tests nor these reports provision Apps, protections or resources. The report is a snapshot, not authorization to skip later current-state revalidation.

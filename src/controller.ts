@@ -19,6 +19,11 @@ import {
 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { redact } from "./redaction.js";
+import {
+  inspectOnboarding,
+  type OnboardingReport,
+  type OnboardingOptions,
+} from "./onboarding.js";
 
 /** Only fixed, non-input-derived messages may cross the public error boundary. */
 export class DeliveryError extends Error {}
@@ -75,6 +80,7 @@ export interface Delivery {
   request: string;
   issue: string | null;
   createdAt: string;
+  onboarding: OnboardingReport;
   blocker: {
     code: "DELIVERY_NOT_ENABLED";
     message: string;
@@ -87,7 +93,10 @@ export interface Delivery {
 export class DeliveryController {
   private readonly stateDirectory: string;
 
-  constructor(stateDirectory: string) {
+  constructor(
+    stateDirectory: string,
+    private readonly onboardingOptions: OnboardingOptions = {},
+  ) {
     if (!stateDirectory.trim() || /[\u0000-\u001F\u007F]/.test(stateDirectory))
       throw new DeliveryError("Provide a valid state directory.");
     this.stateDirectory = canonicalPath(stateDirectory);
@@ -145,6 +154,7 @@ export class DeliveryController {
       request: redact(input.request.trim()),
       issue: input.issue === undefined ? null : redact(input.issue.trim()),
       createdAt: new Date().toISOString(),
+      onboarding: inspectOnboarding(repository, this.onboardingOptions),
       blocker: {
         code: "DELIVERY_NOT_ENABLED",
         message: "Feature delivery is not enabled in this intake-only slice.",
