@@ -106,6 +106,7 @@ export interface OnboardingReport {
   ready: boolean;
   checkedAt: string;
   policy?: { source: string; sha256: string; factoryCommit: string };
+  canonicalRepository?: { name: string; defaultBranch: string };
   facts: {
     requirement: Requirement;
     status: "verified" | "unknown" | "conflict";
@@ -295,6 +296,14 @@ export function inspectOnboarding(
       [o.factoryCommit],
       () => o.factoryCommit === p.factoryCommit,
     );
+    if (
+      report.facts.find((fact) => fact.requirement === "repositoryIdentity")
+        ?.status === "verified"
+    )
+      report.canonicalRepository = {
+        name: p.repository,
+        defaultBranch: p.defaultBranch,
+      };
     evaluate(
       "app",
       [o.appLogin, o.appRepositoryAccess],

@@ -6,7 +6,7 @@ import { DeliveryController, DeliveryError } from "./controller.js";
 import { inspectLocalRepository } from "./onboarding.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text> [--issue <reference>] [--owner-policy <external-file>], or status [--id <delivery-id>], with optional --state-dir <directory>.";
+  "Use start --repo <absolute-directory> --request <text> [--issue <reference>] [--owner-policy <external-file>], status [--id <delivery-id>], or pause/resume/cancel/recover/release --id <delivery-id>, with optional --state-dir <directory>.";
 
 function argumentsForCommand() {
   try {
@@ -71,7 +71,21 @@ try {
         ? controller.list()
         : controller.status(values.id);
   } else {
-    throw new DeliveryError(usage);
+    const command = positionals[0];
+    if (
+      values.id &&
+      values.repo === undefined &&
+      values.request === undefined &&
+      values.issue === undefined &&
+      values["owner-policy"] === undefined &&
+      (command === "pause" ||
+        command === "resume" ||
+        command === "cancel" ||
+        command === "recover" ||
+        command === "release")
+    ) {
+      result = await controller[command](values.id);
+    } else throw new DeliveryError(usage);
   }
   process.stdout.write(`${JSON.stringify(result)}\n`);
 } catch (error) {

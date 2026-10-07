@@ -34,7 +34,7 @@ Requests, optional issue references and separately referenced JSON request artif
 
 Input redaction removes common labeled credentials, private-key blocks, recognizable provider tokens, bearer tokens and URL user information before persistence. Redaction is defense in depth, not a detector for arbitrary secrets: **do not put secrets in requests, issue references or paths**. Raw input and parser errors are not logged. State is owned by the local user and is not an isolation boundary against that user.
 
-Pause/resume/cancel, isolated workers, signing and remote effects are later tickets. Their commands are not accepted yet. Windows and macOS host qualification remain unperformed; these local intake tests do not prove complete platform support.
+Live isolated workers, signing and remote effects are later tickets. Their commands are not accepted yet. Windows and macOS host qualification remain unperformed; these local intake tests do not prove complete platform support.
 
 See the [approved v1 specification](.scratch/aios-feature-delivery/spec.md) and [implementation ticket index](.scratch/aios-v1-implementation/README.md).
 
@@ -60,3 +60,25 @@ For local inspection, add `--owner-policy "/absolute/path/outside/repository/own
 The CLI reads origin and its cached default-branch hint using bounded read-only Git commands. It neither fetches nor rewrites a mismatch. Cached hints cannot prove live identity. Live App access/authorship, effective protections and check publishers, sole approver, Factory revision, publication identity, signature evidence and validation resources remain unknown in this CLI slice. Configuration alone does not prove signing: the trusted integration must demonstrate valid local and GitHub signatures on the same commit for the pinned publication identity.
 
 `DeliveryController` accepts a host-supplied read-only `inspect` boundary for trusted verification integrations. Controlled test observations exercise complete and conflicting reports; they are not live qualification. This boundary must not consume assertions supplied by workers or candidate configuration. No inspection provider is loaded from a repository, and no repository scripts or credentials are read. Neither tests nor these reports provision Apps, protections or resources. The report is a snapshot, not authorization to skip later current-state revalidation.
+
+## Delivery ownership and controls
+
+Use the same owner-configured state directory for all processes managing repositories on this host. SQLite transactions admit one owner delivery per canonical repository: verified GitHub clones share a canonical identity key, and unverified intake uses the resolved local path. Subsequent requests queue. Paused, blocked and cancelled owners retain ownership until explicit safe release. The ledger migrates prior intake records in submission order while preserving their requests and artifacts.
+
+```sh
+node dist/cli.js pause --id "<delivery-id>" --state-dir "/absolute/path/to/controller-state"
+node dist/cli.js resume --id "<delivery-id>" --state-dir "/absolute/path/to/controller-state"
+node dist/cli.js cancel --id "<delivery-id>" --state-dir "/absolute/path/to/controller-state"
+node dist/cli.js recover --id "<delivery-id>" --state-dir "/absolute/path/to/controller-state"
+node dist/cli.js release --id "<delivery-id>" --state-dir "/absolute/path/to/controller-state"
+```
+
+Controls require an explicit delivery ID. Pause records the prior phase; resume does not clear unresolved worker shutdown. Cancellation prevents new dispatch and cannot be resumed. Neither action closes PRs, deletes branches, removes artifacts or rolls back effects. Safe release requires a stopped delivery and, if a worker session exists, confirmed quiescence. It transfers ownership to the oldest eligible queued request; a paused queued request is skipped until resumed.
+
+Trusted host integrations use `DeliveryController.run` with a qualified worker adapter. Before dispatch, the controller rechecks onboarding against the original policy hash and canonical ownership identity. Changes require safe release and a new request. Worker intents and explicit delivery/repository/runner/operation/sandbox/session identities are durable before adapter dispatch. Resume retains the sandbox and worker IDs with a new operation and fence, preserving previous session records.
+
+Pause, cancel and recovery fence old runners before requesting descendant shutdown. Receipts must match the exact identities and fence. Late results cannot restore a paused/cancelled delivery. Unknown, mismatched, failed or timed-out observations retain ownership with `UNCERTAIN_SESSION`; they cannot justify another dispatch or release. Worker handshake/shutdown observations default to 30 seconds, configurable by the trusted integration up to 60 seconds. Timing out does not prove the worker stopped.
+
+`recover` reconciles the explicit stored session and stops orphaned activity conservatively. It never searches for a global last session or automatically dispatches paused, cancelled or blocked work. Confirmed shutdown of previously running work makes it eligible for fresh admission; a blocked uncertainty outcome still needs explicit resume after shutdown is verified.
+
+Ticket 4 must supply and qualify the actual adapter, pin the single authority directory and demonstrate repository-scoped fencing against delayed starts and descendant processes. Multiple separately configured state stores do not share ownership; qualification must reject that arrangement. The CLI intentionally has no `run` command or production worker adapter yet. Controlled lifecycle tests establish coordinator behavior, not live isolation, GitHub delivery or either platform's qualification.
