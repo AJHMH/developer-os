@@ -190,3 +190,23 @@ test("linked artifact storage cannot redirect a request into the target reposito
   assert.equal(result.status, 1, result.stdout);
   assert.deepEqual(readdirSync(f.repository), ["owner.txt"]);
 });
+
+test("authorization schemes do not leave their credential in request evidence", (t) => {
+  const f = fixture(t);
+  const credential = "Q2FuYXJ5QmFzaWNBdXRo";
+  const started = invoke(
+    f.state,
+    "start",
+    "--repo",
+    f.repository,
+    "--request",
+    `Add a contact hint. authorization=Basic ${credential}`,
+  );
+  assert.equal(started.status, 0, started.stderr);
+  const delivery = JSON.parse(started.stdout);
+  const reopened = invoke(f.state, "status", "--id", delivery.id);
+  const artifact = readFileSync(delivery.evidence[0].path, "utf8");
+  for (const output of [started.stdout, reopened.stdout, artifact])
+    assert.equal(output.includes(credential), false);
+  assert.match(delivery.request, /Add a contact hint/);
+});

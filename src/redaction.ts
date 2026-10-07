@@ -16,6 +16,10 @@ export function redact(value: string): string {
       "[REDACTED]",
     )
     .replace(
+      /(["']?authorization["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|(?:[A-Za-z][A-Za-z0-9_-]*[ \t]+)?[^\s&;,]+)/gi,
+      "$1[REDACTED]",
+    )
+    .replace(
       /(["']?[\w-]*(?:token|password|secret|api[_-]?key|authorization|private[_-]?key)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s&;,]+)/gi,
       "$1[REDACTED]",
     );

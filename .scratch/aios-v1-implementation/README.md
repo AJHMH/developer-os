@@ -5,7 +5,7 @@ Approved: 7 October 2026
 
 Canonical source: [Developer AIOS v1 specification](../aios-feature-delivery/spec.md). These are implementation slices; the resolved wayfinder issues remain unchanged.
 
-Work any ready ticket whose blockers are complete, starting with **Submit a feature request and inspect durable delivery status**. Windows/macOS qualification is independent; both gate the observed pilot. Ticket readiness describes implementable work, not verified host/repository readiness or authorization to bypass owner approval.
+Work any ready ticket whose blockers are complete. **Submit a feature request and inspect durable delivery status** is completed; **Report repository onboarding readiness without changing setup** and **Queue, pause, cancel and recover repository-owned deliveries** are now the frontier. Windows/macOS qualification is independent; both gate the observed pilot. Ticket readiness describes implementable work, not verified host/repository readiness or authorization to bypass owner approval.
 
 | Ticket | Blocked by | User stories |
 |---|---|---|
@@ -26,4 +26,3 @@ Work any ready ticket whose blockers are complete, starting with **Submit a feat
 | [15: Qualify the complete controller boundary on Windows](issues/15-windows-qualification.md) | 14 | 13 |
 | [16: Qualify the complete controller boundary on macOS](issues/16-macos-qualification.md) | 14 | 13 |
 | [17: Demonstrate an observed profile-page pilot delivery](issues/17-observed-profile-pilot.md) | 15, 16 | 1, 24, 27, 39, 49 |
-
