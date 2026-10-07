@@ -1,0 +1,26 @@
+{
+  "name": "developer-os",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.10.0 <25"
+  },
+  "bin": {
+    "aios": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test",
+    "test:cli": "npm run build && node --test tests/delivery.test.mjs",
+    "start": "node dist/cli.js",
+    "format": "prettier --write src tests package.json tsconfig.json README.md",
+    "format:check": "prettier --check src tests package.json tsconfig.json README.md"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  }
+}

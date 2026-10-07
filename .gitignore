@@ -1,0 +1,8 @@
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+# Generated runtime output and local dependencies/state.
+/node_modules/
+/dist/
+/.aios/
+*.tsbuildinfo

@@ -1,0 +1,23 @@
+# 07: Repair validation findings within persisted allowances
+
+**What to build:** A failed candidate check returns a batch of findings to the isolated worker, revalidates the resulting change and either progresses with evidence or stops with a preserved repair-budget blocker.
+
+**Blocked by:** 06: [Validate baseline and candidate behavior inside isolation](06-isolated-validation.md).
+
+**Status:** ready-for-agent
+
+## Source and governing contract
+
+Read the [approved canonical specification](../../aios-feature-delivery/spec.md) before implementation. User-story coverage: 30, 31. Use the domain glossary and approved public-controller command/observation testing boundary; assert visible behavior and permitted/forbidden effects rather than implementation internals.
+
+This is an implementation slice, separate from resolved wayfinder decisions. Unimplemented or unqualified phases remain blocked. Controlled adapters and temporary repositories demonstrate behavior before real host/repository qualification; they do not establish live readiness. Preserve existing user material, authority boundaries and credentials. Do not enable live pilot delivery before all qualification prerequisites pass.
+
+## Acceptance criteria
+
+- [ ] A repair cycle is one attempt to fix a batch followed by relevant verification; default allowance is three cycles or 60 active repair minutes, whichever is exhausted first.
+- [ ] Diagnosis, edits and local revalidation count; initial coding, CI/approval waits, pauses and downtime are excluded.
+- [ ] Usage survives restart, new comments and failed repairs; exhaustion prevents further repair until an explicit owner extension is durably recorded.
+- [ ] The repair worker cannot lower thresholds, skip gates, edit trusted policy, acquire publication credentials or expand scope to unrelated baseline repairs.
+- [ ] Each attempt records findings, changed tree, verification results and remaining allowance; verified success invalidates stale evidence and advances only the appropriate phase.
+- [ ] Public tests cover exact allowance boundaries, interruption, extension, batch accounting and attempted policy weakening; real execution remains subject to qualification.
+
