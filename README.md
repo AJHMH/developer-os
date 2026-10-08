@@ -83,6 +83,22 @@ Pause, cancel and recovery fence old runners before requesting descendant shutdo
 
 Ticket 4 must supply and qualify the actual adapter, pin the single authority directory and demonstrate repository-scoped fencing against delayed starts and descendant processes. Multiple separately configured state stores do not share ownership; qualification must reject that arrangement. The CLI intentionally has no `run` command or production worker adapter yet. Controlled lifecycle tests establish coordinator behavior, not live isolation, GitHub delivery or either platform's qualification.
 
+## Subscription usage approval gate
+
+Worker dispatch now reads fresh ChatGPT subscription usage before each run. At 20% or less remaining in any reported window, or when usage is unknown/stale/unavailable, a stopped owner delivery requires approval. Exhaustion cannot be overridden. An approval is bound to the account/window scope and permits one run; it must be used within 60 seconds. Foreground running controllers poll every 30 seconds. Low/unknown usage without an applicable run approval, or exhausted usage even with approval, requests fenced descendant shutdown and retains work. A failed shutdown remains uncertain. Restart does not reuse a prior run's approval.
+
+The optional owner-selected `--codex-executable` must point to a trusted absolute native Codex executable supporting `app-server`. The reader uses only `initialize`, `account/read` and `account/rateLimits/read`, runs outside the candidate working directory, times out and discards raw protocol errors. It neither reads credential files nor sends inference, purchase, login or rate-limit-reset requests. With no reader, usage is unknown and requires approval. Candidate-controlled executables must not be selected.
+
+```sh
+node dist/cli.js check-usage --id "<delivery-id>" --state-dir "/absolute/state" --codex-executable "/absolute/trusted/codex"
+node dist/cli.js approve-usage --id "<delivery-id>" --check-id "<current-usage-check-id>" --state-dir "/absolute/state"
+node dist/cli.js poll-usage --id "<delivery-id>" --state-dir "/absolute/state" --codex-executable "/absolute/trusted/codex"
+```
+
+This is an approval boundary, not a hard financial cap. Other account activity and in-flight requests can consume allowance between observations. Existing usage credits and automatic reload must be controlled separately; the reader does not change billing settings. Approval never enables a paid-provider fallback or purchases credits. Worker isolation qualification remains required independently.
+
+On 7 October 2026, pinned official Codex CLI 0.161.0 successfully returned live ChatGPT subscription usage through its app-server, matching the desktop's weekly observation of 4% used. It was installed only under ignored `.scratch/codex-runtime` for this test; the existing global CLI was preserved. No inference or billing changes were performed. This proves the usage reader on this Windows host, not native worker isolation or macOS compatibility.
+
 ## Worker qualification gate (ticket 4 in progress)
 
 `node dist/cli.js qualify --id "<delivery-id>" --state-dir "/absolute/path/to/controller-state"` persists a qualification report. It runs bounded native `sbx diagnose --json` from a standard installation location and reports CLI version, virtualization, daemon and authentication prerequisites. It discards raw diagnostic messages, paths and details. Unknown, conflicting, duplicate or unsupported diagnostic fields cannot establish verification. These host facts do not qualify isolation: every isolation probe remains `not-run` until a native enforcement driver is implemented and qualified.

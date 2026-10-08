@@ -64,7 +64,20 @@ test("pause, resume and cancel preserve work and require an explicit safe releas
 });
 
 import { writeFileSync, readFileSync } from "node:fs";
-function readyFixture(t, worker) {
+const healthyUsage = async () => ({
+  observedAt: new Date().toISOString(),
+  accountId: "controlled-owner",
+  authMode: "chatgpt",
+  exhausted: false,
+  windows: [
+    {
+      id: "weekly",
+      usedPercent: 4,
+      resetsAt: Math.floor(Date.now() / 1000) + 86400,
+    },
+  ],
+});
+function readyFixture(t, worker, subscription = healthyUsage) {
   const f = fixture(t);
   const policyPath = join(f.root, "policy.json");
   writeFileSync(
@@ -107,7 +120,10 @@ function readyFixture(t, worker) {
     validation: ["isolated-node"],
   });
   f.options = { policyPath, inspect };
-  f.controller = new DeliveryController(f.state, f.options, { worker });
+  f.controller = new DeliveryController(f.state, f.options, {
+    worker,
+    subscription,
+  });
   return f;
 }
 const receipt = (session, status) => ({ ...session, status });
@@ -168,6 +184,7 @@ test("pause fences a late accepted worker response and preserves the explicit se
     request: "Long feature",
   });
   const pending = f.controller.run(delivery.id);
+  await new Promise(setImmediate);
   assert.equal(starts.length, 1);
   const paused = await new DeliveryController(f.state, f.options, {
     worker,
@@ -346,7 +363,7 @@ test("an abruptly exited runner is fenced and stopped by exact identity before f
     repository: f.repository,
     request: "Crash recovery feature",
   });
-  const script = `import {DeliveryController} from ${JSON.stringify(pathToFileURL(resolve("dist/controller.js")).href)}; const worker={qualified:()=>true,start:async session=>{process.stdout.write(JSON.stringify(session));process.exit(27)},fenceAndStop:async()=>{throw Error('Unexpected stop')}};await new DeliveryController(${JSON.stringify(f.state)},{policyPath:${JSON.stringify(f.options.policyPath)},inspect:()=>(${JSON.stringify(f.options.inspect())})},{worker}).run(${JSON.stringify(delivery.id)});`;
+  const script = `import {DeliveryController} from ${JSON.stringify(pathToFileURL(resolve("dist/controller.js")).href)}; const worker={qualified:()=>true,start:async session=>{process.stdout.write(JSON.stringify(session));process.exit(27)},fenceAndStop:async()=>{throw Error('Unexpected stop')}};await new DeliveryController(${JSON.stringify(f.state)},{policyPath:${JSON.stringify(f.options.policyPath)},inspect:()=>(${JSON.stringify(f.options.inspect())})},{worker,subscription:async()=>({observedAt:new Date().toISOString(),accountId:"controlled-owner",authMode:"chatgpt",exhausted:false,windows:[{id:"weekly",usedPercent:4,resetsAt:Math.floor(Date.now()/1000)+86400}]})}).run(${JSON.stringify(delivery.id)});`;
   const crashed = spawnSync(
     process.execPath,
     ["--input-type=module", "-e", script],
@@ -383,6 +400,7 @@ test("a hung worker observation times out to uncertainty without redispatch", as
   f.controller = new DeliveryController(f.state, f.options, {
     worker,
     observationTimeoutMs: 1,
+    subscription: healthyUsage,
   });
   const delivery = f.controller.start({
     repository: f.repository,
@@ -629,5 +647,99 @@ test("resuming a released paused owner queues behind the current repository owne
   assert.equal(
     f.controller.status(first.id).request,
     "Released paused feature",
+  );
+});
+
+test("subscription threshold requires fresh owner approval, grants one run and never overrides exhaustion", async (t) => {
+  let used = 80;
+  const reset = Math.floor(Date.now() / 1000) + 86400;
+  let starts = 0;
+  const worker = {
+    qualified: () => true,
+    start: async (session) => {
+      starts++;
+      return receipt(session, "running");
+    },
+    fenceAndStop: async (session) => receipt(session, "stopped"),
+  };
+  const subscription = async () => ({
+    observedAt: new Date().toISOString(),
+    accountId: "controlled-owner",
+    authMode: "chatgpt",
+    exhausted: false,
+    windows: [{ id: "weekly", usedPercent: used, resetsAt: reset }],
+  });
+  const f = readyFixture(t, worker, subscription);
+  const delivery = f.controller.start({
+    repository: f.repository,
+    request: "Usage gate feature",
+  });
+  await assert.rejects(
+    () => f.controller.run(delivery.id),
+    /usage requires owner approval/i,
+  );
+  assert.equal(starts, 0);
+  const check = f.controller.status(delivery.id).usage;
+  assert.equal(check.remainingPercent, 20);
+  assert.throws(
+    () => f.controller.approveUsage(delivery.id, "stale"),
+    /fresh usage check/i,
+  );
+  f.controller.approveUsage(delivery.id, check.checkId);
+  const running = await f.controller.run(delivery.id);
+  assert.equal(running.phase, "implementing");
+  used = 95;
+  assert.equal(
+    (await f.controller.pollUsage(delivery.id)).phase,
+    "implementing",
+  );
+  used = 100;
+  const stopped = await f.controller.pollUsage(delivery.id);
+  assert.equal(stopped.phase, "paused");
+  assert.equal(stopped.execution.state, "stopped");
+  assert.equal(stopped.usage.decision, "exhausted");
+  assert.throws(
+    () => f.controller.approveUsage(delivery.id, stopped.usage.checkId),
+    /exhaustion/i,
+  );
+  assert.equal(starts, 1);
+});
+
+test("missing usage requires approval and monitoring preserves uncertain shutdown without leaking provider errors", async (t) => {
+  let available = true;
+  const reset = Math.floor(Date.now() / 1000) + 86400;
+  const subscription = async () => {
+    if (!available) throw Error("synthetic-secret-provider-error");
+    return {
+      observedAt: new Date().toISOString(),
+      accountId: "controlled-owner",
+      authMode: "chatgpt",
+      exhausted: false,
+      windows: [{ id: "weekly", usedPercent: 4, resetsAt: reset }],
+    };
+  };
+  const worker = {
+    qualified: () => true,
+    start: async (session) => receipt(session, "running"),
+    fenceAndStop: async (session) => receipt(session, "unknown"),
+  };
+  const f = readyFixture(t, worker, subscription);
+  const delivery = f.controller.start({
+    repository: f.repository,
+    request: "Unknown usage feature",
+  });
+  await f.controller.run(delivery.id);
+  available = false;
+  const stopped = await f.controller.pollUsage(delivery.id);
+  assert.equal(stopped.execution.state, "uncertain");
+  assert.equal(stopped.usage.decision, "approval-required");
+  assert.equal(stopped.usage.remainingPercent, null);
+  assert.equal(
+    JSON.stringify(stopped).includes("synthetic-secret-provider-error"),
+    false,
+  );
+  assert.throws(
+    () => f.controller.approveUsage(delivery.id, stopped.usage.checkId),
+    /stopped delivery/i,
   );
 });

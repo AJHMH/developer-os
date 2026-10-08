@@ -20,6 +20,11 @@ import {
 import { DatabaseSync } from "node:sqlite";
 import { redact } from "./redaction.js";
 import {
+  assessSubscription,
+  type SubscriptionReader,
+  type UsageReport,
+} from "./subscription.js";
+import {
   unavailableQualification,
   type WorkerQualification,
 } from "./qualification.js";
@@ -116,6 +121,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  subscription?: SubscriptionReader;
   worker?: WorkerAdapter;
   observationTimeoutMs?: number;
 }
@@ -148,6 +154,7 @@ export interface Delivery {
   createdAt: string;
   onboarding: OnboardingReport;
   qualification?: WorkerQualification;
+  usage?: UsageReport;
   authorityPolicySha256: string | null;
   blocker: {
     code: "DELIVERY_NOT_ENABLED" | "UNCERTAIN_SESSION";
@@ -377,8 +384,20 @@ export class DeliveryController {
       throw new DeliveryError(
         "Worker dispatch requires current onboarding, unchanged owner policy and trusted host qualification; release and resubmit changed authority.",
       );
+    const usage = (await this.checkUsage(id)).usage!;
+    if (
+      usage.decision === "exhausted" ||
+      (usage.decision === "approval-required" &&
+        (!usage.approval ||
+          usage.approval.operationId !== undefined ||
+          Date.now() - Date.parse(usage.approval.at) > 60000))
+    )
+      throw new DeliveryError(
+        "Subscription usage requires owner approval or an allowance reset before dispatch.",
+      );
     const planned = this.change(id, (delivery, db) => {
       if (
+        delivery.usage?.checkId !== usage.checkId ||
         delivery.phase !== snapshot.phase ||
         delivery.ownership.fence !== snapshot.ownership.fence ||
         !delivery.ownership.held
@@ -400,6 +419,8 @@ export class DeliveryController {
         fence,
         state: "proposed",
       };
+      if (delivery.usage?.approval)
+        delivery.usage.approval.operationId = delivery.execution.operationId;
       delivery.phase = "preparing";
     });
     const session = planned.execution!;
@@ -421,14 +442,121 @@ export class DeliveryController {
             current.phase === "implementing" &&
             current.ownership.held &&
             current.ownership.fence === session.fence &&
-            current.execution?.operationId === session.operationId
+            current.execution?.operationId === session.operationId &&
+            current.usage?.decision !== "exhausted" &&
+            (current.usage?.decision === "ready" ||
+              current.usage?.approval?.operationId === session.operationId)
           );
         }),
       );
-      return this.recordReceipt(id, session, response, false);
+      const result = this.recordReceipt(id, session, response, false);
+      if (
+        result.phase === "implementing" &&
+        result.execution?.state === "running"
+      )
+        this.monitorUsage(id, session.operationId);
+      return result;
     } catch {
       return this.recordReceipt(id, session, undefined, false);
     }
+  }
+
+  async checkUsage(id: string): Promise<Delivery> {
+    const snapshot = this.status(id);
+    let observation;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      observation = await Promise.race([
+        this.coordination.subscription?.() ?? Promise.resolve(undefined),
+        new Promise<undefined>((resolve) => {
+          timer = setTimeout(() => resolve(undefined), 5000);
+        }),
+      ]);
+    } catch {
+      /* A missing usage observation requires approval, never raw provider errors. */
+    } finally {
+      clearTimeout(timer);
+    }
+    const report = assessSubscription(observation);
+    return this.change(id, (delivery) => {
+      if (
+        delivery.ownership.fence !== snapshot.ownership.fence ||
+        delivery.phase !== snapshot.phase
+      )
+        throw new DeliveryError(
+          "Delivery authority changed during usage inspection.",
+        );
+      if (
+        delivery.usage?.approval?.scope === report.scope &&
+        report.decision !== "exhausted"
+      )
+        report.approval = delivery.usage.approval;
+      delivery.usage = report;
+    });
+  }
+
+  approveUsage(id: string, checkId: string): Delivery {
+    return this.change(id, (delivery) => {
+      const usage = delivery.usage;
+      if (
+        !usage ||
+        usage.checkId !== checkId ||
+        usage.decision !== "approval-required" ||
+        Date.now() - Date.parse(usage.checkedAt) > 60000 ||
+        (delivery.execution && delivery.execution.state !== "stopped") ||
+        !delivery.ownership.held ||
+        !["blocked", "preparing", "paused"].includes(delivery.phase)
+      )
+        throw new DeliveryError(
+          "Approve a fresh usage check for an owned stopped delivery; exhaustion cannot be overridden.",
+        );
+      usage.approval = { scope: usage.scope, at: new Date().toISOString() };
+    });
+  }
+
+  async pollUsage(id: string): Promise<Delivery> {
+    const observed = await this.checkUsage(id);
+    const usage = observed.usage!;
+    if (
+      observed.phase === "implementing" &&
+      (usage.decision === "exhausted" ||
+        (usage.decision === "approval-required" &&
+          usage.approval?.operationId !== observed.execution?.operationId))
+    )
+      return this.pause(id);
+    return observed;
+  }
+
+  private monitorUsage(id: string, operationId: string): void {
+    const timer = setInterval(() => {
+      void (async () => {
+        try {
+          const current = this.status(id);
+          if (
+            current.phase !== "implementing" ||
+            current.execution?.operationId !== operationId
+          ) {
+            clearInterval(timer);
+            return;
+          }
+          const observed = await this.pollUsage(id);
+          if (observed.phase !== "implementing") clearInterval(timer);
+        } catch {
+          clearInterval(timer);
+          try {
+            const current = this.status(id);
+            if (
+              current.phase === "implementing" &&
+              current.execution?.operationId === operationId
+            )
+              await this.pause(id);
+          } catch {
+            /* Shutdown uncertainty remains durable. */
+          }
+        }
+      })();
+    }, 30000);
+    timer.unref();
   }
 
   async qualify(id: string): Promise<Delivery> {

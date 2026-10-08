@@ -166,6 +166,10 @@ Both target host configurations must pass real isolation tests: host-file/state 
 
 Pilot acceptance is one owner-agreed small feature delivered end to end in the selected repository with observed evidence for every gate. Signing, credential use, App authorship and governance require live verification rather than mocks. A Windows result does not qualify macOS. Tests requiring inaccessible host/infrastructure report blocked/not-run, never passed. Failures of the selected sandbox candidate trigger a review of the accepted architecture rather than silent substitution.
 
+### Owner-approved subscription usage gate (7 October 2026)
+
+Use ChatGPT/Codex subscription usage for the selected worker and check before dispatch and periodically during a foreground run. At 20% or less remaining in any reported allowance, require explicit owner approval for that run. Unknown/unavailable usage also requires approval. Preserve work and stop at exhaustion; approval does not authorize API fallback, credit purchases, paid resets or automatic recharge. Scope grants to the delivery, account/windows and one run; restart/re-dispatch needs a fresh gate. The limit is an observation/approval boundary, not an exact billing guarantee, because account-wide activity and in-flight work can consume usage between checks. Credential isolation remains mandatory; do not copy owner authentication files into worker mounts.
+
 ## Out of Scope
 
 - Shared-team/multi-user operation, general desktop automation, additional agent workloads and distributed multi-agent infrastructure.

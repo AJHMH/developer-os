@@ -5,9 +5,10 @@ import { parseArgs } from "node:util";
 import { DeliveryController, DeliveryError } from "./controller.js";
 import { inspectLocalRepository } from "./onboarding.js";
 import { SbxHostAdapter } from "./sbx-host.js";
+import { codexSubscriptionReader } from "./codex-usage.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text> [--issue <reference>] [--owner-policy <external-file>], status [--id <delivery-id>], or qualify/pause/resume/cancel/recover/release --id <delivery-id>, with optional --state-dir <directory>.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks.";
 
 function argumentsForCommand() {
   try {
@@ -17,6 +18,8 @@ function argumentsForCommand() {
       options: {
         "state-dir": { type: "string" },
         "owner-policy": { type: "string" },
+        "codex-executable": { type: "string" },
+        "check-id": { type: "string" },
         repo: { type: "string" },
         request: { type: "string" },
         issue: { type: "string" },
@@ -47,9 +50,16 @@ try {
         ? {}
         : { policyPath: values["owner-policy"] }),
     },
-    { worker: new SbxHostAdapter() },
+    {
+      worker: new SbxHostAdapter(),
+      ...(values["codex-executable"]
+        ? { subscription: codexSubscriptionReader(values["codex-executable"]) }
+        : {}),
+    },
   );
   let result;
+  if (values["check-id"] !== undefined && positionals[0] !== "approve-usage")
+    throw new DeliveryError(usage);
   if (
     positionals[0] === "start" &&
     values.repo &&
@@ -73,14 +83,31 @@ try {
         ? controller.list()
         : controller.status(values.id);
   } else {
-    const command = positionals[0];
+    const command =
+      positionals[0] === "check-usage"
+        ? "checkUsage"
+        : positionals[0] === "poll-usage"
+          ? "pollUsage"
+          : positionals[0];
     if (
+      command === "approve-usage" &&
+      values.id &&
+      values["check-id"] &&
+      values.repo === undefined &&
+      values.request === undefined &&
+      values.issue === undefined &&
+      values["owner-policy"] === undefined
+    ) {
+      result = controller.approveUsage(values.id, values["check-id"]);
+    } else if (
       values.id &&
       values.repo === undefined &&
       values.request === undefined &&
       values.issue === undefined &&
       values["owner-policy"] === undefined &&
-      (command === "qualify" ||
+      (command === "checkUsage" ||
+        command === "pollUsage" ||
+        command === "qualify" ||
         command === "pause" ||
         command === "resume" ||
         command === "cancel" ||

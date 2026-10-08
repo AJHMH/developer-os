@@ -128,6 +128,19 @@ function fixture(t) {
   const adapter = new SandboxWorkerAdapter(policyPath, runtime);
   const controller = new DeliveryController(state, options, {
     worker: adapter,
+    subscription: async () => ({
+      observedAt: new Date().toISOString(),
+      accountId: "controlled-owner",
+      authMode: "chatgpt",
+      exhausted: false,
+      windows: [
+        {
+          id: "weekly",
+          usedPercent: 4,
+          resetsAt: Math.floor(Date.now() / 1000) + 86400,
+        },
+      ],
+    }),
   });
   const delivery = controller.start({
     repository,
