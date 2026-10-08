@@ -5,10 +5,11 @@ import { parseArgs } from "node:util";
 import { DeliveryController, DeliveryError } from "./controller.js";
 import { inspectLocalRepository } from "./onboarding.js";
 import { SbxHostAdapter } from "./sbx-host.js";
+import { PodmanHostAdapter } from "./podman-host.js";
 import { codexSubscriptionReader } from "./codex-usage.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks; qualify --podman-machine <aios-name> [--worker-policy <external-pin-file>] observes offline prerequisites only.";
 
 function argumentsForCommand() {
   try {
@@ -20,6 +21,8 @@ function argumentsForCommand() {
         "owner-policy": { type: "string" },
         "codex-executable": { type: "string" },
         "check-id": { type: "string" },
+        "podman-machine": { type: "string" },
+        "worker-policy": { type: "string" },
         repo: { type: "string" },
         request: { type: "string" },
         issue: { type: "string" },
@@ -33,6 +36,15 @@ function argumentsForCommand() {
 
 try {
   const { values, positionals, tokens } = argumentsForCommand();
+  if (
+    (values["podman-machine"] !== undefined ||
+      values["worker-policy"] !== undefined) &&
+    (positionals[0] !== "qualify" ||
+      !values["podman-machine"] ||
+      !/^aios-[a-z0-9-]+$/.test(values["podman-machine"]) ||
+      values["worker-policy"] === "")
+  )
+    throw new DeliveryError(usage);
   const names = tokens
     .filter((token) => token.kind === "option")
     .map((token) => token.name);
@@ -51,7 +63,14 @@ try {
         : { policyPath: values["owner-policy"] }),
     },
     {
-      worker: new SbxHostAdapter(),
+      worker: values["podman-machine"]
+        ? new PodmanHostAdapter({
+            machine: values["podman-machine"],
+            ...(values["worker-policy"]
+              ? { policyPath: values["worker-policy"] }
+              : {}),
+          })
+        : new SbxHostAdapter(),
       ...(values["codex-executable"]
         ? { subscription: codexSubscriptionReader(values["codex-executable"]) }
         : {}),

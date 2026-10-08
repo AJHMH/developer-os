@@ -5,7 +5,9 @@ Approved: 7 October 2026
 
 Canonical source: [Developer AIOS v1 specification](../aios-feature-delivery/spec.md). These are implementation slices; the resolved wayfinder issues remain unchanged.
 
-Work any ready ticket whose blockers are complete. Tickets **01–03** are completed; **Launch an isolated worker with a fail-closed qualification gate** is now the frontier. Windows/macOS qualification is independent; both gate the observed pilot. Ticket readiness describes implementable work, not verified host/repository readiness or authorization to bypass owner approval.
+Work any ready ticket whose blockers are complete. Tickets **01–03 and 18** are completed; **19: Run and safely collect an offline delivery canary** and **21: Qualify model-only subscription authentication mediation** are now the frontier. The owner approved slices 18–25 to support open parent ticket **04**. Demonstrated Windows offline feasibility does not close that parent; its completion requires positive applicable qualification from the new slices. Ticket 05 remains blocked by 04. Windows/macOS qualification is independent; both gate the observed pilot. Ticket readiness describes implementable work, not verified host/repository readiness or authorization to bypass owner approval.
+
+The revised canonical specification supersedes historical Docker-specific candidate and proxy/spending-cap wording in ticket 04. Preserve that parent and its evidence; no acceptance criterion is waived. A negative authentication investigation in 21 leaves 22 and production dispatch blocked. Tickets 24–25 qualify the worker boundary; existing 15–16 later qualify the complete delivery workflow. No new child depends on 04, avoiding a parent/child dependency cycle. See the [approved breakdown](podman-ticket-proposal.md).
 
 | Ticket | Blocked by | User stories |
 |---|---|---|
@@ -26,3 +28,11 @@ Work any ready ticket whose blockers are complete. Tickets **01–03** are compl
 | [15: Qualify the complete controller boundary on Windows](issues/15-windows-qualification.md) | 14 | 13 |
 | [16: Qualify the complete controller boundary on macOS](issues/16-macos-qualification.md) | 14 | 13 |
 | [17: Demonstrate an observed profile-page pilot delivery](issues/17-observed-profile-pilot.md) | 15, 16 | 1, 24, 27, 39, 49 |
+| [18: Admit a pinned dedicated Windows VM through the controller](issues/18-pinned-windows-vm.md) | 2, 3 (completed) | 12, 51, 52, 56 |
+| [19: Run and safely collect an offline delivery canary](issues/19-offline-workspace-roundtrip.md) | 18 | 12, 15, 50, 51, 52 |
+| [20: Prove forbidden access with positive controls](issues/20-positive-control-isolation.md) | 19 | 12, 50, 51, 53, 56 |
+| [21: Qualify model-only subscription authentication mediation](issues/21-subscription-auth-mediation.md) | 18 | 14, 50, 54, 55 |
+| [22: Dispatch online inference under independently enforced access policy](issues/22-online-access-usage-gate.md) | 20, 21 (positive qualification) | 14, 15, 31, 54, 55 |
+| [23: Fence and reconcile VM descendants across controller interruption](issues/23-vm-fencing-recovery.md) | 19 | 9, 34, 35, 36, 37, 51 |
+| [24: Qualify the Windows production worker path](issues/24-windows-worker-qualification.md) | 22, 23 | 12, 13, 14, 15, 52, 56 |
+| [25: Independently qualify the macOS worker path](issues/25-macos-worker-qualification.md) | 24 | 12, 13, 14, 15, 52, 56 |

@@ -18,6 +18,13 @@ export const isolationProbes = [
 ] as const;
 export type IsolationProbe = (typeof isolationProbes)[number];
 export interface WorkerQualification {
+  offlineAdmission?: {
+    allowed: boolean;
+    scope: "offline-probe-only";
+    binding?: Record<string, string>;
+    effective?: Record<string, string | boolean | string[]>;
+    configurationIntent?: { hostSharesConfigured: boolean; rootful: boolean };
+  };
   ready: boolean;
   liveReady: boolean;
   mode: "live" | "controlled" | "unavailable";

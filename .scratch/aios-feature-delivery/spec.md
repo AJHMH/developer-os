@@ -15,7 +15,7 @@ A local TypeScript foreground CLI accepts a personal repository and written feat
 
 After rechecking all gates, the controller merges only the validated and approved revision, verifies main, safely synchronizes local main and removes eligible merged branches. It reports completed delivery with evidence, or a delivery blocker with preserved progress and a precise next action. Restart, pause and cancellation retain authority boundaries and budget usage.
 
-V1 supports the controller on Windows 11 Intel/AMD x64 with Windows Hypervisor Platform and macOS 14+ Apple silicon. A pinned Docker Sandboxes microVM hosts a pinned Codex CLI and Linux-isolated web-app validation. Each host must pass qualification before worker execution is enabled. The initial pilot is `AJHMH/profile-page`; neither configuration inspection nor this specification establishes pilot readiness.
+V1 supports the controller on Windows 11 Intel/AMD x64 and macOS 14+ Apple silicon. Dedicated Podman-backed VMs are the approved candidate runtime, with Windows Hyper-V qualification first. A qualified VM hosts a pinned Codex CLI and Linux-isolated web-app validation. macOS remains in product scope but worker execution stays blocked until independently qualified. The initial pilot is `AJHMH/profile-page`; neither configuration inspection nor this specification establishes pilot readiness.
 
 ## User Stories
 
@@ -32,7 +32,7 @@ V1 supports the controller on Windows 11 Intel/AMD x64 with Windows Hypervisor P
 11. As a repository owner, I want code changes made on a feature branch, so that main is never the worker's editing target.
 12. As a repository owner, I want a coding worker with isolated files and capabilities, so that repository code cannot reach my credentials or other work.
 13. As a repository owner, I want worker isolation qualified on both supported hosts, so that a working Windows setup does not imply macOS readiness.
-14. As a repository owner, I want model-only authentication and spending limits, so that inference authority is separate from repository publication authority.
+14. As a repository owner, I want model-only subscription authentication and an allowance approval gate, so that inference authority is separate from repository publication authority and low or unknown usage requires my decision.
 15. As a repository owner, I want dependency scripts and validation to run inside isolation, so that checking the code does not expose the controller host.
 16. As a repository owner, I want synthetic disposable database-backed E2E resources, so that feature verification does not need production credentials.
 17. As a repository owner, I want unchanged-main baseline failures identified, so that unrelated repairs are not silently added to my feature.
@@ -69,6 +69,12 @@ V1 supports the controller on Windows 11 Intel/AMD x64 with Windows Hypervisor P
 48. As a repository owner, I want partial cleanup recorded and resumable, so that retrying cleanup does not repeat the feature merge.
 49. As a repository owner, I want a completion or blocker report with revisions and evidence, so that I can assess the delivered result and required next action.
 50. As a repository owner, I want logs and artifacts to exclude credentials, so that observability does not create another secret store.
+51. As a repository owner, I want a dedicated VM boundary for each delivery, so that another delivery cannot inherit its files, credentials or management authority.
+52. As a repository owner, I want demonstrated offline feasibility distinguished from production qualification, so that limited prototype success cannot enable an unsafe worker.
+53. As a repository owner, I want network denial tested against reachable synthetic services, so that unavailable endpoints cannot masquerade as enforcement.
+54. As a repository owner, I want online model and dependency access independently constrained, so that granting inference cannot grant arbitrary network access.
+55. As a repository owner, I want exhaustion to preserve and stop work without paid fallback, so that subscription delivery cannot silently incur additional charges.
+56. As a repository owner, I want runtime and policy changes to invalidate qualification, so that previously observed isolation is not assumed after configuration drift.
 
 ## Implementation Decisions
 
@@ -96,11 +102,18 @@ V1 supports the controller on Windows 11 Intel/AMD x64 with Windows Hypervisor P
 ### Worker and host boundary
 
 - Wrap a pinned, tested Codex CLI behind a replaceable coding adapter. Its contract covers start, structured events/results, explicit session resume, pause/stop and outcome reconciliation. Validate actual event/exit behavior and resumed isolation; installed CLI help is not qualification. Do not resume using global last-session selection.
-- Evaluate pinned Docker Sandboxes microVMs on Windows 11 Intel/AMD x64 with Windows Hypervisor Platform and macOS 14+ Apple silicon. Required qualification applies independently on each host. Unsupported, changed or unverifiable runtime/policy combinations refuse launch. No implicit host-worker or weaker-container fallback.
-- Materialize only admitted ordinary files from the selected revision into a fresh worker workspace. Keep trusted Git metadata, owner environment files, home/keystore, credential helpers, signing/SSH sockets, controller state and host Docker authority outside it. Reject linked/reparse/escaping inputs and unsafe outputs. Stop the worker before importing output to avoid concurrent-write races.
-- Disable host MCP, shared skills, SSH forwarding, repository host hooks and unreviewed credentials/network integrations. A dedicated model-only proxy identity has restricted provider endpoints and spend controls. Dependency access uses declared registries or prepared caches in a controlled phase. No GitHub binding or production credentials enter the worker.
+- Qualify pinned Podman-backed dedicated VMs, Windows Hyper-V first. Determine and qualify the macOS provider independently; Windows evidence does not select or qualify it. Bind qualification to host/provider, engine, VM image, worker/template versions and effective policy. Unsupported, changed or unverifiable combinations refuse launch. No implicit host-worker, shared-default-VM or weaker-container fallback.
+- Materialize only admitted ordinary files from the selected revision into a fresh worker workspace. Keep trusted Git metadata, owner environment files, home/keystore, credential helpers, signing/SSH sockets, controller state and host/guest engine authority outside it. Explicitly exclude default host shares and verify effective mounts. VM management credentials and interfaces belong to trusted management, never the worker. Reject linked/reparse/escaping inputs and unsafe outputs. Stop the worker before importing output to avoid concurrent-write races.
+- Exclude host MCP servers, discovery tools, shared skills, SSH forwarding, repository host hooks and unreviewed credentials/network integrations. Online inference requires verified model-only subscription authentication mediation without copying owner authentication files or exposing reusable owner credentials to the worker. Independently enforce permitted model endpoints outside worker authority. Dependency access uses declared registries or prepared caches in a separate controlled phase. No GitHub binding or production credentials enter the worker. If supported mediation cannot satisfy isolation, return the tradeoff to the owner before inference.
+- Use the owner-approved subscription usage gate described below; it is an observation and approval boundary, not an independently enforced financial cap. Do not purchase credits, enable paid API fallback, paid resets or automatic recharge. Offline qualification grants no online authority.
 - Execute all repository-controlled dependency scripts and validation inside isolation, including controller-requested revalidation. Never run worker-modified scripts on the credential-bearing controller host. Import changes through safe file operations into trusted Git context; sanitized trusted Git configuration prevents candidate hooks/configuration from executing during signing/publication.
 - Linux-isolated validation is the web-app baseline on both hosts. Disposable synthetic database/browser resources support E2E within isolation. Native application compatibility is not inferred from the controller host. Effective networking, mounts, model auth, descendant termination and orphan/resume behavior must pass adversarial tests.
+
+### Qualification scope and implementation handoff
+
+- Keep original implementation ticket #4 open as the parent production qualification gate. Record demonstrated Windows offline feasibility as a completed sub-scope, without declaring its original acceptance criteria complete or waiving failures.
+- Split remaining blocking work into implementation tickets: pinned VM/image/template bindings and admitted file transfer; production controller/CLI integration; externally enforced online model/dependency access; model-only subscription authentication; synthetic Windows-host and MCP access probes; stronger cross-delivery and escape probes; concurrent fencing, orphan and recovery semantics; and independent macOS qualification.
+- Preserve reproducible evidence with scope, positive controls, exact observed configuration and failed or invalid attempts. Qualification must distinguish passed, failed, unknown and not-run. Production dispatch remains disabled until all applicable gates pass through the existing public controller boundary.
 
 ### Validation and review
 
@@ -139,7 +152,7 @@ The proposed primary seam is the public delivery-controller command and observat
 
 Use deterministic adapters for most lifecycle tests and real temporary Git repositories when branch/history behavior matters. Reopen the real ledger for restart tests. Host qualification and the observed pilot drive the same controller through real adapters. Separate adversarial host probes are necessary evidence for isolation; mocked controller behavior cannot prove it.
 
-There is no runtime or analogous test suite in this repository. Existing Factory behavior provides review/protection and constrained-effect prior art; pilot test suites supply application validation evidence, not proof of controller correctness. Good tests assert external results and forbidden-effect absence, not private methods, table layouts or incidental event order.
+Existing controller, durable-ledger, onboarding, ownership/recovery, controlled-isolation and subscription-gate tests provide prior art at this seam. The current native Docker diagnostic adapter deliberately refuses worker launch; a production Podman adapter remains to be implemented and qualified. Existing Factory behavior provides review/protection and constrained-effect prior art; pilot test suites supply application validation evidence, not proof of controller correctness. Good tests assert external results and forbidden-effect absence, not private methods, table layouts or incidental event order.
 
 ### Required behavioral scenarios
 
@@ -162,7 +175,11 @@ There is no runtime or analogous test suite in this repository. Existing Factory
 
 ### Host qualification and pilot acceptance
 
-Both target host configurations must pass real isolation tests: host-file/state exclusion; credential/helper/signing-socket denial; restricted network and model-only auth; malicious dependency/configuration containment; safe input/output paths; cross-delivery isolation; complete validation inside isolation; explicit resume; and verified descendant/orphan stopping. Pin effective configuration and runtime/worker versions with the evidence. All such tests are currently unperformed.
+Both target host configurations must pass real isolation tests: host-file/state exclusion; credential/helper/signing-socket denial; restricted network and model-only auth; malicious dependency/configuration containment; safe input/output paths; cross-delivery isolation; complete validation inside isolation; explicit resume; and verified descendant/orphan stopping. Pin effective configuration and runtime/worker versions with the evidence.
+
+Windows prototype evidence demonstrates a host-share-free Hyper-V VM, a non-root restricted offline container, absent worker engine sockets and host paths, denied synthetic guest-authority/peer-file reads, denied root-filesystem writes, and loopback-only networking. A reachable synthetic guest HTTP service succeeded from a control container before and after the offline worker's denied attempt. Two independently observed descendant processes disappeared after forced termination. Basic offline observations survived VM restart. These scoped results do not prove denial of every protocol or endpoint, Windows-host file or MCP-service access, escaped descendants, concurrent fencing, credential mediation, production integration or macOS isolation. Earlier malformed quoting probes are invalid evidence.
+
+Require positive controls for service/file canaries, including Windows-host and MCP services, and independent management observations for descendant termination and orphan recovery. Test stale controllers, concurrent ownership, restart/re-dispatch, changed bindings, safe file import/export and forbidden-effect absence through the controller. Unknown outcomes remain blockers. The prototype's cached Alpine digest and observed VM configuration do not establish complete production image/template/worker pins.
 
 Pilot acceptance is one owner-agreed small feature delivered end to end in the selected repository with observed evidence for every gate. Signing, credential use, App authorship and governance require live verification rather than mocks. A Windows result does not qualify macOS. Tests requiring inaccessible host/infrastructure report blocked/not-run, never passed. Failures of the selected sandbox candidate trigger a review of the accepted architecture rather than silent substitution.
 
@@ -182,10 +199,10 @@ Use ChatGPT/Codex subscription usage for the selected worker and check before di
 
 ## Further Notes
 
-This specification synthesizes the owner-confirmed [decision map](map.md) and its resolved decisions: [Factory onboarding](issues/01-factory-onboarding.md), [validation/review](issues/02-validation-review-contract.md), [lifecycle/recovery](issues/03-delivery-lifecycle.md), [synchronization/cleanup](issues/04-main-sync-cleanup.md), [runtime foundation](issues/05-runtime-foundation.md), and [isolation investigation](issues/06-worker-isolation.md). Supporting evidence is in [Factory integration](factory-evidence.md), [pilot readiness](pilot-readiness.md), [worker isolation research](worker-isolation-research.md), and the [AIOS research synthesis](../../AIOS-RESEARCH.md).
+This specification synthesizes the owner-confirmed [decision map](map.md) and its resolved decisions: [Factory onboarding](issues/01-factory-onboarding.md), [validation/review](issues/02-validation-review-contract.md), [lifecycle/recovery](issues/03-delivery-lifecycle.md), [synchronization/cleanup](issues/04-main-sync-cleanup.md), [runtime foundation](issues/05-runtime-foundation.md), [isolation investigation](issues/06-worker-isolation.md), and the approved [runtime/scope revision](issues/07-runtime-scope-revision.md). The revision supersedes the Docker-specific candidate choice. Supporting evidence is in [Windows Podman prototype observations](../aios-v1-implementation/podman-prototype-progress.md), [Factory integration](factory-evidence.md), [pilot readiness](pilot-readiness.md), [worker isolation research](worker-isolation-research.md), and the [AIOS research synthesis](../../AIOS-RESEARCH.md). Docker human support case 00239659 remains pending; its automated assistant response is not a human determination or a Podman qualification result.
 
 Exact qualified runtime/worker/Factory pins, effective hosted check names and current App/ruleset/signing state are qualification deliverables. No host or pilot is enabled by approval of this specification. The selected pilot feature is agreed at execution intake using the acceptance-criteria contract. Repository setup, qualification and implementation are subsequent work; this document performs no installation, credential change, PR creation, merge or branch deletion.
 
-The repository has no initial Git commit and its existing files are uncommitted. Preserve user material when implementation begins; do not assume a usable base branch or research snapshot already exists. Implementation ticket generation must keep these resolved planning tickets separate from new delivery slices.
+The repository now contains signed implementation and prototype history. Preserve existing work and evidence when generating revised implementation tickets. Keep resolved planning decisions separate from delivery slices, retain ticket #4 as the open parent gate, and represent remaining qualification work with explicit blocking edges. Specification readiness authorizes implementation planning; it does not authorize live inference or production worker execution.
 
 The owner confirmed the proposed testing seam on 7 October 2026. This canonical specification is published with local `ready-for-agent` status. Continue with `/to-tickets`; do not triage already agent-ready work or start implementation as part of specification synthesis.

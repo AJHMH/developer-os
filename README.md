@@ -101,6 +101,8 @@ On 7 October 2026, pinned official Codex CLI 0.161.0 successfully returned live 
 
 ## Worker qualification gate (ticket 4 in progress)
 
+The Docker diagnostic path below is retained for historical investigation. The revised candidate is a dedicated Podman-backed VM; ticket 18 adds read-only prerequisite admission, while ticket 4 remains the open production qualification gate.
+
 `node dist/cli.js qualify --id "<delivery-id>" --state-dir "/absolute/path/to/controller-state"` persists a qualification report. It runs bounded native `sbx diagnose --json` from a standard installation location and reports CLI version, virtualization, daemon and authentication prerequisites. It discards raw diagnostic messages, paths and details. Unknown, conflicting, duplicate or unsupported diagnostic fields cannot establish verification. These host facts do not qualify isolation: every isolation probe remains `not-run` until a native enforcement driver is implemented and qualified.
 
 Trusted integrations can provide `SandboxWorkerAdapter` with an external ordinary JSON policy and a host-owned `SandboxRuntime`. The policy pins the host platform, architecture, OS version, hypervisor, sbx and Codex versions, template digest and host identity digest; it declares the single authority directory, a separate workspace directory, revision, ordinary-file SHA-256 manifest, proxy binding, spending limit and permitted HTTPS endpoints. It accepts binding identifiers rather than raw proxy credentials. Candidate files cannot select the provider or change these pins.
@@ -108,3 +110,17 @@ Trusted integrations can provide `SandboxWorkerAdapter` with an external ordinar
 The adapter copies admitted bytes into a fresh workspace and rejects Git metadata, credential configuration, hard links, directory links, unsafe paths and recognizable secrets. Fresh challenge-bound evidence is required for every isolation probe. Controlled evidence can exercise the gate but never sets `liveReady`. Effective sandbox configuration is checked again before launch; shutdown requires matching session identity, revoked authority and confirmed stopped descendants. Unknown responses retain ownership for recovery. Retained workspace files are preserved for inspection.
 
 This slice provides the admission and lifecycle protocol plus native host diagnostics, not a native sbx worker driver. Actual effective mounts, proxy enforcement, Windows reparse handling and host-wide atomic fencing still require a trusted runtime implementation and independent Windows/macOS qualification. No real host is qualified and no live worker command is enabled. Docker Sandboxes 0.47.0 is now installed on the Windows implementation host and virtualization passes its diagnostic; daemon startup and Docker authentication remain unresolved. A dedicated model-only proxy with a proven spending cap also needs configuration. The synthetic test version pins are illustrative, not approved runtime versions.
+
+## Podman offline prerequisite admission (ticket 18)
+
+```sh
+node dist/cli.js qualify --id "<delivery-id>" --state-dir "/absolute/state" --podman-machine aios-podman-noshare
+```
+
+This selects a read-only Windows x64 Hyper-V observation adapter alongside the existing diagnostic adapter. It neither creates nor starts a VM, runs repository code, copies credentials nor sends inference. `status` retains the projected report. Command errors and raw configuration/diagnostic details are discarded. Select only an owner-controlled machine; names must use the `aios-` prefix.
+
+An optional `--worker-policy` selects an external ordinary JSON pin file, outside both the repository and controller state. Its schema is `1`; its `binding` declares platform, architecture, OS version, provider, machine name, host identity SHA-256, engine version, VM-image SHA-256, template OCI digest, worker version and policy version using the keys `platform`, `arch`, `osVersion`, `provider`, `machine`, `hostId`, `engineVersion`, `vmImageSha256`, `template`, `workerVersion` and `policyVersion`. A declaration alone cannot establish an observed pin or enforcement.
+
+Trusted controlled runtime observations exercise the existing controller seam. Matching pins plus observed dedicated VM, hypervisor, empty mounts/capabilities, excluded management authority, rootless mode, offline networking, read-only filesystem, uid/gid 65534 and no-new-privileges can set `offlineAdmission.allowed`. This is only permission for an offline probe; `ready` and `liveReady` remain false and production dispatch always refuses. Missing or changed evidence revokes admission on requalification.
+
+The native collector currently verifies host/platform/provider and the responding engine version. Stored share/rootful settings appear separately as `configurationIntent`; they do not establish effective worker controls, image provenance or VM dedication. Therefore this collector cannot positively admit the current live candidate yet. Tickets 19–25 supply and qualify the remaining transfer, enforcement, authentication and recovery capabilities. Subscription usage approval is still an observation boundary, with no paid API fallback authorized.
