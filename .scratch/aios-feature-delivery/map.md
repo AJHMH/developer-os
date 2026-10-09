@@ -21,6 +21,8 @@ A buildable v1 specification for a local developer AIOS that carries a feature r
 
 ## Decisions so far
 
+- [Reconsider the isolated worker runtime and qualification scope](issues/07-runtime-scope-revision.md): owner approved Podman-backed dedicated VMs as the candidate, Windows-first qualification, and separation of demonstrated offline feasibility from remaining production blockers; this supersedes the earlier Docker-specific candidate selection.
+
 - [Choose the v1 execution foundation and specification boundary](issues/05-runtime-foundation.md): TypeScript CLI/SQLite controller, isolated Codex microVM worker, Windows/macOS host scope and mandatory qualification before pilot execution.
 
 - [Investigate worker isolation on Windows and macOS](issues/06-worker-isolation.md): cited microVM candidate and fail-closed host acceptance matrix; owner selection and empirical readiness remain open.
