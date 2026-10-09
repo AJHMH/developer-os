@@ -8,3 +8,4 @@
 *.tsbuildinfo
 .scratch/codex-runtime/
 .scratch/ticket18-live-check/
+.scratch/ticket19-live-check/

@@ -9,7 +9,7 @@ import { PodmanHostAdapter } from "./podman-host.js";
 import { codexSubscriptionReader } from "./codex-usage.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks; qualify --podman-machine <aios-name> [--worker-policy <external-pin-file>] observes offline prerequisites only.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks; qualify/offline-canary --podman-machine <aios-name> [--worker-policy <external-pin-file>] requires offline prerequisites; native canary dispatch remains disabled until a trusted VM management driver is available.";
 
 function argumentsForCommand() {
   try {
@@ -39,7 +39,7 @@ try {
   if (
     (values["podman-machine"] !== undefined ||
       values["worker-policy"] !== undefined) &&
-    (positionals[0] !== "qualify" ||
+    (!["qualify", "offline-canary"].includes(positionals[0] ?? "") ||
       !values["podman-machine"] ||
       !/^aios-[a-z0-9-]+$/.test(values["podman-machine"]) ||
       values["worker-policy"] === "")
@@ -107,7 +107,9 @@ try {
         ? "checkUsage"
         : positionals[0] === "poll-usage"
           ? "pollUsage"
-          : positionals[0];
+          : positionals[0] === "offline-canary"
+            ? "offlineCanary"
+            : positionals[0];
     if (
       command === "approve-usage" &&
       values.id &&
@@ -127,6 +129,7 @@ try {
       (command === "checkUsage" ||
         command === "pollUsage" ||
         command === "qualify" ||
+        command === "offlineCanary" ||
         command === "pause" ||
         command === "resume" ||
         command === "cancel" ||

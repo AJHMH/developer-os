@@ -124,3 +124,15 @@ An optional `--worker-policy` selects an external ordinary JSON pin file, outsid
 Trusted controlled runtime observations exercise the existing controller seam. Matching pins plus observed dedicated VM, hypervisor, empty mounts/capabilities, excluded management authority, rootless mode, offline networking, read-only filesystem, uid/gid 65534 and no-new-privileges can set `offlineAdmission.allowed`. This is only permission for an offline probe; `ready` and `liveReady` remain false and production dispatch always refuses. Missing or changed evidence revokes admission on requalification.
 
 The native collector currently verifies host/platform/provider and the responding engine version. Stored share/rootful settings appear separately as `configurationIntent`; they do not establish effective worker controls, image provenance or VM dedication. Therefore this collector cannot positively admit the current live candidate yet. Tickets 19–25 supply and qualify the remaining transfer, enforcement, authentication and recovery capabilities. Subscription usage approval is still an observation boundary, with no paid API fallback authorized.
+
+## Synthetic offline round trip (ticket 19 in progress)
+
+```sh
+node dist/cli.js offline-canary --id "<delivery-id>" --state-dir "/absolute/state" --podman-machine aios-podman-noshare --worker-policy "/absolute/external/pins.json"
+```
+
+The fixed input is an ordinary `canary.txt` containing exactly `AIOS offline canary input` followed by a newline. The controller admits bytes without executing input, records fresh session identities and pins before dispatch, and accepts only `result.txt` containing `AIOS offline canary complete` followed by a newline. Verified revocation and independent descendant shutdown precede collection through the stopped VM's management plane. Output must be ordinary, single-linked and match both snapshot digests. Accepted content is retained in a controller evidence file, never executed or imported into the repository.
+
+Trusted integrations supply an `OfflineCanaryRuntime` through the existing controller boundary. Its driver must create a fresh dedicated restricted VM worker, enforce the observed admission configuration, honor fencing even for delayed starts, copy bytes without host mounts or credentials, and export without restarting the worker. Controlled observations test the coordinator contract and never prove native isolation. Unknown shutdown retains ownership; `recover` requires the same driver mode and matching pins. Recovery stops work without automatically collecting or dispatching another canary.
+
+The native CLI currently has no trusted offline management driver, and the native collector still refuses admission because provenance, VM dedication and effective controls are unknown. It records `offlineCanary.outcome: refused` without dispatch. The [native observation](.scratch/aios-v1-implementation/ticket19-live-observation.json) confirms this on 9 October 2026. Ticket 19 remains open until an admitted native round trip is demonstrated; production delivery and inference remain disabled.

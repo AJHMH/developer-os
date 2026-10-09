@@ -19,6 +19,15 @@ import {
 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { redact } from "./redaction.js";
+import { admitFiles } from "./workspace.js";
+import {
+  canaryInput,
+  collectCanary,
+  matchesCanary,
+  sha256,
+  type OfflineCanaryRuntime,
+  type OfflineCanaryEvidence,
+} from "./offline-canary.js";
 import {
   assessSubscription,
   type SubscriptionReader,
@@ -121,6 +130,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  offline?: OfflineCanaryRuntime;
   subscription?: SubscriptionReader;
   worker?: WorkerAdapter;
   observationTimeoutMs?: number;
@@ -154,6 +164,7 @@ export interface Delivery {
   createdAt: string;
   onboarding: OnboardingReport;
   qualification?: WorkerQualification;
+  offlineCanary?: OfflineCanaryEvidence;
   usage?: UsageReport;
   authorityPolicySha256: string | null;
   blocker: {
@@ -161,7 +172,7 @@ export interface Delivery {
     message: string;
     nextAction: string;
   };
-  evidence: { kind: "request"; path: string }[];
+  evidence: { kind: "request" | "offline-canary"; path: string }[];
 }
 
 /** Public durable delivery controls. The CLI supplies no live worker adapter. */
@@ -587,9 +598,257 @@ export class DeliveryController {
     });
   }
 
-  private async observe(
-    pending: Promise<WorkerReceipt>,
-  ): Promise<WorkerReceipt | undefined> {
+  /** Fixed synthetic workload only. Admission never enables feature delivery. */
+  async offlineCanary(
+    id: string,
+    files = [{ path: "canary.txt", sha256: sha256(canaryInput) }],
+  ): Promise<Delivery> {
+    const qualified = await this.qualify(id);
+    const admission = qualified.qualification?.offlineAdmission;
+    const runtime = this.coordination.offline;
+    const pins = {
+      bindingSha256: qualified.qualification?.bindingSha256 ?? "",
+      policySha256: qualified.qualification?.policySha256 ?? "",
+    };
+    const refuse = (message: string) =>
+      this.change(id, (delivery) => {
+        if (delivery.execution && delivery.execution.state !== "stopped")
+          throw new DeliveryError(
+            "Reconcile the existing worker before an offline canary.",
+          );
+        delivery.offlineCanary = {
+          ...pins,
+          mode: runtime?.mode ?? "live",
+          outcome: "refused",
+          message,
+        };
+      });
+    if (
+      !admission?.allowed ||
+      !admission.binding ||
+      !admission.effective ||
+      !/^[a-f0-9]{64}$/.test(pins.bindingSha256) ||
+      !/^[a-f0-9]{64}$/.test(pins.policySha256) ||
+      !runtime ||
+      runtime.mode !== qualified.qualification?.mode
+    )
+      return refuse(
+        "Offline canary refused: matching admitted VM bindings and a trusted offline management driver are required.",
+      );
+    let input: ReturnType<typeof admitFiles>;
+    try {
+      if (!Array.isArray(files) || files.length !== 1)
+        throw Error("Invalid manifest");
+      input = admitFiles({ files }, qualified.repository);
+      if (
+        input[0]?.path !== "canary.txt" ||
+        !input[0].bytes.equals(Buffer.from(canaryInput))
+      )
+        throw Error("Only synthetic input is admitted");
+    } catch {
+      return refuse(
+        "Offline canary refused: provide the fixed synthetic ordinary input without unsafe paths, links, metadata or credentials.",
+      );
+    }
+    const started = this.change(id, (delivery, db) => {
+      if (
+        !delivery.ownership.held ||
+        delivery.phase !== "blocked" ||
+        delivery.ownership.fence !== qualified.ownership.fence ||
+        delivery.qualification?.bindingSha256 !== pins.bindingSha256 ||
+        delivery.qualification?.policySha256 !== pins.policySha256 ||
+        (delivery.execution && delivery.execution.state !== "stopped")
+      )
+        throw new DeliveryError(
+          "Offline canary requires unchanged exclusive repository ownership and stopped workers.",
+        );
+      const fence = this.advanceFence(delivery, db);
+      const session: WorkerSession = {
+        deliveryId: id,
+        intent: "start",
+        repositoryKey: delivery.ownership.key,
+        operationId: randomUUID(),
+        sandboxId: randomUUID(),
+        workerSessionId: randomUUID(),
+        runnerId: this.runnerId,
+        fence,
+        state: "dispatched",
+      };
+      if (delivery.execution)
+        (delivery.sessions ??= []).push(structuredClone(delivery.execution));
+      delivery.execution = session;
+      delivery.offlineCanary = {
+        ...pins,
+        mode: runtime.mode,
+        outcome: "running",
+        session: structuredClone(session),
+        inputSha256: sha256(canaryInput),
+        message:
+          "Synthetic offline canary dispatched; collection requires verified stop.",
+      };
+    });
+    const session = started.execution!;
+    let executed = false;
+    try {
+      const response = await this.observe(
+        runtime.execute({
+          ...pins,
+          session: structuredClone(session),
+          files: input.map((file) => ({
+            path: file.path,
+            bytes: Buffer.from(file.bytes),
+            executable: false,
+          })),
+          binding: structuredClone(admission.binding),
+          effective: structuredClone(admission.effective),
+          mayDispatch: () => {
+            const current = this.status(id);
+            return (
+              current.ownership.held &&
+              current.ownership.fence === session.fence &&
+              current.phase === "blocked" &&
+              current.execution?.operationId === session.operationId &&
+              current.execution.state === "dispatched"
+            );
+          },
+        }),
+      );
+      const same = (
+        expected: Record<string, unknown>,
+        actual: Record<string, unknown> | undefined,
+      ) =>
+        Boolean(
+          actual &&
+            Object.keys(expected).length === Object.keys(actual).length &&
+            Object.entries(expected).every(
+              ([key, value]) =>
+                JSON.stringify(actual[key]) === JSON.stringify(value),
+            ),
+        );
+      executed = Boolean(
+        matchesCanary(response, session, pins) &&
+          response?.status === "running" &&
+          response.fresh === true &&
+          same(admission.binding, response.binding) &&
+          same(admission.effective, response.effective),
+      );
+    } catch {
+      /* Provider text and uncertain execution never enter durable evidence. */
+    }
+    // Even failed/timed-out dispatches require revocation and independently verified shutdown.
+    let stopped: Delivery;
+    try {
+      stopped = await this.stopSession(id);
+    } catch {
+      try {
+        return this.change(id, (delivery) => {
+          if (
+            delivery.execution?.operationId !== session.operationId ||
+            delivery.execution.state === "stopped"
+          )
+            return;
+          delivery.execution.state = "uncertain";
+          delivery.offlineCanary = {
+            ...started.offlineCanary!,
+            outcome: "uncertain",
+            session: structuredClone(delivery.execution),
+            message:
+              "Worker stop could not be recorded; collection is forbidden until recovery verifies shutdown.",
+          };
+          delivery.blocker = {
+            code: "UNCERTAIN_SESSION",
+            message: "Worker shutdown could not be verified.",
+            nextAction:
+              "Recover the retained session before dispatch, collection or ownership release.",
+          };
+        });
+      } catch {
+        // An unavailable ledger cannot record uncertainty. Its dispatched session
+        // already prevents another launch/release and remains recoverable.
+        throw new DeliveryError(
+          "Offline worker stop could not be recorded; reconcile the durable session before continuing.",
+        );
+      }
+    }
+    const stoppedSession = stopped.execution!;
+    if (
+      stoppedSession.operationId !== session.operationId ||
+      stoppedSession.state !== "stopped" ||
+      stopped.phase !== "blocked" ||
+      !stopped.ownership.held
+    )
+      return this.status(id);
+    let output: ReturnType<typeof collectCanary> | undefined;
+    if (executed && stopped.phase === "blocked") {
+      try {
+        const response = await this.observe(
+          runtime.collect(structuredClone(stoppedSession), { ...pins }),
+        );
+        if (
+          matchesCanary(response, stoppedSession, pins) &&
+          response?.status === "stopped"
+        )
+          output = collectCanary(response);
+      } catch {
+        /* Unsafe, changing or unavailable output is rejected without retaining it. */
+      }
+    }
+    let createdArtifact: string | undefined;
+    try {
+      return this.change(id, (delivery) => {
+        if (
+          delivery.execution?.operationId !== session.operationId ||
+          delivery.execution.state !== "stopped" ||
+          delivery.ownership.fence !== stoppedSession.fence ||
+          !delivery.ownership.held ||
+          delivery.phase !== "blocked"
+        )
+          throw new DeliveryError(
+            "Offline canary authority changed; output was not imported.",
+          );
+        delivery.offlineCanary = {
+          ...started.offlineCanary!,
+          session: structuredClone(delivery.execution),
+          outcome: output ? "completed" : "rejected",
+          ...(output ? { outputSha256: output.sha256 } : {}),
+          message: output
+            ? "Synthetic offline round trip completed; production delivery remains disabled."
+            : "Offline canary execution or output could not be verified; no output imported.",
+        };
+        delivery.blocker = this.disabledBlocker();
+        if (output) {
+          const path = join(
+            this.stateDirectory,
+            "artifacts",
+            `${id}-${session.operationId}-offline.json`,
+          );
+          assertStorageEntry(join(this.stateDirectory, "artifacts"), true);
+          writeFileSync(
+            path,
+            JSON.stringify({ ...delivery.offlineCanary, output }),
+            {
+              flag: "wx",
+              mode: 0o600,
+              flush: true,
+            },
+          );
+          createdArtifact = path;
+          delivery.evidence.push({ kind: "offline-canary", path });
+        }
+      });
+    } catch (error) {
+      if (createdArtifact) {
+        try {
+          unlinkSync(createdArtifact);
+        } catch {
+          /* Preserve the original transaction error. */
+        }
+      }
+      throw error;
+    }
+  }
+
+  private async observe<T>(pending: Promise<T>): Promise<T | undefined> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
@@ -684,6 +943,17 @@ export class DeliveryController {
           outcome: "uncertain",
           fence: session.fence,
         });
+      }
+      if (
+        delivery.offlineCanary?.session?.operationId === session.operationId
+      ) {
+        delivery.offlineCanary.session = structuredClone(delivery.execution);
+        delivery.offlineCanary.outcome =
+          state === "stopped" ? "rejected" : "uncertain";
+        delivery.offlineCanary.message =
+          state === "stopped"
+            ? "Worker stopped; output collection has not been verified."
+            : "Worker shutdown is uncertain; output collection is forbidden.";
       }
     });
   }
@@ -793,6 +1063,29 @@ export class DeliveryController {
     const session = stopped.execution;
     if (!session || session.state === "stopped") return stopped;
     try {
+      if (stopped.offlineCanary?.session?.operationId === session.operationId) {
+        const pins = stopped.offlineCanary;
+        const response =
+          this.coordination.offline?.mode === pins.mode
+            ? await this.observe(
+                this.coordination.offline.stop(structuredClone(session), {
+                  bindingSha256: pins.bindingSha256,
+                  policySha256: pins.policySha256,
+                }),
+              )
+            : undefined;
+        return this.recordReceipt(
+          id,
+          session,
+          matchesCanary(response, session, pins) &&
+            response?.revoked === true &&
+            response.descendantsStopped === true &&
+            response.status === "stopped"
+            ? response
+            : undefined,
+          true,
+        );
+      }
       const pending = this.coordination.worker?.fenceAndStop(
         structuredClone(session),
       );

@@ -1,0 +1,107 @@
+{
+  "observedAt": "2026-10-09T22:24:27.478Z",
+  "machine": "aios-podman-noshare",
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-09T22:24:27.117Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "not-run"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "not-run"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "not-run"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "not-run"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "not-run"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "not-run"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification.",
+      "Offline admission refused: provide an external ordinary pin policy and fresh matching Windows Hyper-V bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify."
+    ],
+    "offlineAdmission": {
+      "allowed": false,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "engineVersion": "6.0.2"
+      },
+      "configurationIntent": {
+        "hostSharesConfigured": false,
+        "rootful": false
+      },
+      "effective": {}
+    }
+  },
+  "canary": {
+    "bindingSha256": "",
+    "policySha256": "",
+    "mode": "live",
+    "outcome": "refused",
+    "message": "Offline canary refused: matching admitted VM bindings and a trusted offline management driver are required."
+  },
+  "dispatched": false,
+  "collected": false,
+  "scope": "Read-only native prerequisite observation; no VM start, worker workload, inference or credential import."
+}

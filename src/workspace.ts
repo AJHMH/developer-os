@@ -51,7 +51,7 @@ function ordinary(path: string, directory: boolean): void {
     throw Error("Only admitted ordinary entries are allowed");
 }
 export function admitFiles(
-  policy: WorkerPolicy,
+  policy: Pick<WorkerPolicy, "files">,
   repository: string,
 ): { path: string; bytes: Buffer; executable: boolean }[] {
   const names = new Set<string>();

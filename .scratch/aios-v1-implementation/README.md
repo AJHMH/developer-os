@@ -9,6 +9,8 @@ Work any ready ticket whose blockers are complete. Tickets **01–03 and 18** ar
 
 The revised canonical specification supersedes historical Docker-specific candidate and proxy/spending-cap wording in ticket 04. Preserve that parent and its evidence; no acceptance criterion is waived. A negative authentication investigation in 21 leaves 22 and production dispatch blocked. Tickets 24–25 qualify the worker boundary; existing 15–16 later qualify the complete delivery workflow. No new child depends on 04, avoiding a parent/child dependency cycle. See the [approved breakdown](podman-ticket-proposal.md).
 
+9 October ticket 19 progress: the synthetic controller protocol and controlled round trip are implemented and reviewed, but the native management driver, full pin/enforcement observations and admitted native run remain outstanding. [Native evidence](ticket19-live-observation.json) records refused admission without dispatch. Ticket 19 stays open and dependent tickets 20/23 remain blocked. See its implementation progress for the exact remaining work.
+
 | Ticket | Blocked by | User stories |
 |---|---|---|
 | [01: Submit a feature request and inspect durable delivery status](issues/01-durable-request-status.md) | None | 1, 2, 33, 49, 50 |
