@@ -1,0 +1,2 @@
+# Keep Prettier's LF format consistent across Windows and Linux checkouts.
+* text=auto eol=lf
