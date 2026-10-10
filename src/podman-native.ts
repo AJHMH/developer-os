@@ -11,6 +11,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { WorkerSession } from "./controller.js";
 import type { PodmanObservation } from "./podman-host.js";
+import { hostCanaryVersion, withHostCanary } from "./host-canary.js";
 import {
   canaryInput,
   canaryOutput,
@@ -30,8 +31,12 @@ test "$(sha256sum /canary.txt | cut -d ' ' -f 1)" = ${sha256(canaryInput)}
 printf 'AIOS offline canary complete\\n' > /tmp/result.txt
 test ! -L /tmp/result.txt
 test "$(stat -c %h /tmp/result.txt)" = 1
-cat /tmp/result.txt
 sleep 600 &
+/bin/sh -c 'sleep 600 & wait' &
+setsid /bin/sh -c 'sleep 600 & wait' &
+setsid /bin/sh -c 'sleep 600 &'
+sleep 0.1
+cat /tmp/result.txt
 wait
 `;
 export const offlineTemplate =
@@ -100,7 +105,7 @@ def effective(name):
  if c.get('Mounts') or config.get('Binds') or config.get('VolumesFrom') or config.get('Privileged'): fail()
  if config.get('PidMode')!='private' or config.get('NetworkMode')!='none' or config.get('PortBindings'): fail()
  if dict(x.split('=',1) for x in env)!={'PATH':'/usr/bin:/bin','HOME':'/','HOSTNAME':'aios-offline'} or c['Config']['User']!='65534:65534': fail()
- if values.get('NoNewPrivs')!='1' or int(values.get('CapEff','f'),16)!=0: fail()
+ if values.get('NoNewPrivs')!='1' or values.get('Seccomp')!='2' or int(values.get('CapEff','f'),16)!=0: fail()
  if not config.get('ReadonlyRootfs') or 'no-new-privileges' not in config.get('SecurityOpt',[]): fail()
  mounted=[line.split() for line in mounts.splitlines()]
  if not any(x[4]=='/' and 'ro' in x[5].split(',') for x in mounted): fail()
@@ -111,7 +116,14 @@ def effective(name):
   if subprocess.run(['podman','exec',name,'test','-e',p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
  return dict(hypervisor=True,dedicated=True,mounts=[],managementExposed=False,rootful=False,network='none',readOnly=True,user='65534:65534',capabilities=[],noNewPrivileges=True)
 def create(name,script,labels):
- args=['create','--name',name,'--hostname=aios-offline','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=32','--memory=64m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/','--log-driver=k8s-file','--restart=no']
+ profile=json.loads(pathlib.Path('/usr/share/containers/seccomp.json').read_text())
+ if profile.get('defaultAction')!='SCMP_ACT_ERRNO': fail()
+ for rule in profile['syscalls']:
+  rule['names']=[n for n in rule['names'] if n not in ['unshare','setns']]
+ profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
+ seccomp=root+'/worker-seccomp.json'
+ save(seccomp,profile)
+ args=['create','--name',name,'--hostname=aios-offline','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+seccomp,'--user=65534:65534','--pid=private','--ipc=private','--pids-limit=32','--memory=64m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/','--log-driver=k8s-file','--restart=no']
  for k,v in labels.items(): args += ['--label',k+'='+v]
  pod(*args,R['template'],'/bin/sh','-c',script)
 def stop(name,record):
@@ -147,7 +159,7 @@ def snapshot():
  cached=obj('image','inspect',R['template'])[0]
  if R['template'] not in cached.get('RepoDigests',[]) or cached.get('Architecture')!='amd64': fail()
  if cached['Config'].get('Env')!=['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']: fail()
- return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+pathlib.Path('/sys/class/dmi/id/product_uuid').read_text().strip()).encode()),template=R['template'],workerVersion='1.0.0',policyVersion='offline-native-v1-'+h((R['authority']+R['worker']).encode()))
+ return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+pathlib.Path('/sys/class/dmi/id/product_uuid').read_text().strip()).encode()),template=R['template'],workerVersion='1.1.0',policyVersion='offline-native-v2-'+h((R['authority']+R['worker']+R['managementVersion']+R['hostCanaryVersion']).encode()))
 root=os.path.expanduser('~/.local/state/aios-offline-v1')
 os.makedirs(root,mode=0o700,exist_ok=True)
 if os.path.islink(root) or (os.stat(root).st_mode & 0o077): fail()
@@ -161,7 +173,7 @@ with os.fdopen(fd,'w') as lock:
  elif R['action']=='enroll':
   authority=dict(id=R['authority'],fences={}); save(registry,authority)
  else: fail()
- if R['action'] in ['enroll','observe','execute']:
+ if R['action'] in ['enroll','observe','execute','isolate']:
   for probe in pathlib.Path(root).glob('probe-*.json'):
    saved=read(str(probe))
    if not saved.get('stopped'):
@@ -190,6 +202,88 @@ with os.fdopen(fd,'w') as lock:
    finally:
     if os.path.exists(probePath) and not record.get('stopped'):
      stop(name,record); record['stopped']=True; save(probePath,record)
+ elif R['action']=='isolate':
+  import urllib.request,socket,shutil,ipaddress
+  stage='binding'
+  binding={**R['hostBinding'],**snapshot()}
+  if binding!=R['expected']: fail()
+  challenge=R['challenge']; nonce=challenge['id']
+  gateway=socket.gethostbyname('host.containers.internal')
+  if not ipaddress.ip_address(gateway).is_private: fail()
+  url='http://'+gateway+':'+str(challenge['port'])+'/aios-synthetic/'+nonce
+  def services():
+   for data in [None,b'{"jsonrpc":"2.0","id":1,"method":"tools/list"}']:
+    request=urllib.request.Request(url,data=data,headers={'Content-Type':'application/json'})
+    value=json.loads(urllib.request.urlopen(request,timeout=2).read(4096))
+    if value.get('canary')!=nonce or value.get('result')!={'tools':[]}: fail()
+  def engine():
+   s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(2)
+   try:
+    s.connect('/run/user/1000/podman/podman.sock');s.sendall(b'GET /_ping HTTP/1.0\r\n\r\n')
+    value=s.recv(4096)
+    if b'200 OK' not in value: fail()
+   finally: s.close()
+  stage='host-http-mcp-positive'
+  services()
+  stage='guest-engine-positive'
+  engine()
+  directory=root+'/isolation-'+nonce
+  os.mkdir(directory,0o700)
+  paths=[directory+'/synthetic-authority',directory+'/synthetic-peer']
+  for p in paths:
+   f=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+   with os.fdopen(f,'w') as stream: stream.write(nonce)
+  def files():
+   if any(pathlib.Path(p).read_text()!=nonce for p in paths): fail()
+  stage='guest-file-positive'
+  files()
+  name='aios-isolation-'+nonce; record=dict(name=name,cgroup='',pids={},stopped=False)
+  probePath=root+'/probe-'+nonce+'.json'
+  try:
+   create(name,'sleep 600',{'aios.authority':R['authority']})
+   save(probePath,record);pod('start',name)
+   cg=cgroup(inspect(name)['State']['Pid']);record.update(cgroup=cg,pids=census(cg));save(probePath,record)
+   effective(name)
+   for tool in ['cat','wget','unshare']:
+    stage='worker-tool-'+tool
+    pod('exec',name,'/bin/sh','-c','command -v '+tool+' >/dev/null')
+   stage='worker-tool-chroot'
+   pod('exec',name,'/bin/sh','-c',"busybox --list | /bin/grep -x chroot >/dev/null")
+   stage='worker-cgroup-interface'
+   pod('exec',name,'/bin/sh','-c','test -f /sys/fs/cgroup/cgroup.procs')
+   stage='worker-proc-interface'
+   pod('exec',name,'/bin/sh','-c','test -d /proc/1/root')
+   script='''set -eu
+for p in "$1" "$2" "$3"; do if cat "$p" >/dev/null 2>&1; then echo failed-host-files; else echo passed-host-files; fi; done
+if cat "$4" >/dev/null 2>&1; then echo failed-controller-ledger; else echo passed-controller-ledger; fi
+if cat "$5" >/dev/null 2>&1; then echo failed-cross-delivery; else echo passed-cross-delivery; fi
+if wget -T 1 -q -O /dev/null "$6" 2>/dev/null; then echo failed-network-bypass; else echo passed-network-bypass; fi
+if wget -T 1 -q -O /dev/null --post-data='{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$6" 2>/dev/null; then echo failed-skills-mcp-hooks; else echo passed-skills-mcp-hooks; fi
+if test -S /run/user/1000/podman/podman.sock; then echo failed-host-docker; else echo passed-host-docker; fi
+if unshare -Ur true 2>/dev/null; then echo failed-escape-unshare; else echo passed-escape-unshare; fi
+if busybox chroot / /bin/true 2>/dev/null; then echo failed-escape-chroot; else echo passed-escape-chroot; fi
+if (echo $$ > /sys/fs/cgroup/cgroup.procs) 2>/dev/null; then echo failed-escape-cgroup; else echo passed-escape-cgroup; fi
+if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo passed-escape-proc; fi
+'''
+   hostPaths=['/mnt/'+p[0].lower()+'/'+p[3:].replace('\\','/') for p in challenge['files']]
+   stage='worker-denials'
+   observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths,url).decode().splitlines()
+   expected=['passed-host-files']*3+['passed-controller-ledger','passed-cross-delivery','passed-network-bypass','passed-skills-mcp-hooks','passed-host-docker','passed-escape-unshare','passed-escape-chroot','passed-escape-cgroup','passed-escape-proc']
+   stage='post-host-http-mcp-positive'
+   services()
+   stage='post-guest-engine-positive'
+   engine()
+   stage='post-guest-file-positive'
+   files()
+   record['pids'].update(census(cg));stop(name,record);record['stopped']=True;save(probePath,record)
+   if {**R['hostBinding'],**snapshot()}!=binding: fail()
+   names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker']
+   proof=h(json.dumps(dict(challenge=nonce,observed=observed,binding=binding,stopped=record['stopped']),sort_keys=True).encode())
+   print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-4:],scope='Synthetic Windows host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
+  finally:
+   if os.path.exists(probePath) and not record.get('stopped'):
+    stop(name,record);record['stopped']=True;save(probePath,record)
+   shutil.rmtree(directory)
  elif R['action'] in ['execute','stop','collect']:
   s=R['session']; pins=R['pins']; name='aios-offline-'+s['sandboxId']
   path=root+'/'+s['sandboxId']+'.json'
@@ -324,6 +418,8 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       },
       template: offlineTemplate,
       worker,
+      managementVersion: sha256(guest),
+      hostCanaryVersion,
       ...payload,
     };
     // Send fixed management code on stdin: Windows SSH truncates long command
@@ -331,7 +427,14 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     const input =
       "import json,base64\n" +
       `R=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n` +
-      guest;
+      (action === "isolate"
+        ? "stage='initialization'\ntry:\n" +
+          guest
+            .split("\n")
+            .map((line) => " " + line)
+            .join("\n") +
+          "\nexcept BaseException:\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'])))\n"
+        : guest);
     const executable = join(
       homedir(),
       "AppData",
@@ -417,6 +520,15 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
   }
   observe(repository: string): PodmanObservation {
     return this.invoke("observe", { expected: this.policy(repository) });
+  }
+  async probeIsolation(repository: string): Promise<any> {
+    const expected = this.policy(repository);
+    return withHostCanary((challenge) => {
+      const observed = this.invoke("isolate", { expected, challenge });
+      if (observed.challengeId !== challenge.id)
+        throw Error("Unbound isolation evidence");
+      return { ...observed, probeVersion: sha256(guest + hostCanaryVersion) };
+    });
   }
   async execute(
     request: Parameters<OfflineCanaryRuntime["execute"]>[0],

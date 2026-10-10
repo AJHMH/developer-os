@@ -1,0 +1,137 @@
+{
+  "checkedAt": "2026-10-10T15:34:46.336Z",
+  "scope": "Synthetic Windows host-file, HTTP/MCP IPv4, guest authority/socket and peer positive controls before/after denial; four bounded escape attempts, no exhaustive escape-resistance claim. No real owner credentials or inference.",
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-10T15:34:32.476Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "failed",
+        "evidenceSha256": "751a3fa88fcd9cc57520d7a03ef4757e5882da7cf23fc4690540ffa56388cc63"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "failed",
+        "evidenceSha256": "751a3fa88fcd9cc57520d7a03ef4757e5882da7cf23fc4690540ffa56388cc63"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "failed",
+        "evidenceSha256": "751a3fa88fcd9cc57520d7a03ef4757e5882da7cf23fc4690540ffa56388cc63"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "failed",
+        "evidenceSha256": "751a3fa88fcd9cc57520d7a03ef4757e5882da7cf23fc4690540ffa56388cc63"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "failed",
+        "evidenceSha256": "751a3fa88fcd9cc57520d7a03ef4757e5882da7cf23fc4690540ffa56388cc63"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "failed",
+        "evidenceSha256": "751a3fa88fcd9cc57520d7a03ef4757e5882da7cf23fc4690540ffa56388cc63"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "not-run",
+      "scope": "host-capability-only",
+      "credentialIsolation": "not-run",
+      "endpointEnforcement": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Prepare separate ChatGPT authorization in trusted management and qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback."
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "hostId": "7b323ca3b0107194e4800228d154605cbce3a53041d08b84a2e8c641ebe7c409",
+        "engineVersion": "6.0.2",
+        "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+        "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v2-449974eacd9992446324b9383b0347f0ef90722ed765c79237ce99f2b73cf4b2"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "791f88ad336fcea5cde6b2ce340a4cdefbe20487e4e3a8a34f74b46901df67ef",
+    "bindingSha256": "57b66ddd0e6361ac6be5e7fb6714ef7aa24b8d12ae727a2c43797759dd082209",
+    "adversarial": {
+      "scope": "synthetic-windows-controls",
+      "challengeId": "3b70c4e3-92f4-4690-94fc-883002c17a56",
+      "probeVersion": "50b24b41a655401549317766e3ac44f1fc1fa89fb725a06f1ad524aae7a20d5c",
+      "escapeAttempts": [
+        "failed-escape-unshare",
+        "passed-escape-chroot",
+        "passed-escape-cgroup",
+        "passed-escape-proc"
+      ]
+    }
+  }
+}

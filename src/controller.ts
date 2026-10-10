@@ -809,6 +809,9 @@ export class DeliveryController {
         delivery.offlineCanary = {
           ...started.offlineCanary!,
           session: structuredClone(delivery.execution),
+          ...(stopped.offlineCanary?.shutdownProof
+            ? { shutdownProof: stopped.offlineCanary.shutdownProof }
+            : {}),
           outcome: output ? "completed" : "rejected",
           ...(output ? { outputSha256: output.sha256 } : {}),
           message: output
@@ -890,6 +893,11 @@ export class DeliveryController {
     session: WorkerSession,
     response: WorkerReceipt | undefined,
     stopping: boolean,
+    shutdownProof?: {
+      observedProcesses: number;
+      remainingProcesses: number;
+      censusSha256: string;
+    },
   ): Delivery {
     return this.change(id, (delivery) => {
       if (
@@ -948,6 +956,22 @@ export class DeliveryController {
         delivery.offlineCanary?.session?.operationId === session.operationId
       ) {
         delivery.offlineCanary.session = structuredClone(delivery.execution);
+        if (
+          stopping &&
+          state === "stopped" &&
+          shutdownProof &&
+          Number.isSafeInteger(shutdownProof.observedProcesses) &&
+          shutdownProof.observedProcesses >= 0 &&
+          shutdownProof.observedProcesses <= 32 &&
+          shutdownProof.remainingProcesses === 0 &&
+          /^[a-f0-9]{64}$/.test(shutdownProof.censusSha256)
+        ) {
+          delivery.offlineCanary.shutdownProof = {
+            observedProcesses: shutdownProof.observedProcesses,
+            remainingProcesses: 0,
+            censusSha256: shutdownProof.censusSha256,
+          };
+        }
         delivery.offlineCanary.outcome =
           state === "stopped" ? "rejected" : "uncertain";
         delivery.offlineCanary.message =
@@ -1084,6 +1108,7 @@ export class DeliveryController {
             ? response
             : undefined,
           true,
+          response?.evidence,
         );
       }
       const pending = this.coordination.worker?.fenceAndStop(

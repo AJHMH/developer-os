@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-10T15:36:13.077Z",
+  "scope": "credential-free host app-server protocol and fixed synthetic host-loopback transport canaries; no production relay, VM, authorization or inference qualification",
+  "report": {
+    "qualified": false,
+    "protocol": "passed",
+    "syntheticRelay": "passed",
+    "scope": "host-capability-only",
+    "credentialIsolation": "not-run",
+    "endpointEnforcement": "not-run",
+    "subscriptionInference": "not-run",
+    "nextAction": "Prepare separate ChatGPT authorization in trusted management and qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+    "codexVersion": "0.161.0",
+    "executableSha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30"
+  },
+  "productionReady": false,
+  "dispatched": false
+}

@@ -8,9 +8,10 @@ import { SbxHostAdapter } from "./sbx-host.js";
 import { PodmanHostAdapter } from "./podman-host.js";
 import { NativePodmanDriver } from "./podman-native.js";
 import { codexSubscriptionReader } from "./codex-usage.js";
+import { prepareSubscriptionAuth } from "./subscription-auth.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Native execution is limited to the fixed synthetic offline canary; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify --adversarial for disposable synthetic Windows host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; browser authorization and the trusted token broker remain separate prerequisites. Native execution is limited to the fixed synthetic offline canary; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -21,6 +22,8 @@ function argumentsForCommand() {
         "state-dir": { type: "string" },
         "owner-policy": { type: "string" },
         "codex-executable": { type: "string" },
+        adversarial: { type: "boolean" },
+        "auth-directory": { type: "string" },
         "check-id": { type: "string" },
         "podman-machine": { type: "string" },
         "worker-policy": { type: "string" },
@@ -64,113 +67,144 @@ try {
     throw new DeliveryError(usage);
   const stateDirectory =
     values["state-dir"] ?? join(homedir(), ".developer-os");
-  const native =
-    values["podman-machine"] && values["worker-policy"]
-      ? new NativePodmanDriver(
-          values["podman-machine"],
-          stateDirectory,
-          values["worker-policy"],
-        )
-      : undefined;
-  const controller = new DeliveryController(
-    stateDirectory,
-    {
-      inspect: inspectLocalRepository,
-      ...(values["owner-policy"] === undefined
-        ? {}
-        : { policyPath: values["owner-policy"] }),
-    },
-    {
-      worker: values["podman-machine"]
-        ? new PodmanHostAdapter({
-            machine: values["podman-machine"],
-            ...(native ? { native } : {}),
-            ...(values["worker-policy"]
-              ? { policyPath: values["worker-policy"] }
-              : {}),
-          })
-        : new SbxHostAdapter(),
-      ...(native ? { offline: native } : {}),
-      ...(values["codex-executable"]
-        ? { subscription: codexSubscriptionReader(values["codex-executable"]) }
-        : {}),
-    },
-  );
-  let result;
-  if (values["check-id"] !== undefined && positionals[0] !== "approve-usage")
-    throw new DeliveryError(usage);
   if (
-    positionals[0] === "pin-offline" &&
-    native &&
-    values.repo &&
-    values.id === undefined &&
-    values.request === undefined &&
-    values.issue === undefined &&
-    values["owner-policy"] === undefined &&
-    values["codex-executable"] === undefined
-  ) {
-    result = native.pin(values.repo);
-  } else if (
-    positionals[0] === "start" &&
-    values.repo &&
-    values.request &&
-    values.id === undefined
-  ) {
-    result = controller.start({
-      repository: values.repo,
-      request: values.request,
-      ...(values.issue === undefined ? {} : { issue: values.issue }),
-    });
-  } else if (
-    positionals[0] === "status" &&
-    values.repo === undefined &&
-    values.request === undefined &&
-    values.issue === undefined &&
-    values["owner-policy"] === undefined
-  ) {
-    result =
-      values.id === undefined
-        ? controller.list()
-        : controller.status(values.id);
-  } else {
-    const command =
-      positionals[0] === "check-usage"
-        ? "checkUsage"
-        : positionals[0] === "poll-usage"
-          ? "pollUsage"
-          : positionals[0] === "offline-canary"
-            ? "offlineCanary"
-            : positionals[0];
+    values.adversarial !== undefined &&
+    (positionals[0] !== "qualify" ||
+      !values["podman-machine"] ||
+      !values["worker-policy"])
+  )
+    throw new DeliveryError(usage);
+  if (positionals[0] === "prepare-auth") {
     if (
-      command === "approve-usage" &&
-      values.id &&
-      values["check-id"] &&
+      !values.repo ||
+      !values["auth-directory"] ||
+      names.some(
+        (name) => !["repo", "state-dir", "auth-directory"].includes(name),
+      )
+    )
+      throw new DeliveryError(usage);
+    const prepared = prepareSubscriptionAuth(
+      values["auth-directory"],
+      values.repo,
+      stateDirectory,
+    );
+    process.stdout.write(`${JSON.stringify(prepared)}\n`);
+  } else {
+    if (values["auth-directory"] !== undefined) throw new DeliveryError(usage);
+    const native =
+      values["podman-machine"] && values["worker-policy"]
+        ? new NativePodmanDriver(
+            values["podman-machine"],
+            stateDirectory,
+            values["worker-policy"],
+          )
+        : undefined;
+    const controller = new DeliveryController(
+      stateDirectory,
+      {
+        inspect: inspectLocalRepository,
+        ...(values["owner-policy"] === undefined
+          ? {}
+          : { policyPath: values["owner-policy"] }),
+      },
+      {
+        worker: values["podman-machine"]
+          ? new PodmanHostAdapter({
+              ...(values.adversarial ? { adversarial: true } : {}),
+              ...(values["codex-executable"]
+                ? { codexExecutable: values["codex-executable"] }
+                : {}),
+              machine: values["podman-machine"],
+              ...(native ? { native } : {}),
+              ...(values["worker-policy"]
+                ? { policyPath: values["worker-policy"] }
+                : {}),
+            })
+          : new SbxHostAdapter(),
+        ...(native ? { offline: native } : {}),
+        ...(values["codex-executable"]
+          ? {
+              subscription: codexSubscriptionReader(values["codex-executable"]),
+            }
+          : {}),
+      },
+    );
+    let result;
+    if (values["check-id"] !== undefined && positionals[0] !== "approve-usage")
+      throw new DeliveryError(usage);
+    if (
+      positionals[0] === "pin-offline" &&
+      native &&
+      values.repo &&
+      values.id === undefined &&
+      values.request === undefined &&
+      values.issue === undefined &&
+      values["owner-policy"] === undefined &&
+      values["codex-executable"] === undefined
+    ) {
+      result = native.pin(values.repo);
+    } else if (
+      positionals[0] === "start" &&
+      values.repo &&
+      values.request &&
+      values.id === undefined
+    ) {
+      result = controller.start({
+        repository: values.repo,
+        request: values.request,
+        ...(values.issue === undefined ? {} : { issue: values.issue }),
+      });
+    } else if (
+      positionals[0] === "status" &&
       values.repo === undefined &&
       values.request === undefined &&
       values.issue === undefined &&
       values["owner-policy"] === undefined
     ) {
-      result = controller.approveUsage(values.id, values["check-id"]);
-    } else if (
-      values.id &&
-      values.repo === undefined &&
-      values.request === undefined &&
-      values.issue === undefined &&
-      values["owner-policy"] === undefined &&
-      (command === "checkUsage" ||
-        command === "pollUsage" ||
-        command === "qualify" ||
-        command === "offlineCanary" ||
-        command === "pause" ||
-        command === "resume" ||
-        command === "cancel" ||
-        command === "recover" ||
-        command === "release")
-    ) {
-      result = await controller[command](values.id);
-    } else throw new DeliveryError(usage);
+      result =
+        values.id === undefined
+          ? controller.list()
+          : controller.status(values.id);
+    } else {
+      const command =
+        positionals[0] === "check-usage"
+          ? "checkUsage"
+          : positionals[0] === "poll-usage"
+            ? "pollUsage"
+            : positionals[0] === "offline-canary"
+              ? "offlineCanary"
+              : positionals[0];
+      if (
+        command === "approve-usage" &&
+        values.id &&
+        values["check-id"] &&
+        values.repo === undefined &&
+        values.request === undefined &&
+        values.issue === undefined &&
+        values["owner-policy"] === undefined
+      ) {
+        result = controller.approveUsage(values.id, values["check-id"]);
+      } else if (
+        values.id &&
+        values.repo === undefined &&
+        values.request === undefined &&
+        values.issue === undefined &&
+        values["owner-policy"] === undefined &&
+        (command === "checkUsage" ||
+          command === "pollUsage" ||
+          command === "qualify" ||
+          command === "offlineCanary" ||
+          command === "pause" ||
+          command === "resume" ||
+          command === "cancel" ||
+          command === "recover" ||
+          command === "release")
+      ) {
+        result = await controller[command](values.id);
+      } else throw new DeliveryError(usage);
+    }
+    process.stdout.write(`${JSON.stringify(result)}\n`);
   }
-  process.stdout.write(`${JSON.stringify(result)}\n`);
 } catch (error) {
   process.stderr.write(
     `${JSON.stringify({ error: error instanceof DeliveryError ? error.message : "Unable to access the repository or delivery state. Check local paths and permissions." })}\n`,

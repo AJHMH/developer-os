@@ -4,7 +4,7 @@
 
 **Blocked by:** 19.
 
-**Status:** ready-for-agent
+**Status:** completed
 
 ## Parent and governing contract
 
@@ -12,6 +12,10 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 
 ## Acceptance criteria
 
-- [ ] Public pause/cancel/restart independently verifies descendants stopped or reports uncertainty, including live synthetic process evidence beyond the prototype census.
-- [ ] Stale-controller fencing, concurrent ownership rejection and exact delivery/session orphan reconciliation prevent overlapping redispatch.
-- [ ] Crash-injection demonstrates preserved work/usage and fail-closed uncertainty; killing the client alone is insufficient evidence.
+- [x] Public pause/cancel/restart independently verifies descendants stopped or reports uncertainty, including live synthetic process evidence beyond the prototype census.
+- [x] Stale-controller fencing, concurrent ownership rejection and exact delivery/session orphan reconciliation prevent overlapping redispatch.
+- [x] Crash-injection demonstrates preserved work/usage and fail-closed uncertainty; killing the client alone is insufficient evidence.
+
+## 10 October native Windows observation
+
+The [native acceptance runner](../podman-fencing-acceptance.mjs) completed actual offline round trips, concurrent ownership rejection, delayed stale-sender refusal even with its client dispatch check bypassed, and a controller process kill after native acceptance. Recovery retained durable unknown-usage state and work, stopped the exact orphan session, and allowed a fresh synthetic round trip. Four independent censuses each observed eight processes and zero remaining. [Evidence](../ticket23-native-fencing.json) is limited to fixed synthetic Windows offline lifecycle; production resume/inference and macOS remain unqualified.

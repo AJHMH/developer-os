@@ -1,3 +1,5 @@
+import type { SubscriptionMediationReport } from "./codex-mediation.js";
+
 export const isolationProbes = [
   "host-files",
   "controller-ledger",
@@ -18,6 +20,14 @@ export const isolationProbes = [
 ] as const;
 export type IsolationProbe = (typeof isolationProbes)[number];
 export interface WorkerQualification {
+  adversarialBlocker?: string;
+  adversarial?: {
+    scope: "synthetic-windows-controls";
+    challengeId: string;
+    probeVersion: string;
+    escapeAttempts: string[];
+  };
+  subscriptionMediation?: SubscriptionMediationReport;
   offlineAdmission?: {
     allowed: boolean;
     scope: "offline-probe-only";
@@ -52,7 +62,7 @@ export function unavailableQualification(): WorkerQualification {
     checkedAt: new Date().toISOString(),
     probes: isolationProbes.map((name) => ({ name, outcome: "not-run" })),
     blockers: [
-      "Configure an external pinned worker policy and a qualified Docker Sandboxes probe runtime; host prerequisites and enforcement have not been demonstrated.",
+      "Configure an external pinned worker policy and qualify the selected dedicated Podman VM runtime; host prerequisites and enforcement have not been demonstrated.",
     ],
   };
 }

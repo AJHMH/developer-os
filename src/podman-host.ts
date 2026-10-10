@@ -4,6 +4,7 @@ import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { arch, homedir, platform, release } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { NativePodmanDriver } from "./podman-native.js";
+import { inspectCodexMediation } from "./codex-mediation.js";
 import type {
   Delivery,
   WorkerAdapter,
@@ -21,6 +22,8 @@ export interface PodmanObservation {
   configurationIntent?: { hostSharesConfigured: boolean; rootful: boolean };
 }
 interface Options {
+  adversarial?: boolean;
+  codexExecutable?: string;
   machine: string;
   policyPath?: string;
   mode?: "controlled";
@@ -169,6 +172,11 @@ export class PodmanHostAdapter implements WorkerAdapter {
     authorityDirectory: string,
   ): Promise<WorkerQualification> {
     const report = unavailableQualification();
+    report.subscriptionMediation = await inspectCodexMediation(
+      this.options.codexExecutable,
+      delivery.repository,
+      authorityDirectory,
+    );
     report.mode = this.options.mode ?? "live";
     report.blockers = [
       "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification.",
@@ -276,6 +284,79 @@ export class PodmanHostAdapter implements WorkerAdapter {
         JSON.stringify(bindingKeys.map((key) => [key, binding[key]])),
       );
       report.offlineAdmission.allowed = true;
+      if (this.options.adversarial) {
+        if (!this.options.native)
+          throw Error("Native adversarial driver required");
+        try {
+          const observed = await this.options.native.probeIsolation(
+            delivery.repository,
+          );
+          if (
+            [
+              "initialization",
+              "binding",
+              "host-http-mcp-positive",
+              "guest-engine-positive",
+              "guest-file-positive",
+              "restricted-worker-tooling",
+              "worker-tool-cat",
+              "worker-tool-wget",
+              "worker-tool-unshare",
+              "worker-tool-chroot",
+              "worker-cgroup-interface",
+              "worker-proc-interface",
+              "worker-denials",
+              "post-host-http-mcp-positive",
+              "post-guest-engine-positive",
+              "post-guest-file-positive",
+            ].includes(observed.blockedStage)
+          ) {
+            report.adversarialBlocker = observed.blockedStage;
+            throw Error();
+          }
+          if (
+            bindingKeys.some((key) => observed.binding?.[key] !== binding[key])
+          )
+            throw Error();
+          if (
+            !/^[a-f0-9-]{36}$/.test(observed.challengeId) ||
+            !/^[a-f0-9]{64}$/.test(observed.probeVersion) ||
+            !Array.isArray(observed.escapeAttempts) ||
+            observed.escapeAttempts.length !== 4 ||
+            !observed.escapeAttempts.every(
+              (value: unknown) =>
+                typeof value === "string" &&
+                /^(passed|failed)-escape-(unshare|chroot|cgroup|proc)$/.test(
+                  value,
+                ),
+            )
+          )
+            throw Error();
+          report.adversarial = {
+            scope: "synthetic-windows-controls",
+            challengeId: observed.challengeId,
+            probeVersion: observed.probeVersion,
+            escapeAttempts: observed.escapeAttempts,
+          };
+          for (const probe of report.probes) {
+            const result = observed.probes?.find(
+              (value: any) => value.name === probe.name,
+            );
+            if (
+              result &&
+              ["passed", "failed"].includes(result.outcome) &&
+              /^[a-f0-9]{64}$/.test(result.evidenceSha256)
+            ) {
+              probe.outcome = result.outcome;
+              probe.evidenceSha256 = result.evidenceSha256;
+            }
+          }
+        } catch {
+          report.blockers.push(
+            "Synthetic Windows host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation.",
+          );
+        }
+      }
     } catch {
       report.blockers.push(
         "Offline admission refused: provide an external ordinary pin policy and fresh matching Windows Hyper-V bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify.",

@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
+import {DeliveryController} from '../../dist/controller.js';
+import {NativePodmanDriver} from '../../dist/podman-native.js';
+import {PodmanHostAdapter} from '../../dist/podman-host.js';
+const state='C:/Users/mraar/.developer-os/ticket19-native/state', machine='aios-podman-noshare', id='46f3cefb-57e3-48fa-be4f-24fae4b37505';
+const policyPath='C:/Users/mraar/.developer-os/ticket19-native/pins-ticket4-v6.json';
+const native=new NativePodmanDriver(machine,state,policyPath);
+const controller=new DeliveryController(state,{}, {worker:new PodmanHostAdapter({machine,policyPath,native}),offline:native});
+const value=await controller.qualify(id);
+assert.equal(value.qualification.offlineAdmission.allowed,false);
+assert.equal(value.qualification.liveReady,false);
+const refused=await controller.offlineCanary(id);
+assert.equal(refused.offlineCanary.outcome,'refused');
+assert.equal(controller.status(id).execution.state,'stopped');
+writeFileSync(new URL('ticket20-native-policy-drift.json',import.meta.url),JSON.stringify({checkedAt:new Date().toISOString(),scope:'Earlier observed policy cannot admit the tightened native management/worker version; public offline dispatch refused',qualification:value.qualification},null,2)+'\n');
