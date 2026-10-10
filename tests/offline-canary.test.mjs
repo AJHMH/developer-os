@@ -147,6 +147,40 @@ test("an admitted synthetic round trip retains bindings and collects only after 
   );
 });
 
+test("independent descendant census survives collection and controller restart without raw management data", async (t) => {
+  const f = fixture(t);
+  const stop = f.runtime.stop.bind(f.runtime);
+  f.runtime.stop = async (...args) => ({
+    ...(await stop(...args)),
+    evidence: {
+      observedProcesses: 6,
+      remainingProcesses: 0,
+      censusSha256: "d".repeat(64),
+      detail: "synthetic-sensitive-management-data",
+    },
+  });
+  const result = await f.controller.offlineCanary(f.delivery.id);
+  assert.equal(result.offlineCanary.outcome, "completed");
+  assert.deepEqual(result.offlineCanary.shutdownProof, {
+    observedProcesses: 6,
+    remainingProcesses: 0,
+    censusSha256: "d".repeat(64),
+  });
+  const reopened = new DeliveryController(f.state).status(result.id);
+  assert.deepEqual(
+    reopened.offlineCanary.shutdownProof,
+    result.offlineCanary.shutdownProof,
+  );
+  const artifact = JSON.parse(
+    readFileSync(result.evidence.find((e) => e.kind === "offline-canary").path),
+  );
+  assert.deepEqual(artifact.shutdownProof, result.offlineCanary.shutdownProof);
+  assert.equal(
+    JSON.stringify(reopened).includes("synthetic-sensitive-management-data"),
+    false,
+  );
+});
+
 test("timed-out dispatch is fenced before collection and late starts lose authority", async (t) => {
   const f = fixture(t);
   let finish;

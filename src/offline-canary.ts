@@ -58,6 +58,7 @@ export interface OfflineCanaryRuntime {
   collect(session: WorkerSession, pins: CanaryPins): Promise<CanaryCollection>;
 }
 export interface OfflineCanaryEvidence extends CanaryPins {
+  shutdownProof?: CanaryStop["evidence"];
   mode: "controlled" | "live";
   outcome: "running" | "completed" | "refused" | "rejected" | "uncertain";
   session?: WorkerSession;

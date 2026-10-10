@@ -1,0 +1,94 @@
+{
+  "checkedAt": "2026-10-10T15:40:13.370Z",
+  "scope": "Earlier observed policy cannot admit the tightened native management/worker version; public offline dispatch refused",
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-10T15:40:07.462Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "not-run"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "not-run"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "not-run"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "not-run"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "not-run"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "not-run"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification.",
+      "Offline admission refused: provide an external ordinary pin policy and fresh matching Windows Hyper-V bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "not-run",
+      "scope": "host-capability-only",
+      "credentialIsolation": "not-run",
+      "endpointEnforcement": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Prepare separate ChatGPT authorization in trusted management and qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback."
+    },
+    "offlineAdmission": {
+      "allowed": false,
+      "scope": "offline-probe-only"
+    }
+  }
+}

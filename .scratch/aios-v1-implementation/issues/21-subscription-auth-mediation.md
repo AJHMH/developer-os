@@ -15,3 +15,9 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 - [ ] A supported mechanism demonstrates model-only subscription mediation without reusable owner credentials, host MCP/discovery or publication authority entering the worker.
 - [ ] Credential-free protocol/capability canaries precede any authorized live inference; owner authentication files, credit purchases and paid API substitutions are forbidden.
 - [ ] Unsupported/unverifiable mediation returns an actionable blocker and owner tradeoff; a negative investigation does not satisfy positive qualification or unblock ticket 22.
+
+## 10 October capability progress
+
+The credential-free, digest-pinned official Codex 0.161.0 app-server initialization/account-read and host-loopback synthetic relay canaries passed through controller qualification; persisted status still reports qualified:false. The relay tests fixed Responses-only routing, stripped owner headers, and denied unrelated endpoints and capabilities. No real subscription credentials or inference were used. [Observation](../ticket21-protocol-observation.json).
+
+Owner-approved preparation created only stable Developer OS registration metadata in separate external host storage. The browser authorization broker, ID-token verification, encrypted host credential store, VM credential isolation, independently enforced model-only endpoint access and completed subscription inference remain unimplemented/unqualified. The preparation command cannot authorize delivery. Ticket 21 stays open and 22 remains blocked. See [separate setup plan](../chatgpt-setup.md).

@@ -74,6 +74,12 @@ test("a matching dedicated Windows VM admits only an offline probe and records d
   );
   assert.equal(result.qualification.liveReady, false);
   assert.equal(result.qualification.ready, false);
+  assert.equal(result.qualification.subscriptionMediation.qualified, false);
+  assert.equal(result.qualification.subscriptionMediation.protocol, "not-run");
+  assert.match(
+    result.qualification.subscriptionMediation.nextAction,
+    /trusted.*relay/i,
+  );
   assert.equal(result.execution, undefined);
   assert.deepEqual(
     new DeliveryController(f.state).status(f.delivery.id).qualification,
@@ -160,5 +166,39 @@ test("candidate pin policies and CLI adapter misuse refuse admission without dis
   assert.equal(
     new DeliveryController(f.state).status(f.delivery.id).execution,
     undefined,
+  );
+});
+
+test("candidate-supplied Codex cannot provide authentication capability evidence", async (t) => {
+  const f = fixture(t);
+  const executable = join(f.delivery.repository, "candidate-codex.exe");
+  writeFileSync(executable, "synthetic-secret-detail");
+  const controller = new DeliveryController(
+    f.state,
+    {},
+    {
+      worker: new PodmanHostAdapter({
+        machine: "aios-test",
+        policyPath: join(f.state, "..", "pins.json"),
+        mode: "controlled",
+        codexExecutable: executable,
+        observe: () => ({ binding: f.binding, effective: f.effective }),
+      }),
+    },
+  );
+  const result = await controller.qualify(f.delivery.id);
+  assert.equal(result.qualification.offlineAdmission.allowed, true);
+  assert.equal(result.qualification.subscriptionMediation.protocol, "not-run");
+  assert.equal(
+    result.qualification.subscriptionMediation.executableSha256,
+    undefined,
+  );
+  assert.equal(result.qualification.liveReady, false);
+  assert.equal(result.execution, undefined);
+  assert.equal(
+    JSON.stringify(controller.status(result.id)).includes(
+      "synthetic-secret-detail",
+    ),
+    false,
   );
 });
