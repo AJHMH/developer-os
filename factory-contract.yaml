@@ -1,0 +1,18 @@
+version: '1.0'
+contract:
+  workload_id: developer-os
+  profile: node-24-typescript-cli
+  working_directory: '.'
+  commands:
+    install:
+      run: npm ci --ignore-scripts
+      timeout_seconds: 120
+    validate:
+      run: npm run typecheck && npm run format:check
+      timeout_seconds: 120
+    test:
+      run: npm test
+      timeout_seconds: 120
+    build:
+      run: npm run build
+      timeout_seconds: 120
