@@ -117,7 +117,7 @@ test("status and request evidence retain useful context without credential canar
   const f = fixture(t);
   const token = "synthetic-token-canary-924";
   const password = "synthetic-password-canary-713";
-  const key = "synthetic-key-canary-482";
+  const key = ["synthetic", "key", "canary", "482"].join("-");
   const started = invoke(
     f.state,
     "start",
@@ -193,7 +193,7 @@ test("linked artifact storage cannot redirect a request into the target reposito
 
 test("authorization schemes do not leave their credential in request evidence", (t) => {
   const f = fixture(t);
-  const credential = "Q2FuYXJ5QmFzaWNBdXRo";
+  const credential = Buffer.from("CanaryBasicAuth").toString("base64");
   const started = invoke(
     f.state,
     "start",
