@@ -5,9 +5,8 @@ proposal targets the full TypeScript CLI through distribution 1.1.0's
 `node-24-typescript-cli` profile. It does not replace profile-page or alter its pin.
 
 `factory.lock.yaml`, `factory-contract.yaml` and the two immutable reusable calls
-declare the proposed adoption. The lock currently pins the Factory proposal
-commit; update both calls and the lock to the actual reviewed Factory merge SHA
-before activating adoption. The external Actions variable
+declare the proposed adoption. The lock and both calls now pin the reviewed Factory PR #67 merge SHA
+`2a294c1a65a95612f6963ea2c8ff382dd12fc9db`. The external Actions variable
 `FACTORY_DISTRIBUTION_REVISION` must independently select that same SHA.
 
 Native CI runs typecheck, formatting, all tests and build on Node 24. CodeQL scans
