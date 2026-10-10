@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { arch, homedir, platform, release } from "node:os";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { NativePodmanDriver } from "./podman-native.js";
 import type {
   Delivery,
   WorkerAdapter,
@@ -24,6 +25,7 @@ interface Options {
   policyPath?: string;
   mode?: "controlled";
   observe?: () => PodmanObservation;
+  native?: NativePodmanDriver;
 }
 const bindingKeys = [
   "platform",
@@ -151,6 +153,14 @@ function observeWindows(machine: string): PodmanObservation {
 /** Offline prerequisite admission is deliberately distinct from production qualification. */
 export class PodmanHostAdapter implements WorkerAdapter {
   constructor(private readonly options: Options) {
+    if (
+      options.native &&
+      (options.mode ||
+        options.observe ||
+        options.native.machine !== options.machine ||
+        options.native.policyPath !== options.policyPath)
+    )
+      throw Error("Native driver bindings must match the selected adapter");
     if (options.observe && options.mode !== "controlled")
       throw Error("Custom observations require controlled mode");
   }
@@ -166,9 +176,17 @@ export class PodmanHostAdapter implements WorkerAdapter {
     report.offlineAdmission = { allowed: false, scope: "offline-probe-only" };
     let observed: PodmanObservation;
     try {
-      observed = this.options.observe
-        ? this.options.observe()
-        : observeWindows(this.options.machine);
+      if (
+        this.options.native &&
+        resolve(this.options.native.authorityDirectory).toLowerCase() !==
+          resolve(authorityDirectory).toLowerCase()
+      )
+        throw Error("Changed native authority directory");
+      observed = this.options.native
+        ? this.options.native.observe(delivery.repository)
+        : this.options.observe
+          ? this.options.observe()
+          : observeWindows(this.options.machine);
       const binding: Record<string, string> = {};
       for (const key of bindingKeys) {
         const value = observed.binding[key];
