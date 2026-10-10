@@ -35,6 +35,10 @@ function transport(t, mode, limits) {
           child.stdout.write(Buffer.alloc(256 * 1024 + 1));
           return;
         }
+        if (mode === "stdin-error") {
+          child.stdin.emit("error", new Error("synthetic-private-error"));
+          return;
+        }
         if (mode === "transport-error") {
           child.emit("error", new Error("synthetic-private-error"));
           return;
@@ -56,7 +60,8 @@ function transport(t, mode, limits) {
               result: {
                 account: {
                   type: mode === "api-account" ? "apiKey" : "chatgpt",
-                  email: "synthetic@example.invalid",
+                  email:
+                    mode === "invalid-email" ? 7 : "synthetic@example.invalid",
                 },
               },
             }) + "\n",
@@ -136,6 +141,8 @@ for (const mode of [
   "rpc-error",
   "api-account",
   "invalid-limits",
+  "invalid-email",
+  "stdin-error",
 ]) {
   test(`subscription reader refuses ${mode} without returning private diagnostics`, async (t) => {
     const fake = transport(t, mode, {
@@ -161,4 +168,27 @@ test("subscription reader refuses a relative executable without launching a tran
   const fake = transport(t, "valid", {});
   assert.equal(await codexSubscriptionReader("synthetic-codex")(), undefined);
   assert.equal(fake.messages.length, 0);
+});
+
+test("subscription reader handles a null modern-limit inventory through the legacy response", async (t) => {
+  transport(t, "valid", {
+    rateLimitsByLimitId: null,
+    rateLimits: {
+      limitId: "codex",
+      primary: null,
+      secondary: { usedPercent: 8, resetsAt: 2000000000 },
+    },
+  });
+  const report = await codexSubscriptionReader(resolve("synthetic-codex"))();
+  assert.deepEqual(report.windows, [
+    { id: "codex:secondary", usedPercent: 8, resetsAt: 2000000000 },
+  ]);
+});
+
+test("subscription reader refuses a missing limit bucket rather than returning fabricated usage", async (t) => {
+  transport(t, "valid", { rateLimitsByLimitId: { missing: null } });
+  assert.equal(
+    await codexSubscriptionReader(resolve("synthetic-codex"))(),
+    undefined,
+  );
 });
