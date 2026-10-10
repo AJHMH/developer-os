@@ -6,10 +6,11 @@ import { DeliveryController, DeliveryError } from "./controller.js";
 import { inspectLocalRepository } from "./onboarding.js";
 import { SbxHostAdapter } from "./sbx-host.js";
 import { PodmanHostAdapter } from "./podman-host.js";
+import { NativePodmanDriver } from "./podman-native.js";
 import { codexSubscriptionReader } from "./codex-usage.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks; qualify/offline-canary --podman-machine <aios-name> [--worker-policy <external-pin-file>] requires offline prerequisites; native canary dispatch remains disabled until a trusted VM management driver is available.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Native execution is limited to the fixed synthetic offline canary; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -39,7 +40,14 @@ try {
   if (
     (values["podman-machine"] !== undefined ||
       values["worker-policy"] !== undefined) &&
-    (!["qualify", "offline-canary"].includes(positionals[0] ?? "") ||
+    (![
+      "qualify",
+      "offline-canary",
+      "pin-offline",
+      "recover",
+      "pause",
+      "cancel",
+    ].includes(positionals[0] ?? "") ||
       !values["podman-machine"] ||
       !/^aios-[a-z0-9-]+$/.test(values["podman-machine"]) ||
       values["worker-policy"] === "")
@@ -54,8 +62,18 @@ try {
     values["state-dir"] === ""
   )
     throw new DeliveryError(usage);
+  const stateDirectory =
+    values["state-dir"] ?? join(homedir(), ".developer-os");
+  const native =
+    values["podman-machine"] && values["worker-policy"]
+      ? new NativePodmanDriver(
+          values["podman-machine"],
+          stateDirectory,
+          values["worker-policy"],
+        )
+      : undefined;
   const controller = new DeliveryController(
-    values["state-dir"] ?? join(homedir(), ".developer-os"),
+    stateDirectory,
     {
       inspect: inspectLocalRepository,
       ...(values["owner-policy"] === undefined
@@ -66,11 +84,13 @@ try {
       worker: values["podman-machine"]
         ? new PodmanHostAdapter({
             machine: values["podman-machine"],
+            ...(native ? { native } : {}),
             ...(values["worker-policy"]
               ? { policyPath: values["worker-policy"] }
               : {}),
           })
         : new SbxHostAdapter(),
+      ...(native ? { offline: native } : {}),
       ...(values["codex-executable"]
         ? { subscription: codexSubscriptionReader(values["codex-executable"]) }
         : {}),
@@ -80,6 +100,17 @@ try {
   if (values["check-id"] !== undefined && positionals[0] !== "approve-usage")
     throw new DeliveryError(usage);
   if (
+    positionals[0] === "pin-offline" &&
+    native &&
+    values.repo &&
+    values.id === undefined &&
+    values.request === undefined &&
+    values.issue === undefined &&
+    values["owner-policy"] === undefined &&
+    values["codex-executable"] === undefined
+  ) {
+    result = native.pin(values.repo);
+  } else if (
     positionals[0] === "start" &&
     values.repo &&
     values.request &&

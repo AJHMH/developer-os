@@ -4,7 +4,7 @@
 
 **Blocked by:** 18.
 
-**Status:** ready-for-agent
+**Status:** completed
 
 ## Parent and governing contract
 
@@ -12,9 +12,9 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 
 ## Acceptance criteria
 
-- [ ] A fresh restricted offline worker receives admitted synthetic files, produces an artifact and returns it through the controller after independently verified stop.
-- [ ] Unsafe paths, links/reparse inputs, secrets, Git metadata and concurrent-write output are rejected.
-- [ ] Session/binding evidence is retained; owner credentials, host mounts, engine sockets and host execution of repository scripts remain excluded.
+- [x] A fresh restricted offline worker receives admitted synthetic files, produces an artifact and returns it through the controller after independently verified stop.
+- [x] Unsafe paths, links/reparse inputs, secrets, Git metadata and concurrent-write output are rejected.
+- [x] Session/binding evidence is retained; owner credentials, host mounts, engine sockets and host execution of repository scripts remain excluded.
 
 ## Implementation progress — 9 October 2026
 
@@ -27,3 +27,15 @@ The [native observation](../ticket19-live-observation.json) records refused admi
 **Remaining blocker:** implement and qualify the native management driver against an external owner-controlled pin policy, including fresh dedicated worker creation/transfer, independently verified fenced descendant stop, and stopped-worker output export. Supply positive native admission evidence and demonstrate the round trip through this controller before closing ticket 19 or unblocking dependent tickets 20/23. Acceptance criteria remain open; `ready-for-agent` describes the remaining implementable work.
 
 Validation: typechecking and formatting passed; the complete host test suite passed all 59 tests with no skips. CodeRabbit source reviews identified CLI help, transaction-failure artifact cleanup/error preservation, and shutdown-ledger failure handling. All were addressed; the final credential-free `src/` review completed with zero findings. A storage-outage regression verifies a retained dispatched session cannot release ownership and can be explicitly recovered after the ledger becomes available.
+
+## Native completion — 10 October 2026
+
+The preceding 9 October blocker is resolved. The CLI now wires the native Windows Hyper-V/Podman management driver and provides explicit `pin-offline` enrollment. Enrollment pins the observed immutable boot-image manifest, cached Alpine template, engine, host, synthetic worker and authority-bound policy. It never treats stored mount intent as effective enforcement. A fixed qualification worker supplies actual readonly-root, mount, uid/capability/no-new-privileges and offline-network observations; its shutdown is independently verified before admission is granted. Production `ready` and `liveReady` remain false.
+
+Each canary gets a fresh restricted container inside the dedicated no-share VM. An ordinary synthetic file is copied by a fixed management-created archive, without mounting the host or executing candidate scripts. The worker creates its result in tmpfs and emits the fixed bounded artifact through the engine log. A machine-wide management lock, single-controller authority registration and durable session/fence/revocation records prevent delayed duplicate dispatch. After independently checking cgroup/PID-start-time shutdown, collection compares two immutable stopped-worker log snapshots and materializes an ordinary single-linked controller spool. No guest-selected path, archive or general repository output is imported.
+
+[Native acceptance evidence](../ticket19-native-roundtrip.json) records live admission and the exact successful delivery/session/policy/binding digests, expected output digest and independent shutdown census: **two observed processes, zero remaining**. The explicit [acceptance runner](../podman-native-acceptance.mjs) also verifies changed VM-image pin refusal, metadata/hardlink/credential-like input refusal, conservative shutdown uncertainty and exact-session recovery through a reopened controller. Controlled regression tests retain unsafe path/reparse and changed-output-snapshot coverage. Stopped workers and guest journals are retained; no VM deletion, inference, owner credential import or billing change occurred.
+
+Initial rejected runs exposed Windows SSH command truncation, generated environment defaults, mountinfo substring matching and the stopping/stopped journal mismatch. Corrected stdin transport, explicitly fixed environment, parsed mount targets and journal reconciliation supersede those attempts; no safety check was removed. CodeRabbit's minor post-start cleanup finding was fixed. Final review completed with zero findings; typechecking, formatting and all **61 tests** passed with no skips.
+
+Ticket 19's synthetic Windows acceptance criteria are complete. Parent ticket 04 stays open, and full forbidden-access, online authentication, adversarial fencing/recovery and macOS qualification remain in their existing tickets. Tickets 20 and 23 are now unblocked for their broader proof obligations.

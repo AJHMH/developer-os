@@ -1,0 +1,509 @@
+import { spawnSync } from "node:child_process";
+import { hostname, homedir, platform, arch, release } from "node:os";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import type { WorkerSession } from "./controller.js";
+import type { PodmanObservation } from "./podman-host.js";
+import {
+  canaryInput,
+  canaryOutput,
+  sha256,
+  matchesCanary,
+  type CanaryPins,
+  type OfflineCanaryRuntime,
+  type CanaryExecution,
+  type CanaryStop,
+  type CanaryCollection,
+} from "./offline-canary.js";
+
+// Versioned fixed synthetic worker. Input never becomes shell/Python source.
+const worker = `set -eu
+test "$(id -u)" = 65534
+test "$(sha256sum /canary.txt | cut -d ' ' -f 1)" = ${sha256(canaryInput)}
+printf 'AIOS offline canary complete\\n' > /tmp/result.txt
+test ! -L /tmp/result.txt
+test "$(stat -c %h /tmp/result.txt)" = 1
+cat /tmp/result.txt
+sleep 600 &
+wait
+`;
+export const offlineTemplate =
+  "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764";
+
+/** Runs only in the VM's trusted management namespace, not in the worker.
+ * A machine-wide flock serializes dispatch with durable revocation. A single
+ * authority directory is bound during explicit enrollment. Worker containers
+ * cannot mount/read this directory, its lock, engine sockets or the host.
+ * Artifact transport is the bounded fixed stdout record, read twice only after
+ * independent cgroup/PID shutdown. No tar extraction or guest paths are imported. */
+const guest = String.raw`
+import os,json,subprocess,hashlib,base64,fcntl,pathlib,uuid,time,io,tarfile
+def fail(): raise RuntimeError('Native offline observation unavailable')
+def command(args):
+ p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+ if p.returncode: fail()
+ if len(p.stdout)>1048576: fail()
+ return p.stdout
+def pod(*args): return command(['podman',*args])
+def obj(*args): return json.loads(pod(*args))
+def h(b): return hashlib.sha256(b).hexdigest()
+def save(path,value):
+ temp=path+'.new-'+uuid.uuid4().hex
+ fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+ try:
+  with os.fdopen(fd,'w') as f: json.dump(value,f); f.flush(); os.fsync(f.fileno())
+  os.replace(temp,path)
+  directory=os.open(os.path.dirname(path),os.O_RDONLY|os.O_DIRECTORY)
+  try: os.fsync(directory)
+  finally: os.close(directory)
+ finally:
+  if os.path.exists(temp): os.unlink(temp)
+def read(path):
+ if os.path.islink(path): fail()
+ with open(path) as f: return json.load(f)
+def census(cgroup):
+ root=pathlib.Path('/sys/fs/cgroup')/cgroup.lstrip('/')
+ result={}
+ if root.exists():
+  for path in root.rglob('cgroup.procs'):
+   for pid in path.read_text().split():
+    try: result[pid]=pathlib.Path('/proc/'+pid+'/stat').read_text().rsplit(')',1)[1].split()[19]
+    except FileNotFoundError: pass
+ return result
+def cgroup(pid):
+ lines=pathlib.Path('/proc/'+str(pid)+'/cgroup').read_text().splitlines()
+ value=next(x[3:] for x in lines if x.startswith('0::/'))
+ if not value.startswith('/') or '..' in value or 'libpod-' not in value: fail()
+ return value
+def gone(record):
+ if census(record['cgroup']): return False
+ for pid,start in record['pids'].items():
+  try:
+   if pathlib.Path('/proc/'+pid+'/stat').read_text().rsplit(')',1)[1].split()[19]==start: return False
+  except FileNotFoundError: pass
+ return True
+def inspect(name): return obj('inspect',name)[0]
+def effective(name):
+ c=inspect(name); config=c['HostConfig']; env=c['Config']['Env']
+ # Inspect the original worker from management. podman exec starts a different
+ # process and is not evidence of the worker's inherited privilege restriction.
+ status=pathlib.Path('/proc/'+str(c['State']['Pid'])+'/status').read_text()
+ values={x.split(':',1)[0]:x.split(':',1)[1].strip() for x in status.splitlines() if ':' in x}
+ mounts=pod('exec',name,'cat','/proc/self/mountinfo').decode()
+ if c.get('Mounts') or config.get('Binds') or config.get('VolumesFrom') or config.get('Privileged'): fail()
+ if config.get('PidMode')!='private' or config.get('NetworkMode')!='none' or config.get('PortBindings'): fail()
+ if dict(x.split('=',1) for x in env)!={'PATH':'/usr/bin:/bin','HOME':'/','HOSTNAME':'aios-offline'} or c['Config']['User']!='65534:65534': fail()
+ if values.get('NoNewPrivs')!='1' or int(values.get('CapEff','f'),16)!=0: fail()
+ if not config.get('ReadonlyRootfs') or 'no-new-privileges' not in config.get('SecurityOpt',[]): fail()
+ mounted=[line.split() for line in mounts.splitlines()]
+ if not any(x[4]=='/' and 'ro' in x[5].split(',') for x in mounted): fail()
+ if any(x[x.index('-')+1] in ['9p','virtiofs','cifs','nfs','nfs4'] or
+        x[4].startswith(('/var/home/core','/mnt/','/Users')) or
+        x[4].endswith(('podman.sock','docker.sock')) for x in mounted): fail()
+ for p in ['/run/podman/podman.sock','/run/user/1000/podman/podman.sock','/var/run/docker.sock','/mnt/c','/Users']:
+  if subprocess.run(['podman','exec',name,'test','-e',p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
+ return dict(hypervisor=True,dedicated=True,mounts=[],managementExposed=False,rootful=False,network='none',readOnly=True,user='65534:65534',capabilities=[],noNewPrivileges=True)
+def create(name,script,labels):
+ args=['create','--name',name,'--hostname=aios-offline','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=32','--memory=64m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/','--log-driver=k8s-file','--restart=no']
+ for k,v in labels.items(): args += ['--label',k+'='+v]
+ pod(*args,R['template'],'/bin/sh','-c',script)
+def stop(name,record):
+ state=inspect(name)['State']
+ if state.get('Running'):
+  cg=cgroup(state['Pid']); record['cgroup']=cg; record['pids'].update(census(cg))
+  pod('stop','--time','2',name)
+ after=inspect(name)['State']
+ if after.get('Running') or after.get('Pid')!=0: fail()
+ if record['cgroup']:
+  if not gone(record): fail()
+ elif after.get('Status') not in ['created','configured']: fail()
+def snapshot():
+ mounts=json.loads(command(['findmnt','--json','-o','FSTYPE,TARGET']))
+ def check(entries):
+  for x in entries:
+   if x.get('fstype') in ['9p','virtiofs','cifs','nfs','nfs4'] or x.get('target','').startswith('/mnt/'): fail()
+   check(x.get('children',[]))
+ check(mounts['filesystems'])
+ vendor=pathlib.Path('/sys/class/dmi/id/sys_vendor').read_text().strip()
+ product=pathlib.Path('/sys/class/dmi/id/product_name').read_text().strip()
+ if vendor!='Microsoft Corporation' or product!='Virtual Machine': fail()
+ boot=json.loads(command(['rpm-ostree','status','--json']))
+ d=next(x for x in boot['deployments'] if x.get('booted'))
+ image=d.get('container-image-reference-digest','')
+ if d.get('unlocked')!='none' or not image.startswith('sha256:') or len(image)!=71: fail()
+ if d.get('container-image-reference')!='ostree-unverified-registry:quay.io/podman/machine-os:6.0': fail()
+ if any(d.get(k) for k in ['requested-packages','requested-local-packages','base-local-replacements','base-removals']): fail()
+ info=json.loads(pod('info','--format','json'))
+ if not info['host']['security']['rootless'] or info['host']['cgroupVersion']!='v2': fail()
+ if json.loads(command(['sudo','-n','podman','ps','--format','json'])): fail()
+ if obj('ps','--format','json'): fail()
+ cached=obj('image','inspect',R['template'])[0]
+ if R['template'] not in cached.get('RepoDigests',[]) or cached.get('Architecture')!='amd64': fail()
+ if cached['Config'].get('Env')!=['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']: fail()
+ return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+pathlib.Path('/sys/class/dmi/id/product_uuid').read_text().strip()).encode()),template=R['template'],workerVersion='1.0.0',policyVersion='offline-native-v1-'+h((R['authority']+R['worker']).encode()))
+root=os.path.expanduser('~/.local/state/aios-offline-v1')
+os.makedirs(root,mode=0o700,exist_ok=True)
+if os.path.islink(root) or (os.stat(root).st_mode & 0o077): fail()
+fd=os.open(root+'/lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+with os.fdopen(fd,'w') as lock:
+ fcntl.flock(lock,fcntl.LOCK_EX)
+ registry=root+'/authority.json'
+ if os.path.exists(registry):
+  authority=read(registry)
+  if authority['id']!=R['authority']: fail()
+ elif R['action']=='enroll':
+  authority=dict(id=R['authority'],fences={}); save(registry,authority)
+ else: fail()
+ if R['action'] in ['enroll','observe','execute']:
+  for probe in pathlib.Path(root).glob('probe-*.json'):
+   saved=read(str(probe))
+   if not saved.get('stopped'):
+    c=inspect(saved['name'])
+    if c['Config'].get('Labels',{}).get('aios.authority')!=R['authority']: fail()
+    stop(saved['name'],saved)
+    saved['stopped']=True; save(str(probe),saved)
+ if R['action'] in ['enroll','observe']:
+  binding={**R['hostBinding'],**snapshot()}
+  if R['action']=='enroll': print(json.dumps(dict(binding=binding,effective={})))
+  else:
+   if binding!=R['expected']: fail()
+   name='aios-qualification-'+str(uuid.uuid4())
+   record=dict(name=name,cgroup='',pids={},stopped=False)
+   probePath=root+'/probe-'+str(uuid.uuid4())+'.json'
+   try:
+    create(name,'sleep 600',{'aios.authority':R['authority']})
+    save(probePath,record)
+    pod('start',name)
+    pid=inspect(name)['State']['Pid']; cg=cgroup(pid)
+    record.update(cgroup=cg,pids=census(cg)); save(probePath,record)
+    e=effective(name)
+    stop(name,record)
+    record['stopped']=True; save(probePath,record)
+    print(json.dumps(dict(binding=binding,effective=e)))
+   finally:
+    if os.path.exists(probePath) and not record.get('stopped'):
+     stop(name,record); record['stopped']=True; save(probePath,record)
+ elif R['action'] in ['execute','stop','collect']:
+  s=R['session']; pins=R['pins']; name='aios-offline-'+s['sandboxId']
+  path=root+'/'+s['sandboxId']+'.json'
+  record=read(path) if os.path.exists(path) else None
+  if record:
+   for k in ['deliveryId','operationId','sandboxId','workerSessionId','repositoryKey']:
+    if record['session'][k]!=s[k]: fail()
+   if record['pins']!=pins: fail()
+  key=h(s['repositoryKey'].encode()); fence=authority['fences'].get(key,0)
+  if R['action']=='execute':
+   if record or s['fence']<=fence: fail()
+   binding={**R['hostBinding'],**snapshot()}
+   if binding!=R['expected']: fail()
+   authority['fences'][key]=s['fence']; save(registry,authority)
+   record=dict(session=s,pins=pins,revoked=False,cgroup='',pids={})
+   save(path,record)
+   try:
+    create(name,R['worker'],{'aios.authority':R['authority'],'aios.session':s['workerSessionId']})
+    data=base64.b64decode(R['input'],validate=True)
+    if data!=b'AIOS offline canary input\n': fail()
+    archive=io.BytesIO()
+    with tarfile.open(fileobj=archive,mode='w') as tar:
+     entry=tarfile.TarInfo('canary.txt'); entry.size=len(data); entry.mode=0o444; entry.uid=65534; entry.gid=65534
+     tar.addfile(entry,io.BytesIO(data))
+    result=subprocess.run(['podman','cp','-',name+':/'],input=archive.getvalue(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+    if result.returncode: fail()
+    pod('start',name)
+    pid=inspect(name)['State']['Pid']; cg=cgroup(pid)
+    record.update(cgroup=cg,pids=census(cg)); save(path,record)
+    e=effective(name)
+    for attempt in range(20):
+     if pod('logs',name)==b'AIOS offline canary complete\n': break
+     time.sleep(0.05)
+    else: fail()
+    record['pids'].update(census(cg)); save(path,record)
+    print(json.dumps(dict(**s,**pins,status='running',fresh=True,binding=binding,effective=e)))
+   except BaseException:
+    try:
+     stop(name,record); record['stopped']=True; save(path,record)
+    except BaseException: pass
+    raise
+  elif R['action']=='stop':
+   if s['fence']<fence: fail()
+   authority['fences'][key]=s['fence']; save(registry,authority)
+   if not record: record=dict(session=s,pins=pins,cgroup='',pids={})
+   record.update(session=s,revoked=True); save(path,record)
+   exists=subprocess.run(['podman','container','exists',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
+   if exists:
+    c=inspect(name)
+    if c['Config'].get('Labels',{}).get('aios.session')!=s['workerSessionId']: fail()
+    if c['State'].get('Running'):
+     cg=cgroup(c['State']['Pid']); record['cgroup']=cg; record['pids'].update(census(cg)); save(path,record)
+    if not record['cgroup'] and c['State'].get('Status') not in ['created','configured']: fail()
+    stop(name,record)
+   record['stopped']=True; record['session']={**s,'state':'stopped'}; save(path,record)
+   print(json.dumps(dict(**s,**pins,status='stopped',revoked=True,descendantsStopped=True,
+      evidence=dict(observedProcesses=len(record['pids']),remainingProcesses=0,censusSha256=h(json.dumps(record['pids'],sort_keys=True).encode())))))
+  else:
+   if not record or not record.get('revoked') or not record.get('stopped') or s['fence']!=fence: fail()
+   if record['session']!=s or not gone(record) or inspect(name)['State'].get('Running'): fail()
+   a=pod('logs',name); b=pod('logs',name)
+   if a!=b or a!=b'AIOS offline canary complete\n': fail()
+   print(json.dumps(dict(**s,**pins,status='stopped',content=base64.b64encode(a).decode(),beforeSha256=h(a),afterSha256=h(b))))
+ else: fail()
+`;
+
+function ordinary(path: string, directory = false): void {
+  const entry = lstatSync(path);
+  if (
+    entry.isSymbolicLink() ||
+    realpathSync(path).toLowerCase() !== resolve(path).toLowerCase() ||
+    (directory ? !entry.isDirectory() : !entry.isFile() || entry.nlink !== 1)
+  )
+    throw Error("Unsafe native path");
+}
+function contains(root: string, path: string): boolean {
+  const rel = relative(root, path);
+  return (
+    rel === "" ||
+    (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+  );
+}
+export class NativePodmanDriver implements OfflineCanaryRuntime {
+  readonly mode = "live" as const;
+  constructor(
+    readonly machine: string,
+    readonly authorityDirectory: string,
+    readonly policyPath: string,
+  ) {
+    if (
+      !/^aios-[a-z0-9-]+$/.test(machine) ||
+      !isAbsolute(authorityDirectory) ||
+      !isAbsolute(policyPath)
+    )
+      throw Error("Invalid native driver options");
+  }
+  private invoke(action: string, payload: Record<string, unknown> = {}): any {
+    if (existsSync(this.authorityDirectory))
+      ordinary(this.authorityDirectory, true);
+    if (platform() !== "win32" || arch() !== "x64")
+      throw Error("Unsupported native host");
+    const configPath = join(
+      homedir(),
+      ".config",
+      "containers",
+      "podman",
+      "machine",
+      "hyperv",
+      `${this.machine}.json`,
+    );
+    ordinary(configPath);
+    const config = JSON.parse(readFileSync(configPath, "utf8"));
+    if (
+      config.Name !== this.machine ||
+      !config.HyperVHypervisor ||
+      !Array.isArray(config.Mounts) ||
+      config.Mounts.length ||
+      config.HostUser?.Rootful !== false
+    )
+      throw Error("Unsafe machine configuration");
+    const authority = sha256(resolve(this.authorityDirectory).toLowerCase());
+    const request = {
+      action,
+      authority,
+      host: hostname(),
+      hostBinding: {
+        platform: platform(),
+        arch: arch(),
+        osVersion: release(),
+        provider: "hyperv",
+        machine: this.machine,
+      },
+      template: offlineTemplate,
+      worker,
+      ...payload,
+    };
+    // Send fixed management code on stdin: Windows SSH truncates long command
+    // arguments. The request is base64 data, never interpolated shell source.
+    const input =
+      "import json,base64\n" +
+      `R=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n` +
+      guest;
+    const executable = join(
+      homedir(),
+      "AppData",
+      "Local",
+      "Programs",
+      "Podman",
+      "podman.exe",
+    );
+    const sshDirectory = "C:\\Program Files\\Git\\usr\\bin";
+    if (!existsSync(join(sshDirectory, "ssh.exe")))
+      throw Error("Missing trusted SSH");
+    ordinary(executable);
+    const result = spawnSync(
+      executable,
+      ["machine", "ssh", this.machine, "python3"],
+      {
+        cwd: process.env.SystemRoot ?? "C:\\Windows",
+        shell: false,
+        windowsHide: true,
+        encoding: "utf8",
+        timeout: 25000,
+        maxBuffer: 1048576,
+        input,
+        env: {
+          SystemRoot: process.env.SystemRoot,
+          USERPROFILE: homedir(),
+          LOCALAPPDATA: join(homedir(), "AppData", "Local"),
+          APPDATA: join(homedir(), "AppData", "Roaming"),
+          PATH: `${sshDirectory};${process.env.SystemRoot}\\System32`,
+        },
+      },
+    );
+    if (result.error || result.status !== 0)
+      throw Error("Native offline operation unavailable");
+    return JSON.parse(result.stdout);
+  }
+  private policy(repository?: string): Record<string, string> {
+    if (
+      repository &&
+      (contains(realpathSync(repository), resolve(this.authorityDirectory)) ||
+        contains(resolve(this.authorityDirectory), realpathSync(repository)))
+    )
+      throw Error("Keep native authority separate from candidate");
+    ordinary(this.policyPath);
+    if (
+      lstatSync(this.policyPath).size > 65536 ||
+      contains(
+        resolve(this.authorityDirectory),
+        realpathSync(this.policyPath),
+      ) ||
+      (repository &&
+        contains(realpathSync(repository), realpathSync(this.policyPath)))
+    )
+      throw Error("Untrusted native pins");
+    const policy = JSON.parse(readFileSync(this.policyPath, "utf8"));
+    if (
+      policy.schema !== 1 ||
+      !policy.binding ||
+      Object.keys(policy).some((k) => !["schema", "binding"].includes(k))
+    )
+      throw Error("Invalid native pins");
+    return policy.binding;
+  }
+  pin(repository: string): PodmanObservation {
+    const target = resolve(this.policyPath);
+    if (
+      contains(realpathSync(repository), resolve(this.authorityDirectory)) ||
+      contains(resolve(this.authorityDirectory), realpathSync(repository)) ||
+      contains(realpathSync(repository), target) ||
+      contains(resolve(this.authorityDirectory), target)
+    )
+      throw Error("Keep native pins outside candidate and authority");
+    mkdirSync(dirname(target), { recursive: true });
+    ordinary(dirname(target), true);
+    const observation = this.invoke("enroll");
+    writeFileSync(
+      target,
+      JSON.stringify({ schema: 1, binding: observation.binding }, null, 2) +
+        "\n",
+      { flag: "wx", mode: 0o600, flush: true },
+    );
+    return observation;
+  }
+  observe(repository: string): PodmanObservation {
+    return this.invoke("observe", { expected: this.policy(repository) });
+  }
+  async execute(
+    request: Parameters<OfflineCanaryRuntime["execute"]>[0],
+  ): Promise<CanaryExecution> {
+    this.session(request.session);
+    if (
+      !request.mayDispatch() ||
+      request.files.length !== 1 ||
+      request.files[0]?.path !== "canary.txt" ||
+      !request.files[0].bytes.equals(Buffer.from(canaryInput))
+    )
+      throw Error("Native dispatch refused");
+    const expected = this.policy();
+    if (
+      Object.keys(expected).length !== Object.keys(request.binding).length ||
+      Object.entries(expected).some(
+        ([key, value]) => request.binding[key] !== value,
+      ) ||
+      sha256(readFileSync(this.policyPath)) !== request.policySha256
+    )
+      throw Error("Changed native pins");
+    return this.invoke("execute", {
+      expected,
+      session: request.session,
+      pins: {
+        bindingSha256: request.bindingSha256,
+        policySha256: request.policySha256,
+      },
+      input: request.files[0].bytes.toString("base64"),
+    });
+  }
+  async stop(session: WorkerSession, pins: CanaryPins): Promise<CanaryStop> {
+    this.session(session);
+    return this.invoke("stop", { session, pins });
+  }
+  async collect(
+    session: WorkerSession,
+    pins: CanaryPins,
+  ): Promise<CanaryCollection> {
+    this.session(session);
+    const result = this.invoke("collect", { session, pins });
+    if (!matchesCanary(result, session, pins) || result.status !== "stopped")
+      throw Error("Mismatched native collection");
+    const bytes = Buffer.from(result.content, "base64");
+    if (!bytes.equals(Buffer.from(canaryOutput)))
+      throw Error("Invalid native output");
+    const spool = join(
+      this.authorityDirectory,
+      "artifacts",
+      `${session.sandboxId}-native-result.txt`,
+    );
+    ordinary(dirname(spool), true);
+    writeFileSync(spool, bytes, { flag: "wx", mode: 0o600, flush: true });
+    ordinary(spool);
+    const before = sha256(readFileSync(spool));
+    const after = sha256(readFileSync(spool));
+    if (before !== result.beforeSha256 || after !== result.afterSha256)
+      throw Error("Changed native spool");
+    return {
+      ...result,
+      files: [
+        {
+          path: "result.txt",
+          bytes,
+          ordinary: true,
+          links: lstatSync(spool).nlink,
+          beforeSha256: before,
+          afterSha256: after,
+        },
+      ],
+    };
+  }
+  private session(session: WorkerSession): void {
+    for (const key of [
+      "deliveryId",
+      "operationId",
+      "sandboxId",
+      "workerSessionId",
+      "runnerId",
+    ] as const)
+      if (
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+          session[key],
+        )
+      )
+        throw Error("Invalid native identity");
+    if (!Number.isSafeInteger(session.fence) || session.fence < 1)
+      throw Error("Invalid native fence");
+  }
+}

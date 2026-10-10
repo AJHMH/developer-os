@@ -19,6 +19,11 @@ export interface CanaryExecution extends CanaryReceipt {
 export interface CanaryStop extends CanaryReceipt {
   revoked: boolean;
   descendantsStopped: boolean;
+  evidence?: {
+    observedProcesses: number;
+    remainingProcesses: number;
+    censusSha256: string;
+  };
 }
 export interface CanaryCollection extends CanaryReceipt {
   files: {
