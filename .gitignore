@@ -9,3 +9,8 @@
 .scratch/codex-runtime/
 .scratch/ticket18-live-check/
 .scratch/ticket19-live-check/
+
+# Factory-generated evidence
+/tmp/
+/coverage/
+.nyc_output/
