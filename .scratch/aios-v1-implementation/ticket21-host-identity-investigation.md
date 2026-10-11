@@ -9,3 +9,13 @@ Guest uptime places the latest boot at 2026-10-11T18:01:38Z (1:01 p.m. America/C
 Inference: restarting this Linux VM regenerates the UUID input and invalidates the hostId pin. This explains the observed isolated hostId drift, but the previous raw UUID/hostname inputs were not retained, so a direct historical component comparison cannot be made. No restart was performed as part of this investigation.
 
 Candidate policy is `ticket21-native-pin-candidate.json`, SHA-256 `8a33daa5fae7722ec7ad04d541f72cf3c713b87f37656b4224e633947849c594`. It is a review artifact only, not independent authority. Existing v2 external pins remain intact. Owner approval is required to adopt it in a new external v3 file and run synthetic qualification. Current admission remains refused. The earlier saved inference plan is consumed and stale; it must never be used again.
+
+## Authorized v3 adoption and preparation
+
+The owner authorized the exact candidate SHA above. It was written exclusively
+with mode 0600 to the external `pins-ticket21-gateway-v3.json`; v2 was retained.
+Fresh native synthetic qualification passed against the current identity and
+diagnostics. Prepared run `208706f5-a6bd-49e1-9c33-5b6aa813d112` is unapproved
+for live inference. See `ticket21-gateway-inference-plan.json` and
+`ticket21-gateway-observation.json`. No Keychain reads or subscription requests
+were performed during preparation. Production delivery remains disabled.

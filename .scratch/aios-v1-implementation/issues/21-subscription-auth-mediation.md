@@ -212,3 +212,13 @@ The owner authorized preparing bounded event-structure, length and comparison
 diagnostics only, with no live inference. Exact completion consistency remains
 unchanged. All 123 existing tests and formatting pass. Fresh native proof and an
 exact separately approved plan remain necessary before another live request.
+
+## Authorized v3 adoption and preparation
+
+The owner authorized the exact candidate SHA above. It was written exclusively
+with mode 0600 to the external `pins-ticket21-gateway-v3.json`; v2 was retained.
+Fresh native synthetic qualification passed against the current identity and
+diagnostics. Prepared run `208706f5-a6bd-49e1-9c33-5b6aa813d112` is unapproved
+for live inference. See `ticket21-gateway-inference-plan.json` and
+`ticket21-gateway-observation.json`. No Keychain reads or subscription requests
+were performed during preparation. Production delivery remains disabled.
