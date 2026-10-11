@@ -65,7 +65,7 @@ test("a concurrent runner using an aliased state path refuses before launching a
     running = invoke(root, [script]);
     await once(running.child.stdout, "data");
     const alias = join(root, "alias");
-    symlinkSync(root, alias, "dir");
+    symlinkSync(root, alias, process.platform === "win32" ? "junction" : "dir");
     const blocked = await invoke(alias, [script]).done;
     assert.notEqual(blocked.code, 0, blocked.output);
     assert.match(blocked.output, /acceptance.*lock/i);
@@ -117,7 +117,9 @@ test("interruption retains the lock and refuses a later run", async () => {
     running.child.kill("SIGTERM");
     const stopped = await running.done;
     assert.notEqual(stopped.code, 0);
-    assert.match(stopped.output, /lock retained/i);
+    // Windows forcefully terminates the process; it cannot print a signal-handler message.
+    if (process.platform !== "win32")
+      assert.match(stopped.output, /lock retained/i);
     const blocked = await invoke(root, [script]).done;
     assert.notEqual(blocked.code, 0);
     assert.match(blocked.output, /acceptance.*lock/i);

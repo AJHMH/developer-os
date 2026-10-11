@@ -1,0 +1,199 @@
+{
+  "observedAt": "2026-10-11T23:35:41.397Z",
+  "machine": "aios-podman-noshare",
+  "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+  "checks": [
+    "changed VM-image pins refused before worker launch",
+    "Git metadata input refused through native admission path",
+    "hard-linked native input refused",
+    "credential-like native input refused",
+    "unknown shutdown blocks collection/release; new controller reconciles exact native session",
+    "fresh actual offline worker completes input transfer, verified shutdown and artifact collection"
+  ],
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-11T23:35:21.725Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "not-run"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "not-run"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "not-run"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "not-run"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "not-run"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "not-run"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "not-run",
+      "workerProtocol": "not-run",
+      "codexCredentialIsolation": "not-run",
+      "scope": "host-capability-only",
+      "credentialIsolation": "not-run",
+      "credentialIsolationScope": "not-run",
+      "endpointEnforcement": "not-run",
+      "deliveryCapabilities": "not-run",
+      "hostGateway": "passed",
+      "gatewayIntegration": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+        "engineVersion": "6.0.2",
+        "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+        "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-5a730a37d8fc26559beed74a40bc4e1ebffa6b10c82a68c5b7f120794c120333"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "6d3d1c6716819817d537996ba1eeec41317f1cd7b9a6f71b36a450c0b5b32b7d",
+    "bindingSha256": "69416723e1244f40042b3a81b73dd6421198717f1f558074e67b9c956d610b14"
+  },
+  "canary": {
+    "bindingSha256": "69416723e1244f40042b3a81b73dd6421198717f1f558074e67b9c956d610b14",
+    "policySha256": "6d3d1c6716819817d537996ba1eeec41317f1cd7b9a6f71b36a450c0b5b32b7d",
+    "mode": "live",
+    "outcome": "completed",
+    "session": {
+      "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "intent": "start",
+      "repositoryKey": "path:c:\\users\\mraar\\.developer-os\\ticket19-native\\repo",
+      "operationId": "c00006a4-b167-4f46-9406-c856a1b896bf",
+      "sandboxId": "7a244c78-1ff0-47ae-ad24-3c75a1d8a419",
+      "workerSessionId": "1d7add85-0f75-4011-9953-2552e8afb6c2",
+      "runnerId": "36303ebc-63a9-4907-9316-3ef55b476aab",
+      "fence": 47,
+      "state": "stopped"
+    },
+    "inputSha256": "f8ff6dc081d618c0d7583057aa11907c7bb0f9d192173329de1fd1600fc90ed5",
+    "message": "Synthetic offline round trip completed; production delivery remains disabled.",
+    "shutdownProof": {
+      "observedProcesses": 8,
+      "remainingProcesses": 0,
+      "censusSha256": "d71f42cc8f3e35101f83a32144afee3c1ac7f4ef3dfdf5bc6becd4034325067a"
+    },
+    "outputSha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5"
+  },
+  "artifact": {
+    "bindingSha256": "69416723e1244f40042b3a81b73dd6421198717f1f558074e67b9c956d610b14",
+    "policySha256": "6d3d1c6716819817d537996ba1eeec41317f1cd7b9a6f71b36a450c0b5b32b7d",
+    "mode": "live",
+    "outcome": "completed",
+    "session": {
+      "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "intent": "start",
+      "repositoryKey": "path:c:\\users\\mraar\\.developer-os\\ticket19-native\\repo",
+      "operationId": "c00006a4-b167-4f46-9406-c856a1b896bf",
+      "sandboxId": "7a244c78-1ff0-47ae-ad24-3c75a1d8a419",
+      "workerSessionId": "1d7add85-0f75-4011-9953-2552e8afb6c2",
+      "runnerId": "36303ebc-63a9-4907-9316-3ef55b476aab",
+      "fence": 47,
+      "state": "stopped"
+    },
+    "inputSha256": "f8ff6dc081d618c0d7583057aa11907c7bb0f9d192173329de1fd1600fc90ed5",
+    "message": "Synthetic offline round trip completed; production delivery remains disabled.",
+    "shutdownProof": {
+      "observedProcesses": 8,
+      "remainingProcesses": 0,
+      "censusSha256": "d71f42cc8f3e35101f83a32144afee3c1ac7f4ef3dfdf5bc6becd4034325067a"
+    },
+    "outputSha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5",
+    "output": {
+      "content": "AIOS offline canary complete\n",
+      "sha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5"
+    }
+  },
+  "nativeShutdown": {
+    "observedProcesses": 8,
+    "remainingProcesses": 0,
+    "censusSha256": "d71f42cc8f3e35101f83a32144afee3c1ac7f4ef3dfdf5bc6becd4034325067a"
+  },
+  "scope": "Fixed synthetic Windows Hyper-V AMD64 round trip only; no inference, repository scripts, owner credential imports or production qualification."
+}

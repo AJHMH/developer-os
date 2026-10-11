@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import {
   realpathSync,
@@ -94,7 +95,7 @@ test("public CLI emits the same report and refuses a weakened Windows observatio
   const qualified = await f.controller.qualify(f.delivery.id);
   assert.equal(qualified.qualification.offlineAdmission.allowed, false);
 
-  const cli = new URL("../dist/cli.js", import.meta.url).pathname;
+  const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
   const result = spawnSync(
     process.execPath,
     [

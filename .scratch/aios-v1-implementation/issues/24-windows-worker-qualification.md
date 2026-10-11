@@ -31,3 +31,18 @@ This work ran on a Darwin arm64 Mac with AppleHV. It did not run Windows
 Hyper-V qualification, live authentication, provider inference or a full
 synthetic worker task/isolated validation. Those acceptance criteria remain
 open until native Windows evidence is available.
+
+### 11 October Windows handoff continuation
+
+Resumed the Mac handoff on native Windows x64/Hyper-V at production source
+`e9ccc1ad744c20e8a4c003394577f28cecfba10b`, with fresh external v3 pins.
+Serial offline round-trip, fencing/crash recovery and synthetic isolation passed.
+The full automatic suite passes 160 tests with one macOS-only ACL skip.
+Windows portability fixes affect test fixtures only; production code is unchanged.
+See [handoff and retained evidence](../ticket24-qualification-report.md).
+
+The public report still blocks complete qualification: required isolation probes
+are missing, aggregate fencing probes are not fully populated, and authentication,
+online policy, usage, production synthetic work and isolated validation remain
+not-run. All complete acceptance boxes remain unchecked; no inference or
+production execution was authorized by these results.

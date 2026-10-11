@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import {
   mkdtempSync,
@@ -19,7 +20,7 @@ test("CLI rejects misplaced host options and incomplete online artifact configur
   const state = join(root, "state");
   const repository = join(root, "repo");
   mkdirSync(repository);
-  const cli = new URL("../dist/cli.js", import.meta.url).pathname;
+  const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
   const run = (args) =>
     spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
 
@@ -56,7 +57,7 @@ test("CLI validates selected auth identity before opening browser or native auth
   const auth = join(root, "auth");
   mkdirSync(repository);
   mkdirSync(state);
-  const cli = new URL("../dist/cli.js", import.meta.url).pathname;
+  const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 
   const invalidSelectedAccount = spawnSync(
     process.execPath,
@@ -99,7 +100,7 @@ test("CLI constructs the pinned dependency runtime before refusing a missing del
   mkdirSync(repository);
   mkdirSync(state);
   writeFileSync(policy, JSON.stringify({ schema: 1 }), { mode: 0o600 });
-  const cli = new URL("../dist/cli.js", import.meta.url).pathname;
+  const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
   const result = spawnSync(
     process.execPath,
     [
