@@ -17,6 +17,18 @@ import { syntheticRelayCanary, modelRelayVersion } from "./model-relay.js";
 
 export interface SubscriptionMediationReport {
   qualified: false;
+  mechanismDecision?: {
+    qualified: true;
+    scope: "macos-fixed-codex-subscription";
+    runId: string;
+    observedAt: string;
+    accountId: string;
+    requestSha256: string;
+    gatewayVersion: string;
+    workerExecutableSha256: string;
+    bindingSha256: string;
+    inferenceAuthorized: false;
+  };
   protocol: "passed" | "not-run";
   syntheticRelay: "passed" | "not-run";
   relayRevocation: "passed" | "not-run";

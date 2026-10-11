@@ -1,3 +1,4 @@
+import { projectSubscriptionDecision } from "./subscription-decision.js";
 import { randomUUID } from "node:crypto";
 import {
   existsSync,
@@ -324,7 +325,10 @@ export class DeliveryController {
         .prepare("SELECT document FROM deliveries WHERE id = ?")
         .get(id);
       if (!row) throw new DeliveryError("Delivery not found.");
-      return JSON.parse(String(row.document)) as Delivery;
+      return projectSubscriptionDecision(
+        JSON.parse(String(row.document)) as Delivery,
+        this.stateDirectory,
+      );
     });
   }
 
@@ -333,7 +337,12 @@ export class DeliveryController {
       deliveries: db
         .prepare("SELECT document FROM deliveries ORDER BY rowid")
         .all()
-        .map((row) => JSON.parse(String(row.document)) as Delivery),
+        .map((row) =>
+          projectSubscriptionDecision(
+            JSON.parse(String(row.document)) as Delivery,
+            this.stateDirectory,
+          ),
+        ),
     }));
   }
 
@@ -586,16 +595,19 @@ export class DeliveryController {
     } catch {
       /* Retain fixed unknown evidence, never provider error text. */
     }
-    return this.change(id, (delivery) => {
-      if (
-        delivery.ownership.fence !== snapshot.ownership.fence ||
-        delivery.phase !== snapshot.phase
-      )
-        throw new DeliveryError(
-          "Delivery authority changed during qualification.",
-        );
-      delivery.qualification = qualification;
-    });
+    return projectSubscriptionDecision(
+      this.change(id, (delivery) => {
+        if (
+          delivery.ownership.fence !== snapshot.ownership.fence ||
+          delivery.phase !== snapshot.phase
+        )
+          throw new DeliveryError(
+            "Delivery authority changed during qualification.",
+          );
+        delivery.qualification = qualification;
+      }),
+      this.stateDirectory,
+    );
   }
 
   /** Fixed synthetic workload only. Admission never enables feature delivery. */

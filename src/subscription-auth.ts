@@ -44,12 +44,13 @@ function inside(parent: string, child: string): boolean {
   );
 }
 
-/** Host storage must be private to the effective owner. macOS extended ACLs
+/** Host storage must be controlled by the effective owner. macOS extended ACLs
  * can grant access beyond mode bits, so an ACL is refused rather than inferred. */
-export function assertPrivateAuthStorage(
+export function assertOwnerControlledStorage(
   path: string,
   kind: "directory" | "file",
   maximum = 4096,
+  access: "private" | "readable" = "private",
 ) {
   const entry = lstatSync(path);
   if (
@@ -63,7 +64,7 @@ export function assertPrivateAuthStorage(
     if (
       !process.geteuid ||
       entry.uid !== process.geteuid() ||
-      (entry.mode & 0o077) !== 0
+      (entry.mode & (access === "private" ? 0o077 : 0o022)) !== 0
     )
       throw Error();
     if (process.platform === "darwin") {
@@ -81,6 +82,14 @@ export function assertPrivateAuthStorage(
         throw Error();
     }
   }
+}
+
+export function assertPrivateAuthStorage(
+  path: string,
+  kind: "directory" | "file",
+  maximum = 4096,
+) {
+  assertOwnerControlledStorage(path, kind, maximum, "private");
 }
 
 /** Separate owner setup, not worker qualification. This prepares only non-secret

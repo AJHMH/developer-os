@@ -218,3 +218,28 @@ Ticket 21 stays ready-for-agent with this integration requirement open; ticket
 Windows, generalized prompts, usage monitoring/re-dispatch and production network
 policy remain separate work. Standards review has no new code findings. No source
 changed after the already reviewed/tested 98ae5c2 repair.
+
+## Trusted public capability decision verified (11 October)
+
+Public qualification, status and list now project the operator-endorsed successful
+run `55f1cce4-6ea9-484d-8433-51e5cf6ed98f` from private external controller state.
+Candidate repository receipts cannot supply this authority. The decision checks
+consumed approval, exact repository, gateway/relay/native source, VM binding,
+worker executable, independent policy and account registration configuration.
+Missing, unsafe or drifted evidence withholds the positive decision. macOS ACLs,
+symlinks and hard links are refused; the independent policy parent may be readable
+but must remain owned by this user and non-writable by others.
+
+Fresh synthetic native qualification and actual CLI status verified
+`mechanismDecision.qualified=true`, `inferenceAuthorized=false`, `ready=false`
+and `liveReady=false`. Status reports stored VM observations; fresh qualification
+is required to observe runtime changes. This historical mechanism decision grants
+no current credential authorization. No additional live inference, credential
+refresh or paid fallback occurred. See `ticket21-public-capability-observation.json`
+and `ticket21-public-capability.md`.
+
+All 124 tests passed, including public refusal and drift cases. Parallel Spec and
+Standards reviews have no unresolved findings. The ticket's public decision
+requirement is complete for the pinned macOS fixed-request fixture. Ticket 22
+still owns general online dispatch, dependency access, usage monitoring and
+restart/re-dispatch gates; Windows qualification remains separate.
