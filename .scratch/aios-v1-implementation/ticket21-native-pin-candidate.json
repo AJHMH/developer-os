@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "binding": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "osVersion": "27.2.0",
+    "provider": "applehv",
+    "machine": "aios-macos-noshare",
+    "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+    "engineVersion": "6.1.3",
+    "hostId": "b1ee3f9ab4c26b945661b50a12931593f6bda22290d32f51d980d6f8c3182292",
+    "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+    "workerVersion": "1.1.0",
+    "policyVersion": "offline-native-v3-721704aaf9427e228f2bf26cd4dfd1528f45ee86fdc7a9fd5e4a5b8b074df07e"
+  }
+}
