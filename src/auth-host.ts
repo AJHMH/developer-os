@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { macKeychainStore } from "./keychain-store.js";
 import { createServer } from "node:http";
+import { dirname } from "node:path";
 import {
   SubscriptionAuthBroker,
   type AuthorizationTransport,
@@ -9,7 +10,6 @@ import {
 import { prepareSubscriptionAuth } from "./subscription-auth.js";
 import { DeliveryError } from "./controller.js";
 
-const service = "Developer OS subscription authorization";
 const refusal = () =>
   new DeliveryError(
     "Separate subscription authorization did not complete. Check browser consent and macOS Keychain access, then retry; production delivery remains disabled.",
@@ -54,18 +54,11 @@ const openAI: AuthorizationTransport = {
     return result.keys;
   },
 };
-function keychain(args: string[], input?: string): string {
-  const result = spawnSync("/usr/bin/security", args, {
-    env: { PATH: "/usr/bin:/bin" },
-    encoding: "utf8",
-    timeout: 10000,
-    maxBuffer: 262144,
-    ...(input ? { input } : {}),
-  });
-  if (result.status !== 0) throw refusal();
-  return result.stdout.trim();
-}
-function store(account: ValidatedAccount, replace = false): string {
+function store(
+  account: ValidatedAccount,
+  vault: ReturnType<typeof macKeychainStore>,
+  replace = false,
+): string {
   const id = createHash("sha256")
     .update(
       JSON.stringify([
@@ -77,22 +70,7 @@ function store(account: ValidatedAccount, replace = false): string {
     )
     .digest("hex");
   const encoded = Buffer.from(JSON.stringify(account)).toString("base64");
-  // security interactive mode keeps credential data off process argument lists.
-  // The fixed service, hex identifier and base64 value cannot inject commands.
-  // Replacement occurs only for the explicitly selected, freshly verified identity.
-  keychain(
-    ["-i"],
-    `add-generic-password -s "${service}" -a ${id} ${replace ? "-U " : ""}-w ${encoded}\n`,
-  );
-  const retained = keychain([
-    "find-generic-password",
-    "-s",
-    service,
-    "-a",
-    id,
-    "-w",
-  ]);
-  if (retained !== encoded) throw refusal();
+  vault.write(id, encoded, replace);
   return id;
 }
 
@@ -112,22 +90,13 @@ export async function authorizeSubscriptionAuth(
     repository,
     authority,
   );
+  const vault = macKeychainStore(dirname(registration.registrationPath));
   let selected: ValidatedAccount | undefined;
   if (selectedId !== undefined) {
     if (!/^[a-f0-9]{64}$/.test(selectedId)) throw refusal();
     try {
       selected = JSON.parse(
-        Buffer.from(
-          keychain([
-            "find-generic-password",
-            "-s",
-            service,
-            "-a",
-            selectedId,
-            "-w",
-          ]),
-          "base64",
-        ).toString("utf8"),
+        Buffer.from(vault.read(selectedId), "base64").toString("utf8"),
       );
       if (
         !selected ||
@@ -212,7 +181,7 @@ export async function authorizeSubscriptionAuth(
     const pending = broker.begin(callbackUri, selected);
     announce(pending.authorizationUrl);
     const account = await broker.complete(await callback);
-    const accountId = store(account, selected !== undefined);
+    const accountId = store(account, vault, selected !== undefined);
     return {
       status: "authorized",
       accountId,
