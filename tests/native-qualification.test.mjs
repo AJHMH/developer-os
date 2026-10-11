@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { realpathSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DeliveryController } from "../dist/controller.js";
 import { SbxHostAdapter } from "../dist/sbx-host.js";
 
 test("native host observations expose prerequisites without qualifying worker isolation or persisting diagnostic details", async (t) => {
-  const root = mkdtempSync(join(tmpdir(), "aios-native-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-native-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repository");
   mkdirSync(repository);

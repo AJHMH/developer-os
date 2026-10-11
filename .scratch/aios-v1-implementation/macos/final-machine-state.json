@@ -1,0 +1,31 @@
+[
+     {
+          "ConfigDir": {
+               "Path": "/Users/aaronhoward/.config/containers/podman/machine/applehv"
+          },
+          "ConnectionInfo": {
+               "PodmanSocket": {
+                    "Path": "/var/folders/72/ztmxv4xj0gd42lclb9vqwvg00000gn/T/podman/aios-macos-noshare-api.sock"
+               },
+               "PodmanPipe": null
+          },
+          "Created": "2026-10-10T18:47:14.838986-05:00",
+          "LastUp": "2026-10-10T18:59:41.286721-05:00",
+          "Name": "aios-macos-noshare",
+          "Resources": {
+               "CPUs": 2,
+               "DiskSize": 20,
+               "Memory": 2048,
+               "USBs": []
+          },
+          "SSHConfig": {
+               "IdentityPath": "/Users/aaronhoward/.local/share/containers/podman/machine/machine",
+               "Port": 51479,
+               "RemoteUsername": "core"
+          },
+          "State": "stopped",
+          "UserModeNetworking": true,
+          "Rootful": false,
+          "Rosetta": false
+     }
+]

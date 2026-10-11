@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-10T23:59:35.356Z",
+  "typecheck": "passed",
+  "format": "passed",
+  "build": "passed",
+  "tests": {
+    "passed": 84,
+    "failed": 0,
+    "skipped": 0
+  },
+  "native": {
+    "offlineRoundtrip": "passed",
+    "isolation": "passed",
+    "fencingCrashRecovery": "passed",
+    "hostProtocol": "passed",
+    "syntheticRelay": "passed"
+  },
+  "productionReady": false,
+  "review": {
+    "standardsFindings": 1,
+    "standardsUnresolved": 0,
+    "specFindings": 0
+  }
+}

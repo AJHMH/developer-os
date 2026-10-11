@@ -1,13 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import {
+  realpathSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { DeliveryController } from "../dist/controller.js";
 
 test("native enrollment cannot bind candidate-owned authority or candidate pin files", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "aios-native-options-"));
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "aios-native-options-")),
+  );
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repo");
   mkdirSync(repository);
@@ -38,7 +46,7 @@ test("native enrollment cannot bind candidate-owned authority or candidate pin f
 });
 
 test("native CLI rejects malformed machine selection without modifying an existing delivery", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "aios-native-cli-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-native-cli-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repo");
   mkdirSync(repository);

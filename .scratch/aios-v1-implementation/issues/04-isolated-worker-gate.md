@@ -39,6 +39,23 @@ The owner confirmed no dedicated proxy is configured. OpenRouter is an integrati
 
 7 October owner-approved wayfinder revision: [Reconsider the isolated worker runtime and qualification scope](../../aios-feature-delivery/issues/07-runtime-scope-revision.md) selects Podman-backed dedicated VMs as the candidate, retains this parent qualification gate open, separates demonstrated Windows offline feasibility from remaining blocking implementation, and proceeds Windows-first while retaining independently blocked macOS qualification. The canonical spec and blocking tickets must be revised through /to-spec and /to-tickets before the next implementation slice. This approval does not establish live readiness or waive any unproven control.
 
-## 10 October current boundary
+### 10 October current boundary
 
 Tickets 20 and 23 now have reproducible synthetic native Windows acceptance: positive-control access denial, four bounded escape attempts, and eight-process shutdown with stale-sender/crash recovery. The observed namespace gap was fixed with a tighter seccomp policy; failed attempts remain retained. Ticket 21 has passed credential-free host protocol and loopback relay canaries, and separate non-secret registration preparation only. Its real authorization broker, VM mediation and subscription inference remain outstanding, as do online policy and production worker qualification (22/24). Parent 04 remains needs-info. The owner confirmed no Mac is available; macOS 14+ Apple-silicon qualification (25 and later 16) is explicitly blocked. No live readiness, production dispatch, paid API fallback or acceptance waiver follows from Windows synthetic evidence.
+
+### 10 October independent macOS implementation
+
+The owner supplied this Apple-silicon Mac and explicitly requested this parent
+ticket's macOS path. The earlier absence-of-Mac statement is now historical.
+Native AppleHV admission, fixed ARM64 byte transfer/result collection, synthetic
+access-denial controls, eight-process descendant stop, pause/stale-sender fencing
+and controller-crash/exact-session recovery have independent Mac evidence.
+Credential-free digest-pinned Codex protocol/relay inspection also passed.
+See [macOS qualification](../../../docs/macos-worker-qualification.md) and the
+retained `ticket4-macos-*.json` reports.
+
+Parent 04 remains **needs-info**. Tickets 21/22/24 still block actual
+authentication, online access, inference and production worker validation;
+ticket 25's full qualification and later ticket 16 remain incomplete. This
+owner-authorized offline host work does not waive their dependency gates.
+`ready`/`liveReady` remain false; production start still refuses.

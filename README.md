@@ -4,7 +4,7 @@ A local TypeScript controller for owner-approved feature delivery. The first imp
 
 ## Requirements and checks
 
-Use Node **24.10 or later in the Node 24 release line** and npm. This slice uses Node's built-in SQLite API, which emits an experimental-feature warning on this runtime.
+Use Node **24.10 or later in the Node 24 release line** and npm. `.nvmrc` selects the macOS-validated Node 24.15.0 runtime. This slice uses Node's built-in SQLite API, which emits an experimental-feature warning on this runtime.
 
 ```sh
 npm ci --ignore-scripts
@@ -148,4 +148,16 @@ The [10 October native acceptance evidence](.scratch/aios-v1-implementation/tick
 
 Native `qualify --adversarial` uses disposable synthetic Windows files and HTTP/MCP services, guest authority/socket and peer controls before and after worker denial. It also tests bounded namespace, chroot, cgroup and proc attempts. The fixed worker now creates an eight-process descendant tree; its default errno seccomp profile additionally denies unshare/setns, and management observes active filtering. Policy version v2 binds worker, management and host-canary code; re-enroll changed versions into a new external policy file. The final [isolation](.scratch/aios-v1-implementation/ticket20-native-isolation.json) and [fencing/crash recovery](.scratch/aios-v1-implementation/ticket23-native-fencing.json) evidence does not establish production readiness or exhaustive escape resistance.
 
-Supplying a trusted `--codex-executable` to `qualify` runs digest-pinned, credential-free app-server protocol and synthetic loopback relay canaries in a fresh empty home. Candidate/state-owned executables refuse inspection. No owner authentication files or inference are used. `prepare-auth --repo <absolute-repo> --auth-directory <external-directory> [--state-dir <absolute-ledger>]` prepares only non-secret stable host registration outside candidate and ledger storage. The [separate ChatGPT setup plan](.scratch/aios-v1-implementation/chatgpt-setup.md) records the remaining authorization broker and production mediation requirements. Parent 04 remains open; no Mac is available for independent qualification.
+Supplying a trusted `--codex-executable` to `qualify` runs digest-pinned, credential-free app-server protocol and synthetic loopback relay canaries in a fresh empty home. Candidate/state-owned executables refuse inspection. No owner authentication files or inference are used. `prepare-auth --repo <absolute-repo> --auth-directory <external-directory> [--state-dir <absolute-ledger>]` prepares only non-secret stable host registration outside candidate and ledger storage. The [separate ChatGPT setup plan](.scratch/aios-v1-implementation/chatgpt-setup.md) records the remaining authorization broker and production mediation requirements. Parent 04 remains open; the independent Mac offline observations below do not qualify production execution.
+
+## Independent macOS worker observations
+
+Ticket 04 now supports explicit AppleHV/Apple-silicon synthetic offline admission
+and the fixed native canary through the same public controller/CLI. Independent
+macOS evidence covers transfer, result collection, bounded access-denial probes
+and eight-process pause/fencing/crash recovery. Digest-pinned native Codex host
+protocol and synthetic relay inspection also passed. Production delivery stays
+disabled pending actual subscription mediation, online policy and complete
+worker qualification. See [macOS setup, pins and evidence](docs/macos-worker-qualification.md).
+
+The explicit macOS host acceptance suite runs serially with `npm run acceptance:macos -- <delivery-id> /absolute/external-pins.json`. See [qualification prerequisites and lock recovery](docs/macos-worker-qualification.md). CI runs the portable checks on Ubuntu and macOS; it does not provision a worker VM.

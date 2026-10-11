@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   mkdtempSync,
+  realpathSync,
   mkdirSync,
   writeFileSync,
   rmSync,
@@ -17,7 +18,7 @@ import { PodmanHostAdapter } from "../dist/podman-host.js";
 import { spawnSync } from "node:child_process";
 
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "aios-offline-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-offline-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repo");
   mkdirSync(repository);

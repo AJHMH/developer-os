@@ -40,3 +40,11 @@ The revised canonical specification supersedes historical Docker-specific candid
 | [25: Independently qualify the macOS worker path](issues/25-macos-worker-qualification.md) | 24 | 12, 13, 14, 15, 52, 56 |
 
 10 October ticket 04 progress: [20 isolation evidence](ticket20-native-isolation.json) and [23 fencing/recovery evidence](ticket23-native-fencing.json) passed for the fixed native Windows synthetic worker. Ticket 21 remains open after [credential-free protocol/relay canaries](ticket21-protocol-observation.json) and separate registration preparation. The owner confirmed no Mac is available; independent macOS qualification is blocked. Parent 04 remains open and production disabled.
+
+10 October independent Mac progress: the owner supplied an Apple-silicon Mac.
+Parent 04 now has a native AppleHV ARM64 synthetic offline path, independently
+observed transfer/result collection, positive-control denial/escape canaries and
+eight-process pause/fencing/crash recovery. Credential-free pinned Codex host
+protocol and relay also passed. See [macOS worker qualification](../../docs/macos-worker-qualification.md).
+Authentication/online/production blockers are unchanged; parent 04 and tickets
+25/16 remain incomplete. The prior no-Mac statement above is historical.

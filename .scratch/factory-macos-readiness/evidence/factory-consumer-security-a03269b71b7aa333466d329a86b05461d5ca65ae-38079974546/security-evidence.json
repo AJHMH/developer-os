@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "revision": "a03269b71b7aa333466d329a86b05461d5ca65ae",
+  "tree_digest": "7dd57613942346706cefaf4187b15ac3ca49fc8f",
+  "workload_id": "developer-os",
+  "profile": "node-24-typescript-cli",
+  "contract_digest": "dcca5aa45f65d25a9b9b4c50805eef08ac3e10ca224b21c2ff95483aba45248a",
+  "tools": {
+    "gitleaks": "8.30.1",
+    "osv": "2.6.0"
+  },
+  "secrets": {
+    "status": "clean",
+    "exit_code": 0,
+    "findings": []
+  },
+  "dependencies": {
+    "status": "clean",
+    "exit_code": 0,
+    "findings": []
+  }
+}

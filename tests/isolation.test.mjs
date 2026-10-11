@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { realpathSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
 
 test("qualification records explicit not-run evidence and blocks launch when no runtime or policy is configured", async (t) => {
-  const root = mkdtempSync(join(tmpdir(), "aios-isolation-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-isolation-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repository");
   mkdirSync(repository);
@@ -33,7 +33,7 @@ import { writeFileSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { SandboxWorkerAdapter } from "../dist/sandbox-worker.js";
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "aios-sandbox-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-sandbox-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repository");
   mkdirSync(repository);

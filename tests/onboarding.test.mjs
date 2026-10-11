@@ -1,13 +1,13 @@
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { realpathSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
 
 test("intake records unknown onboarding prerequisites without enabling delivery", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "aios-onboarding-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-onboarding-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repository");
   mkdirSync(repository);
@@ -37,7 +37,7 @@ test("intake records unknown onboarding prerequisites without enabling delivery"
 import { writeFileSync, symlinkSync } from "node:fs";
 
 function onboarded(t, change = {}, policyInRepository = false) {
-  const root = mkdtempSync(join(tmpdir(), "aios-onboarding-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-onboarding-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repository");
   mkdirSync(repository);

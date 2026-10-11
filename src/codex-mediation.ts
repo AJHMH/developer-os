@@ -62,12 +62,16 @@ export async function inspectCodexMediation(
     const entry = lstatSync(executable);
     const path = realpathSync(executable);
     if (
-      process.platform !== "win32" ||
-      process.arch !== "x64" ||
+      !(
+        (process.platform === "win32" && process.arch === "x64") ||
+        (process.platform === "darwin" && process.arch === "arm64")
+      ) ||
       !entry.isFile() ||
       entry.isSymbolicLink() ||
       entry.nlink !== 1 ||
-      path.toLowerCase() !== resolve(executable).toLowerCase() ||
+      (process.platform === "win32"
+        ? path.toLowerCase() !== resolve(executable).toLowerCase()
+        : path !== resolve(executable)) ||
       inside(repository, path) ||
       inside(authority, path)
     )
@@ -75,13 +79,13 @@ export async function inspectCodexMediation(
     const digest = () =>
       createHash("sha256").update(readFileSync(path)).digest("hex");
     const before = digest();
-    // Official @openai/codex 0.161.0-win32-x64 artifact preserved during the
-    // earlier host qualification. Version text alone cannot admit an executable.
-    if (
-      before !==
-      "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30"
-    )
-      throw Error();
+    // Official @openai/codex 0.161.0 native packages, independently verified
+    // for each host. Version text alone cannot admit an executable.
+    const expected =
+      process.platform === "darwin"
+        ? "12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de"
+        : "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30";
+    if (before !== expected) throw Error();
     home = mkdtempSync(join(tmpdir(), "aios-auth-capability-"));
     const env = {
       SystemRoot: process.env.SystemRoot,
