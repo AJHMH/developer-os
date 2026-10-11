@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { realpathSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "aios-controls-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-controls-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repo");
   mkdirSync(repository);
@@ -363,10 +363,21 @@ test("an abruptly exited runner is fenced and stopped by exact identity before f
     repository: f.repository,
     request: "Crash recovery feature",
   });
-  const script = `import {DeliveryController} from ${JSON.stringify(pathToFileURL(resolve("dist/controller.js")).href)}; const worker={qualified:()=>true,start:async session=>{process.stdout.write(JSON.stringify(session));process.exit(27)},fenceAndStop:async()=>{throw Error('Unexpected stop')}};await new DeliveryController(${JSON.stringify(f.state)},{policyPath:${JSON.stringify(f.options.policyPath)},inspect:()=>(${JSON.stringify(f.options.inspect())})},{worker,subscription:async()=>({observedAt:new Date().toISOString(),accountId:"controlled-owner",authMode:"chatgpt",exhausted:false,windows:[{id:"weekly",usedPercent:4,resetsAt:Math.floor(Date.now()/1000)+86400}]})}).run(${JSON.stringify(delivery.id)});`;
+  const script = `const {DeliveryController}=await import(process.argv[1]);const {state,policyPath,inspection,deliveryId}=JSON.parse(process.argv[2]);const worker={qualified:()=>true,start:async session=>{process.stdout.write(JSON.stringify(session));process.exit(27)},fenceAndStop:async()=>{throw Error('Unexpected stop')}};await new DeliveryController(state,{policyPath,inspect:()=>inspection},{worker,subscription:async()=>({observedAt:new Date().toISOString(),accountId:"controlled-owner",authMode:"chatgpt",exhausted:false,windows:[{id:"weekly",usedPercent:4,resetsAt:Math.floor(Date.now()/1000)+86400}]})}).run(deliveryId);`;
   const crashed = spawnSync(
     process.execPath,
-    ["--input-type=module", "-e", script],
+    [
+      "--input-type=module",
+      "-e",
+      script,
+      pathToFileURL(resolve("dist/controller.js")).href,
+      JSON.stringify({
+        state: f.state,
+        policyPath: f.options.policyPath,
+        inspection: f.options.inspect(),
+        deliveryId: delivery.id,
+      }),
+    ],
     { encoding: "utf8", timeout: 10000 },
   );
   assert.equal(crashed.status, 27, crashed.stderr);

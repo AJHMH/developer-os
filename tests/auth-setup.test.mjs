@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   mkdtempSync,
+  realpathSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -12,7 +13,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "aios-auth-setup-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-auth-setup-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repo = join(root, "repo"),
     state = join(root, "state"),

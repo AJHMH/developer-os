@@ -22,7 +22,7 @@ export type IsolationProbe = (typeof isolationProbes)[number];
 export interface WorkerQualification {
   adversarialBlocker?: string;
   adversarial?: {
-    scope: "synthetic-windows-controls";
+    scope: "synthetic-windows-controls" | "synthetic-macos-controls";
     challengeId: string;
     probeVersion: string;
     escapeAttempts: string[];

@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
-import { arch, homedir, platform, release } from "node:os";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+import { podmanMachine, podmanCommand } from "./podman-platform.js";
 import { NativePodmanDriver } from "./podman-native.js";
 import { inspectCodexMediation } from "./codex-mediation.js";
 import type {
@@ -76,54 +75,11 @@ function inside(parent: string, child: string): boolean {
     (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
   );
 }
-function command(executable: string, args: string[]): string {
-  const result = spawnSync(executable, args, {
-    cwd: process.env.SystemRoot ?? "C:\\Windows",
-    encoding: "utf8",
-    timeout: 10000,
-    maxBuffer: 65536,
-    shell: false,
-    windowsHide: true,
-  });
-  if (result.error || result.status !== 0)
-    throw Error("Observation unavailable");
-  return result.stdout;
-}
-/** Read-only host observations. Config intent is never promoted to effective worker policy.
- * VM image provenance, dedication and effective worker controls remain unknown until
- * a trusted enforcement driver supplies them. No VM is created, started or modified. */
-function observeWindows(machine: string): PodmanObservation {
-  if (
-    platform() !== "win32" ||
-    arch() !== "x64" ||
-    !/^aios-[a-z0-9-]+$/.test(machine)
-  )
-    throw Error("Unsupported host");
-  const configPath = ordinary(
-    join(
-      homedir(),
-      ".config",
-      "containers",
-      "podman",
-      "machine",
-      "hyperv",
-      `${machine}.json`,
-    ),
-  );
-  const config = JSON.parse(readFileSync(configPath, "utf8"));
-  if (
-    config.Name !== machine ||
-    config.Version !== 1 ||
-    !config.HyperVHypervisor
-  )
-    throw Error("Unknown configuration");
-  const executable = [
-    join(process.env.LOCALAPPDATA ?? "", "Programs", "Podman", "podman.exe"),
-    join(homedir(), "AppData", "Local", "Programs", "Podman", "podman.exe"),
-  ].find((path) => isAbsolute(path) && existsSync(path));
-  if (!executable) throw Error("Missing executable");
+/** Read-only prerequisites cannot establish effective isolation. */
+function observeHost(machine: string): PodmanObservation {
+  const host = podmanMachine(machine);
   const version = JSON.parse(
-    command(executable, [
+    podmanCommand(host, [
       "--connection",
       machine,
       "version",
@@ -133,23 +89,18 @@ function observeWindows(machine: string): PodmanObservation {
   );
   return {
     binding: {
-      platform: platform(),
-      arch: arch(),
-      osVersion: release(),
-      provider: "hyperv",
+      platform: host.platform,
+      arch: host.arch,
+      osVersion: host.osVersion,
+      provider: host.provider,
       machine,
       engineVersion: version.Server?.Version,
     },
     effective: {},
-    ...(Array.isArray(config.Mounts) &&
-    typeof config.HostUser?.Rootful === "boolean"
-      ? {
-          configurationIntent: {
-            hostSharesConfigured: config.Mounts.length !== 0,
-            rootful: config.HostUser.Rootful,
-          },
-        }
-      : {}),
+    configurationIntent: {
+      hostSharesConfigured: host.config.Mounts.length !== 0,
+      rootful: host.config.HostUser.Rootful,
+    },
   };
 }
 
@@ -194,7 +145,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
         ? this.options.native.observe(delivery.repository)
         : this.options.observe
           ? this.options.observe()
-          : observeWindows(this.options.machine);
+          : observeHost(this.options.machine);
       const binding: Record<string, string> = {};
       for (const key of bindingKeys) {
         const value = observed.binding[key];
@@ -228,6 +179,11 @@ export class PodmanHostAdapter implements WorkerAdapter {
           effective[key] = value;
       }
       report.offlineAdmission.effective = effective;
+      if (
+        observed.configurationIntent?.hostSharesConfigured ||
+        observed.configurationIntent?.rootful
+      )
+        throw Error("Conflicting machine configuration");
       if (!this.options.policyPath) throw Error("Missing policy");
       const policyPath = ordinary(this.options.policyPath);
       if (
@@ -251,13 +207,20 @@ export class PodmanHostAdapter implements WorkerAdapter {
         if (!binding[key] || binding[key] !== policy.binding[key])
           throw Error("Changed binding");
       if (
-        binding.platform !== "win32" ||
-        binding.arch !== "x64" ||
-        binding.provider !== "hyperv" ||
+        !(
+          (binding.platform === "win32" &&
+            binding.arch === "x64" &&
+            binding.provider === "hyperv" &&
+            /^10\.0\.(\d+)$/.test(binding.osVersion!) &&
+            Number(binding.osVersion!.split(".")[2]) >= 22000) ||
+          (binding.platform === "darwin" &&
+            binding.arch === "arm64" &&
+            binding.provider === "applehv" &&
+            /^\d+\.\d+\.\d+$/.test(binding.osVersion!) &&
+            Number(binding.osVersion!.split(".")[0]) >= 23)
+        ) ||
         binding.machine !== this.options.machine ||
         !/^aios-[a-z0-9-]+$/.test(binding.machine!) ||
-        !/^10\.0\.(\d+)$/.test(binding.osVersion!) ||
-        Number(binding.osVersion!.split(".")[2]) < 22000 ||
         !/^[a-f0-9]{64}$/.test(binding.hostId!) ||
         !/^[a-f0-9]{64}$/.test(binding.vmImageSha256!) ||
         !/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(binding.template!) ||
@@ -333,7 +296,10 @@ export class PodmanHostAdapter implements WorkerAdapter {
           )
             throw Error();
           report.adversarial = {
-            scope: "synthetic-windows-controls",
+            scope:
+              binding.platform === "darwin"
+                ? "synthetic-macos-controls"
+                : "synthetic-windows-controls",
             challengeId: observed.challengeId,
             probeVersion: observed.probeVersion,
             escapeAttempts: observed.escapeAttempts,
@@ -353,13 +319,13 @@ export class PodmanHostAdapter implements WorkerAdapter {
           }
         } catch {
           report.blockers.push(
-            "Synthetic Windows host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation.",
+            "Synthetic host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation.",
           );
         }
       }
     } catch {
       report.blockers.push(
-        "Offline admission refused: provide an external ordinary pin policy and fresh matching Windows Hyper-V bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify.",
+        "Offline admission refused: provide an external ordinary pin policy and fresh matching supported Windows Hyper-V or macOS AppleHV bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify.",
       );
     }
     return report;

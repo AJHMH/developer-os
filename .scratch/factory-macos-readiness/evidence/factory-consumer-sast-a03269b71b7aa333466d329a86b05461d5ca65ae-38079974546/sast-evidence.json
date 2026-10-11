@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "revision": "a03269b71b7aa333466d329a86b05461d5ca65ae",
+  "tree_digest": "7dd57613942346706cefaf4187b15ac3ca49fc8f",
+  "contract_digest": "dcca5aa45f65d25a9b9b4c50805eef08ac3e10ca224b21c2ff95483aba45248a",
+  "workload_id": "developer-os",
+  "profile": "node-24-typescript-cli",
+  "analyses": [
+    {
+      "id": 1929493506,
+      "revision": "a03269b71b7aa333466d329a86b05461d5ca65ae",
+      "ref": "refs/heads/main",
+      "language": "javascript-typescript",
+      "build_mode": "none",
+      "tool_version": "2.27.2",
+      "rules_count": 87,
+      "status": "success",
+      "findings": [
+        {
+          "rule": "js/bad-code-sanitization",
+          "severity": "medium",
+          "path": "tests/controls.test.mjs",
+          "line": 366,
+          "help_url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/javascript/ql/src/Security/CWE-094/ImproperCodeSanitization.ql"
+        },
+        {
+          "rule": "js/bad-code-sanitization",
+          "severity": "medium",
+          "path": "tests/controls.test.mjs",
+          "line": 366,
+          "help_url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/javascript/ql/src/Security/CWE-094/ImproperCodeSanitization.ql"
+        },
+        {
+          "rule": "js/bad-code-sanitization",
+          "severity": "medium",
+          "path": "tests/controls.test.mjs",
+          "line": 366,
+          "help_url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/javascript/ql/src/Security/CWE-094/ImproperCodeSanitization.ql"
+        },
+        {
+          "rule": "js/bad-code-sanitization",
+          "severity": "medium",
+          "path": "tests/controls.test.mjs",
+          "line": 366,
+          "help_url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/javascript/ql/src/Security/CWE-094/ImproperCodeSanitization.ql"
+        }
+      ]
+    }
+  ]
+}

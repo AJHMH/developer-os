@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import {
+  realpathSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
 import { PodmanHostAdapter } from "../dist/podman-host.js";
 import { spawnSync } from "node:child_process";
 
-function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "aios-podman-"));
+function fixture(t, hostBinding = {}) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-podman-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repository = join(root, "repo");
   mkdirSync(repository);
@@ -24,6 +30,7 @@ function fixture(t) {
     template: "example.org/worker@sha256:" + "c".repeat(64),
     workerVersion: "0.161.0",
     policyVersion: "offline-v1",
+    ...hostBinding,
   };
   const effective = {
     hypervisor: true,
@@ -201,4 +208,107 @@ test("candidate-supplied Codex cannot provide authentication capability evidence
     ),
     false,
   );
+});
+
+test("independent Apple-silicon AppleHV evidence admits an offline probe without qualifying production", async (t) => {
+  const f = fixture(t, {
+    platform: "darwin",
+    arch: "arm64",
+    osVersion: "26.2.0",
+    provider: "applehv",
+  });
+  const result = await f.controller.qualify(f.delivery.id);
+  assert.equal(result.qualification.offlineAdmission.allowed, true);
+  assert.equal(
+    result.qualification.offlineAdmission.binding.provider,
+    "applehv",
+  );
+  assert.equal(result.qualification.ready, false);
+  assert.equal(result.qualification.liveReady, false);
+  assert.equal(result.qualification.mode, "controlled");
+  assert.equal(result.execution, undefined);
+  assert.deepEqual(
+    new DeliveryController(f.state).status(f.delivery.id).qualification,
+    result.qualification,
+  );
+});
+
+test("macOS admission refuses Intel, older Darwin, implicit providers and conflicting share intent", async (t) => {
+  for (const changed of [
+    { arch: "x64" },
+    { osVersion: "22.6.0" },
+    { provider: "libkrun" },
+    { provider: "hyperv" },
+  ]) {
+    const f = fixture(t, {
+      platform: "darwin",
+      arch: "arm64",
+      osVersion: "27.2.0",
+      provider: "applehv",
+      ...changed,
+    });
+    assert.equal(
+      (await f.controller.qualify(f.delivery.id)).qualification.offlineAdmission
+        .allowed,
+      false,
+    );
+  }
+  const f = fixture(t, {
+    platform: "darwin",
+    arch: "arm64",
+    osVersion: "27.2.0",
+    provider: "applehv",
+  });
+  f.set({
+    binding: f.binding,
+    effective: f.effective,
+    configurationIntent: { hostSharesConfigured: true, rootful: false },
+  });
+  const result = await f.controller.qualify(f.delivery.id);
+  assert.equal(result.qualification.offlineAdmission.allowed, false);
+  assert.equal(result.execution, undefined);
+});
+
+test("any changed macOS binding or incomplete effective control revokes admission and cannot inherit Windows proof", async (t) => {
+  const f = fixture(t, {
+    platform: "darwin",
+    arch: "arm64",
+    osVersion: "27.2.0",
+    provider: "applehv",
+  });
+  assert.equal(
+    (await f.controller.qualify(f.delivery.id)).qualification.offlineAdmission
+      .allowed,
+    true,
+  );
+  for (const field of [
+    "osVersion",
+    "provider",
+    "hostId",
+    "engineVersion",
+    "vmImageSha256",
+    "template",
+    "workerVersion",
+    "policyVersion",
+  ]) {
+    f.set({
+      binding: { ...f.binding, [field]: "changed" },
+      effective: f.effective,
+    });
+    const refused = await f.controller.qualify(f.delivery.id);
+    assert.equal(refused.qualification.offlineAdmission.allowed, false, field);
+    assert.equal(refused.qualification.liveReady, false);
+    assert.equal(refused.execution, undefined);
+  }
+  for (const field of Object.keys(f.effective)) {
+    const effective = { ...f.effective };
+    delete effective[field];
+    f.set({ binding: f.binding, effective });
+    assert.equal(
+      (await f.controller.qualify(f.delivery.id)).qualification.offlineAdmission
+        .allowed,
+      false,
+      field,
+    );
+  }
 });

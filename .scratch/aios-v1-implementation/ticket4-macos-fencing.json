@@ -1,0 +1,158 @@
+{
+  "observedAt": "2026-10-10T23:55:55.737Z",
+  "scope": "macOS AppleHV ARM64 fixed synthetic offline native lifecycle only; production resume/inference remain unqualified",
+  "checks": [
+    "larger synthetic descendant tree independently stopped before collection",
+    "concurrent request queues; pause stops descendants; guest journal rejects deliberately delayed stale sender; late receipt cannot collect",
+    "controller killed after native acceptance and before outcome; orphan forbids release/redispatch; new controller stops exact session and preserves usage/work"
+  ],
+  "censuses": [
+    {
+      "observedProcesses": 8,
+      "remainingProcesses": 0,
+      "censusSha256": "a1ae63d9db90dbfe14cf374e48b32f10b5441159a20e9474c13b6928a6d9d2a1"
+    },
+    {
+      "observedProcesses": 8,
+      "remainingProcesses": 0,
+      "censusSha256": "1449196eb63e6aac1995cfa61dfb32f3c8e421a712153c19e410cab3e8388fc2"
+    },
+    {
+      "observedProcesses": 8,
+      "remainingProcesses": 0,
+      "censusSha256": "ee07bd8c0bc76689afb825865b3d5813b734de965db4d6a8b64694f796d0e476"
+    },
+    {
+      "observedProcesses": 8,
+      "remainingProcesses": 0,
+      "censusSha256": "793af3f436c24be78ff52b00a40ad16791c11b7936ac49c3fa280fee8ba35ac5"
+    }
+  ],
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-10T23:55:47.456Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "not-run"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "not-run"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "not-run"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "not-run"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "not-run"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "not-run"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "not-run",
+      "scope": "host-capability-only",
+      "credentialIsolation": "not-run",
+      "endpointEnforcement": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Prepare separate ChatGPT authorization in trusted management and qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback."
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "27.2.0",
+        "provider": "applehv",
+        "machine": "aios-macos-noshare",
+        "hostId": "d7af654178b78dfdffc256743fc881ea0226a6e9ab20ce224097efc820997cf1",
+        "engineVersion": "6.1.3",
+        "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+        "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-be06a34b7c9c4f6e026d52ddc28c0e3580f43a3e97aa241098b78d4bed8d29eb"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "eed20f8d2373437e647fb5bb06e2f6a4868652550e514c3813a1f66992289365",
+    "bindingSha256": "aee3fefa68657f67370936097d5c6a267d685736018b83ee55de9074438011f5"
+  },
+  "session": {
+    "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+    "intent": "start",
+    "repositoryKey": "path:/Users/aaronhoward/.developer-os/ticket4-macos/input",
+    "operationId": "57b19ebb-b924-4654-b131-898a83905d8c",
+    "sandboxId": "c7ae601f-8f5b-4df6-8388-f8191b00176b",
+    "workerSessionId": "ccad25c2-dff5-4877-9548-f59bba7faabe",
+    "runnerId": "d060c046-bd43-417c-a720-5ce6f379cbe1",
+    "fence": 17,
+    "state": "stopped"
+  }
+}

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { hostname, homedir, platform, arch, release } from "node:os";
+import { hostname, platform } from "node:os";
+import { podmanMachine, podmanCommand } from "./podman-platform.js";
 import {
   existsSync,
   lstatSync,
@@ -41,6 +42,8 @@ wait
 `;
 export const offlineTemplate =
   "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764";
+const macosOfflineTemplate =
+  "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f";
 
 /** Runs only in the VM's trusted management namespace, not in the worker.
  * A machine-wide flock serializes dispatch with durable revocation. A single
@@ -57,6 +60,7 @@ def command(args):
  if len(p.stdout)>1048576: fail()
  return p.stdout
 def pod(*args): return command(['podman',*args])
+engineSocket='/run/user/'+str(os.getuid())+'/podman/podman.sock'
 def obj(*args): return json.loads(pod(*args))
 def h(b): return hashlib.sha256(b).hexdigest()
 def save(path,value):
@@ -112,7 +116,7 @@ def effective(name):
  if any(x[x.index('-')+1] in ['9p','virtiofs','cifs','nfs','nfs4'] or
         x[4].startswith(('/var/home/core','/mnt/','/Users')) or
         x[4].endswith(('podman.sock','docker.sock')) for x in mounted): fail()
- for p in ['/run/podman/podman.sock','/run/user/1000/podman/podman.sock','/var/run/docker.sock','/mnt/c','/Users']:
+ for p in ['/run/podman/podman.sock',engineSocket,'/var/run/docker.sock','/mnt/c','/Users']:
   if subprocess.run(['podman','exec',name,'test','-e',p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
  return dict(hypervisor=True,dedicated=True,mounts=[],managementExposed=False,rootful=False,network='none',readOnly=True,user='65534:65534',capabilities=[],noNewPrivileges=True)
 def create(name,script,labels):
@@ -145,21 +149,25 @@ def snapshot():
  check(mounts['filesystems'])
  vendor=pathlib.Path('/sys/class/dmi/id/sys_vendor').read_text().strip()
  product=pathlib.Path('/sys/class/dmi/id/product_name').read_text().strip()
- if vendor!='Microsoft Corporation' or product!='Virtual Machine': fail()
+ if R['hostBinding']['provider']=='hyperv':
+  if vendor!='Microsoft Corporation' or product!='Virtual Machine' or command(['uname','-m']).strip()!=b'x86_64': fail()
+ elif R['hostBinding']['provider']=='applehv':
+  if vendor!='Apple Inc.' or product!='Apple Virtualization Generic Platform' or command(['systemd-detect-virt']).strip()!=b'apple' or command(['uname','-m']).strip()!=b'aarch64': fail()
+ else: fail()
  boot=json.loads(command(['rpm-ostree','status','--json']))
  d=next(x for x in boot['deployments'] if x.get('booted'))
  image=d.get('container-image-reference-digest','')
  if d.get('unlocked')!='none' or not image.startswith('sha256:') or len(image)!=71: fail()
- if d.get('container-image-reference')!='ostree-unverified-registry:quay.io/podman/machine-os:6.0': fail()
+ if d.get('container-image-reference')!=R['imageReference']: fail()
  if any(d.get(k) for k in ['requested-packages','requested-local-packages','base-local-replacements','base-removals']): fail()
  info=json.loads(pod('info','--format','json'))
  if not info['host']['security']['rootless'] or info['host']['cgroupVersion']!='v2': fail()
  if json.loads(command(['sudo','-n','podman','ps','--format','json'])): fail()
  if obj('ps','--format','json'): fail()
  cached=obj('image','inspect',R['template'])[0]
- if R['template'] not in cached.get('RepoDigests',[]) or cached.get('Architecture')!='amd64': fail()
+ if R['template'] not in cached.get('RepoDigests',[]) or cached.get('Architecture')!=R['guestArch']: fail()
  if cached['Config'].get('Env')!=['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']: fail()
- return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+pathlib.Path('/sys/class/dmi/id/product_uuid').read_text().strip()).encode()),template=R['template'],workerVersion='1.1.0',policyVersion='offline-native-v2-'+h((R['authority']+R['worker']+R['managementVersion']+R['hostCanaryVersion']).encode()))
+ return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+command(['sudo','-n','cat','/sys/class/dmi/id/product_uuid']).decode().strip()).encode()),template=R['template'],workerVersion='1.1.0',policyVersion='offline-native-v3-'+h((R['authority']+R['worker']+R['managementVersion']+R['hostCanaryVersion']).encode()))
 root=os.path.expanduser('~/.local/state/aios-offline-v1')
 os.makedirs(root,mode=0o700,exist_ok=True)
 if os.path.islink(root) or (os.stat(root).st_mode & 0o077): fail()
@@ -219,7 +227,7 @@ with os.fdopen(fd,'w') as lock:
   def engine():
    s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(2)
    try:
-    s.connect('/run/user/1000/podman/podman.sock');s.sendall(b'GET /_ping HTTP/1.0\r\n\r\n')
+    s.connect(engineSocket);s.sendall(b'GET /_ping HTTP/1.0\r\n\r\n')
     value=s.recv(4096)
     if b'200 OK' not in value: fail()
    finally: s.close()
@@ -259,15 +267,15 @@ if cat "$4" >/dev/null 2>&1; then echo failed-controller-ledger; else echo passe
 if cat "$5" >/dev/null 2>&1; then echo failed-cross-delivery; else echo passed-cross-delivery; fi
 if wget -T 1 -q -O /dev/null "$6" 2>/dev/null; then echo failed-network-bypass; else echo passed-network-bypass; fi
 if wget -T 1 -q -O /dev/null --post-data='{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$6" 2>/dev/null; then echo failed-skills-mcp-hooks; else echo passed-skills-mcp-hooks; fi
-if test -S /run/user/1000/podman/podman.sock; then echo failed-host-docker; else echo passed-host-docker; fi
+if test -S "$7"; then echo failed-host-docker; else echo passed-host-docker; fi
 if unshare -Ur true 2>/dev/null; then echo failed-escape-unshare; else echo passed-escape-unshare; fi
 if busybox chroot / /bin/true 2>/dev/null; then echo failed-escape-chroot; else echo passed-escape-chroot; fi
 if (echo $$ > /sys/fs/cgroup/cgroup.procs) 2>/dev/null; then echo failed-escape-cgroup; else echo passed-escape-cgroup; fi
 if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo passed-escape-proc; fi
 '''
-   hostPaths=['/mnt/'+p[0].lower()+'/'+p[3:].replace('\\','/') for p in challenge['files']]
+   hostPaths=['/mnt/'+p[0].lower()+'/'+p[3:].replace('\\','/') for p in challenge['files']] if R['hostBinding']['platform']=='win32' else challenge['files']
    stage='worker-denials'
-   observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths,url).decode().splitlines()
+   observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths,url,engineSocket).decode().splitlines()
    expected=['passed-host-files']*3+['passed-controller-ledger','passed-cross-delivery','passed-network-bypass','passed-skills-mcp-hooks','passed-host-docker','passed-escape-unshare','passed-escape-chroot','passed-escape-cgroup','passed-escape-proc']
    stage='post-host-http-mcp-positive'
    services()
@@ -279,7 +287,7 @@ if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
    names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker']
    proof=h(json.dumps(dict(challenge=nonce,observed=observed,binding=binding,stopped=record['stopped']),sort_keys=True).encode())
-   print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-4:],scope='Synthetic Windows host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
+   print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-4:],scope='Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
@@ -354,7 +362,9 @@ function ordinary(path: string, directory = false): void {
   const entry = lstatSync(path);
   if (
     entry.isSymbolicLink() ||
-    realpathSync(path).toLowerCase() !== resolve(path).toLowerCase() ||
+    (platform() === "win32"
+      ? realpathSync(path).toLowerCase() !== resolve(path).toLowerCase()
+      : realpathSync(path) !== resolve(path)) ||
     (directory ? !entry.isDirectory() : !entry.isFile() || entry.nlink !== 1)
   )
     throw Error("Unsafe native path");
@@ -383,40 +393,38 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
   private invoke(action: string, payload: Record<string, unknown> = {}): any {
     if (existsSync(this.authorityDirectory))
       ordinary(this.authorityDirectory, true);
-    if (platform() !== "win32" || arch() !== "x64")
-      throw Error("Unsupported native host");
-    const configPath = join(
-      homedir(),
-      ".config",
-      "containers",
-      "podman",
-      "machine",
-      "hyperv",
-      `${this.machine}.json`,
+    const host = podmanMachine(this.machine);
+    const clientVersion = JSON.parse(
+      podmanCommand(host, [
+        "--connection",
+        this.machine,
+        "version",
+        "--format",
+        "json",
+      ]),
+    ).Client?.Version;
+    if (!/^\d+\.\d+\.\d+$/.test(clientVersion ?? ""))
+      throw Error("Unknown client version");
+    const executableSha256 = sha256(readFileSync(host.executable));
+    const authorityPath = resolve(this.authorityDirectory);
+    const authority = sha256(
+      host.platform === "win32" ? authorityPath.toLowerCase() : authorityPath,
     );
-    ordinary(configPath);
-    const config = JSON.parse(readFileSync(configPath, "utf8"));
-    if (
-      config.Name !== this.machine ||
-      !config.HyperVHypervisor ||
-      !Array.isArray(config.Mounts) ||
-      config.Mounts.length ||
-      config.HostUser?.Rootful !== false
-    )
-      throw Error("Unsafe machine configuration");
-    const authority = sha256(resolve(this.authorityDirectory).toLowerCase());
     const request = {
       action,
       authority,
-      host: hostname(),
+      host: hostname() + executableSha256 + clientVersion,
+      guestArch: host.guestArch,
+      imageReference: host.imageReference,
       hostBinding: {
-        platform: platform(),
-        arch: arch(),
-        osVersion: release(),
-        provider: "hyperv",
+        platform: host.platform,
+        arch: host.arch,
+        osVersion: host.osVersion,
+        provider: host.provider,
         machine: this.machine,
       },
-      template: offlineTemplate,
+      template:
+        host.guestArch === "arm64" ? macosOfflineTemplate : offlineTemplate,
       worker,
       managementVersion: sha256(guest),
       hostCanaryVersion,
@@ -435,38 +443,22 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
             .join("\n") +
           "\nexcept BaseException:\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'])))\n"
         : guest);
-    const executable = join(
-      homedir(),
-      "AppData",
-      "Local",
-      "Programs",
-      "Podman",
-      "podman.exe",
-    );
-    const sshDirectory = "C:\\Program Files\\Git\\usr\\bin";
-    if (!existsSync(join(sshDirectory, "ssh.exe")))
-      throw Error("Missing trusted SSH");
-    ordinary(executable);
     const result = spawnSync(
-      executable,
+      host.executable,
       ["machine", "ssh", this.machine, "python3"],
       {
-        cwd: process.env.SystemRoot ?? "C:\\Windows",
+        cwd: host.cwd,
         shell: false,
         windowsHide: true,
         encoding: "utf8",
         timeout: 25000,
         maxBuffer: 1048576,
         input,
-        env: {
-          SystemRoot: process.env.SystemRoot,
-          USERPROFILE: homedir(),
-          LOCALAPPDATA: join(homedir(), "AppData", "Local"),
-          APPDATA: join(homedir(), "AppData", "Roaming"),
-          PATH: `${sshDirectory};${process.env.SystemRoot}\\System32`,
-        },
+        env: host.env,
       },
     );
+    if (sha256(readFileSync(host.executable)) !== executableSha256)
+      throw Error("Changed native executable");
     if (result.error || result.status !== 0)
       throw Error("Native offline operation unavailable");
     return JSON.parse(result.stdout);
