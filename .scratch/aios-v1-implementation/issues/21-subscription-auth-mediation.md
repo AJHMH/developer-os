@@ -33,8 +33,11 @@ forged signatures and missing plan permission fail safely. macOS credentials are
 intended for host-only Keychain storage with no token in process arguments,
 browser hints, candidate files or command output.
 
-Controlled tests cover the authorization broker and setup refusal. Live browser
-consent, native Keychain storage, VM relay/credential isolation, revocation and
-subscription inference remain **not-run**. This is implementation progress, not
+Controlled tests cover the authorization broker and setup refusal. Native
+Keychain persistence passed with a disposable 64 KiB synthetic payload. Owner
+browser consent was attempted, but authorization failed before credential
+storage; a fresh retry is pending with sanitized stage diagnostics. VM
+relay/credential isolation, revocation and subscription inference remain
+**not-run**. This is implementation progress, not
 positive qualification; all acceptance boxes and ticket 22 remain blocked. See
 [separate setup](../chatgpt-setup.md) for the concrete operator command.

@@ -225,19 +225,28 @@ export class SubscriptionAuthBroker {
       stage = "id-token-claims";
       const claims = JSON.parse(Buffer.from(parts[1]!, "base64url").toString());
       const now = Math.floor(Date.now() / 1000);
+      stage = "id-token-issuer";
+      if (claims.iss !== issuer) throw Error();
+      stage = "id-token-audience";
+      if (claims.aud !== clientId) throw Error();
+      stage = "id-token-nonce";
+      if (claims.nonce !== pending.nonce) throw Error();
+      stage = "id-token-subject";
       if (
-        claims.iss !== issuer ||
-        claims.aud !== clientId ||
-        claims.nonce !== pending.nonce ||
         typeof claims.sub !== "string" ||
         !claims.sub ||
-        claims.sub.length > 256 ||
-        !Number.isSafeInteger(claims.exp) ||
-        claims.exp <= now ||
-        (claims.nbf !== undefined &&
-          (!Number.isSafeInteger(claims.nbf) || claims.nbf > now))
+        claims.sub.length > 256
       )
         throw Error();
+      stage = "id-token-expiry";
+      if (!Number.isSafeInteger(claims.exp) || claims.exp <= now) throw Error();
+      stage = "id-token-notBefore";
+      if (
+        claims.nbf !== undefined &&
+        (!Number.isSafeInteger(claims.nbf) || claims.nbf > now)
+      )
+        throw Error();
+      stage = "id-token-selected-account";
       if (pending.account && claims.sub !== pending.account.subject)
         throw Error();
       const granted = tokens.scope.split(/\s+/);

@@ -12,6 +12,6 @@
     "reopenedReplacementExactReadback": true,
     "syntheticCleanupExit": 0
   },
-  "ownerAuthorization": "not-run",
+  "ownerAuthorization": "attempted; failed before credential storage; diagnostic retry pending",
   "productionReady": false
 }

@@ -116,7 +116,7 @@ for (const [name, claims] of Object.entries({
     const f = fixture({ claims });
     await assert.rejects(
       f.broker.complete(f.callback.href),
-      /fresh authorization/,
+      new RegExp(`id-token-${name};`),
     );
   });
 }

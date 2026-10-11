@@ -54,3 +54,12 @@ Typecheck and formatting pass; all 114 tests pass on this Mac. The corrected
 native helper stored a 64 KiB synthetic payload, read it back after reopening,
 replaced it exactly and removed the synthetic entry. This is native persistence
 evidence, not owner credential isolation or VM mediation qualification.
+
+## Authorization diagnostics
+
+Owner browser consent was attempted, but the broker returned an authorization
+failure before credential storage. Commit `a28c4ec` adds fixed failure stages
+and optional numeric HTTP status while discarding provider bodies and raw
+exceptions. Both reviewers reported no findings for that change. Typecheck,
+formatting and all 115 tests pass. A fresh owner consent retry is pending;
+delivery remains disabled.
