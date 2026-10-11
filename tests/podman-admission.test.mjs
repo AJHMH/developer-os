@@ -101,6 +101,10 @@ test("qualification records revocable synthetic relay proof without granting liv
     result.qualification.subscriptionMediation.relayRevocation,
     "passed",
   );
+  assert.equal(
+    result.qualification.subscriptionMediation.hostGateway,
+    "passed",
+  );
   assert.equal(result.qualification.liveReady, false);
   assert.equal(
     result.qualification.subscriptionMediation.credentialIsolation,

@@ -1,3 +1,4 @@
+import { subscriptionGatewayVersion } from "./subscription-gateway.js";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -400,8 +401,22 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 report.subscriptionMediation.endpointScope =
                   "synthetic-codex-relay";
                 report.subscriptionMediation.relayDeliveryId = delivery.id;
+                if (
+                  observed.codex.gatewayIntegration === "passed" &&
+                  observed.codex.gatewayVersion ===
+                    subscriptionGatewayVersion &&
+                  report.subscriptionMediation.hostGateway === "passed" &&
+                  report.subscriptionMediation.hostGatewayVersion ===
+                    subscriptionGatewayVersion
+                ) {
+                  report.subscriptionMediation.gatewayIntegration = "passed";
+                  report.subscriptionMediation.gatewayScope =
+                    "synthetic-host-subscription";
+                }
                 report.subscriptionMediation.nextAction =
-                  "Integrate and qualify the host-only subscription gateway with this synthetic Codex relay boundary before preparing a fresh owner-approved inference; production delivery remains disabled.";
+                  report.subscriptionMediation.gatewayIntegration === "passed"
+                    ? "Prepare a fresh owner-approved one-shot inference through the qualified synthetic host gateway/Codex bridge; live subscription integration remains not-run and production delivery remains disabled."
+                    : "Integrate and qualify the host-only subscription gateway with this synthetic Codex relay boundary before preparing a fresh owner-approved inference; production delivery remains disabled.";
               }
             }
           }

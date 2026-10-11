@@ -1,25 +1,25 @@
 {
-  "observedAt": "2026-10-11T14:20:52.326Z",
+  "observedAt": "2026-10-11T14:35:34.179Z",
   "qualification": {
     "ready": false,
     "liveReady": false,
     "mode": "live",
-    "checkedAt": "2026-10-11T14:20:23.386Z",
+    "checkedAt": "2026-10-11T14:35:05.489Z",
     "probes": [
       {
         "name": "host-files",
         "outcome": "passed",
-        "evidenceSha256": "ca1dfe467e78b11b9734f558d970de1dc9c2b8e0bbc05785e9ace312dec7fe96"
+        "evidenceSha256": "ab1b72206e6f5187e0ab0e1fcc6efb36f35bcc3fd976dec53a2f8b9ff01a3806"
       },
       {
         "name": "controller-ledger",
         "outcome": "passed",
-        "evidenceSha256": "ca1dfe467e78b11b9734f558d970de1dc9c2b8e0bbc05785e9ace312dec7fe96"
+        "evidenceSha256": "ab1b72206e6f5187e0ab0e1fcc6efb36f35bcc3fd976dec53a2f8b9ff01a3806"
       },
       {
         "name": "owner-credentials",
         "outcome": "passed",
-        "evidenceSha256": "ca1dfe467e78b11b9734f558d970de1dc9c2b8e0bbc05785e9ace312dec7fe96"
+        "evidenceSha256": "ab1b72206e6f5187e0ab0e1fcc6efb36f35bcc3fd976dec53a2f8b9ff01a3806"
       },
       {
         "name": "ssh-gpg",
@@ -28,12 +28,12 @@
       {
         "name": "host-docker",
         "outcome": "passed",
-        "evidenceSha256": "ca1dfe467e78b11b9734f558d970de1dc9c2b8e0bbc05785e9ace312dec7fe96"
+        "evidenceSha256": "ab1b72206e6f5187e0ab0e1fcc6efb36f35bcc3fd976dec53a2f8b9ff01a3806"
       },
       {
         "name": "skills-mcp-hooks",
         "outcome": "passed",
-        "evidenceSha256": "ca1dfe467e78b11b9734f558d970de1dc9c2b8e0bbc05785e9ace312dec7fe96"
+        "evidenceSha256": "ab1b72206e6f5187e0ab0e1fcc6efb36f35bcc3fd976dec53a2f8b9ff01a3806"
       },
       {
         "name": "github-binding",
@@ -54,7 +54,7 @@
       {
         "name": "network-bypass",
         "outcome": "passed",
-        "evidenceSha256": "ca1dfe467e78b11b9734f558d970de1dc9c2b8e0bbc05785e9ace312dec7fe96"
+        "evidenceSha256": "ab1b72206e6f5187e0ab0e1fcc6efb36f35bcc3fd976dec53a2f8b9ff01a3806"
       },
       {
         "name": "dependency-egress",
@@ -63,7 +63,7 @@
       {
         "name": "cross-delivery",
         "outcome": "passed",
-        "evidenceSha256": "ca1dfe467e78b11b9734f558d970de1dc9c2b8e0bbc05785e9ace312dec7fe96"
+        "evidenceSha256": "ab1b72206e6f5187e0ab0e1fcc6efb36f35bcc3fd976dec53a2f8b9ff01a3806"
       },
       {
         "name": "descendant-stop",
@@ -94,8 +94,11 @@
       "credentialIsolationScope": "synthetic-restricted-alpine",
       "endpointEnforcement": "passed",
       "deliveryCapabilities": "passed",
+      "hostGateway": "passed",
+      "gatewayIntegration": "passed",
       "subscriptionInference": "not-run",
-      "nextAction": "Integrate and qualify the host-only subscription gateway with this synthetic Codex relay boundary before preparing a fresh owner-approved inference; production delivery remains disabled.",
+      "nextAction": "Prepare a fresh owner-approved one-shot inference through the qualified synthetic host gateway/Codex bridge; live subscription integration remains not-run and production delivery remains disabled.",
+      "hostGatewayVersion": "b539e711cc175e8794169a760553ea9ff1f264e44dae024a0711cc5a71a6bc6c",
       "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
       "workerExecutableSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
       "deliveryCapabilityChecks": [
@@ -106,7 +109,8 @@
         "expiry"
       ],
       "endpointScope": "synthetic-codex-relay",
-      "relayDeliveryId": "29727630-9a13-4050-a217-7a554b04448e"
+      "relayDeliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+      "gatewayScope": "synthetic-host-subscription"
     },
     "offlineAdmission": {
       "allowed": true,
@@ -122,7 +126,7 @@
         "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
         "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
         "workerVersion": "1.1.0",
-        "policyVersion": "offline-native-v3-cce07d53fbf278b3b8ddacbeaf64e57435bc60d0ce09abe029447cc44c7f3f12"
+        "policyVersion": "offline-native-v3-721704aaf9427e228f2bf26cd4dfd1528f45ee86fdc7a9fd5e4a5b8b074df07e"
       },
       "effective": {
         "hypervisor": true,
@@ -137,12 +141,12 @@
         "noNewPrivileges": true
       }
     },
-    "policySha256": "f62e52e1ece7133f4227648f23f1918c91bb1ebc00148746de005f07eeb3f067",
-    "bindingSha256": "054557484d11f93262101d833c822d605dfd610a21c753cc897c38a9e11dae24",
+    "policySha256": "ccf197c1ca1dd0a924d764a237cc01904dea5c8bdbc69884e2047a7ee7e3bf5e",
+    "bindingSha256": "60b7ca356964d6cf3267de493feb34d9f9b1336e84d19f89f0f2d43a468509f4",
     "adversarial": {
       "scope": "synthetic-macos-controls",
-      "challengeId": "e5ce1257-2f45-4c6b-a7ca-2472de50111f",
-      "probeVersion": "d2342659c9002e69f0681c9bd9d094f2fc02ec6b5bff4c0ed7e53610a7ddc61d",
+      "challengeId": "1d851356-ce40-4b26-8286-f7269203a92f",
+      "probeVersion": "4beec97ddffcf5c8c21e2d7a390a0b4d2f9e9e4d0bf9db13cdedf23da8dc266a",
       "escapeAttempts": [
         "passed-escape-unshare",
         "passed-escape-chroot",

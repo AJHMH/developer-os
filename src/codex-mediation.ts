@@ -1,3 +1,7 @@
+import {
+  hostGatewayCanary,
+  subscriptionGatewayVersion,
+} from "./subscription-gateway.js";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import {
@@ -32,6 +36,10 @@ export interface SubscriptionMediationReport {
   deliveryCapabilityChecks?: string[];
   relayDeliveryId?: string;
   endpointScope?: "synthetic-codex-relay";
+  hostGateway: "passed" | "not-run";
+  hostGatewayVersion?: string;
+  gatewayIntegration: "passed" | "not-run";
+  gatewayScope?: "synthetic-host-subscription";
   subscriptionInference: "not-run";
   nextAction: string;
 }
@@ -50,6 +58,8 @@ export function unqualifiedMediation(): SubscriptionMediationReport {
     credentialIsolationScope: "not-run",
     endpointEnforcement: "not-run",
     deliveryCapabilities: "not-run",
+    hostGateway: "not-run",
+    gatewayIntegration: "not-run",
     subscriptionInference: "not-run",
     nextAction:
       "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
@@ -73,6 +83,9 @@ export async function inspectCodexMediation(
   authority: string,
 ): Promise<SubscriptionMediationReport> {
   const report = unqualifiedMediation();
+  report.hostGateway = await hostGatewayCanary();
+  if (report.hostGateway === "passed")
+    report.hostGatewayVersion = subscriptionGatewayVersion;
   report.syntheticRelay = await syntheticRelayCanary();
   report.relayRevocation = report.syntheticRelay;
   if (report.relayRevocation === "passed")

@@ -2,15 +2,19 @@
  * joining only the worker network namespace. It has no upstream or owner token.
  * Its grant is bound to one delivery, namespace, deadline and request budget. */
 export const codexEndpointFixture = String.raw`
-import json,sys,os,time,threading,hmac,hashlib
+import json,sys,os,time,threading,hmac,hashlib,base64,queue
 from http.server import HTTPServer,BaseHTTPRequestHandler
 C=json.loads(sys.stdin.readline()); revoked=threading.Event(); accepted=0; deadline=time.monotonic()+C['ttl']
 marker='AIOS model-only inference complete'
+responses=queue.Queue(maxsize=1)
 def emit(value): print(json.dumps(value),flush=True)
 def control():
  for line in sys.stdin:
   if json.loads(line)=={'action':'revoke','deliveryId':C['deliveryId']}:
    revoked.set();emit({'revoked':True,'deliveryId':C['deliveryId']})
+  elif C.get('gateway'):
+   value=json.loads(line)
+   if set(value)=={'gatewayResponse','deliveryId'} and value['deliveryId']==C['deliveryId']: responses.put_nowait(value['gatewayResponse'])
  os._exit(0)
 threading.Thread(target=control,daemon=True).start()
 def expire():
@@ -51,6 +55,10 @@ class Handler(BaseHTTPRequestHandler):
    events=[{'type':'response.created','response':{**response,'status':'in_progress','output':[]}}, {'type':'response.output_item.added','output_index':0,'item':{**item,'status':'in_progress','content':[]}}, {'type':'response.content_part.added','item_id':item['id'],'output_index':0,'content_index':0,'part':{'type':'output_text','text':'','annotations':[]}}, {'type':'response.output_text.delta','item_id':item['id'],'output_index':0,'content_index':0,'delta':marker}, {'type':'response.output_text.done','item_id':item['id'],'output_index':0,'content_index':0,'text':marker}, {'type':'response.content_part.done','item_id':item['id'],'output_index':0,'content_index':0,'part':item['content'][0]}, {'type':'response.output_item.done','output_index':0,'item':item}, {'type':'response.completed','response':response}]
    data=b''.join(('event: '+e['type']+'\ndata: '+json.dumps(e)+'\n\n').encode() for e in events)
    emit({'accepted':accepted,'deliveryId':C['deliveryId'],'requestSha256':hashlib.sha256(body).hexdigest()})
+   if C.get('gateway'):
+    emit({'gatewayRequest':base64.b64encode(body).decode(),'deliveryId':C['deliveryId'],'capability':C['capability']})
+    data=base64.b64decode(responses.get(timeout=max(0.01,deadline-time.monotonic())),validate=True)
+    if not data or len(data)>65536: return self.deny()
    if revoked.is_set() or time.monotonic()>=deadline: return self.deny()
    self.send_response(200);self.send_header('Content-Type','text/event-stream');self.send_header('Content-Length',str(len(data)));self.send_header('Connection','close');self.end_headers();self.wfile.write(data);self.close_connection=True
   except Exception: self.deny()

@@ -1,6 +1,14 @@
+import {
+  HostSubscriptionGateway,
+  syntheticGatewayAccount,
+  syntheticGatewayApproval,
+  syntheticGatewayResponse,
+  gatewayRequest,
+  subscriptionGatewayVersion,
+} from "./subscription-gateway.js";
 import { randomUUID } from "node:crypto";
 import { codexEndpointFixture } from "./codex-endpoint.js";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { hostname, platform } from "node:os";
 import { podmanMachine, podmanCommand } from "./podman-platform.js";
 import {
@@ -340,7 +348,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
     if subprocess.run(['podman','exec',name,'cat','/proc/1/root'+path],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
    stage='codex-credential-denials'
    pod('exec',name,'mkdir','-m','700','/tmp/empty-codex')
-   cap=uuid.uuid4().hex+uuid.uuid4().hex
+   cap=R['gatewayCapability']
    delivery=R['deliveryId']
    if str(uuid.UUID(delivery))!=delivery: fail()
    stage='codex-relay-start'
@@ -348,7 +356,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
     pid=str(inspect(worker)['State']['Pid'])
     p=subprocess.Popen(['podman','unshare','nsenter','--net=/proc/'+pid+'/ns/net','python3','-u','-c',endpointSource],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
     proxies.append(p)
-    p.stdin.write((json.dumps(dict(port=port,deliveryId=identity,capability=token,budget=budget,ttl=ttl))+'\n').encode());p.stdin.flush()
+    p.stdin.write((json.dumps(dict(port=port,deliveryId=identity,capability=token,budget=budget,ttl=ttl,gateway=identity==delivery))+'\n').encode());p.stdin.flush()
     def event():
      if not __import__('select').select([p.stdout],[],[],3)[0]: fail()
      line=p.stdout.readline(4097)
@@ -356,7 +364,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
      return json.loads(line)
     if event()!=dict(ready=True,deliveryId=identity): fail()
     return p,event
-   proxy,relayEvent=relay(name,18081,delivery,cap,2)
+   proxy,relayEvent=relay(name,18081,delivery,cap,2,45)
    peer='aios-relay-peer-'+str(uuid.uuid4());peerRecord=dict(name=peer,cgroup='',pids={},stopped=False)
    peerPath=root+'/probe-'+str(uuid.uuid4())+'.json'
    create(peer,'sleep 600',{'aios.authority':R['authority']})
@@ -385,10 +393,20 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    def send(value): child.stdin.write((json.dumps(value)+'\n').encode());child.stdin.flush()
    send(dict(method='initialize',id=1,params=dict(clientInfo=dict(name='Developer_OS',version='0.1.0'),capabilities={})))
    selector=selectors.DefaultSelector()
-   selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr')
-   deadline=time.monotonic()+10;total=0;initialized=False;verified=False;accountVerified=False;pending=b'';answer=''
+   selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr');selector.register(proxy.stdout,selectors.EVENT_READ,'gateway')
+   gatewayAccepted=[];gatewayCompleted=False
+   deadline=time.monotonic()+35;total=0;initialized=False;verified=False;accountVerified=False;pending=b'';answer=''
    while time.monotonic()<deadline and not verified:
     for event,_ in selector.select(0.1):
+     if event.data=='gateway':
+      frame=json.loads(proxy.stdout.readline(131073))
+      if frame.get('accepted') is not None: gatewayAccepted.append(frame);continue
+      if set(frame)!= {'gatewayRequest','deliveryId','capability'} or frame['deliveryId']!=delivery or frame['capability']!=cap: fail()
+      print(json.dumps(frame),flush=True)
+      if not __import__('select').select([__import__('sys').stdin],[],[],32)[0]: fail()
+      response=json.loads(__import__('sys').stdin.readline(131073))
+      if set(response)!= {'gatewayResponse','deliveryId'} or response['deliveryId']!=delivery: fail()
+      proxy.stdin.write((json.dumps(response)+'\n').encode());proxy.stdin.flush();gatewayCompleted=True;continue
      chunk=os.read(event.fileobj.fileno(),4096);total+=len(chunk)
      if total>65536: fail()
      if not chunk:
@@ -418,9 +436,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
       elif message.get('method')=='turn/completed':
        if message.get('params',{}).get('turn',{}).get('status')!='completed' or answer!='AIOS model-only inference complete': fail()
        verified=True;break
-   if not verified: fail()
+   if not verified or not gatewayCompleted or len(gatewayAccepted)!=1: fail()
    stage='codex-relay-revocation'
-   event=relayEvent()
+   event=gatewayAccepted[0]
    if event.get('accepted')!=1 or event.get('deliveryId')!=delivery or len(event.get('requestSha256',''))!=64: fail()
    proxy.stdin.write((json.dumps(dict(action='revoke',deliveryId=delivery))+'\n').encode());proxy.stdin.flush()
    if relayEvent()!=dict(revoked=True,deliveryId=delivery): fail()
@@ -478,7 +496,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    child.wait(timeout=5)
    stage='codex-post-binding'
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
-   print(json.dumps(dict(binding=binding,protocol='passed',credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'])))
+   print(json.dumps(dict(binding=binding,protocol='passed',credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'])))
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
@@ -621,7 +639,7 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     )
       throw Error("Invalid native driver options");
   }
-  private invoke(action: string, payload: Record<string, unknown> = {}): any {
+  private invocation(action: string, payload: Record<string, unknown> = {}) {
     if (existsSync(this.authorityDirectory))
       ordinary(this.authorityDirectory, true);
     const host = podmanMachine(this.machine);
@@ -674,6 +692,10 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
             .join("\n") +
           "\nexcept BaseException:\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'])))\n"
         : guest);
+    return { host, input, executableSha256 };
+  }
+  private invoke(action: string, payload: Record<string, unknown> = {}): any {
+    const { host, input, executableSha256 } = this.invocation(action, payload);
     const result = spawnSync(
       host.executable,
       ["machine", "ssh", this.machine, "python3"],
@@ -693,6 +715,145 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     if (result.error || result.status !== 0)
       throw Error("Native offline operation unavailable");
     return JSON.parse(result.stdout);
+  }
+  private async gatewayInvocation(
+    payload: Record<string, unknown>,
+    deliveryId: string,
+    approvedGateway?: HostSubscriptionGateway,
+  ): Promise<any> {
+    const account = syntheticGatewayAccount();
+    let forwarded = 0;
+    const gateway =
+      approvedGateway ??
+      new HostSubscriptionGateway(
+        syntheticGatewayApproval(deliveryId, account),
+        () => account,
+        async (token, body, signal) => {
+          if (
+            token !== account.accessToken ||
+            body !== gatewayRequest ||
+            signal.aborted
+          )
+            throw Error("Invalid synthetic upstream");
+          forwarded++;
+          return syntheticGatewayResponse();
+        },
+      );
+    const { host, input, executableSha256 } = this.invocation(
+      "codex-protocol",
+      {
+        ...payload,
+        gatewayCapability: gateway.capability,
+        gatewayVersion: subscriptionGatewayVersion,
+      },
+    );
+    const child = spawn(
+      host.executable,
+      [
+        "machine",
+        "ssh",
+        this.machine,
+        "python3",
+        "-u",
+        "-c",
+        "'import sys,base64;exec(base64.b64decode(sys.stdin.readline()))'",
+      ],
+      {
+        cwd: host.cwd,
+        shell: false,
+        windowsHide: true,
+        env: host.env,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    let pending = "",
+      bytes = 0,
+      result: any,
+      failure = false;
+    let processing = Promise.resolve();
+    const refuse = () => {
+      failure = true;
+      gateway.revoke();
+      child.stdin.end();
+      child.kill();
+    };
+    const timer = setTimeout(refuse, 55000);
+    child.stdin.on("error", refuse);
+    child.stderr.on("data", (chunk: Buffer) => {
+      bytes += chunk.length;
+      if (bytes > 1048576) refuse();
+    });
+    child.stdout.on("data", (chunk: Buffer) => {
+      bytes += chunk.length;
+      pending += chunk.toString("utf8");
+      if (bytes > 1048576 || pending.length > 131072) return refuse();
+      while (pending.includes("\n")) {
+        const index = pending.indexOf("\n"),
+          line = pending.slice(0, index);
+        pending = pending.slice(index + 1);
+        processing = processing
+          .then(async () => {
+            const frame = JSON.parse(line);
+            if (
+              Object.keys(frame).sort().join(",") ===
+              "capability,deliveryId,gatewayRequest"
+            ) {
+              if (
+                typeof frame.gatewayRequest !== "string" ||
+                frame.gatewayRequest.length > 87384
+              )
+                throw Error();
+              const raw = Buffer.from(frame.gatewayRequest, "base64");
+              if (raw.toString("base64") !== frame.gatewayRequest)
+                throw Error();
+              const response = await gateway.respond(
+                frame.deliveryId,
+                frame.capability,
+                raw.toString("utf8"),
+              );
+              child.stdin.write(
+                JSON.stringify({
+                  gatewayResponse: response.toString("base64"),
+                  deliveryId,
+                }) + "\n",
+              );
+            } else {
+              if (result !== undefined) throw Error();
+              result = frame;
+            }
+          })
+          .catch(refuse);
+      }
+    });
+    try {
+      const closed = new Promise<number | null>((resolve, reject) => {
+        child.once("close", resolve);
+        child.once("error", reject);
+      });
+      child.stdin.write(Buffer.from(input).toString("base64") + "\n");
+      const status = await closed;
+      await processing;
+      if (
+        failure ||
+        status !== 0 ||
+        pending ||
+        !result ||
+        sha256(readFileSync(host.executable)) !== executableSha256
+      )
+        throw Error("Gateway transport unavailable");
+      if (
+        !result.blockedStage &&
+        ((!approvedGateway && forwarded !== 1) ||
+          result.gatewayIntegration !== "passed" ||
+          result.gatewayVersion !== subscriptionGatewayVersion)
+      )
+        throw Error("Unverified gateway integration");
+      return result;
+    } finally {
+      clearTimeout(timer);
+      gateway.revoke();
+      if (child.exitCode === null) child.kill();
+    }
   }
   private policy(repository?: string): Record<string, string> {
     if (
@@ -749,16 +910,15 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     deliveryId: string = randomUUID(),
   ): Promise<any> {
     const expected = this.policy(repository);
-    const evidence = await withHostCanary((challenge) => {
+    const evidence = await withHostCanary(async (challenge) => {
       const observed = this.invoke("isolate", { expected, challenge });
       if (observed.challengeId !== challenge.id)
         throw Error("Unbound isolation evidence");
       if (observed.passed === true && expected.platform === "darwin") {
-        const codex = this.invoke("codex-protocol", {
-          expected,
-          challenge,
+        const codex = await this.gatewayInvocation(
+          { expected, challenge, deliveryId },
           deliveryId,
-        });
+        );
         if (codex.blockedStage) {
           observed.codex = { blockedStage: codex.blockedStage };
         } else if (
@@ -794,6 +954,41 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       evidence.modelFrameTransport = "passed";
     }
     return evidence;
+  }
+  /** Explicit owner-approved one-shot only. The gateway never serializes its
+   * account callback/token: only its disposable capability enters management. */
+  async inferThroughGateway(
+    repository: string,
+    deliveryId: string,
+    gateway: HostSubscriptionGateway,
+  ): Promise<any> {
+    const expected = this.policy(repository);
+    try {
+      const proof = await withHostCanary(async (challenge) => {
+        const isolation = this.invoke("isolate", { expected, challenge });
+        if (isolation.passed !== true || isolation.challengeId !== challenge.id)
+          throw Error("Unverified isolation");
+        const codex = await this.gatewayInvocation(
+          { expected, challenge, deliveryId },
+          deliveryId,
+          gateway,
+        );
+        if (
+          codex.protocol !== "passed" ||
+          codex.credentialIsolation !== "passed" ||
+          codex.gatewayIntegration !== "passed" ||
+          codex.relayDeliveryId !== deliveryId ||
+          codex.shutdown?.remainingProcesses !== 0 ||
+          codex.relayShutdownRemaining !== 0 ||
+          JSON.stringify(codex.binding) !== JSON.stringify(expected)
+        )
+          throw Error("Unverified inference bridge");
+        return codex;
+      });
+      return proof;
+    } finally {
+      gateway.revoke();
+    }
   }
   /** Fixed synthetic request/result transport only, not a production worker. */
   modelFrame(

@@ -94,3 +94,35 @@ The allowed route is only `POST /v1/responses`. Checks require the selected mode
 Separate worker network namespaces deny cross-delivery endpoint access. Independent peer positive controls distinguish revocation and expiry from an unavailable service or spent quota. The revoked primary and expired control both retain unused quota; the peer's exhausted request budget also refuses replay. Real-time expiry stops its service. Worker and management relay processes all stop before the independent binding is checked again. Peer worker cleanup is journaled; relay control-pipe closure and deadline terminate the service.
 
 This supersedes the earlier pending synthetic Codex endpoint/capability milestone. It performs no subscription request and consumes no new inference approval. The remaining work is a host-only subscription gateway joined to this boundary, with an explicit admitted input/tool policy, owner-grant binding, in-flight revocation and usage approval. Overall `qualified:false` and production readiness remain false. Positive ticket acceptance boxes remain open and ticket 22 remains blocked.
+
+## Host-only subscription gateway integration (11 October)
+
+Actual restricted Codex now completes its turn through the VM management relay,
+bounded private management frames and a host-only subscription gateway. Native
+qualification/status reports `hostGateway:passed`, `gatewayIntegration:passed`
+and `gatewayScope:synthetic-host-subscription`. The final source passed with
+`pins-ticket21-gateway-v2.json`. [Observation](../ticket21-gateway-observation.json).
+
+The host independently binds one disposable capability to the delivery, selected
+account identity, authorization registration, fixed request and 30-second grant.
+It reserves one request before reading credentials; changed identity, expired
+credentials and missing plan scopes cannot dispatch. Codex developer context,
+additional tool declarations and earlier user context are explicitly discarded.
+Only the final fixed prompt is canonicalized upstream; no worker headers, URLs,
+tools or context are forwarded. Provider metadata is also discarded: a verified
+completed exact result becomes a minimal Responses stream for Codex. Cancellation
+races provider completion and suppresses in-flight results. The only real provider
+adapter uses the fixed subscription Responses origin without redirects, retries,
+refresh or paid fallback. No reusable credential or account callback is serialized
+to the VM. Worker/management shutdown and fresh binding checks still pass.
+
+The qualification used a synthetic account with the broker's actual `urn:uuid:`
+host-identity format and synthetic provider; it spent no subscription usage. A
+[prepared actual-Codex inference plan](../ticket21-gateway-inference-plan.json)
+and [harness](../ticket21-gateway-inference.mjs) are ready. Execute requires fresh
+approval of the exact run and unknown remaining usage; it consumes an external
+one-shot marker before Keychain access. Preparation never opens Keychain. The
+previous Alpine approval is consumed and cannot authorize this run. Expired
+credentials refuse without automatic renewal. All acceptance boxes remain open,
+`qualified:false` and production readiness remain false; ticket 22 stays blocked
+until separately approved real integration succeeds. [Review](../ticket21-gateway-review.md).

@@ -24,7 +24,11 @@ export const hostCanaryVersion = createHash("sha256")
  * exposes only a random synthetic HTTP/MCP response. All files are newly
  * generated canaries; no real controller/peer/credential files are read. */
 export async function withHostCanary<T>(
-  observe: (challenge: { id: string; port: number; files: string[] }) => T,
+  observe: (challenge: {
+    id: string;
+    port: number;
+    files: string[];
+  }) => T | Promise<T>,
 ): Promise<T> {
   const root = mkdtempSync(join(tmpdir(), "aios-host-positive-"));
   const id = randomUUID();
@@ -95,7 +99,7 @@ export async function withHostCanary<T>(
     });
     if (!files.every((file) => readFileSync(file, "utf8") === content))
       throw Error("Invalid host controls");
-    const result = observe({ id, port, files });
+    const result = await observe({ id, port, files });
     if (!files.every((file) => readFileSync(file, "utf8") === content))
       throw Error("Changed host controls");
     return result;
