@@ -117,3 +117,23 @@ fallback was performed. Usage may have been consumed. The exact-match consistenc
 check remains enforced. Live integration remains unverified, positive acceptance
 open and production delivery disabled. Next work is a controlled reproduction of
 completed-message inconsistency before any separately approved live run.
+
+## Approved diagnostic run refused before provider dispatch
+
+The owner approved run `208706f5-a6bd-49e1-9c33-5b6aa813d112` including
+unknown usage, with no retries, refresh or paid fallback. The exact plan was
+executed once. Fresh synthetic qualification passed, then the consumed run
+refused at account validation with zero provider attempts. Safe host-only
+metadata confirms the credential expired before plan preparation; identity,
+issuer, registration, plan permission and required scopes match. See
+`ticket21-account-refusal-metadata.json` and the latest inference receipt.
+No credentials were renewed, and no live provider request was sent.
+
+The previous completed-text discrepancy receipt is retained separately as
+`ticket21-completed-text-refusal.json`. This run gives no additional response
+structure evidence and cannot identify that discrepancy. The offline diagnosis
+remains at the information gap documented in `debug/completed-message-diagnosis.md`.
+No production parser change or consistency relaxation is justified. Continuing
+live diagnosis requires separately authorized credential renewal and a fresh
+exact approved plan; this run's marker must never be reused. Positive ticket 21
+acceptance stays open and production delivery disabled.

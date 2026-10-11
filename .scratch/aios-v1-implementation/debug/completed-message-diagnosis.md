@@ -38,3 +38,23 @@ The owner authorized temporary targeted diagnostics preparation, explicitly excl
 The offline matching/omitted/whitespace probes were rerun. Matching still passes; omitted and whitespace still refuse. Their new lengths/counts distinguish those synthetic inputs. This does not identify the historical live discrepancy. All 123 existing tests, build and formatting pass. No fresh native VM qualification, new live plan or provider request was performed. Previous native evidence binds the previous gateway version and must not be treated as current source qualification.
 
 Parallel code review: Standards zero hard violations and zero unresolved judgments after consolidating completed-message calculations; Spec zero corrective findings. The final calculation cleanup passed build and all nine public admission tests. Source diagnostics are temporary: remove them after the actual discrepancy is identified and a suitable regression is secured. Keep this marked debug harness as evidence of the current information gap until then.
+
+## Approved diagnostic run refused before provider dispatch
+
+The owner approved run `208706f5-a6bd-49e1-9c33-5b6aa813d112` including
+unknown usage, with no retries, refresh or paid fallback. The exact plan was
+executed once. Fresh synthetic qualification passed, then the consumed run
+refused at account validation with zero provider attempts. Safe host-only
+metadata confirms the credential expired before plan preparation; identity,
+issuer, registration, plan permission and required scopes match. See
+`ticket21-account-refusal-metadata.json` and the latest inference receipt.
+No credentials were renewed, and no live provider request was sent.
+
+The previous completed-text discrepancy receipt is retained separately as
+`ticket21-completed-text-refusal.json`. This run gives no additional response
+structure evidence and cannot identify that discrepancy. The offline diagnosis
+remains at the information gap documented in `debug/completed-message-diagnosis.md`.
+No production parser change or consistency relaxation is justified. Continuing
+live diagnosis requires separately authorized credential renewal and a fresh
+exact approved plan; this run's marker must never be reused. Positive ticket 21
+acceptance stays open and production delivery disabled.
