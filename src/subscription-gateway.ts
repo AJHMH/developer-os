@@ -131,7 +131,12 @@ export class HostSubscriptionGateway {
       Buffer.byteLength(raw) > 65536
     )
       throw Error("Gateway refused");
-    const value = JSON.parse(raw);
+    let value: any;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      throw Error("Gateway refused");
+    }
     if (
       value.model !== "gpt-6.1-sol" ||
       value.stream !== true ||

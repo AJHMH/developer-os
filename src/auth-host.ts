@@ -56,6 +56,12 @@ const openAI: AuthorizationTransport = {
     return result.keys;
   },
 };
+interface AuthorizationHostAdapters {
+  platform: NodeJS.Platform;
+  arch: string;
+  transport: AuthorizationTransport;
+  keychainStore: typeof macKeychainStore;
+}
 function store(
   account: ValidatedAccount,
   vault: ReturnType<typeof macKeychainStore>,
@@ -84,15 +90,21 @@ export async function authorizeSubscriptionAuth(
   authority: string,
   announce: (url: string) => void,
   selectedId?: string,
+  adapters: AuthorizationHostAdapters = {
+    platform: process.platform,
+    arch: process.arch,
+    transport: openAI,
+    keychainStore: macKeychainStore,
+  },
 ) {
-  if (process.platform !== "darwin" || process.arch !== "arm64")
+  if (adapters.platform !== "darwin" || adapters.arch !== "arm64")
     throw refusal();
   const registration = prepareSubscriptionAuth(
     directory,
     repository,
     authority,
   );
-  const vault = macKeychainStore(dirname(registration.registrationPath));
+  const vault = adapters.keychainStore(dirname(registration.registrationPath));
   let selected: ValidatedAccount | undefined;
   if (selectedId !== undefined) {
     if (!/^[a-f0-9]{64}$/.test(selectedId)) throw refusal();
@@ -122,7 +134,7 @@ export async function authorizeSubscriptionAuth(
       throw refusal();
     }
   }
-  const broker = new SubscriptionAuthBroker(registration, openAI);
+  const broker = new SubscriptionAuthBroker(registration, adapters.transport);
   let callbackUri = "",
     complete = false;
   let accept!: (url: string) => void;

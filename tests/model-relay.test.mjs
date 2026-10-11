@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { syntheticRelayCanary } from "../dist/model-relay.js";
+import { EventEmitter } from "node:events";
+import {
+  RevocableModelGrant,
+  syntheticRelayCanary,
+} from "../dist/model-relay.js";
 import http from "node:http";
 import { syncBuiltinESMExports } from "node:module";
 
@@ -81,4 +85,22 @@ test("synthetic relay refuses invalid content, body, authorization, tunnels and 
   });
   assert.equal(await syntheticRelayCanary(), "passed");
   assert.deepEqual(await denied, [403, 403, 403, 403, 403, 413]);
+});
+
+test("model grant uses an exact capability and destroys tracked requests on revocation", () => {
+  const grant = new RevocableModelGrant();
+  const destroyed = [];
+  const request = new EventEmitter();
+  request.destroy = () => destroyed.push("active");
+  assert.equal(grant.permits(grant.capability), true);
+  assert.equal(grant.permits("wrong-capability"), false);
+  grant.track(request);
+  grant.revoke();
+  assert.equal(grant.revoked, true);
+  assert.equal(grant.permits(grant.capability), false);
+  assert.deepEqual(destroyed, ["active"]);
+
+  const lateRequest = { destroy: () => destroyed.push("late") };
+  grant.track(lateRequest);
+  assert.deepEqual(destroyed, ["active", "late"]);
 });

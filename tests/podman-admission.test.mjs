@@ -334,3 +334,126 @@ test("any changed macOS binding or incomplete effective control revokes admissio
     );
   }
 });
+
+test("public qualification records synthetic credential isolation, endpoint, delivery-capability, and gateway proofs without enabling production", async (t) => {
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "aios-adversarial-proof-")),
+  );
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const repository = join(root, "repo");
+  const state = join(root, "state");
+  const policyPath = join(root, "pins.json");
+  mkdirSync(repository);
+  const binding = {
+    platform: "win32",
+    arch: "x64",
+    osVersion: "10.0.26100",
+    provider: "hyperv",
+    machine: "aios-test",
+    hostId: "a".repeat(64),
+    engineVersion: "6.0.2",
+    vmImageSha256: "b".repeat(64),
+    template: "example.org/worker@sha256:" + "c".repeat(64),
+    workerVersion: "0.161.0",
+    policyVersion: "offline-v1",
+  };
+  const effective = {
+    hypervisor: true,
+    dedicated: true,
+    mounts: [],
+    managementExposed: false,
+    rootful: false,
+    network: "none",
+    readOnly: true,
+    user: "65534:65534",
+    capabilities: [],
+    noNewPrivileges: true,
+  };
+  writeFileSync(policyPath, JSON.stringify({ schema: 1, binding }), {
+    mode: 0o600,
+  });
+  const gateway = await import("../dist/subscription-gateway.js");
+  const delivery = new DeliveryController(
+    state,
+    {},
+    {
+      worker: new PodmanHostAdapter({
+        machine: binding.machine,
+        policyPath,
+        adversarial: true,
+        native: {
+          machine: binding.machine,
+          policyPath,
+          authorityDirectory: state,
+          observe: () => ({ binding, effective }),
+          async probeIsolation(_repository, deliveryId) {
+            return {
+              passed: true,
+              binding,
+              challengeId: "00000000-0000-4000-8000-000000000111",
+              probeVersion: "d".repeat(64),
+              escapeAttempts: [
+                "passed-escape-unshare",
+                "passed-escape-chroot",
+                "passed-escape-cgroup",
+                "passed-escape-proc",
+              ],
+              probes: [
+                {
+                  name: "owner-credentials",
+                  outcome: "passed",
+                  evidenceSha256: "e".repeat(64),
+                },
+              ],
+              credentialExclusion: {
+                hostFilesDenied: true,
+                guestFileDenied: true,
+                environmentScrubbed: true,
+                mountsAbsent: true,
+                networkAbsent: true,
+                positiveControlsBeforeAfter: true,
+              },
+              modelFrameTransport: "passed",
+              codex: {
+                protocol: "passed",
+                credentialIsolation: "passed",
+                binarySha256:
+                  "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+                shutdown: { remainingProcesses: 0 },
+                endpointEnforcement: "passed",
+                deliveryCapabilities: "passed",
+                relayScope: "synthetic-codex-relay",
+                relayDeliveryId: deliveryId,
+                relayShutdownRemaining: 0,
+                capabilityChecks: [
+                  "cross-delivery",
+                  "namespace",
+                  "revocation",
+                  "quota",
+                  "expiry",
+                ],
+                gatewayIntegration: "passed",
+                gatewayVersion: gateway.subscriptionGatewayVersion,
+              },
+            };
+          },
+        },
+      }),
+    },
+  );
+  const request = delivery.start({
+    repository,
+    request: "Qualification report",
+  });
+  const result = await delivery.qualify(request.id);
+  const mediation = result.qualification.subscriptionMediation;
+  assert.equal(result.qualification.offlineAdmission.allowed, true);
+  assert.equal(mediation.credentialIsolation, "passed");
+  assert.equal(mediation.modelFrameTransport, "passed");
+  assert.equal(mediation.workerProtocol, "passed");
+  assert.equal(mediation.endpointEnforcement, "passed");
+  assert.equal(mediation.deliveryCapabilities, "passed");
+  assert.equal(mediation.gatewayIntegration, "passed");
+  assert.equal(result.qualification.liveReady, false);
+  assert.equal(result.execution, undefined);
+});

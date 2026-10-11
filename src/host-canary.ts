@@ -13,7 +13,7 @@ const server=http.createServer((req,res)=>{
  req.on('end',()=>{res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({canary:id,jsonrpc:'2.0',id:1,result:{tools:[]}}));});
 });
 server.on('connect',(_r,s)=>s.destroy());server.on('upgrade',(_r,s)=>s.destroy());
-server.listen(0,'0.0.0.0',()=>console.log(JSON.stringify({port:server.address().port})));
+server.listen(0,'127.0.0.1',()=>console.log(JSON.stringify({port:server.address().port})));
 setTimeout(()=>{server.closeAllConnections();server.close(()=>process.exit(0));},25000);
 `;
 export const hostCanaryVersion = createHash("sha256")
