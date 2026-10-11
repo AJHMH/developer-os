@@ -166,3 +166,24 @@ format/cause remains unverified. Fixed origin, redirect denial, no tools/context
 size/deadline, one-shot use and canonical VM output remain enforced. Fresh final
 synthetic/native qualification passed. Plan `717a2831-d4f6-445f-9368-2e719cacf753`
 requires its own owner approval; no automatic retry was performed.
+
+## Bounded stream diagnostics after approved refusal
+
+Approved run `717a2831-d4f6-445f-9368-2e719cacf753` consumed its approval and
+refused during response validation after one provider attempt. Usage may have
+been consumed; completed inference remains unverified. The retained receipt is
+`ticket21-gateway-body-refusal.json`. No response body was retained, so the cause
+cannot be reconstructed from that receipt.
+
+The gateway now records byte/event/delta counts, completion and exact-match flags,
+fixed format classifications and allowlisted error codes. It records no provider
+text, token, claim values or reasoning metadata. Acceptance still requires a
+bounded event stream with successful completion and the exact fixed result;
+non-stream JSON is diagnostic only. Diagnostics and acceptance share the same
+output-shape predicate. Parallel Standards and Spec reviews report zero remaining
+findings. All 123 tests, formatting and fresh native synthetic qualification pass.
+
+Fresh diagnostic plan `824eb1a1-a8da-4536-b1dc-75e9993bece0` is prepared but
+unapproved. Preparation performed no subscription inference or Keychain access.
+A new exact owner approval including unknown usage is required before execution.
+Production delivery remains disabled and ticket 21 positive acceptance stays open.

@@ -49,11 +49,25 @@ export class HostSubscriptionGateway {
   private phase = "not-started";
   private providerAttempts = 0;
   private providerStatus: number | undefined;
+  private readonly stream = {
+    bytes: 0,
+    records: 0,
+    deltas: 0,
+    completed: false,
+    failed: false,
+    deltaMatches: false,
+    completedOutputPresent: false,
+    completedOutputAllowed: false,
+    completedTextMatches: false,
+    format: "unobserved",
+    errorCode: "none",
+  };
   get observation() {
     return {
       phase: this.phase,
       providerAttempts: this.providerAttempts,
       providerStatus: this.providerStatus,
+      stream: { ...this.stream },
     };
   }
   constructor(
@@ -189,6 +203,13 @@ export class HostSubscriptionGateway {
     if (signal.aborted || Date.now() >= a.expiresAt || data.byteLength > 65536)
       throw Error("Gateway refused");
     this.phase = "response-validation";
+    this.stream.bytes = data.byteLength;
+    this.stream.format = Buffer.from(data)
+      .toString("utf8")
+      .trimStart()
+      .startsWith("{")
+      ? "non-stream-json"
+      : "event-stream-or-invalid";
     // Buffer until completion; never deliver partial output after revocation.
     let output = "",
       completed = false;
@@ -203,23 +224,47 @@ export class HostSubscriptionGateway {
         .join("\n");
       if (!line || line === "[DONE]") continue;
       const event = JSON.parse(line);
+      this.stream.records++;
       if (
         ["error", "response.failed", "response.incomplete"].includes(event.type)
-      )
+      ) {
+        this.stream.failed = true;
+        const code =
+          event.response?.error?.code ?? event.error?.code ?? event.code;
+        this.stream.errorCode = [
+          "subscription_sharing_usage_limit_exceeded",
+          "subscription_sharing_usage_unavailable",
+          "model_not_found",
+          "invalid_api_key",
+          "insufficient_quota",
+        ].includes(code)
+          ? code
+          : "unrecognized";
         throw Error("Gateway refused");
-      if (event.type === "response.output_text.delta") output += event.delta;
+      }
+      if (event.type === "response.output_text.delta") {
+        output += event.delta;
+        this.stream.deltas++;
+        this.stream.deltaMatches = output === gatewayMarker;
+      }
       if (event.type === "response.completed") {
+        this.stream.completed = true;
+        this.stream.completedOutputPresent = Array.isArray(
+          event.response?.output,
+        );
+        this.stream.completedOutputAllowed =
+          Array.isArray(event.response?.output) &&
+          event.response.output.every(
+            (i: any) =>
+              i.type === "reasoning" ||
+              (i.type === "message" &&
+                i.role === "assistant" &&
+                Array.isArray(i.content) &&
+                i.content.every((p: any) => p.type === "output_text")),
+          );
         if (
           event.response?.status !== "completed" ||
-          !Array.isArray(event.response.output) ||
-          event.response.output.some(
-            (i: any) =>
-              i.type !== "reasoning" &&
-              (i.type !== "message" ||
-                i.role !== "assistant" ||
-                !Array.isArray(i.content) ||
-                i.content.some((p: any) => p.type !== "output_text")),
-          )
+          !this.stream.completedOutputAllowed
         )
           throw Error("Gateway refused");
         const finalText = event.response.output
@@ -227,6 +272,7 @@ export class HostSubscriptionGateway {
           .flatMap((i: any) => i.content)
           .map((p: any) => p.text)
           .join("");
+        this.stream.completedTextMatches = finalText === gatewayMarker;
         if (finalText !== gatewayMarker) throw Error("Gateway refused");
         completed = true;
       }
