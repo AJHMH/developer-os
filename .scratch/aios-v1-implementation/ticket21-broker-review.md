@@ -63,3 +63,19 @@ and optional numeric HTTP status while discarding provider bodies and raw
 exceptions. Both reviewers reported no findings for that change. Typecheck,
 formatting and all 115 tests pass. A fresh owner consent retry is pending;
 delivery remains disabled.
+
+The next observed refusal was `id-token-audience`. Commit `4dd957b` corrects
+the string-only check to also accept a singleton array containing the exact
+issued client, as allowed by OpenID Connect Core 3.1.3.7. Additional or duplicate
+audiences remain refused, and a present authorized-party claim must match.
+Both reviewers found no incremental issues; all 122 tests and formatting pass.
+The live token's audience representation was not captured, so this correction
+does not establish the cause of the live refusal by itself.
+
+The fresh live verification succeeded after that correction. The broker
+verified the signed identity and saved its complete credential record in native
+macOS Keychain with exact readback. It reported plan permission present and
+delivery disabled. Only the non-secret account identifier and outcome are
+retained in `ticket21-keychain-observation.json`; no tokens or claim values
+were captured. VM mediation, revocation and authorized inference are still
+unqualified, so ticket 21 remains open and ticket 22 remains blocked.

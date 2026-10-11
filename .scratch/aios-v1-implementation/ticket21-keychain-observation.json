@@ -1,5 +1,5 @@
 {
-  "scope": "synthetic macOS Keychain storage only; no owner credentials, inference or VM qualification",
+  "scope": "synthetic persistence and separately authorized owner sign-in; no inference or VM qualification",
   "initialCliAdapter": {
     "interactiveExit": 1,
     "largeValueExactReadback": false,
@@ -12,6 +12,14 @@
     "reopenedReplacementExactReadback": true,
     "syntheticCleanupExit": 0
   },
-  "ownerAuthorization": "attempted; failed before credential storage; diagnostic retry pending",
+  "ownerAuthorization": {
+    "status": "authorized",
+    "accountId": "397124263a7a93863a363c03d1245fa439396ec2edfde186df75802bb7b68f2b",
+    "credentialsStored": true,
+    "storage": "macOS Keychain",
+    "planUsageAuthorized": true,
+    "deliveryEnabled": false,
+    "earlierRefusal": "id-token-audience; successful after standards-compliant singleton audience support"
+  },
   "productionReady": false
 }
