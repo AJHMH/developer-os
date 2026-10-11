@@ -12,9 +12,13 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 
 ## Acceptance criteria
 
-- [ ] A supported mechanism demonstrates model-only subscription mediation without reusable owner credentials, host MCP/discovery or publication authority entering the worker.
-- [ ] Credential-free protocol/capability canaries precede any authorized live inference; owner authentication files, credit purchases and paid API substitutions are forbidden.
-- [ ] Unsupported/unverifiable mediation returns an actionable blocker and owner tradeoff; a negative investigation does not satisfy positive qualification or unblock ticket 22.
+- [x] A supported mechanism demonstrates model-only subscription mediation without reusable owner credentials, host MCP/discovery or publication authority entering the worker.
+- [x] Credential-free protocol/capability canaries precede any authorized live inference; owner authentication files, credit purchases and paid API substitutions are forbidden.
+- [x] Unsupported/unverifiable mediation returns an actionable blocker and owner tradeoff; a negative investigation does not satisfy positive qualification or unblock ticket 22.
+
+- [ ] The public qualification/status capability decision reflects trusted positive evidence, bound to exact source/runtime/account configuration and run, while granting no further inference authority.
+
+The checked criteria above are demonstrated for the pinned macOS AppleHV/Codex fixed-request fixture. They do not establish Windows or general feature delivery qualification. The public-interface requirement remains open; ticket 21 is not complete.
 
 ## 10 October capability progress
 
@@ -298,3 +302,28 @@ inference. No additional provider attempt, refresh or fallback occurred after
 the consumed approved run. Credentials were last observed to expire at 2:32 p.m.
 Central today; a future grant must fit their remaining validity and plan expiry.
 Positive acceptance stays open and production delivery remains disabled.
+
+## Successful exact approved actual-Codex gateway run
+
+Approved run `55f1cce4-6ea9-484d-8433-51e5cf6ed98f` completed the fixed actual
+Codex turn through the host-only subscription gateway. Its approval was consumed;
+no retry, refresh or paid fallback occurred. Receipt verifies subscriptionInference
+passed, gateway revocation, actual process credential isolation, endpoint policy,
+five delivery capability checks and zero remaining worker/relay processes.
+Current gateway and worker hashes match the exact approved plan. Production
+remains disabled and the consumed run grants no future inference authority.
+See `ticket21-gateway-inference-observation.json`; the prior failed stream receipt
+is retained as `ticket21-sparse-completion-refusal.json`.
+
+This positively qualifies the exact macOS mediation fixture. Parallel Spec review
+identifies a remaining requirement: publish the positive capability decision
+through public qualification/status, bound to trusted evidence and exact
+source/runtime/account configuration. Scratch receipts must not be trusted as
+candidate-importable authority. Distinguish mechanism qualification from current
+run authorization, invalidate drift, and preserve production readiness false.
+The current public report still describes synthetic scope and qualified=false.
+Ticket 21 stays ready-for-agent with this integration requirement open; ticket
+22's authentication dependency remains blocked until the public decision exists.
+Windows, generalized prompts, usage monitoring/re-dispatch and production network
+policy remain separate work. Standards review has no new code findings. No source
+changed after the already reviewed/tested 98ae5c2 repair.

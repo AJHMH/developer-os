@@ -1,0 +1,51 @@
+{
+  "observedAt": "2026-10-11T18:35:00.086Z",
+  "runId": "237f6664-3fc6-4152-aac0-dba167f1f4d2",
+  "status": "refused",
+  "scope": "Actual Codex through host-only subscription gateway",
+  "approvalConsumed": true,
+  "gateway": {
+    "phase": "response-validation",
+    "providerAttempts": 1,
+    "stream": {
+      "bytes": 7472,
+      "records": 14,
+      "deltas": 6,
+      "completed": true,
+      "failed": false,
+      "deltaMatches": true,
+      "completedOutputPresent": true,
+      "completedOutputAllowed": true,
+      "completedTextMatches": false,
+      "format": "event-stream-or-invalid",
+      "errorCode": "none",
+      "eventTypes": [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.content_part.added",
+        "response.output_text.delta",
+        "response.output_text.delta",
+        "response.output_text.delta",
+        "response.output_text.delta",
+        "response.output_text.delta",
+        "response.output_text.delta",
+        "response.output_text.done",
+        "response.content_part.done",
+        "response.output_item.done",
+        "response.completed"
+      ],
+      "eventTypesTruncated": false,
+      "deltaTextLength": 34,
+      "textDoneSeen": true,
+      "textDoneLength": 34,
+      "textDoneMatches": true,
+      "completedMessageCount": 0,
+      "completedTextPartCount": 0,
+      "completedTextLength": 0,
+      "completedTextTrimMatches": false
+    }
+  },
+  "subscriptionInference": "unverified",
+  "deliveryEnabled": false
+}

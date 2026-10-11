@@ -15,3 +15,11 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 - [ ] Model endpoints are enforced outside worker authority; separate dependency access and synthetic permitted/denied traffic demonstrate bypass resistance.
 - [ ] At 20% or less remaining in any allowance, or unknown usage, dispatch requires a delivery/account/window/run-scoped owner grant; exhaustion stops and preserves work, with foreground monitoring and fresh restart/re-dispatch checks.
 - [ ] Only positively qualified authentication permits inference; no paid fallback, purchase, automatic recharge or exact financial-cap claim is introduced.
+
+## Ticket 21 positive fixture evidence
+
+The exact macOS actual-Codex subscription gateway run passed; see ticket 21 and
+`../ticket21-gateway-inference-observation.json`. Authentication remains a blocking
+dependency because the positive capability decision is not yet exposed through
+trusted public qualification/status. The consumed fixture grant cannot authorize
+online dispatch. Production gates and this ticket's acceptance remain open.
