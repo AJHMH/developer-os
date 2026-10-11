@@ -8,10 +8,11 @@ import { SbxHostAdapter } from "./sbx-host.js";
 import { PodmanHostAdapter } from "./podman-host.js";
 import { NativePodmanDriver } from "./podman-native.js";
 import { codexSubscriptionReader } from "./codex-usage.js";
+import { authorizeSubscriptionAuth } from "./auth-host.js";
 import { prepareSubscriptionAuth } from "./subscription-auth.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; browser authorization and the trusted token broker remain separate prerequisites. Native execution is limited to the fixed synthetic offline canary; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit macOS browser consent and host-only Keychain storage, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Native execution is limited to the fixed synthetic offline canary; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -24,6 +25,7 @@ function argumentsForCommand() {
         "codex-executable": { type: "string" },
         adversarial: { type: "boolean" },
         "auth-directory": { type: "string" },
+        "auth-account": { type: "string" },
         "check-id": { type: "string" },
         "podman-machine": { type: "string" },
         "worker-policy": { type: "string" },
@@ -74,23 +76,52 @@ try {
       !values["worker-policy"])
   )
     throw new DeliveryError(usage);
-  if (positionals[0] === "prepare-auth") {
+  if (["prepare-auth", "authorize-auth"].includes(positionals[0] ?? "")) {
     if (
       !values.repo ||
       !values["auth-directory"] ||
       names.some(
-        (name) => !["repo", "state-dir", "auth-directory"].includes(name),
+        (name) =>
+          ![
+            "repo",
+            "state-dir",
+            "auth-directory",
+            ...(positionals[0] === "authorize-auth" ? ["auth-account"] : []),
+          ].includes(name),
       )
     )
       throw new DeliveryError(usage);
-    const prepared = prepareSubscriptionAuth(
-      values["auth-directory"],
-      values.repo,
-      stateDirectory,
-    );
+    if (
+      values["auth-account"] !== undefined &&
+      !/^[a-f0-9]{64}$/.test(values["auth-account"])
+    )
+      throw new DeliveryError(
+        "The selected account must be the identifier returned by successful authorization.",
+      );
+    const prepared =
+      positionals[0] === "authorize-auth"
+        ? await authorizeSubscriptionAuth(
+            values["auth-directory"],
+            values.repo,
+            stateDirectory,
+            (url) =>
+              process.stdout.write(
+                `${JSON.stringify({ status: "awaiting-owner-consent", authorizationUrl: url, deliveryEnabled: false })}\n`,
+              ),
+            values["auth-account"],
+          )
+        : prepareSubscriptionAuth(
+            values["auth-directory"],
+            values.repo,
+            stateDirectory,
+          );
     process.stdout.write(`${JSON.stringify(prepared)}\n`);
   } else {
-    if (values["auth-directory"] !== undefined) throw new DeliveryError(usage);
+    if (
+      values["auth-directory"] !== undefined ||
+      values["auth-account"] !== undefined
+    )
+      throw new DeliveryError(usage);
     const native =
       values["podman-machine"] && values["worker-policy"]
         ? new NativePodmanDriver(

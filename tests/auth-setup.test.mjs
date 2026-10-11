@@ -59,3 +59,26 @@ test("candidate and ledger owned authentication paths refuse preparation without
   }
   assert.deepEqual(readdirSync(f.repo), []);
 });
+
+test("authorization refuses a malformed selected account before preparing external storage", (t) => {
+  const f = fixture(t);
+  const result = spawnSync(
+    process.execPath,
+    [
+      "dist/cli.js",
+      "authorize-auth",
+      "--repo",
+      f.repo,
+      "--state-dir",
+      f.state,
+      "--auth-directory",
+      f.auth,
+      "--auth-account",
+      "not-an-account",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /selected account/);
+  assert.equal(result.stdout, "");
+});

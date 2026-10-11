@@ -21,3 +21,20 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 The credential-free, digest-pinned official Codex 0.161.0 app-server initialization/account-read and host-loopback synthetic relay canaries passed through controller qualification; persisted status still reports qualified:false. The relay tests fixed Responses-only routing, stripped owner headers, and denied unrelated endpoints and capabilities. No real subscription credentials or inference were used. [Observation](../ticket21-protocol-observation.json).
 
 Owner-approved preparation created only stable Developer OS registration metadata in separate external host storage. The browser authorization broker, ID-token verification, encrypted host credential store, VM credential isolation, independently enforced model-only endpoint access and completed subscription inference remain unimplemented/unqualified. The preparation command cannot authorize delivery. Ticket 21 stays open and 22 remains blocked. See [separate setup plan](../chatgpt-setup.md).
+
+
+## macOS broker implementation (10 October)
+
+Separate `authorize-auth` setup now binds fresh PKCE/state/nonce to a loopback
+callback, exchanges only the issued dynamic client ID, verifies RS256 ID tokens
+against fixed OpenAI JWKS and checks issuer/audience/expiry/nonce. Returning
+sign-in requires the selected verified identity; denial, invalid callbacks,
+forged signatures and missing plan permission fail safely. macOS credentials are
+intended for host-only Keychain storage with no token in process arguments,
+browser hints, candidate files or command output.
+
+Controlled tests cover the authorization broker and setup refusal. Live browser
+consent, native Keychain storage, VM relay/credential isolation, revocation and
+subscription inference remain **not-run**. This is implementation progress, not
+positive qualification; all acceptance boxes and ticket 22 remain blocked. See
+[separate setup](../chatgpt-setup.md) for the concrete operator command.

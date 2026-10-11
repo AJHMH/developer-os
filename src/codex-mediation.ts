@@ -34,7 +34,7 @@ export function unqualifiedMediation(): SubscriptionMediationReport {
     endpointEnforcement: "not-run",
     subscriptionInference: "not-run",
     nextAction:
-      "Prepare separate ChatGPT authorization in trusted management and qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+      "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
   };
 }
 
