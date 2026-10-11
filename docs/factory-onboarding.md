@@ -23,10 +23,17 @@ threads, stale dismissal, linear history and protection against deletion and
 force pushes. Configure the expiring repository-only certification read token
 directly in GitHub. Never place keys or credentials in candidate files.
 
-The Factory App installation has been verified for this repository with Contents
-read and Pull requests write. Local signing and GitHub verification must be
-checked on the actual proposal head; App authorship does not supply human review.
-Only `aaron-howard` supplies the final-head GitHub approval.
+The operator authorized the Factory App installation for all current and future
+AJHMH repositories with Contents, Workflows and Pull requests write. Publication
+must use a short-lived installation token restricted to `AJHMH/developer-os` and
+the permissions needed for that operation; revoke it after publication. Keep the
+private key outside the checkout and credentials out of Git URLs and logs.
+
+Publish signed proposal commits through the Factory App so the latest pusher is
+independent of the owner. Verify the App push identity and GitHub signature on the
+actual proposal head before requesting review. App authorship alone does not
+satisfy the latest-push approval rule. Only `aaron-howard` supplies the final-head
+GitHub approval; a new push requires renewed approval and passing checks.
 
 Keep a separate external owner policy for each repository. The local controller
 already models canonical identities and separate repository ownership, but
