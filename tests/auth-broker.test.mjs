@@ -180,3 +180,29 @@ test("authorization reports a safe failure stage without provider credential det
       !String(error).includes("synthetic-private-provider-detail"),
   );
 });
+
+test("authorization accepts its issued client as a singleton audience array", async () => {
+  const f = fixture({
+    claims: { aud: ["oaiapp_fixture"], azp: "oaiapp_fixture" },
+  });
+  assert.equal(
+    (await f.broker.complete(f.callback.href)).clientId,
+    "oaiapp_fixture",
+  );
+});
+for (const claims of [
+  { aud: [] },
+  { aud: ["oaiapp_other"] },
+  { aud: ["oaiapp_fixture", "oaiapp_other"] },
+  { aud: ["oaiapp_fixture", "oaiapp_fixture"] },
+  { aud: ["oaiapp_fixture"], azp: "oaiapp_other" },
+  { aud: "oaiapp_fixture", azp: "oaiapp_other" },
+]) {
+  test(`authorization refuses an untrusted audience or authorized party ${JSON.stringify(claims)}`, async () => {
+    const f = fixture({ claims });
+    await assert.rejects(
+      f.broker.complete(f.callback.href),
+      /id-token-audience;/,
+    );
+  });
+}

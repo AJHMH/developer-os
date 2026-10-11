@@ -228,7 +228,18 @@ export class SubscriptionAuthBroker {
       stage = "id-token-issuer";
       if (claims.iss !== issuer) throw Error();
       stage = "id-token-audience";
-      if (claims.aud !== clientId) throw Error();
+      // OIDC permits a string or array. Trust only this issued client; no
+      // additional audience is configured for this public-client broker.
+      const audienceMatches =
+        claims.aud === clientId ||
+        (Array.isArray(claims.aud) &&
+          claims.aud.length === 1 &&
+          claims.aud[0] === clientId);
+      if (
+        !audienceMatches ||
+        (claims.azp !== undefined && claims.azp !== clientId)
+      )
+        throw Error();
       stage = "id-token-nonce";
       if (claims.nonce !== pending.nonce) throw Error();
       stage = "id-token-subject";
