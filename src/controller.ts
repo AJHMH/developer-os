@@ -56,6 +56,10 @@ import {
   type OnboardingReport,
   type OnboardingOptions,
 } from "./onboarding.js";
+import {
+  windowsWorkerQualificationReport,
+  type WindowsWorkerQualificationReport,
+} from "./windows-qualification.js";
 
 /** Only fixed, non-input-derived messages may cross the public error boundary. */
 export class DeliveryError extends Error {}
@@ -348,6 +352,11 @@ export class DeliveryController {
         this.stateDirectory,
       );
     });
+  }
+
+  /** Read a version-bound Windows qualification snapshot without running probes. */
+  qualificationReport(id: string): WindowsWorkerQualificationReport {
+    return windowsWorkerQualificationReport(this.status(id));
   }
 
   list(): { deliveries: Delivery[] } {

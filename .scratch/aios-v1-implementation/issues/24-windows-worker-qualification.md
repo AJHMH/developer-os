@@ -4,7 +4,7 @@
 
 **Blocked by:** 22, 23.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 ## Parent and governing contract
 
@@ -15,3 +15,19 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 - [ ] A real controller/CLI synthetic worker task and isolated validation exercise pinned transfer, authentication, offline/online policies, usage gates, safe collection and fencing/recovery.
 - [ ] The complete version-bound Windows worker qualification report admits only the positively qualified host/binding and refuses missing/failed controls.
 - [ ] Signed publication, human approval, merge and full delivery/pilot qualification remain separate downstream gates.
+
+## Comments
+
+### 11 October qualification-report slice
+
+Added a read-only public controller/CLI `qualification-report` snapshot. It
+binds results to the observed Windows VM/worker/policy version and keeps
+controlled adapter observations distinct from native evidence. Missing controls
+remain `not-run`, failed or mismatched Windows bindings remain blocked, and the
+report cannot enable production delivery. See
+[`ticket24-qualification-report.md`](../ticket24-qualification-report.md).
+
+This work ran on a Darwin arm64 Mac with AppleHV. It did not run Windows
+Hyper-V qualification, live authentication, provider inference or a full
+synthetic worker task/isolated validation. Those acceptance criteria remain
+open until native Windows evidence is available.
