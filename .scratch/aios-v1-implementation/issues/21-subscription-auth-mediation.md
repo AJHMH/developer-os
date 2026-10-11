@@ -44,3 +44,29 @@ relay/credential isolation, revocation and subscription inference remain
 **not-run**. This is implementation progress, not
 positive qualification; all acceptance boxes and ticket 22 remain blocked. See
 [separate setup](../chatgpt-setup.md) for the concrete operator command.
+
+## 11 October revocation and VM fixture qualification
+
+Controller qualification/status now records version-bound host-loopback relay
+revocation: an accepted in-flight upstream request is cancelled, its response
+is suppressed, and the revoked capability cannot forward another request.
+Fresh canary instances use fresh grants. These are synthetic credentials only.
+
+The independently pinned macOS AppleHV VM passed host/guest synthetic credential
+file denial with positive controls before and after, a scrubbed environment,
+no worker mounts or network, and verified process shutdown. The reported
+credential isolation scope is **synthetic-restricted-alpine**. A fixed prompt
+and result also passed bounded stdin transfer through disposable restricted VM
+workers. [Native evidence](../ticket21-vm-credential-isolation.json).
+
+A [one-shot inference harness](../ticket21-inference-test.mjs) and
+[prepared plan](../ticket21-inference-plan.json) are ready for separate owner
+approval. Preparation uses no account tokens or inference. Execute requires
+approval of that exact run and unknown usage; credentials stay on the host,
+one fixed Responses request has a 30-second deadline/64 KiB response bound,
+and no retries, refresh or paid fallback are permitted. A successful completed
+response must return the exact fixture result through the isolated worker.
+
+This fixture does not qualify the actual Codex worker, its endpoint policy or
+its delivery-scoped capability. No live inference has run; all acceptance
+boxes remain open and ticket 22 stays blocked. Production gates remain false.

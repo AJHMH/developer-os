@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -33,7 +33,7 @@ export async function withHostCanary<T>(
     "synthetic-authority.txt",
     "synthetic-peer.txt",
   ].map((name) => join(root, name));
-  const content = `Synthetic qualification canary ${id}\n`;
+  const content = `Synthetic private credential ${randomBytes(32).toString("hex")}\n`;
   for (const file of files)
     writeFileSync(file, content, { flag: "wx", mode: 0o600 });
   const child = spawn(process.execPath, ["-e", service, id], {

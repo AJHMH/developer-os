@@ -9,16 +9,20 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { syntheticRelayCanary } from "./model-relay.js";
+import { syntheticRelayCanary, modelRelayVersion } from "./model-relay.js";
 
 export interface SubscriptionMediationReport {
   qualified: false;
   protocol: "passed" | "not-run";
   syntheticRelay: "passed" | "not-run";
+  relayRevocation: "passed" | "not-run";
+  relayVersion?: string;
+  modelFrameTransport: "passed" | "not-run";
   scope: "host-capability-only";
   codexVersion?: "0.161.0";
   executableSha256?: string;
-  credentialIsolation: "not-run";
+  credentialIsolation: "passed" | "not-run";
+  credentialIsolationScope: "synthetic-restricted-alpine" | "not-run";
   endpointEnforcement: "not-run";
   subscriptionInference: "not-run";
   nextAction: string;
@@ -29,8 +33,11 @@ export function unqualifiedMediation(): SubscriptionMediationReport {
     qualified: false,
     protocol: "not-run",
     syntheticRelay: "not-run",
+    relayRevocation: "not-run",
+    modelFrameTransport: "not-run",
     scope: "host-capability-only",
     credentialIsolation: "not-run",
+    credentialIsolationScope: "not-run",
     endpointEnforcement: "not-run",
     subscriptionInference: "not-run",
     nextAction:
@@ -55,6 +62,10 @@ export async function inspectCodexMediation(
   authority: string,
 ): Promise<SubscriptionMediationReport> {
   const report = unqualifiedMediation();
+  report.syntheticRelay = await syntheticRelayCanary();
+  report.relayRevocation = report.syntheticRelay;
+  if (report.relayRevocation === "passed")
+    report.relayVersion = modelRelayVersion;
   if (!executable) return report;
   let home: string | undefined;
   try {
@@ -209,7 +220,6 @@ export async function inspectCodexMediation(
     });
     if (passed && digest() === before) {
       report.protocol = "passed";
-      report.syntheticRelay = await syntheticRelayCanary();
     }
   } catch {
     /* Never retain raw paths, protocol output or error details. */

@@ -317,6 +317,25 @@ export class PodmanHostAdapter implements WorkerAdapter {
               probe.evidenceSha256 = result.evidenceSha256;
             }
           }
+          if (
+            observed.passed === true &&
+            [
+              "hostFilesDenied",
+              "guestFileDenied",
+              "environmentScrubbed",
+              "mountsAbsent",
+              "networkAbsent",
+              "positiveControlsBeforeAfter",
+            ].every((key) => observed.credentialExclusion?.[key] === true) &&
+            report.probes.find((probe) => probe.name === "owner-credentials")
+              ?.outcome === "passed"
+          ) {
+            report.subscriptionMediation.credentialIsolation = "passed";
+            report.subscriptionMediation.credentialIsolationScope =
+              "synthetic-restricted-alpine";
+            if (observed.modelFrameTransport === "passed")
+              report.subscriptionMediation.modelFrameTransport = "passed";
+          }
         } catch {
           report.blockers.push(
             "Synthetic host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation.",

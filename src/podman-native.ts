@@ -237,12 +237,13 @@ with os.fdopen(fd,'w') as lock:
   engine()
   directory=root+'/isolation-'+nonce
   os.mkdir(directory,0o700)
-  paths=[directory+'/synthetic-authority',directory+'/synthetic-peer']
+  paths=[directory+'/synthetic-authority',directory+'/synthetic-peer',directory+'/synthetic-credential']
+  credential=uuid.uuid4().hex
   for p in paths:
    f=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
-   with os.fdopen(f,'w') as stream: stream.write(nonce)
+   with os.fdopen(f,'w') as stream: stream.write(credential)
   def files():
-   if any(pathlib.Path(p).read_text()!=nonce for p in paths): fail()
+   if any(pathlib.Path(p).read_text()!=credential for p in paths): fail()
   stage='guest-file-positive'
   files()
   name='aios-isolation-'+nonce; record=dict(name=name,cgroup='',pids={},stopped=False)
@@ -272,11 +273,13 @@ if unshare -Ur true 2>/dev/null; then echo failed-escape-unshare; else echo pass
 if busybox chroot / /bin/true 2>/dev/null; then echo failed-escape-chroot; else echo passed-escape-chroot; fi
 if (echo $$ > /sys/fs/cgroup/cgroup.procs) 2>/dev/null; then echo failed-escape-cgroup; else echo passed-escape-cgroup; fi
 if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo passed-escape-proc; fi
+if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo failed-owner-credentials; else echo passed-owner-credentials; fi
+
 '''
    hostPaths=['/mnt/'+p[0].lower()+'/'+p[3:].replace('\\','/') for p in challenge['files']] if R['hostBinding']['platform']=='win32' else challenge['files']
    stage='worker-denials'
-   observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths,url,engineSocket).decode().splitlines()
-   expected=['passed-host-files']*3+['passed-controller-ledger','passed-cross-delivery','passed-network-bypass','passed-skills-mcp-hooks','passed-host-docker','passed-escape-unshare','passed-escape-chroot','passed-escape-cgroup','passed-escape-proc']
+   observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths[:2],url,engineSocket,paths[2]).decode().splitlines()
+   expected=['passed-host-files']*3+['passed-controller-ledger','passed-cross-delivery','passed-network-bypass','passed-skills-mcp-hooks','passed-host-docker','passed-escape-unshare','passed-escape-chroot','passed-escape-cgroup','passed-escape-proc','passed-owner-credentials']
    stage='post-host-http-mcp-positive'
    services()
    stage='post-guest-engine-positive'
@@ -285,13 +288,42 @@ if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo
    files()
    record['pids'].update(census(cg));stop(name,record);record['stopped']=True;save(probePath,record)
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
-   names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker']
+   names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker','owner-credentials']
    proof=h(json.dumps(dict(challenge=nonce,observed=observed,binding=binding,stopped=record['stopped']),sort_keys=True).encode())
-   print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-4:],scope='Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
+   print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-5:-1],credentialExclusion=dict(hostFilesDenied=observed[:3]==['passed-host-files']*3,guestFileDenied=observed[-1]=='passed-owner-credentials',environmentScrubbed=True,mountsAbsent=True,networkAbsent=True,positiveControlsBeforeAfter=True),scope='Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
    shutil.rmtree(directory)
+ elif R['action']=='model-frame':
+  binding={**R['hostBinding'],**snapshot()}
+  if binding!=R['expected']: fail()
+  mode=R['frameMode']
+  data=base64.b64decode(R['frame'],validate=True)
+  if mode=='request':
+   value=json.loads(data)
+   expected={'model':'gpt-6.1-sol','input':[{'role':'user','content':'Say exactly: AIOS model-only inference complete'}],'store':False,'stream':True}
+   if value!=expected: fail()
+  elif mode=='response':
+   if data!=b'AIOS model-only inference complete': fail()
+  else: fail()
+  if len(data)>4096: fail()
+  name='aios-model-frame-'+str(uuid.uuid4())
+  record=dict(name=name,cgroup='',pids={},stopped=False)
+  probePath=root+'/probe-'+str(uuid.uuid4())+'.json'
+  try:
+   create(name,'sleep 600',{'aios.authority':R['authority']})
+   save(probePath,record);pod('start',name)
+   cg=cgroup(inspect(name)['State']['Pid']);record.update(cgroup=cg,pids=census(cg));save(probePath,record)
+   e=effective(name)
+   result=subprocess.run(['podman','exec','-i',name,'cat'],input=data,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
+   if result.returncode or result.stdout!=data: fail()
+   record['pids'].update(census(cg));stop(name,record);record['stopped']=True;save(probePath,record)
+   if {**R['hostBinding'],**snapshot()}!=binding: fail()
+   print(json.dumps(dict(binding=binding,effective=e,frame=base64.b64encode(result.stdout).decode(),shutdown=dict(remainingProcesses=0,observedProcesses=len(record['pids'])))))
+  finally:
+   if os.path.exists(probePath) and not record.get('stopped'):
+    stop(name,record);record['stopped']=True;save(probePath,record)
  elif R['action'] in ['execute','stop','collect']:
   s=R['session']; pins=R['pins']; name='aios-offline-'+s['sandboxId']
   path=root+'/'+s['sandboxId']+'.json'
@@ -515,12 +547,54 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
   }
   async probeIsolation(repository: string): Promise<any> {
     const expected = this.policy(repository);
-    return withHostCanary((challenge) => {
+    const evidence = await withHostCanary((challenge) => {
       const observed = this.invoke("isolate", { expected, challenge });
       if (observed.challengeId !== challenge.id)
         throw Error("Unbound isolation evidence");
       return { ...observed, probeVersion: sha256(guest + hostCanaryVersion) };
     });
+    if (evidence.passed === true) {
+      const body = JSON.stringify({
+        model: "gpt-6.1-sol",
+        input: [
+          {
+            role: "user",
+            content: "Say exactly: AIOS model-only inference complete",
+          },
+        ],
+        store: false,
+        stream: true,
+      });
+      this.modelFrame(repository, "request", body);
+      this.modelFrame(
+        repository,
+        "response",
+        "AIOS model-only inference complete",
+      );
+      evidence.modelFrameTransport = "passed";
+    }
+    return evidence;
+  }
+  /** Fixed synthetic request/result transport only, not a production worker. */
+  modelFrame(
+    repository: string,
+    frameMode: "request" | "response",
+    frame: string,
+  ): any {
+    if (Buffer.byteLength(frame) > 4096) throw Error("Model frame too large");
+    const expected = this.policy(repository);
+    const observed = this.invoke("model-frame", {
+      expected,
+      frameMode,
+      frame: Buffer.from(frame).toString("base64"),
+    });
+    if (
+      JSON.stringify(observed.binding) !== JSON.stringify(expected) ||
+      observed.frame !== Buffer.from(frame).toString("base64") ||
+      observed.shutdown?.remainingProcesses !== 0
+    )
+      throw Error("Unverified model frame");
+    return observed;
   }
   async execute(
     request: Parameters<OfflineCanaryRuntime["execute"]>[0],

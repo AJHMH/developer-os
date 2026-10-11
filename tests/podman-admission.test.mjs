@@ -94,6 +94,24 @@ test("a matching dedicated Windows VM admits only an offline probe and records d
   );
 });
 
+test("qualification records revocable synthetic relay proof without granting live authority", async (t) => {
+  const f = fixture(t);
+  const result = await f.controller.qualify(f.delivery.id);
+  assert.equal(
+    result.qualification.subscriptionMediation.relayRevocation,
+    "passed",
+  );
+  assert.equal(result.qualification.liveReady, false);
+  assert.equal(
+    result.qualification.subscriptionMediation.credentialIsolation,
+    "not-run",
+  );
+  assert.deepEqual(
+    new DeliveryController(f.state).status(f.delivery.id).qualification,
+    result.qualification,
+  );
+});
+
 test("changed bindings, host shares, management access and weaker hosts revoke offline admission", async (t) => {
   const f = fixture(t);
   for (const observation of [
