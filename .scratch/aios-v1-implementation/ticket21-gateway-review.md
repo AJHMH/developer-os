@@ -137,3 +137,19 @@ No production parser change or consistency relaxation is justified. Continuing
 live diagnosis requires separately authorized credential renewal and a fresh
 exact approved plan; this run's marker must never be reused. Positive ticket 21
 acceptance stays open and production delivery disabled.
+
+## Same-account renewal and fresh unapproved diagnostic plan
+
+The owner authorized same-account browser renewal and fresh preparation only.
+Returning sign-in succeeded with existing registration/scopes and validated
+credentials stored in macOS Keychain. Fresh native synthetic qualification passed
+using authorized v3 pins. Plan `237f6664-3fc6-4152-aac0-dba167f1f4d2` is prepared
+and awaits its own exact live-run approval including unknown usage. No inference
+was executed. Separate safe host-only preflight confirms matching identity/host,
+required scopes and plan permission, with validity beyond a 30-second grant;
+credentials expire at 2026-10-11T19:32:08.763Z (2:32 p.m. Central).
+See `ticket21-renewed-credential-preflight.json`. This timestamp is an observation,
+not permission to renew or retry during inference. Approval must be used before
+both plan and credential expiry, with time for qualification and the full grant.
+The original completed-message discrepancy remains unresolved; strict completion
+consistency and disabled production delivery remain enforced.
