@@ -38,3 +38,14 @@ Build/typecheck and formatting pass; all 123 automated tests pass. The prepared
 one-shot plan binds account/registration, request, delivery, gateway source, pinned
 Codex executable and VM policy/binding. An external exclusive marker is consumed
 before Keychain access. Preparation used no owner credentials or inference.
+
+## Approved run refusal and renewal
+
+Approved run `2b8ba949-c1a5-49e3-81bc-dd96106e1d6d` consumed its marker, then
+refused an already expired host credential before provider dispatch. Safe metadata
+confirmed expiration preceded plan preparation and account/registration/scopes
+still matched. Request count was zero. Separate previously authorized returning
+sign-in renewed the same account/scopes through the browser into host-only
+Keychain. Fresh plan `05cac8f2-d0f7-4b2a-87af-ef8a5e84720d` passed synthetic
+qualification again and awaits its own owner approval. No code changed after
+review/tests; real integration remains unqualified.

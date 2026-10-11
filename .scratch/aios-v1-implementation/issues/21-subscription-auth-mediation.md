@@ -126,3 +126,13 @@ previous Alpine approval is consumed and cannot authorize this run. Expired
 credentials refuse without automatic renewal. All acceptance boxes remain open,
 `qualified:false` and production readiness remain false; ticket 22 stays blocked
 until separately approved real integration succeeds. [Review](../ticket21-gateway-review.md).
+
+The owner-approved actual-Codex run `2b8ba949-c1a5-49e3-81bc-dd96106e1d6d`
+refused before provider dispatch because the host credential had expired before
+plan preparation. Its external one-shot marker is consumed; request count was
+zero and no retry/automatic refresh occurred. Returning browser authorization
+renewed the same account/registration/scopes into Keychain using existing consent.
+[Refusal and renewal receipt](../ticket21-gateway-inference-observation.json).
+A fresh plan `05cac8f2-d0f7-4b2a-87af-ef8a5e84720d` is prepared after another
+successful synthetic native qualification. It requires a new exact-run approval;
+no real actual-Codex subscription inference has succeeded yet.
