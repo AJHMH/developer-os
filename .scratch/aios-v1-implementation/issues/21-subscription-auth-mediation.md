@@ -20,7 +20,7 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 
 The credential-free, digest-pinned official Codex 0.161.0 app-server initialization/account-read and host-loopback synthetic relay canaries passed through controller qualification; persisted status still reports qualified:false. The relay tests fixed Responses-only routing, stripped owner headers, and denied unrelated endpoints and capabilities. No real subscription credentials or inference were used. [Observation](../ticket21-protocol-observation.json).
 
-Owner-approved preparation created only stable Developer OS registration metadata in separate external host storage. The browser authorization broker, ID-token verification, encrypted host credential store, VM credential isolation, independently enforced model-only endpoint access and completed subscription inference remain unimplemented/unqualified. The preparation command cannot authorize delivery. Ticket 21 stays open and 22 remains blocked. See [separate setup plan](../chatgpt-setup.md).
+Owner-approved preparation created only stable Developer OS registration metadata in separate external host storage. At that preparation milestone the browser authorization broker, ID-token verification and encrypted host credential store were unimplemented; the macOS progress below supersedes their implementation status. VM credential isolation, independently enforced model-only endpoint access and completed subscription inference remain unimplemented/unqualified. The preparation command cannot authorize delivery. Ticket 21 stays open and 22 remains blocked. See [separate setup plan](../chatgpt-setup.md).
 
 
 ## macOS broker implementation (10 October)

@@ -14,7 +14,7 @@ const refusal = () =>
   new DeliveryError(
     "Separate subscription authorization did not complete. Check browser consent and macOS Keychain access, then retry; production delivery remains disabled.",
   );
-async function document(url: string, init?: RequestInit): Promise<any> {
+async function fetchBoundedJson(url: string, init?: RequestInit): Promise<any> {
   const response = await fetch(url, {
     ...init,
     redirect: "error",
@@ -41,13 +41,13 @@ async function document(url: string, init?: RequestInit): Promise<any> {
 }
 const openAI: AuthorizationTransport = {
   exchange: (params) =>
-    document("https://auth.openai.com/api/accounts/oauth/token", {
+    fetchBoundedJson("https://auth.openai.com/api/accounts/oauth/token", {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(params),
     }),
   signingKeys: async () => {
-    const result = await document(
+    const result = await fetchBoundedJson(
       "https://auth.openai.com/.well-known/jwks.json",
     );
     if (!Array.isArray(result.keys) || result.keys.length > 32) throw refusal();
