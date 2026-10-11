@@ -67,9 +67,26 @@ empty and seccomp/no-new-privileges are observed on its actual process. Result
 collection occurs only after revocation and independent cgroup/PID shutdown.
 No guest-selected paths or archives are imported.
 
-Run the three retained `macos-*-acceptance.mjs` scripts under
-`.scratch/aios-v1-implementation/` **serially** with the delivery ID and external
-policy. They explicitly use the observed `ticket4-macos/state` and machine.
+Run the three retained `macos-*-acceptance.mjs` scripts through the serial runner:
+
+```sh
+npm run acceptance:macos -- <delivery-id> /absolute/external-pins.json
+```
+
+The runner executes round-trip, fencing and isolation in that order, stopping
+on the first failure. It acquires `.native-acceptance.lock` in the canonical
+`$HOME/.developer-os/ticket4-macos/state` directory before launching any step.
+A second runner against that state refuses, including through path aliases.
+The state directory must already exist. Normal completion or a step's ordinary
+nonzero exit releases the lock; interruption retains it. After interruption or
+an abruptly killed runner, inspect delivery status/recovery and confirm prior
+runner processes and workers have stopped before manually removing the empty
+lock directory. The runner never clears an existing lock or provisions a VM.
+
+Direct invocation of an individual acceptance script bypasses this runner lock;
+use the runner for shared-state acceptance and avoid other controller mutations
+during the run. These scripts explicitly use the observed `ticket4-macos/state`
+and machine.
 The round-trip runner checks changed pins, metadata, linked and credential-like
 input, uncertain shutdown/recovery and a fresh result. The fencing runner checks
 queueing, pause, stale dispatch rejection, controller crash and exact-session

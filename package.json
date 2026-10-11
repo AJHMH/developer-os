@@ -15,8 +15,9 @@
     "test": "npm run build && node --test",
     "test:cli": "npm run build && node --test tests/delivery.test.mjs",
     "start": "node dist/cli.js",
-    "format": "prettier --write src tests package.json tsconfig.json README.md",
-    "format:check": "prettier --check src tests package.json tsconfig.json README.md"
+    "format": "prettier --write src tests scripts package.json tsconfig.json README.md",
+    "format:check": "prettier --check src tests scripts package.json tsconfig.json README.md",
+    "acceptance:macos": "node scripts/run-native-acceptance.mjs \"$HOME/.developer-os/ticket4-macos/state\" .scratch/aios-v1-implementation/macos-roundtrip-acceptance.mjs .scratch/aios-v1-implementation/macos-fencing-acceptance.mjs .scratch/aios-v1-implementation/macos-isolation-acceptance.mjs --"
   },
   "devDependencies": {
     "@types/node": "24.10.0",
