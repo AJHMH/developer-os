@@ -1,26 +1,26 @@
 {
-  "observedAt": "2026-10-11T15:05:24.721Z",
+  "observedAt": "2026-10-11T15:07:06.757Z",
   "scope": "Actual isolated Codex through VM relay to host-only subscription gateway with synthetic account/provider; no live inference",
   "qualification": {
     "ready": false,
     "liveReady": false,
     "mode": "live",
-    "checkedAt": "2026-10-11T15:04:47.586Z",
+    "checkedAt": "2026-10-11T15:06:36.915Z",
     "probes": [
       {
         "name": "host-files",
         "outcome": "passed",
-        "evidenceSha256": "99754c8658a862a5ad47a35d2de8501ba97d5cffa5672cf1c3669088125f87b8"
+        "evidenceSha256": "ae0d04edb6a831c06db02d8ad0f5f9fef2b12ede9d8040ace54f45cdef950a8c"
       },
       {
         "name": "controller-ledger",
         "outcome": "passed",
-        "evidenceSha256": "99754c8658a862a5ad47a35d2de8501ba97d5cffa5672cf1c3669088125f87b8"
+        "evidenceSha256": "ae0d04edb6a831c06db02d8ad0f5f9fef2b12ede9d8040ace54f45cdef950a8c"
       },
       {
         "name": "owner-credentials",
         "outcome": "passed",
-        "evidenceSha256": "99754c8658a862a5ad47a35d2de8501ba97d5cffa5672cf1c3669088125f87b8"
+        "evidenceSha256": "ae0d04edb6a831c06db02d8ad0f5f9fef2b12ede9d8040ace54f45cdef950a8c"
       },
       {
         "name": "ssh-gpg",
@@ -29,12 +29,12 @@
       {
         "name": "host-docker",
         "outcome": "passed",
-        "evidenceSha256": "99754c8658a862a5ad47a35d2de8501ba97d5cffa5672cf1c3669088125f87b8"
+        "evidenceSha256": "ae0d04edb6a831c06db02d8ad0f5f9fef2b12ede9d8040ace54f45cdef950a8c"
       },
       {
         "name": "skills-mcp-hooks",
         "outcome": "passed",
-        "evidenceSha256": "99754c8658a862a5ad47a35d2de8501ba97d5cffa5672cf1c3669088125f87b8"
+        "evidenceSha256": "ae0d04edb6a831c06db02d8ad0f5f9fef2b12ede9d8040ace54f45cdef950a8c"
       },
       {
         "name": "github-binding",
@@ -55,7 +55,7 @@
       {
         "name": "network-bypass",
         "outcome": "passed",
-        "evidenceSha256": "99754c8658a862a5ad47a35d2de8501ba97d5cffa5672cf1c3669088125f87b8"
+        "evidenceSha256": "ae0d04edb6a831c06db02d8ad0f5f9fef2b12ede9d8040ace54f45cdef950a8c"
       },
       {
         "name": "dependency-egress",
@@ -64,7 +64,7 @@
       {
         "name": "cross-delivery",
         "outcome": "passed",
-        "evidenceSha256": "99754c8658a862a5ad47a35d2de8501ba97d5cffa5672cf1c3669088125f87b8"
+        "evidenceSha256": "ae0d04edb6a831c06db02d8ad0f5f9fef2b12ede9d8040ace54f45cdef950a8c"
       },
       {
         "name": "descendant-stop",
@@ -146,7 +146,7 @@
     "bindingSha256": "60b7ca356964d6cf3267de493feb34d9f9b1336e84d19f89f0f2d43a468509f4",
     "adversarial": {
       "scope": "synthetic-macos-controls",
-      "challengeId": "284d00c9-ea6b-4a3d-a052-e1793c076550",
+      "challengeId": "8888cd3d-8ea8-4b1b-89d2-34f2bbaa9d4a",
       "probeVersion": "4beec97ddffcf5c8c21e2d7a390a0b4d2f9e9e4d0bf9db13cdedf23da8dc266a",
       "escapeAttempts": [
         "passed-escape-unshare",

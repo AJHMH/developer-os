@@ -102,3 +102,18 @@ Fresh diagnostic plan `824eb1a1-a8da-4536-b1dc-75e9993bece0` is prepared but
 unapproved. Preparation performed no subscription inference or Keychain access.
 A new exact owner approval including unknown usage is required before execution.
 Production delivery remains disabled and ticket 21 positive acceptance stays open.
+
+## Approved diagnostic run: completed text inconsistency
+
+Run `824eb1a1-a8da-4536-b1dc-75e9993bece0` was explicitly approved with
+unknown usage and consumed once. It refused after one provider attempt. Safe
+receipt: 7,472 bytes, 14 event records, six deltas, completed=true, failed=false,
+deltaMatches=true, completedOutputPresent=true, completedOutputAllowed=true,
+completedTextMatches=false, errorCode=none. The provider stream reached completion
+and its accumulated deltas matched the fixed marker, but completed message text
+did not. No provider content was retained, so the exact discrepancy is unknown.
+The gateway withheld the result and revoked its grant; no retry, refresh or paid
+fallback was performed. Usage may have been consumed. The exact-match consistency
+check remains enforced. Live integration remains unverified, positive acceptance
+open and production delivery disabled. Next work is a controlled reproduction of
+completed-message inconsistency before any separately approved live run.
