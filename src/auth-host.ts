@@ -4,15 +4,17 @@ import { createServer } from "node:http";
 import { dirname } from "node:path";
 import {
   SubscriptionAuthBroker,
+  AuthorizationFailure,
+  AuthorizationHttpFailure,
   type AuthorizationTransport,
   type ValidatedAccount,
 } from "./auth-broker.js";
 import { prepareSubscriptionAuth } from "./subscription-auth.js";
 import { DeliveryError } from "./controller.js";
 
-const refusal = () =>
+const refusal = (stage = "setup") =>
   new DeliveryError(
-    "Separate subscription authorization did not complete. Check browser consent and macOS Keychain access, then retry; production delivery remains disabled.",
+    `Separate subscription authorization did not complete at ${stage}. Check browser consent and macOS Keychain access, then retry; production delivery remains disabled.`,
   );
 async function fetchBoundedJson(url: string, init?: RequestInit): Promise<any> {
   const response = await fetch(url, {
@@ -20,7 +22,7 @@ async function fetchBoundedJson(url: string, init?: RequestInit): Promise<any> {
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) throw refusal();
+  if (!response.ok) throw new AuthorizationHttpFailure(response.status);
   // Bound untrusted OAuth and JWKS response bodies before parsing.
   const reader = response.body?.getReader();
   if (!reader) throw refusal();
@@ -169,7 +171,8 @@ export async function authorizeSubscriptionAuth(
   });
   server.requestTimeout = 10000;
   server.headersTimeout = 10000;
-  const timer = setTimeout(() => fail(refusal()), 300000);
+  const timer = setTimeout(() => fail(refusal("callback-timeout")), 300000);
+  let stage = "callback-listener";
   try {
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -180,7 +183,9 @@ export async function authorizeSubscriptionAuth(
     callbackUri = `http://127.0.0.1:${address.port}/auth/callback`;
     const pending = broker.begin(callbackUri, selected);
     announce(pending.authorizationUrl);
+    stage = "callback";
     const account = await broker.complete(await callback);
+    stage = "keychain-store";
     const accountId = store(account, vault, selected !== undefined);
     return {
       status: "authorized",
@@ -192,8 +197,9 @@ export async function authorizeSubscriptionAuth(
       nextAction:
         "Qualify the model-only relay, revocation, VM credential exclusion and owner-authorized subscription inference; authentication alone cannot qualify a worker.",
     };
-  } catch {
-    throw refusal();
+  } catch (error) {
+    if (error instanceof AuthorizationFailure) throw error;
+    throw refusal(stage);
   } finally {
     clearTimeout(timer);
     server.closeAllConnections();

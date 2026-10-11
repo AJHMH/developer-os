@@ -19,6 +19,8 @@ function fixture(options = {}) {
     {
       exchange: async (params) => {
         exchanges.push(params);
+        if (options.exchangeFailure)
+          throw new Error("synthetic-private-provider-detail");
         const encode = (x) =>
           Buffer.from(JSON.stringify(x)).toString("base64url");
         const payload = encode({
@@ -167,4 +169,14 @@ test("returning account accepts its exact identity without exposing tokens in br
   );
   f.callback.searchParams.delete("client_id");
   assert.equal((await f.broker.complete(f.callback.href)).subject, "owner");
+});
+
+test("authorization reports a safe failure stage without provider credential details", async () => {
+  const f = fixture({ exchangeFailure: true });
+  await assert.rejects(
+    f.broker.complete(f.callback.href),
+    (error) =>
+      /token-exchange/.test(String(error)) &&
+      !String(error).includes("synthetic-private-provider-detail"),
+  );
 });

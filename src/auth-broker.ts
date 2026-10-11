@@ -49,10 +49,19 @@ const issuer = "https://auth.openai.com";
 const resource = "https://api.openai.com/v1";
 const scopes =
   "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
-const failure = () =>
-  new DeliveryError(
-    "Authentication could not be verified; start a fresh authorization. Existing account credentials remain unchanged and delivery remains disabled.",
-  );
+export class AuthorizationFailure extends DeliveryError {
+  constructor(stage: string, status?: number) {
+    super(
+      `Authentication could not be verified at ${stage}${status ? ` (HTTP ${status})` : ""}; start a fresh authorization. Existing account credentials remain unchanged and delivery remains disabled.`,
+    );
+  }
+}
+export class AuthorizationHttpFailure extends Error {
+  constructor(readonly status: number) {
+    super("Authorization HTTP request refused");
+  }
+}
+const failure = () => new AuthorizationFailure("request");
 
 /** Trusted host-only authorization boundary. No credentials or pending secrets
  * are persisted, logged or supplied to a worker by this broker. */
@@ -126,6 +135,7 @@ export class SubscriptionAuthBroker {
     const pending = this.pending;
     // Every completion attempt consumes the pending exchange, including refusal.
     delete this.pending;
+    let stage = "callback";
     try {
       if (!pending || Date.now() >= pending.deadline) throw Error();
       const callback = new URL(callbackUri),
@@ -154,6 +164,7 @@ export class SubscriptionAuthBroker {
         code.length > 4096
       )
         throw Error();
+      stage = "token-exchange";
       const tokens = await this.transport.exchange({
         grant_type: "authorization_code",
         client_id: clientId,
@@ -162,6 +173,7 @@ export class SubscriptionAuthBroker {
         redirect_uri: pending.callback,
         resource,
       });
+      stage = "token-response";
       if (
         tokens.token_type !== "Bearer" ||
         !Number.isSafeInteger(tokens.expires_in) ||
@@ -177,6 +189,7 @@ export class SubscriptionAuthBroker {
         )
       )
         throw Error();
+      stage = "id-token-header";
       const parts = tokens.id_token.split(".");
       if (parts.length !== 3 || parts.some((x) => !/^[A-Za-z0-9_-]+$/.test(x)))
         throw Error();
@@ -190,6 +203,7 @@ export class SubscriptionAuthBroker {
         header.x5u
       )
         throw Error();
+      stage = "signing-keys";
       const keys = (await this.transport.signingKeys()).filter(
         (key) =>
           key.kid === header.kid &&
@@ -197,6 +211,7 @@ export class SubscriptionAuthBroker {
           (!key.alg || key.alg === "RS256") &&
           (!key.use || key.use === "sig"),
       );
+      stage = "id-token-signature";
       if (
         keys.length !== 1 ||
         !verify(
@@ -207,6 +222,7 @@ export class SubscriptionAuthBroker {
         )
       )
         throw Error();
+      stage = "id-token-claims";
       const claims = JSON.parse(Buffer.from(parts[1]!, "base64url").toString());
       const now = Math.floor(Date.now() / 1000);
       if (
@@ -239,8 +255,11 @@ export class SubscriptionAuthBroker {
           granted.includes("chatgpt.tokens.use.direct") &&
           granted.includes("resource.invoke"),
       };
-    } catch {
-      throw failure();
+    } catch (error) {
+      throw new AuthorizationFailure(
+        stage,
+        error instanceof AuthorizationHttpFailure ? error.status : undefined,
+      );
     }
   }
 }
