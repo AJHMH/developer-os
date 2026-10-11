@@ -1,4 +1,14 @@
-import { spawnSync } from "node:child_process";
+import {
+  HostSubscriptionGateway,
+  syntheticGatewayAccount,
+  syntheticGatewayApproval,
+  syntheticGatewayResponse,
+  gatewayRequest,
+  subscriptionGatewayVersion,
+} from "./subscription-gateway.js";
+import { randomUUID } from "node:crypto";
+import { codexEndpointFixture } from "./codex-endpoint.js";
+import { spawn, spawnSync } from "node:child_process";
 import { hostname, platform } from "node:os";
 import { podmanMachine, podmanCommand } from "./podman-platform.js";
 import {
@@ -119,7 +129,7 @@ def effective(name):
  for p in ['/run/podman/podman.sock',engineSocket,'/var/run/docker.sock','/mnt/c','/Users']:
   if subprocess.run(['podman','exec',name,'test','-e',p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
  return dict(hypervisor=True,dedicated=True,mounts=[],managementExposed=False,rootful=False,network='none',readOnly=True,user='65534:65534',capabilities=[],noNewPrivileges=True)
-def create(name,script,labels):
+def create(name,script,labels,memory='64m'):
  profile=json.loads(pathlib.Path('/usr/share/containers/seccomp.json').read_text())
  if profile.get('defaultAction')!='SCMP_ACT_ERRNO': fail()
  for rule in profile['syscalls']:
@@ -127,7 +137,7 @@ def create(name,script,labels):
  profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
  seccomp=root+'/worker-seccomp.json'
  save(seccomp,profile)
- args=['create','--name',name,'--hostname=aios-offline','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+seccomp,'--user=65534:65534','--pid=private','--ipc=private','--pids-limit=32','--memory=64m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/','--log-driver=k8s-file','--restart=no']
+ args=['create','--name',name,'--hostname=aios-offline','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+seccomp,'--user=65534:65534','--pid=private','--ipc=private','--pids-limit=32','--memory='+memory,'--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/','--log-driver=k8s-file','--restart=no']
  for k,v in labels.items(): args += ['--label',k+'='+v]
  pod(*args,R['template'],'/bin/sh','-c',script)
 def stop(name,record):
@@ -140,6 +150,11 @@ def stop(name,record):
  if record['cgroup']:
   if not gone(record): fail()
  elif after.get('Status') not in ['created','configured']: fail()
+def discard_stopped_fixture(name,record,path):
+ if name is None or not record.get('stopped') or record.get('removed'): return
+ c=inspect(name)
+ if c['State'].get('Running') or c['State'].get('Pid')!=0 or c['Config'].get('Labels',{}).get('aios.authority')!=R['authority']: fail()
+ pod('rm',name);record['removed']=True;save(path,record)
 def snapshot():
  mounts=json.loads(command(['findmnt','--json','-o','FSTYPE,TARGET']))
  def check(entries):
@@ -237,12 +252,13 @@ with os.fdopen(fd,'w') as lock:
   engine()
   directory=root+'/isolation-'+nonce
   os.mkdir(directory,0o700)
-  paths=[directory+'/synthetic-authority',directory+'/synthetic-peer']
+  paths=[directory+'/synthetic-authority',directory+'/synthetic-peer',directory+'/synthetic-credential']
+  credential=uuid.uuid4().hex
   for p in paths:
    f=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
-   with os.fdopen(f,'w') as stream: stream.write(nonce)
+   with os.fdopen(f,'w') as stream: stream.write(credential)
   def files():
-   if any(pathlib.Path(p).read_text()!=nonce for p in paths): fail()
+   if any(pathlib.Path(p).read_text()!=credential for p in paths): fail()
   stage='guest-file-positive'
   files()
   name='aios-isolation-'+nonce; record=dict(name=name,cgroup='',pids={},stopped=False)
@@ -272,11 +288,13 @@ if unshare -Ur true 2>/dev/null; then echo failed-escape-unshare; else echo pass
 if busybox chroot / /bin/true 2>/dev/null; then echo failed-escape-chroot; else echo passed-escape-chroot; fi
 if (echo $$ > /sys/fs/cgroup/cgroup.procs) 2>/dev/null; then echo failed-escape-cgroup; else echo passed-escape-cgroup; fi
 if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo passed-escape-proc; fi
+if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo failed-owner-credentials; else echo passed-owner-credentials; fi
+
 '''
    hostPaths=['/mnt/'+p[0].lower()+'/'+p[3:].replace('\\','/') for p in challenge['files']] if R['hostBinding']['platform']=='win32' else challenge['files']
    stage='worker-denials'
-   observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths,url,engineSocket).decode().splitlines()
-   expected=['passed-host-files']*3+['passed-controller-ledger','passed-cross-delivery','passed-network-bypass','passed-skills-mcp-hooks','passed-host-docker','passed-escape-unshare','passed-escape-chroot','passed-escape-cgroup','passed-escape-proc']
+   observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths[:2],url,engineSocket,paths[2]).decode().splitlines()
+   expected=['passed-host-files']*3+['passed-controller-ledger','passed-cross-delivery','passed-network-bypass','passed-skills-mcp-hooks','passed-host-docker','passed-escape-unshare','passed-escape-chroot','passed-escape-cgroup','passed-escape-proc','passed-owner-credentials']
    stage='post-host-http-mcp-positive'
    services()
    stage='post-guest-engine-positive'
@@ -285,13 +303,244 @@ if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo
    files()
    record['pids'].update(census(cg));stop(name,record);record['stopped']=True;save(probePath,record)
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
-   names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker']
+   names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker','owner-credentials']
    proof=h(json.dumps(dict(challenge=nonce,observed=observed,binding=binding,stopped=record['stopped']),sort_keys=True).encode())
-   print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-4:],scope='Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
+   print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-5:-1],credentialExclusion=dict(hostFilesDenied=observed[:3]==['passed-host-files']*3,guestFileDenied=observed[-1]=='passed-owner-credentials',environmentScrubbed=True,mountsAbsent=True,networkAbsent=True,positiveControlsBeforeAfter=True),scope='Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
    shutil.rmtree(directory)
+ elif R['action']=='codex-protocol':
+  stage='codex-binding'
+  import selectors
+  binding={**R['hostBinding'],**snapshot()}
+  if binding!=R['expected']: fail()
+  stage='codex-binary'
+  binary=root+'/codex-0.161.0'
+  st=os.lstat(binary)
+  if not __import__('stat').S_ISREG(st.st_mode) or st.st_nlink!=1 or st.st_uid!=os.getuid() or st.st_mode & 0o077: fail()
+  data=pathlib.Path(binary).read_bytes()
+  binaryHash='0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7'
+  if h(data)!=binaryHash: fail()
+  private=root+'/credential-'+str(uuid.uuid4());secret=uuid.uuid4().hex
+  pathlib.Path(private).write_text(secret);os.chmod(private,0o600)
+  name='aios-codex-protocol-'+str(uuid.uuid4());record=dict(name=name,cgroup='',pids={},stopped=False)
+  probePath=root+'/probe-'+str(uuid.uuid4())+'.json'; child=None; proxies=[];peer=None;peerPath=None;slow=None
+  endpointSource=base64.b64decode('${Buffer.from(codexEndpointFixture).toString("base64")}').decode()
+  try:
+   stage='codex-create'
+   create(name,'sleep 600',{'aios.authority':R['authority']},'512m')
+   save(probePath,record)
+   archive=io.BytesIO()
+   with tarfile.open(fileobj=archive,mode='w') as tar:
+    entry=tarfile.TarInfo('codex');entry.size=len(data);entry.mode=0o555;entry.uid=0;entry.gid=0
+    tar.addfile(entry,io.BytesIO(data))
+   stage='codex-copy'
+   result=subprocess.run(['podman','cp','-',name+':/'],input=archive.getvalue(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15)
+   if result.returncode: fail()
+   pod('start',name);cg=cgroup(inspect(name)['State']['Pid']);record.update(cgroup=cg,pids=census(cg));save(probePath,record)
+   e=effective(name)
+   stage='codex-version'
+   if pod('exec',name,'/codex','--version').strip()!=b'codex-cli 0.161.0': fail()
+   if pathlib.Path(private).read_text()!=secret: fail()
+   for path in [private,*R['challenge']['files']]:
+    if subprocess.run(['podman','exec',name,'cat',path],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
+    if subprocess.run(['podman','exec',name,'cat','/proc/1/root'+path],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
+   stage='codex-credential-denials'
+   pod('exec',name,'mkdir','-m','700','/tmp/empty-codex')
+   cap=R['gatewayCapability']
+   delivery=R['deliveryId']
+   if str(uuid.UUID(delivery))!=delivery: fail()
+   stage='codex-relay-start'
+   def relay(worker,port,identity,token,budget,ttl=20):
+    pid=str(inspect(worker)['State']['Pid'])
+    p=subprocess.Popen(['podman','unshare','nsenter','--net=/proc/'+pid+'/ns/net','python3','-u','-c',endpointSource],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
+    proxies.append(p)
+    p.stdin.write((json.dumps(dict(port=port,deliveryId=identity,capability=token,budget=budget,ttl=ttl,gateway=identity==delivery))+'\n').encode());p.stdin.flush()
+    def event():
+     if not __import__('select').select([p.stdout],[],[],3)[0]: fail()
+     line=p.stdout.readline(4097)
+     if len(line)>4096 or not line.endswith(b'\n'): fail()
+     return json.loads(line)
+    if event()!=dict(ready=True,deliveryId=identity): fail()
+    return p,event
+   proxy,relayEvent=relay(name,18081,delivery,cap,2,45)
+   peer='aios-relay-peer-'+str(uuid.uuid4());peerRecord=dict(name=peer,cgroup='',pids={},stopped=False)
+   peerPath=root+'/probe-'+str(uuid.uuid4())+'.json'
+   create(peer,'sleep 600',{'aios.authority':R['authority']})
+   save(peerPath,peerRecord)
+   pod('start',peer);peerRecord['cgroup']=cgroup(inspect(peer)['State']['Pid']);peerRecord['pids']=census(peerRecord['cgroup']);save(peerPath,peerRecord)
+   peerId=str(uuid.uuid4());peerCap=uuid.uuid4().hex+uuid.uuid4().hex
+   peerProxy,peerEvent=relay(peer,18082,peerId,peerCap,3)
+   body=json.dumps(dict(model='gpt-6.1-sol',input=[dict(role='user',content='Say exactly: AIOS model-only inference complete')],store=False,stream=True)).encode()
+   def request(worker,port,method='POST',path='/v1/responses',token=cap,identity=delivery,payload=body,extra=b''):
+    header=(method+' '+path+' HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+token+'\r\nX-AIOS-Delivery: '+identity+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(payload))+'\r\nConnection: close\r\n').encode()+extra+b'\r\n'+payload
+    result=subprocess.run(['podman','exec','-i',worker,'nc','-w','2','127.0.0.1',str(port)],input=header,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=4)
+    if len(result.stdout)>65536: fail()
+    return result.stdout
+   def denied(output):
+    if not output.startswith(b'HTTP/1.1 403 ') or output.split(b'\r\n\r\n',1)[-1]!=b'': fail()
+   stage='codex-relay-denials'
+   for method,path,token,identity,payload,extra in [('GET','/v1/responses',cap,delivery,body,b''),('POST','/v1/models',cap,delivery,body,b''),('POST','/v1/responses?other=1',cap,delivery,body,b''),('CONNECT','/v1/responses',cap,delivery,body,b''),('POST','/v1/responses',cap,delivery,body,b'Upgrade: websocket\r\n'),('POST','/v1/responses','0'*64,delivery,body,b''),('POST','/v1/responses',cap,peerId,body,b''),('POST','/v1/responses',peerCap,delivery,body,b''),('POST','/v1/responses',cap,delivery,b'{}',b'')]:
+    denied(request(name,18081,method,path,token,identity,payload,extra))
+   denied(request(peer,18082,token=cap,identity=peerId))
+   if request(peer,18081)!=b'' or request(name,18082,token=peerCap,identity=peerId)!=b'': fail()
+   if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
+   if peerEvent().get('accepted')!=1: fail()
+   args=['podman','exec','-i','--env','DELIVERY_CAPABILITY='+cap,'--env','CODEX_HOME=/tmp/empty-codex',name,'/codex','app-server','--listen','stdio://','-c','model_provider="qualification"','-c','model_providers.qualification.name="Synthetic only"','-c','model_providers.qualification.base_url="http://127.0.0.1:18081/v1"','-c','model_providers.qualification.env_key="DELIVERY_CAPABILITY"','-c','model_providers.qualification.wire_api="responses"','-c','model_providers.qualification.requires_openai_auth=false','-c','model_providers.qualification.supports_websockets=false','-c','model_providers.qualification.http_headers.X-AIOS-Delivery="'+delivery+'"']
+   stage='codex-initialize'
+   child=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+   def send(value): child.stdin.write((json.dumps(value)+'\n').encode());child.stdin.flush()
+   send(dict(method='initialize',id=1,params=dict(clientInfo=dict(name='Developer_OS',version='0.1.0'),capabilities={})))
+   selector=selectors.DefaultSelector()
+   selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr');selector.register(proxy.stdout,selectors.EVENT_READ,'gateway')
+   gatewayAccepted=[];gatewayCompleted=False
+   deadline=time.monotonic()+35;total=0;initialized=False;verified=False;accountVerified=False;pending=b'';answer=''
+   while time.monotonic()<deadline and not verified:
+    for event,_ in selector.select(0.1):
+     if event.data=='gateway':
+      frame=json.loads(proxy.stdout.readline(131073))
+      if frame.get('accepted') is not None: gatewayAccepted.append(frame);continue
+      if set(frame)!= {'gatewayRequest','deliveryId','capability'} or frame['deliveryId']!=delivery or frame['capability']!=cap: fail()
+      print(json.dumps(frame),flush=True)
+      if not __import__('select').select([__import__('sys').stdin],[],[],32)[0]: fail()
+      response=json.loads(__import__('sys').stdin.readline(131073))
+      if set(response)!= {'gatewayResponse','deliveryId'} or response['deliveryId']!=delivery: fail()
+      proxy.stdin.write((json.dumps(response)+'\n').encode());proxy.stdin.flush();gatewayCompleted=True;continue
+     chunk=os.read(event.fileobj.fileno(),4096);total+=len(chunk)
+     if total>65536: fail()
+     if not chunk:
+      selector.unregister(event.fileobj)
+      if event.data=='stdout': stage='codex-process-exited';fail()
+      continue
+     if event.data=='stderr': continue
+     pending+=chunk
+     while b'\n' in pending:
+      line,pending=pending.split(b'\n',1)
+      message=json.loads(line)
+      if message.get('error'): fail()
+      if message.get('id')==1:
+       if not message.get('result'): fail()
+       initialized=True;stage='codex-account-read';send(dict(method='initialized'));send(dict(method='account/read',id=2,params=dict(refreshToken=False)))
+      elif message.get('id')==2:
+       value=message.get('result',{})
+       if not initialized or value.get('account') is not None or value.get('requiresOpenaiAuth') is not False: fail()
+       accountVerified=True;stage='codex-relay-turn'
+       send(dict(method='thread/start',id=3,params=dict(model='gpt-6.1-sol',cwd='/tmp/empty-codex',approvalPolicy='never',sandbox='read-only',ephemeral=True)))
+      elif message.get('id')==3:
+       thread=message.get('result',{}).get('thread',{}).get('id')
+       if not accountVerified or not isinstance(thread,str): fail()
+       send(dict(method='turn/start',id=4,params=dict(threadId=thread,input=[dict(type='text',text='Say exactly: AIOS model-only inference complete')])))
+      elif message.get('method')=='item/agentMessage/delta':
+       answer+=message.get('params',{}).get('delta','')
+      elif message.get('method')=='turn/completed':
+       if message.get('params',{}).get('turn',{}).get('status')!='completed' or answer!='AIOS model-only inference complete': fail()
+       verified=True;break
+   if not verified or not gatewayCompleted or len(gatewayAccepted)!=1: fail()
+   stage='codex-relay-revocation'
+   event=gatewayAccepted[0]
+   if event.get('accepted')!=1 or event.get('deliveryId')!=delivery or len(event.get('requestSha256',''))!=64: fail()
+   proxy.stdin.write((json.dumps(dict(action='revoke',deliveryId=delivery))+'\n').encode());proxy.stdin.flush()
+   if relayEvent()!=dict(revoked=True,deliveryId=delivery): fail()
+   denied(request(name,18081))
+   if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
+   if peerEvent().get('accepted')!=2: fail()
+   stage='codex-relay-expiry'
+   expiryId=str(uuid.uuid4());expiryCap=uuid.uuid4().hex+uuid.uuid4().hex
+   expiryProxy,expiryEvent=relay(peer,18083,expiryId,expiryCap,2,1.5)
+   if not request(peer,18083,token=expiryCap,identity=expiryId).startswith(b'HTTP/1.1 200 '): fail()
+   if expiryEvent().get('accepted')!=1: fail()
+   # Hold a valid request body incomplete: expiry must not wait for HTTP reads.
+   slow=subprocess.Popen(['podman','exec','-i',peer,'nc','-w','3','127.0.0.1','18083'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+   header=('POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+expiryCap+'\r\nX-AIOS-Delivery: '+expiryId+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(body))+'\r\n\r\n').encode()
+   slow.stdin.write(header+body[:-1]);slow.stdin.flush()
+   expiryProxy.wait(timeout=3)
+   slow.stdin.close();slow.wait(timeout=4)
+   if slow.stdout.read(65537)!=b'': fail()
+   if expiryProxy.returncode!=0 or request(peer,18083,token=expiryCap,identity=expiryId)!=b'': fail()
+   if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
+   if peerEvent().get('accepted')!=3: fail()
+   denied(request(peer,18082,token=peerCap,identity=peerId))
+   if __import__('select').select([proxy.stdout],[],[],0)[0]: fail()
+   stage='codex-process-audit'
+   # Observe actual Codex processes, not only the initial sleep process.
+   pids=census(cg);codexPids=[]
+   for pid in pids:
+    cmd=pathlib.Path('/proc/'+pid+'/cmdline').read_bytes()
+    if b'/codex' not in cmd: continue
+    values={x.split(':',1)[0]:x.split(':',1)[1].strip() for x in pod('unshare','cat','/proc/'+pid+'/status').decode().splitlines() if ':' in x}
+    stage='codex-process-privileges'
+    if values.get('NoNewPrivs')!='1' or values.get('Seccomp')!='2' or int(values.get('CapEff','f'),16)!=0 or values.get('Uid','').split()!=['65534']*4: fail()
+    stage='codex-process-environment'
+    env=dict(x.split(b'=',1) for x in pod('unshare','cat','/proc/'+pid+'/environ').split(b'\0') if b'=' in x)
+    if env!={b'PATH':b'/usr/bin:/bin',b'HOME':b'/',b'HOSTNAME':b'aios-offline',b'DELIVERY_CAPABILITY':cap.encode(),b'CODEX_HOME':b'/tmp/empty-codex'}: fail()
+    codexPids.append(pid);stage='codex-process-audit'
+   if not codexPids or pathlib.Path(private).read_text()!=secret: fail()
+   record['pids'].update(pids);save(probePath,record)
+   stage='codex-relay-shutdown'
+   stop(name,record);record['stopped']=True;save(probePath,record)
+   stop(peer,peerRecord);peerRecord['stopped']=True;save(peerPath,peerRecord)
+   # Discard stopped public-binary fixtures so repeated qualification does not fill the Mac disk.
+   for target,saved,path in [(name,record,probePath),(peer,peerRecord,peerPath)]:
+    discard_stopped_fixture(target,saved,path)
+   for p in proxies:
+    p.stdin.close();p.wait(timeout=5)
+   # Management relay processes also stop; worker cgroups do not contain them.
+   for p in proxies:
+    for item in pathlib.Path('/proc').iterdir():
+     if not item.name.isdigit(): continue
+     try:
+      fields=(item/'stat').read_text().rsplit(')',1)[1].split()
+      if fields[2]==str(p.pid): fail()
+     except FileNotFoundError: pass
+   child.wait(timeout=5)
+   stage='codex-post-binding'
+   if {**R['hostBinding'],**snapshot()}!=binding: fail()
+   print(json.dumps(dict(binding=binding,protocol='passed',credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'])))
+  finally:
+   if os.path.exists(probePath) and not record.get('stopped'):
+    stop(name,record);record['stopped']=True;save(probePath,record)
+   for p in proxies:
+    if p.poll() is None:
+     if not p.stdin.closed: p.stdin.close()
+     p.wait(timeout=5)
+   if peer is not None and not peerRecord.get('stopped'):
+    stop(peer,peerRecord);peerRecord['stopped']=True
+    if peerPath is not None: save(peerPath,peerRecord)
+   for target,saved,path in [(name,record,probePath),(peer,peerRecord if peer else {},peerPath)]:
+    discard_stopped_fixture(target,saved,path)
+   if slow is not None and slow.poll() is None: slow.kill();slow.wait(timeout=5)
+   if child is not None and child.poll() is None: child.kill();child.wait(timeout=5)
+   if os.path.exists(private): os.unlink(private)
+ elif R['action']=='model-frame':
+  binding={**R['hostBinding'],**snapshot()}
+  if binding!=R['expected']: fail()
+  mode=R['frameMode']
+  data=base64.b64decode(R['frame'],validate=True)
+  if mode=='request':
+   value=json.loads(data)
+   expected={'model':'gpt-6.1-sol','input':[{'role':'user','content':'Say exactly: AIOS model-only inference complete'}],'store':False,'stream':True}
+   if value!=expected: fail()
+  elif mode=='response':
+   if data!=b'AIOS model-only inference complete': fail()
+  else: fail()
+  if len(data)>4096: fail()
+  name='aios-model-frame-'+str(uuid.uuid4())
+  record=dict(name=name,cgroup='',pids={},stopped=False)
+  probePath=root+'/probe-'+str(uuid.uuid4())+'.json'
+  try:
+   create(name,'sleep 600',{'aios.authority':R['authority']})
+   save(probePath,record);pod('start',name)
+   cg=cgroup(inspect(name)['State']['Pid']);record.update(cgroup=cg,pids=census(cg));save(probePath,record)
+   e=effective(name)
+   result=subprocess.run(['podman','exec','-i',name,'cat'],input=data,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
+   if result.returncode or result.stdout!=data: fail()
+   record['pids'].update(census(cg));stop(name,record);record['stopped']=True;save(probePath,record)
+   if {**R['hostBinding'],**snapshot()}!=binding: fail()
+   print(json.dumps(dict(binding=binding,effective=e,frame=base64.b64encode(result.stdout).decode(),shutdown=dict(remainingProcesses=0,observedProcesses=len(record['pids'])))))
+  finally:
+   if os.path.exists(probePath) and not record.get('stopped'):
+    stop(name,record);record['stopped']=True;save(probePath,record)
  elif R['action'] in ['execute','stop','collect']:
   s=R['session']; pins=R['pins']; name='aios-offline-'+s['sandboxId']
   path=root+'/'+s['sandboxId']+'.json'
@@ -390,7 +639,7 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     )
       throw Error("Invalid native driver options");
   }
-  private invoke(action: string, payload: Record<string, unknown> = {}): any {
+  private invocation(action: string, payload: Record<string, unknown> = {}) {
     if (existsSync(this.authorityDirectory))
       ordinary(this.authorityDirectory, true);
     const host = podmanMachine(this.machine);
@@ -435,7 +684,7 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     const input =
       "import json,base64\n" +
       `R=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n` +
-      (action === "isolate"
+      (["isolate", "codex-protocol"].includes(action)
         ? "stage='initialization'\ntry:\n" +
           guest
             .split("\n")
@@ -443,6 +692,10 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
             .join("\n") +
           "\nexcept BaseException:\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'])))\n"
         : guest);
+    return { host, input, executableSha256 };
+  }
+  private invoke(action: string, payload: Record<string, unknown> = {}): any {
+    const { host, input, executableSha256 } = this.invocation(action, payload);
     const result = spawnSync(
       host.executable,
       ["machine", "ssh", this.machine, "python3"],
@@ -462,6 +715,145 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     if (result.error || result.status !== 0)
       throw Error("Native offline operation unavailable");
     return JSON.parse(result.stdout);
+  }
+  private async gatewayInvocation(
+    payload: Record<string, unknown>,
+    deliveryId: string,
+    approvedGateway?: HostSubscriptionGateway,
+  ): Promise<any> {
+    const account = syntheticGatewayAccount();
+    let forwarded = 0;
+    const gateway =
+      approvedGateway ??
+      new HostSubscriptionGateway(
+        syntheticGatewayApproval(deliveryId, account),
+        () => account,
+        async (token, body, signal) => {
+          if (
+            token !== account.accessToken ||
+            body !== gatewayRequest ||
+            signal.aborted
+          )
+            throw Error("Invalid synthetic upstream");
+          forwarded++;
+          return syntheticGatewayResponse();
+        },
+      );
+    const { host, input, executableSha256 } = this.invocation(
+      "codex-protocol",
+      {
+        ...payload,
+        gatewayCapability: gateway.capability,
+        gatewayVersion: subscriptionGatewayVersion,
+      },
+    );
+    const child = spawn(
+      host.executable,
+      [
+        "machine",
+        "ssh",
+        this.machine,
+        "python3",
+        "-u",
+        "-c",
+        "'import sys,base64;exec(base64.b64decode(sys.stdin.readline()))'",
+      ],
+      {
+        cwd: host.cwd,
+        shell: false,
+        windowsHide: true,
+        env: host.env,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    let pending = "",
+      bytes = 0,
+      result: any,
+      failure = false;
+    let processing = Promise.resolve();
+    const refuse = () => {
+      failure = true;
+      gateway.revoke();
+      child.stdin.end();
+      child.kill();
+    };
+    const timer = setTimeout(refuse, 55000);
+    child.stdin.on("error", refuse);
+    child.stderr.on("data", (chunk: Buffer) => {
+      bytes += chunk.length;
+      if (bytes > 1048576) refuse();
+    });
+    child.stdout.on("data", (chunk: Buffer) => {
+      bytes += chunk.length;
+      pending += chunk.toString("utf8");
+      if (bytes > 1048576 || pending.length > 131072) return refuse();
+      while (pending.includes("\n")) {
+        const index = pending.indexOf("\n"),
+          line = pending.slice(0, index);
+        pending = pending.slice(index + 1);
+        processing = processing
+          .then(async () => {
+            const frame = JSON.parse(line);
+            if (
+              Object.keys(frame).sort().join(",") ===
+              "capability,deliveryId,gatewayRequest"
+            ) {
+              if (
+                typeof frame.gatewayRequest !== "string" ||
+                frame.gatewayRequest.length > 87384
+              )
+                throw Error();
+              const raw = Buffer.from(frame.gatewayRequest, "base64");
+              if (raw.toString("base64") !== frame.gatewayRequest)
+                throw Error();
+              const response = await gateway.respond(
+                frame.deliveryId,
+                frame.capability,
+                raw.toString("utf8"),
+              );
+              child.stdin.write(
+                JSON.stringify({
+                  gatewayResponse: response.toString("base64"),
+                  deliveryId,
+                }) + "\n",
+              );
+            } else {
+              if (result !== undefined) throw Error();
+              result = frame;
+            }
+          })
+          .catch(refuse);
+      }
+    });
+    try {
+      const closed = new Promise<number | null>((resolve, reject) => {
+        child.once("close", resolve);
+        child.once("error", reject);
+      });
+      child.stdin.write(Buffer.from(input).toString("base64") + "\n");
+      const status = await closed;
+      await processing;
+      if (
+        failure ||
+        status !== 0 ||
+        pending ||
+        !result ||
+        sha256(readFileSync(host.executable)) !== executableSha256
+      )
+        throw Error("Gateway transport unavailable");
+      if (
+        !result.blockedStage &&
+        ((!approvedGateway && forwarded !== 1) ||
+          result.gatewayIntegration !== "passed" ||
+          result.gatewayVersion !== subscriptionGatewayVersion)
+      )
+        throw Error("Unverified gateway integration");
+      return result;
+    } finally {
+      clearTimeout(timer);
+      gateway.revoke();
+      if (child.exitCode === null) child.kill();
+    }
   }
   private policy(repository?: string): Record<string, string> {
     if (
@@ -513,14 +905,111 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
   observe(repository: string): PodmanObservation {
     return this.invoke("observe", { expected: this.policy(repository) });
   }
-  async probeIsolation(repository: string): Promise<any> {
+  async probeIsolation(
+    repository: string,
+    deliveryId: string = randomUUID(),
+  ): Promise<any> {
     const expected = this.policy(repository);
-    return withHostCanary((challenge) => {
+    const evidence = await withHostCanary(async (challenge) => {
       const observed = this.invoke("isolate", { expected, challenge });
       if (observed.challengeId !== challenge.id)
         throw Error("Unbound isolation evidence");
+      if (observed.passed === true && expected.platform === "darwin") {
+        const codex = await this.gatewayInvocation(
+          { expected, challenge, deliveryId },
+          deliveryId,
+        );
+        if (codex.blockedStage) {
+          observed.codex = { blockedStage: codex.blockedStage };
+        } else if (
+          codex.protocol !== "passed" ||
+          codex.credentialIsolation !== "passed" ||
+          codex.shutdown?.remainingProcesses !== 0 ||
+          codex.observedCodexProcesses < 1 ||
+          JSON.stringify(codex.binding) !== JSON.stringify(expected)
+        )
+          throw Error("Unverified Codex worker");
+        if (!codex.blockedStage) observed.codex = codex;
+      }
       return { ...observed, probeVersion: sha256(guest + hostCanaryVersion) };
     });
+    if (evidence.passed === true) {
+      const body = JSON.stringify({
+        model: "gpt-6.1-sol",
+        input: [
+          {
+            role: "user",
+            content: "Say exactly: AIOS model-only inference complete",
+          },
+        ],
+        store: false,
+        stream: true,
+      });
+      this.modelFrame(repository, "request", body);
+      this.modelFrame(
+        repository,
+        "response",
+        "AIOS model-only inference complete",
+      );
+      evidence.modelFrameTransport = "passed";
+    }
+    return evidence;
+  }
+  /** Explicit owner-approved one-shot only. The gateway never serializes its
+   * account callback/token: only its disposable capability enters management. */
+  async inferThroughGateway(
+    repository: string,
+    deliveryId: string,
+    gateway: HostSubscriptionGateway,
+  ): Promise<any> {
+    const expected = this.policy(repository);
+    try {
+      const proof = await withHostCanary(async (challenge) => {
+        const isolation = this.invoke("isolate", { expected, challenge });
+        if (isolation.passed !== true || isolation.challengeId !== challenge.id)
+          throw Error("Unverified isolation");
+        const codex = await this.gatewayInvocation(
+          { expected, challenge, deliveryId },
+          deliveryId,
+          gateway,
+        );
+        if (
+          codex.protocol !== "passed" ||
+          codex.credentialIsolation !== "passed" ||
+          codex.gatewayIntegration !== "passed" ||
+          codex.relayDeliveryId !== deliveryId ||
+          codex.shutdown?.remainingProcesses !== 0 ||
+          codex.relayShutdownRemaining !== 0 ||
+          JSON.stringify(codex.binding) !== JSON.stringify(expected)
+        )
+          throw Error("Unverified inference bridge");
+        return codex;
+      });
+      return proof;
+    } finally {
+      gateway.revoke();
+    }
+  }
+  /** Fixed synthetic request/result transport only, not a production worker. */
+  modelFrame(
+    repository: string,
+    frameMode: "request" | "response",
+    frame: string,
+  ): any {
+    if (Buffer.byteLength(frame) > 4096) throw Error("Model frame too large");
+    const expected = this.policy(repository);
+    const observed = this.invoke("model-frame", {
+      expected,
+      frameMode,
+      frame: Buffer.from(frame).toString("base64"),
+    });
+    if (
+      JSON.stringify(observed.binding) !== JSON.stringify(expected) ||
+      observed.frame !== Buffer.from(frame).toString("base64") ||
+      observed.shutdown?.remainingProcesses !== 0
+    )
+      throw Error("Unverified model frame");
+    return observed;
   }
   async execute(
     request: Parameters<OfflineCanaryRuntime["execute"]>[0],

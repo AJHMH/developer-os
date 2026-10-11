@@ -1,0 +1,32 @@
+{
+  "runId": "2c477e41-7dc6-47a9-9e0f-fa6429d5a362",
+  "preparedAt": "2026-10-11T13:00:14.067Z",
+  "expiresAt": 1791727214067,
+  "accountId": "397124263a7a93863a363c03d1245fa439396ec2edfde186df75802bb7b68f2b",
+  "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+  "request": {
+    "model": "gpt-6.1-sol",
+    "input": [
+      {
+        "role": "user",
+        "content": "Say exactly: AIOS model-only inference complete"
+      }
+    ],
+    "store": false,
+    "stream": true
+  },
+  "requestSha256": "edc4f05f8914dac70e7357db595a3427a17fc1193291af0bdcfe569a3ee67296",
+  "policySha256": "b7cd7ee3a58682aa4f29c3d2cc3193defd12edf30ef8fedc2f0530ab1f4dc50e",
+  "bindingSha256": "d83714c5c84dda6423fce1cfaed28c88b8105ade7eefed462acaeb462f446cb9",
+  "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
+  "usage": "unknown; separate explicit approval required for this account and run",
+  "upstream": "POST https://api.openai.com/v1/responses",
+  "deadlineSeconds": 30,
+  "maxResponseBytes": 65536,
+  "maxRequests": 1,
+  "retries": 0,
+  "expectedOutput": "AIOS model-only inference complete",
+  "worker": "restricted Alpine stdin fixture; no Codex tools or production dispatch",
+  "credentialLocation": "trusted host memory and macOS Keychain only",
+  "inferenceExecuted": false
+}

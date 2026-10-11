@@ -4,16 +4,68 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+export const modelRelayVersion = createHash("sha256")
+  .update(readFileSync(new URL(import.meta.url)))
+  .digest("hex");
+
+/** Host-owned grant: revocation is irreversible and aborts active upstream I/O. */
+export class RevocableModelGrant {
+  readonly capability = randomBytes(32).toString("hex");
+  private readonly cancellation = new AbortController();
+  private readonly deadline = Date.now() + 30_000;
+  private readonly active = new Set<ReturnType<typeof request>>();
+  get revoked() {
+    return this.cancellation.signal.aborted || Date.now() >= this.deadline;
+  }
+  get signal() {
+    return AbortSignal.any([
+      this.cancellation.signal,
+      AbortSignal.timeout(Math.max(1, this.deadline - Date.now())),
+    ]);
+  }
+  permits(capability: string) {
+    const expected = Buffer.from(this.capability),
+      observed = Buffer.from(capability);
+    return (
+      !this.revoked &&
+      observed.length === expected.length &&
+      timingSafeEqual(observed, expected)
+    );
+  }
+  track(upstream: ReturnType<typeof request>) {
+    if (this.revoked) {
+      upstream.destroy();
+      return;
+    }
+    this.active.add(upstream);
+    upstream.once("close", () => this.active.delete(upstream));
+  }
+  revoke() {
+    this.cancellation.abort();
+    for (const upstream of this.active) upstream.destroy();
+  }
+}
 
 /** Synthetic transport capability only. Both peers stay on host loopback,
  * credentials are fresh canaries and never represent an OpenAI account.
  * No public listener, VM networking, owner credentials or live upstream. */
 export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
-  const capability = randomBytes(32).toString("hex");
+  const grant = new RevocableModelGrant();
+  const capability = grant.capability;
   const upstreamCredential = randomBytes(32).toString("hex");
   const checks: boolean[] = [];
   let forwarded = 0;
+  let started!: () => void;
+  let cancelled!: () => void;
+  const inFlightStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const inFlightCancelled = new Promise<void>((resolve) => {
+    cancelled = resolve;
+  });
   const body = JSON.stringify({
     model: "synthetic",
     input: "Synthetic model-only relay challenge",
@@ -37,15 +89,20 @@ export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
         req.headers["x-owner-canary"] === undefined,
     );
     req.resume();
-    req.on("end", () => reply(res, 200, output));
+    req.on("end", () => {
+      if (forwarded === 3) {
+        // Positive control: upstream accepted this request before revocation.
+        res.on("close", cancelled);
+        started();
+      } else reply(res, 200, output);
+    });
   });
   let upstreamPort = 0;
   const relay = createServer((req: IncomingMessage, res: ServerResponse) => {
-    const expected = Buffer.from(`Bearer ${capability}`);
-    const observed = Buffer.from(req.headers.authorization ?? "");
+    const authorization = req.headers.authorization ?? "";
     if (
-      observed.length !== expected.length ||
-      !timingSafeEqual(observed, expected)
+      !authorization.startsWith("Bearer ") ||
+      !grant.permits(authorization.slice(7))
     ) {
       req.resume();
       reply(res, 403);
@@ -73,6 +130,10 @@ export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
     });
     req.on("end", () => {
       if (refused) return;
+      if (grant.revoked) {
+        reply(res, 403);
+        return;
+      }
       // This canary admits one fixed synthetic body, never repository input.
       if (data !== body) {
         reply(res, 403);
@@ -101,15 +162,22 @@ export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
           incoming.on("end", () =>
             reply(
               res,
-              incoming.statusCode === 200 && response === output ? 200 : 502,
-              response === output ? output : "",
+              grant.revoked
+                ? 403
+                : incoming.statusCode === 200 && response === output
+                  ? 200
+                  : 502,
+              !grant.revoked && response === output ? output : "",
             ),
           );
-          incoming.on("error", () => reply(res, 502));
+          incoming.on("error", () => reply(res, grant.revoked ? 403 : 502));
         },
       );
       outgoing.on("timeout", () => outgoing.destroy());
-      outgoing.on("error", () => reply(res, 502));
+      grant.track(outgoing);
+      outgoing.on("error", () => {
+        if (!res.headersSent) reply(res, grant.revoked ? 403 : 502);
+      });
       outgoing.end(data);
     });
     req.on("error", () => {
@@ -190,10 +258,32 @@ export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
     checks.push(
       after.status === 200 && after.content === output && forwarded === 2,
     );
+    const pending = send("/v1/responses");
+    const deadline = new Promise<never>((_, reject) => {
+      const timer = setTimeout(
+        () => reject(Error("Revocation control unavailable")),
+        2000,
+      );
+      timer.unref();
+    });
+    await Promise.race([inFlightStarted, deadline]);
+    grant.revoke();
+    const revokedResponse = await pending;
+    await Promise.race([inFlightCancelled, deadline]);
+    checks.push(
+      revokedResponse.status === 403 &&
+        revokedResponse.content === "" &&
+        forwarded === 3,
+    );
+    const replay = await send("/v1/responses");
+    checks.push(
+      replay.status === 403 && replay.content === "" && forwarded === 3,
+    );
     return checks.every(Boolean) ? "passed" : "not-run";
   } catch {
     return "not-run";
   } finally {
+    grant.revoke();
     relay.closeAllConnections();
     upstream.closeAllConnections();
     await Promise.all(

@@ -1,0 +1,28 @@
+{
+  "runId": "2b8ba949-c1a5-49e3-81bc-dd96106e1d6d",
+  "ownerApproved": true,
+  "unknownUsageApproved": true,
+  "status": "refused",
+  "scope": "Actual Codex through host-only subscription gateway",
+  "reason": "host credential expired before plan preparation; refused before provider dispatch",
+  "approvalConsumed": true,
+  "requestCount": 0,
+  "retries": 0,
+  "subscriptionInference": "not-run",
+  "deliveryEnabled": false,
+  "credentialDiagnostic": {
+    "credentialExpired": true,
+    "expiredBeforePlan": true,
+    "registrationMatches": true,
+    "planPermission": true,
+    "directScopes": true
+  },
+  "returningAuthorization": {
+    "status": "authorized",
+    "sameAccount": true,
+    "storage": "macOS Keychain",
+    "planUsageAuthorized": true,
+    "permissionsExpanded": false,
+    "inferenceExecuted": false
+  }
+}

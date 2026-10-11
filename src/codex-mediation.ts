@@ -1,3 +1,7 @@
+import {
+  hostGatewayCanary,
+  subscriptionGatewayVersion,
+} from "./subscription-gateway.js";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import {
@@ -9,17 +13,45 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { syntheticRelayCanary } from "./model-relay.js";
+import { syntheticRelayCanary, modelRelayVersion } from "./model-relay.js";
 
 export interface SubscriptionMediationReport {
   qualified: false;
+  mechanismDecision?: {
+    qualified: true;
+    scope: "macos-fixed-codex-subscription";
+    runId: string;
+    observedAt: string;
+    accountId: string;
+    requestSha256: string;
+    gatewayVersion: string;
+    workerExecutableSha256: string;
+    bindingSha256: string;
+    inferenceAuthorized: false;
+  };
   protocol: "passed" | "not-run";
   syntheticRelay: "passed" | "not-run";
+  relayRevocation: "passed" | "not-run";
+  relayVersion?: string;
+  modelFrameTransport: "passed" | "not-run";
+  workerProtocol: "passed" | "not-run";
+  codexCredentialIsolation: "passed" | "not-run";
+  workerExecutableSha256?: string;
+  workerBlocker?: string;
   scope: "host-capability-only";
   codexVersion?: "0.161.0";
   executableSha256?: string;
-  credentialIsolation: "not-run";
-  endpointEnforcement: "not-run";
+  credentialIsolation: "passed" | "not-run";
+  credentialIsolationScope: "synthetic-restricted-alpine" | "not-run";
+  endpointEnforcement: "passed" | "not-run";
+  deliveryCapabilities: "passed" | "not-run";
+  deliveryCapabilityChecks?: string[];
+  relayDeliveryId?: string;
+  endpointScope?: "synthetic-codex-relay";
+  hostGateway: "passed" | "not-run";
+  hostGatewayVersion?: string;
+  gatewayIntegration: "passed" | "not-run";
+  gatewayScope?: "synthetic-host-subscription";
   subscriptionInference: "not-run";
   nextAction: string;
 }
@@ -29,12 +61,20 @@ export function unqualifiedMediation(): SubscriptionMediationReport {
     qualified: false,
     protocol: "not-run",
     syntheticRelay: "not-run",
+    relayRevocation: "not-run",
+    modelFrameTransport: "not-run",
+    workerProtocol: "not-run",
+    codexCredentialIsolation: "not-run",
     scope: "host-capability-only",
     credentialIsolation: "not-run",
+    credentialIsolationScope: "not-run",
     endpointEnforcement: "not-run",
+    deliveryCapabilities: "not-run",
+    hostGateway: "not-run",
+    gatewayIntegration: "not-run",
     subscriptionInference: "not-run",
     nextAction:
-      "Prepare separate ChatGPT authorization in trusted management and qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+      "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
   };
 }
 
@@ -55,6 +95,13 @@ export async function inspectCodexMediation(
   authority: string,
 ): Promise<SubscriptionMediationReport> {
   const report = unqualifiedMediation();
+  report.hostGateway = await hostGatewayCanary();
+  if (report.hostGateway === "passed")
+    report.hostGatewayVersion = subscriptionGatewayVersion;
+  report.syntheticRelay = await syntheticRelayCanary();
+  report.relayRevocation = report.syntheticRelay;
+  if (report.relayRevocation === "passed")
+    report.relayVersion = modelRelayVersion;
   if (!executable) return report;
   let home: string | undefined;
   try {
@@ -209,7 +256,6 @@ export async function inspectCodexMediation(
     });
     if (passed && digest() === before) {
       report.protocol = "passed";
-      report.syntheticRelay = await syntheticRelayCanary();
     }
   } catch {
     /* Never retain raw paths, protocol output or error details. */

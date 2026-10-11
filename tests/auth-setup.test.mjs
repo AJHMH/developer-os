@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  chmodSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -58,4 +59,52 @@ test("candidate and ledger owned authentication paths refuse preparation without
     assert.equal(f.command(target).status, 1);
   }
   assert.deepEqual(readdirSync(f.repo), []);
+});
+
+test("authorization refuses a malformed selected account before preparing external storage", (t) => {
+  const f = fixture(t);
+  const result = spawnSync(
+    process.execPath,
+    [
+      "dist/cli.js",
+      "authorize-auth",
+      "--repo",
+      f.repo,
+      "--state-dir",
+      f.state,
+      "--auth-directory",
+      f.auth,
+      "--auth-account",
+      "not-an-account",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /selected account/);
+  assert.equal(result.stdout, "");
+});
+
+test("authentication setup refuses existing shared storage without changing its permissions", (t) => {
+  if (process.platform === "win32") return;
+  const f = fixture(t);
+  mkdirSync(f.auth);
+  chmodSync(f.auth, 0o777);
+  const result = f.command(f.auth);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.deepEqual(readdirSync(f.auth), []);
+});
+
+test("macOS authentication setup refuses extended ACL access without rewriting existing storage", (t) => {
+  if (process.platform !== "darwin") return t.skip("macOS ACL observation");
+  const f = fixture(t);
+  mkdirSync(f.auth, { mode: 0o700 });
+  const acl = spawnSync(
+    "/bin/chmod",
+    ["+a", "everyone allow read,write,execute", f.auth],
+    { encoding: "utf8" },
+  );
+  assert.equal(acl.status, 0, acl.stderr);
+  assert.equal(f.command(f.auth).status, 1);
+  assert.deepEqual(readdirSync(f.auth), []);
 });

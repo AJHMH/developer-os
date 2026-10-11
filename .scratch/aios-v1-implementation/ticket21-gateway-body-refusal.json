@@ -1,0 +1,13 @@
+{
+  "observedAt": "2026-10-11T14:56:39.121Z",
+  "runId": "717a2831-d4f6-445f-9368-2e719cacf753",
+  "status": "refused",
+  "scope": "Actual Codex through host-only subscription gateway",
+  "approvalConsumed": true,
+  "gateway": {
+    "phase": "response-validation",
+    "providerAttempts": 1
+  },
+  "subscriptionInference": "unverified",
+  "deliveryEnabled": false
+}

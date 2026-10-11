@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-11T18:29:51.567Z",
+  "runId": "208706f5-a6bd-49e1-9c33-5b6aa813d112",
+  "credentialReadable": true,
+  "identityMatches": true,
+  "issuerMatches": true,
+  "hostMatches": true,
+  "planUsageAuthorized": true,
+  "scopesPresent": true,
+  "expiryValid": true,
+  "expiredBeforePreparation": true,
+  "expiredNow": true,
+  "tokenPresent": true,
+  "refreshed": false
+}

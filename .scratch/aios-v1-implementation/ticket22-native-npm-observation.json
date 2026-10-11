@@ -1,0 +1,47 @@
+{
+  "observedAt": "2026-10-11T19:50:51.124Z",
+  "scope": "Fresh-source public controller/native VM synthetic artifact transfer; controlled in-memory reader supplied pinned bytes; no public npm registry request, subscription credentials, provider requests or live inference",
+  "onlineAccess": {
+    "runId": "af305727-c6fd-4219-af15-1e2f562c1e03",
+    "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+    "repository": "/Users/aaronhoward/.developer-os/ticket4-macos/input",
+    "fence": 30,
+    "accountId": "397124263a7a93863a363c03d1245fa439396ec2edfde186df75802bb7b68f2b",
+    "usageScope": "c1e5dcc2ca886cb74fd2df09641ea52e9ff11707618b9da476edbfa48907a5e0",
+    "policyVersion": "ec4930ca469955aa07f604e442caf01a9834728262bbfdfe2faad04d496b9c8c",
+    "runtimeVersion": "7bf209729e2e0388cefa72519513c1e59e5a5ed187668f6d3ea92ac9cf2c20d6",
+    "bindingSha256": "7c8b5cb4ddb3335abee76d6eb5ab66ec0face9cba2f96ea27dd1e2fb75a9c9a6",
+    "hostPolicySha256": "8a33daa5fae7722ec7ad04d541f72cf3c713b87f37656b4224e633947849c594",
+    "dependency": {
+      "registry": "https://registry.npmjs.org",
+      "path": "/synthetic-fixture/-/synthetic-fixture-1.0.0.tgz",
+      "artifactSha256": "e4be9e052991f795ad9a56600a3d33da17f0432177ba76ba31bc7f7f0ff696d5",
+      "bytes": 28,
+      "policySha256": "01596cda667d124b4fdefe2183b4fbe15c45f67a60c475caae2802e51644d56c",
+      "transport": "controlled"
+    },
+    "mode": "live",
+    "state": "stopped",
+    "outcome": "passed",
+    "productionEnabled": false,
+    "shutdown": {
+      "runId": "af305727-c6fd-4219-af15-1e2f562c1e03",
+      "revoked": true,
+      "remainingProcesses": 0
+    },
+    "proof": {
+      "runId": "af305727-c6fd-4219-af15-1e2f562c1e03",
+      "policyVersion": "ec4930ca469955aa07f604e442caf01a9834728262bbfdfe2faad04d496b9c8c",
+      "model": "passed",
+      "dependency": "passed",
+      "bypass": "passed",
+      "dependencyArtifactSha256": "e4be9e052991f795ad9a56600a3d33da17f0432177ba76ba31bc7f7f0ff696d5"
+    }
+  },
+  "qualification": {
+    "ready": false,
+    "liveReady": false
+  },
+  "productionEnabled": false,
+  "liveInferenceExecuted": false
+}

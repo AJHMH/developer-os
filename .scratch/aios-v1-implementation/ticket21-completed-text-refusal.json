@@ -1,0 +1,26 @@
+{
+  "observedAt": "2026-10-11T15:07:26.781Z",
+  "runId": "824eb1a1-a8da-4536-b1dc-75e9993bece0",
+  "status": "refused",
+  "scope": "Actual Codex through host-only subscription gateway",
+  "approvalConsumed": true,
+  "gateway": {
+    "phase": "response-validation",
+    "providerAttempts": 1,
+    "stream": {
+      "bytes": 7472,
+      "records": 14,
+      "deltas": 6,
+      "completed": true,
+      "failed": false,
+      "deltaMatches": true,
+      "completedOutputPresent": true,
+      "completedOutputAllowed": true,
+      "completedTextMatches": false,
+      "format": "event-stream-or-invalid",
+      "errorCode": "none"
+    }
+  },
+  "subscriptionInference": "unverified",
+  "deliveryEnabled": false
+}

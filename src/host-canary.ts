@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +13,7 @@ const server=http.createServer((req,res)=>{
  req.on('end',()=>{res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({canary:id,jsonrpc:'2.0',id:1,result:{tools:[]}}));});
 });
 server.on('connect',(_r,s)=>s.destroy());server.on('upgrade',(_r,s)=>s.destroy());
-server.listen(0,'0.0.0.0',()=>console.log(JSON.stringify({port:server.address().port})));
+server.listen(0,'127.0.0.1',()=>console.log(JSON.stringify({port:server.address().port})));
 setTimeout(()=>{server.closeAllConnections();server.close(()=>process.exit(0));},25000);
 `;
 export const hostCanaryVersion = createHash("sha256")
@@ -24,7 +24,11 @@ export const hostCanaryVersion = createHash("sha256")
  * exposes only a random synthetic HTTP/MCP response. All files are newly
  * generated canaries; no real controller/peer/credential files are read. */
 export async function withHostCanary<T>(
-  observe: (challenge: { id: string; port: number; files: string[] }) => T,
+  observe: (challenge: {
+    id: string;
+    port: number;
+    files: string[];
+  }) => T | Promise<T>,
 ): Promise<T> {
   const root = mkdtempSync(join(tmpdir(), "aios-host-positive-"));
   const id = randomUUID();
@@ -33,7 +37,7 @@ export async function withHostCanary<T>(
     "synthetic-authority.txt",
     "synthetic-peer.txt",
   ].map((name) => join(root, name));
-  const content = `Synthetic qualification canary ${id}\n`;
+  const content = `Synthetic private credential ${randomBytes(32).toString("hex")}\n`;
   for (const file of files)
     writeFileSync(file, content, { flag: "wx", mode: 0o600 });
   const child = spawn(process.execPath, ["-e", service, id], {
@@ -95,7 +99,7 @@ export async function withHostCanary<T>(
     });
     if (!files.every((file) => readFileSync(file, "utf8") === content))
       throw Error("Invalid host controls");
-    const result = observe({ id, port, files });
+    const result = await observe({ id, port, files });
     if (!files.every((file) => readFileSync(file, "utf8") === content))
       throw Error("Changed host controls");
     return result;

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   existsSync,
@@ -43,6 +44,54 @@ function inside(parent: string, child: string): boolean {
   );
 }
 
+/** Host storage must be controlled by the effective owner. macOS extended ACLs
+ * can grant access beyond mode bits, so an ACL is refused rather than inferred. */
+export function assertOwnerControlledStorage(
+  path: string,
+  kind: "directory" | "file",
+  maximum = 4096,
+  access: "private" | "readable" = "private",
+) {
+  const entry = lstatSync(path);
+  if (
+    entry.isSymbolicLink() ||
+    (kind === "directory"
+      ? !entry.isDirectory()
+      : !entry.isFile() || entry.nlink !== 1 || entry.size > maximum)
+  )
+    throw Error();
+  if (process.platform !== "win32") {
+    if (
+      !process.geteuid ||
+      entry.uid !== process.geteuid() ||
+      (entry.mode & (access === "private" ? 0o077 : 0o022)) !== 0
+    )
+      throw Error();
+    if (process.platform === "darwin") {
+      const acl = spawnSync("/bin/ls", ["-lde", path], {
+        encoding: "utf8",
+        timeout: 4000,
+        maxBuffer: 8192,
+        env: { PATH: "/usr/bin:/bin" },
+      });
+      if (
+        acl.status !== 0 ||
+        !/^[d-][rwx-]{9}@? /.test(acl.stdout) ||
+        acl.stdout.trim().split("\n").length !== 1
+      )
+        throw Error();
+    }
+  }
+}
+
+export function assertPrivateAuthStorage(
+  path: string,
+  kind: "directory" | "file",
+  maximum = 4096,
+) {
+  assertOwnerControlledStorage(path, kind, maximum, "private");
+}
+
 /** Separate owner setup, not worker qualification. This prepares only non-secret
  * host registration metadata. It neither opens a browser nor obtains tokens. */
 export function prepareSubscriptionAuth(
@@ -74,9 +123,11 @@ export function prepareSubscriptionAuth(
       canonical(target).toLowerCase() !== target.toLowerCase()
     )
       throw Error();
+    assertPrivateAuthStorage(target, "directory");
     const path = join(target, "registration.json");
     let registration: { schema: number; hostId: string; agentName: string };
     if (existsSync(path)) {
+      assertPrivateAuthStorage(path, "file");
       const entry = lstatSync(path);
       if (
         !entry.isFile() ||

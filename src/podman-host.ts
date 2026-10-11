@@ -1,3 +1,4 @@
+import { subscriptionGatewayVersion } from "./subscription-gateway.js";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -253,6 +254,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
         try {
           const observed = await this.options.native.probeIsolation(
             delivery.repository,
+            delivery.id,
           );
           if (
             [
@@ -315,6 +317,107 @@ export class PodmanHostAdapter implements WorkerAdapter {
             ) {
               probe.outcome = result.outcome;
               probe.evidenceSha256 = result.evidenceSha256;
+            }
+          }
+          if (
+            observed.passed === true &&
+            [
+              "hostFilesDenied",
+              "guestFileDenied",
+              "environmentScrubbed",
+              "mountsAbsent",
+              "networkAbsent",
+              "positiveControlsBeforeAfter",
+            ].every((key) => observed.credentialExclusion?.[key] === true) &&
+            report.probes.find((probe) => probe.name === "owner-credentials")
+              ?.outcome === "passed"
+          ) {
+            report.subscriptionMediation.credentialIsolation = "passed";
+            report.subscriptionMediation.credentialIsolationScope =
+              "synthetic-restricted-alpine";
+            if (observed.modelFrameTransport === "passed")
+              report.subscriptionMediation.modelFrameTransport = "passed";
+            if (
+              typeof observed.codex?.blockedStage === "string" &&
+              [
+                "codex-binding",
+                "codex-binary",
+                "codex-create",
+                "codex-copy",
+                "codex-version",
+                "codex-credential-denials",
+                "codex-initialize",
+                "codex-account-read",
+                "codex-process-exited",
+                "codex-process-audit",
+                "codex-relay-shutdown",
+                "codex-post-binding",
+                "codex-process-privileges",
+                "codex-process-environment",
+                "codex-relay-start",
+                "codex-relay-denials",
+                "codex-relay-turn",
+                "codex-relay-revocation",
+                "codex-relay-expiry",
+              ].includes(observed.codex.blockedStage)
+            ) {
+              report.subscriptionMediation.workerBlocker =
+                observed.codex.blockedStage;
+              report.subscriptionMediation.nextAction =
+                "Resolve the credential-free Codex worker probe failure, then qualify delivery-scoped endpoint mediation before preparing another live inference; keep owner credentials on the host.";
+            }
+            if (
+              observed.codex?.protocol === "passed" &&
+              observed.codex?.credentialIsolation === "passed" &&
+              observed.codex?.binarySha256 ===
+                "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7" &&
+              observed.codex?.shutdown?.remainingProcesses === 0
+            ) {
+              report.subscriptionMediation.workerProtocol = "passed";
+              report.subscriptionMediation.codexCredentialIsolation = "passed";
+              report.subscriptionMediation.workerExecutableSha256 =
+                observed.codex.binarySha256;
+              report.subscriptionMediation.nextAction =
+                "Qualify delivery-scoped model-only endpoint mediation with this isolated Codex worker before preparing another owner-approved inference; keep reusable owner credentials on the host and production delivery disabled.";
+              if (
+                observed.codex.endpointEnforcement === "passed" &&
+                observed.codex.deliveryCapabilities === "passed" &&
+                observed.codex.relayScope === "synthetic-codex-relay" &&
+                observed.codex.relayDeliveryId === delivery.id &&
+                observed.codex.relayShutdownRemaining === 0 &&
+                JSON.stringify(observed.codex.capabilityChecks) ===
+                  JSON.stringify([
+                    "cross-delivery",
+                    "namespace",
+                    "revocation",
+                    "quota",
+                    "expiry",
+                  ])
+              ) {
+                report.subscriptionMediation.endpointEnforcement = "passed";
+                report.subscriptionMediation.deliveryCapabilities = "passed";
+                report.subscriptionMediation.deliveryCapabilityChecks =
+                  observed.codex.capabilityChecks;
+                report.subscriptionMediation.endpointScope =
+                  "synthetic-codex-relay";
+                report.subscriptionMediation.relayDeliveryId = delivery.id;
+                if (
+                  observed.codex.gatewayIntegration === "passed" &&
+                  observed.codex.gatewayVersion ===
+                    subscriptionGatewayVersion &&
+                  report.subscriptionMediation.hostGateway === "passed" &&
+                  report.subscriptionMediation.hostGatewayVersion ===
+                    subscriptionGatewayVersion
+                ) {
+                  report.subscriptionMediation.gatewayIntegration = "passed";
+                  report.subscriptionMediation.gatewayScope =
+                    "synthetic-host-subscription";
+                }
+                report.subscriptionMediation.nextAction =
+                  report.subscriptionMediation.gatewayIntegration === "passed"
+                    ? "Prepare a fresh owner-approved one-shot inference through the qualified synthetic host gateway/Codex bridge; live subscription integration remains not-run and production delivery remains disabled."
+                    : "Integrate and qualify the host-only subscription gateway with this synthetic Codex relay boundary before preparing a fresh owner-approved inference; production delivery remains disabled.";
+              }
             }
           }
         } catch {

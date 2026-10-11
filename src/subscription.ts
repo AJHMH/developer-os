@@ -10,6 +10,7 @@ export interface SubscriptionObservation {
 export interface UsageReport {
   checkId: string;
   checkedAt: string;
+  accountId?: string;
   decision: "ready" | "approval-required" | "exhausted";
   remainingPercent: number | null;
   scope: string;
@@ -28,6 +29,18 @@ export function assessSubscription(
     remainingPercent: null,
     scope: "unknown",
   };
+  if (
+    observation?.authMode === "chatgpt" &&
+    typeof observation.accountId === "string" &&
+    observation.accountId
+  ) {
+    report.accountId = observation.accountId;
+    report.scope = createHash("sha256")
+      .update(
+        JSON.stringify({ account: observation.accountId, windows: "unknown" }),
+      )
+      .digest("hex");
+  }
   if (observation?.authMode === "chatgpt" && observation.exhausted === true)
     report.decision = "exhausted";
   if (

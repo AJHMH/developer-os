@@ -1,0 +1,25 @@
+{
+  "scope": "synthetic persistence and separately authorized owner sign-in; no inference or VM qualification",
+  "initialCliAdapter": {
+    "interactiveExit": 1,
+    "largeValueExactReadback": false,
+    "retainedLength": 3996,
+    "outcome": "rejected; synthetic entries removed; live authorization broker stopped before exchange"
+  },
+  "securityFrameworkAdapter": {
+    "syntheticPayloadBytes": 65536,
+    "largeValueExactReadback": true,
+    "reopenedReplacementExactReadback": true,
+    "syntheticCleanupExit": 0
+  },
+  "ownerAuthorization": {
+    "status": "authorized",
+    "accountId": "397124263a7a93863a363c03d1245fa439396ec2edfde186df75802bb7b68f2b",
+    "credentialsStored": true,
+    "storage": "macOS Keychain",
+    "planUsageAuthorized": true,
+    "deliveryEnabled": false,
+    "earlierRefusal": "id-token-audience; successful after standards-compliant singleton audience support"
+  },
+  "productionReady": false
+}
