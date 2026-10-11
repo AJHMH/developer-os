@@ -1,3 +1,16 @@
+import {
+  gatewayRequest,
+  subscriptionGatewayVersion,
+} from "./subscription-gateway.js";
+import {
+  onlinePolicyVersion,
+  onlineUsagePermits,
+  type OnlineAccessRuntime,
+  type OnlineAccessEvidence,
+  type OnlineProof,
+  type OnlineStop,
+  type PreparedOnline,
+} from "./online-access.js";
 import { projectSubscriptionDecision } from "./subscription-decision.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -132,6 +145,7 @@ export interface WorkerAdapter {
 }
 export interface CoordinationOptions {
   offline?: OfflineCanaryRuntime;
+  online?: OnlineAccessRuntime;
   subscription?: SubscriptionReader;
   worker?: WorkerAdapter;
   observationTimeoutMs?: number;
@@ -166,6 +180,10 @@ export interface Delivery {
   onboarding: OnboardingReport;
   qualification?: WorkerQualification;
   offlineCanary?: OfflineCanaryEvidence;
+  onlineAccess?: OnlineAccessEvidence;
+  onlineRuns?: OnlineAccessEvidence[];
+  onlinePlan?: PreparedOnline;
+  onlinePlans?: PreparedOnline[];
   usage?: UsageReport;
   authorityPolicySha256: string | null;
   blocker: {
@@ -346,9 +364,377 @@ export class DeliveryController {
     }));
   }
 
+  /** Prepare a reviewable fixed supported inference plan without credentials or effects. */
+  async prepareOnline(id: string): Promise<Delivery> {
+    const runtime = this.coordination.online;
+    const before = this.status(id);
+    if (
+      !runtime?.requiresExactApproval ||
+      !runtime.inferenceRequest ||
+      !before.ownership.held ||
+      !["blocked", "preparing"].includes(before.phase) ||
+      (before.onlineAccess && before.onlineAccess.state !== "stopped")
+    )
+      throw new DeliveryError(
+        "Prepare an exact inference plan with the trusted gateway on an owned stopped delivery.",
+      );
+    const qualified = await this.qualify(id),
+      decision =
+        qualified.qualification?.subscriptionMediation?.mechanismDecision;
+    if (
+      !decision?.qualified ||
+      decision.scope !== "macos-fixed-codex-subscription"
+    )
+      throw new DeliveryError(
+        "Positive fixed-request authentication mediation is required.",
+      );
+    const checked = await this.checkUsage(id),
+      usage = checked.usage!;
+    if (
+      usage.decision === "exhausted" ||
+      (usage.accountId && usage.accountId !== decision.accountId)
+    )
+      throw new DeliveryError("Account allowance is exhausted or mismatched.");
+    const description = runtime.inferenceRequest(
+      before.repository,
+      this.stateDirectory,
+    );
+    if (
+      description.requestSha256 !== sha256(gatewayRequest) ||
+      description.requestSha256 !== decision.requestSha256 ||
+      description.gatewayVersion !== subscriptionGatewayVersion
+    )
+      throw new DeliveryError(
+        "Inference request exceeds positively qualified scope.",
+      );
+    const dependency = runtime.dependencyPlan?.(before.repository);
+    const plan = {
+      runId: randomUUID(),
+      deliveryId: id,
+      repository: before.repository,
+      fence: before.ownership.fence + 1,
+      accountId: decision.accountId,
+      usageScope: usage.scope,
+      policyVersion: onlinePolicyVersion,
+      runtimeVersion: runtime.version ?? "controlled-observation",
+      bindingSha256: qualified.qualification!.bindingSha256!,
+      hostPolicySha256: qualified.qualification!.policySha256!,
+      ...(dependency ? { dependency } : {}),
+      inference: {
+        ...description,
+        request: gatewayRequest,
+        maxRequests: 1 as const,
+        deadlineSeconds: 30 as const,
+        retries: 0 as const,
+        refresh: false as const,
+        paidFallback: false as const,
+      },
+    };
+    return this.change(id, (delivery) => {
+      if (
+        delivery.ownership.fence !== before.ownership.fence ||
+        delivery.phase !== before.phase ||
+        (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
+      )
+        throw new DeliveryError(
+          "Authority changed while preparing the exact plan.",
+        );
+      if (delivery.onlinePlan)
+        (delivery.onlinePlans ??= []).push(
+          structuredClone(delivery.onlinePlan),
+        );
+      delivery.onlinePlan = {
+        plan,
+        sha256: sha256(JSON.stringify(plan)),
+        expiresAt: Date.now() + 3600000,
+        consumed: false,
+      };
+    });
+  }
+
+  /** Explicit owner action; candidate code has no controller state/command access. */
+  approveOnline(
+    id: string,
+    runId: string,
+    planSha256: string,
+    unknownUsageApproved: boolean,
+  ): Delivery {
+    return this.change(id, (delivery) => {
+      const prepared = delivery.onlinePlan;
+      if (
+        !prepared ||
+        prepared.consumed ||
+        prepared.expiresAt <= Date.now() ||
+        prepared.plan.runId !== runId ||
+        prepared.sha256 !== planSha256 ||
+        prepared.sha256 !== sha256(JSON.stringify(prepared.plan)) ||
+        unknownUsageApproved !== true ||
+        !delivery.ownership.held ||
+        !["blocked", "preparing"].includes(delivery.phase) ||
+        (delivery.execution && delivery.execution.state !== "stopped") ||
+        (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
+      )
+        throw new DeliveryError(
+          "Approve the exact fresh unused inference plan and unknown-usage risk on an owned stopped delivery.",
+        );
+      prepared.approval = { sha256: planSha256, unknownUsageApproved: true };
+    });
+  }
+
+  /** Fixed synthetic model/dependency dispatch only; never live inference. */
+  async onlineCanary(id: string): Promise<Delivery> {
+    const runtime = this.coordination.online;
+    const before = this.status(id);
+    const exact = runtime?.requiresExactApproval
+      ? before.onlinePlan
+      : undefined;
+    if (
+      runtime?.requiresExactApproval &&
+      (!exact ||
+        exact.consumed ||
+        exact.expiresAt <= Date.now() ||
+        exact.approval?.sha256 !== exact.sha256 ||
+        exact.sha256 !== sha256(JSON.stringify(exact.plan)))
+    )
+      throw new DeliveryError(
+        "An exact fresh approved inference plan is required before dispatch.",
+      );
+    if (
+      !runtime ||
+      !before.ownership.held ||
+      !["blocked", "preparing"].includes(before.phase) ||
+      (before.execution && before.execution.state !== "stopped") ||
+      (before.onlineAccess && before.onlineAccess.state !== "stopped")
+    )
+      throw new DeliveryError(
+        "Online canary requires an owned stopped delivery and trusted runtime; recover uncertain sessions first.",
+      );
+    const qualified = await this.qualify(id);
+    const decision =
+      qualified.qualification?.subscriptionMediation?.mechanismDecision;
+    if (
+      !decision?.qualified ||
+      decision.scope !== "macos-fixed-codex-subscription" ||
+      !qualified.qualification?.offlineAdmission?.allowed ||
+      (runtime.mode === "live" && qualified.qualification.mode !== "live")
+    )
+      throw new DeliveryError(
+        "Trusted positive authentication mediation and fresh host admission are required.",
+      );
+    const checked = await this.checkUsage(id);
+    const usage = checked.usage!;
+    if (
+      exact &&
+      (exact.plan.accountId !== decision.accountId ||
+        exact.plan.usageScope !== usage.scope ||
+        exact.plan.fence !== before.ownership.fence + 1 ||
+        exact.plan.bindingSha256 !== qualified.qualification?.bindingSha256 ||
+        exact.plan.hostPolicySha256 !== qualified.qualification?.policySha256 ||
+        exact.plan.policyVersion !== onlinePolicyVersion ||
+        exact.plan.runtimeVersion !==
+          (runtime.version ?? "controlled-observation") ||
+        exact.plan.inference?.request !== gatewayRequest ||
+        exact.plan.inference.requestSha256 !== decision.requestSha256 ||
+        exact.plan.inference.gatewayVersion !== subscriptionGatewayVersion ||
+        JSON.stringify(
+          runtime.inferenceRequest?.(before.repository, this.stateDirectory),
+        ) !==
+          JSON.stringify({
+            requestSha256: exact.plan.inference.requestSha256,
+            gatewayVersion: exact.plan.inference.gatewayVersion,
+            hostId: exact.plan.inference.hostId,
+          }))
+    )
+      throw new DeliveryError(
+        "Exact inference plan authority drifted; prepare and approve a new plan.",
+      );
+    if (exact?.approval && usage.decision === "approval-required")
+      usage.approval = { scope: usage.scope, at: new Date().toISOString() };
+    if (
+      (usage.accountId && usage.accountId !== decision.accountId) ||
+      usage.decision === "exhausted" ||
+      (usage.decision === "approval-required" &&
+        (!usage.approval ||
+          usage.approval.operationId ||
+          Date.now() - Date.parse(usage.approval.at) > 60000))
+    )
+      throw new DeliveryError(
+        "Fresh account-scoped subscription usage approval is required; exhaustion cannot be overridden.",
+      );
+    const dependency = runtime.dependencyPlan?.(before.repository);
+    if (
+      exact &&
+      JSON.stringify(exact.plan.dependency) !== JSON.stringify(dependency)
+    )
+      throw new DeliveryError("Exact artifact plan changed.");
+    const started = this.change(id, (delivery, db) => {
+      if (
+        delivery.ownership.fence !== before.ownership.fence ||
+        !delivery.ownership.held ||
+        delivery.phase !== before.phase ||
+        delivery.usage?.checkId !== usage.checkId ||
+        (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped") ||
+        (delivery.execution && delivery.execution.state !== "stopped")
+      )
+        throw new DeliveryError(
+          "Delivery authority changed before online dispatch.",
+        );
+      if (exact) {
+        if (
+          delivery.onlinePlan?.sha256 !== exact.sha256 ||
+          delivery.onlinePlan.consumed ||
+          delivery.onlinePlan.expiresAt <= Date.now() ||
+          delivery.onlinePlan.sha256 !==
+            sha256(JSON.stringify(delivery.onlinePlan.plan)) ||
+          delivery.onlinePlan.approval?.sha256 !== exact.sha256
+        )
+          throw new DeliveryError(
+            "Exact inference approval changed or consumed.",
+          );
+        delivery.onlinePlan.consumed = true;
+        if (usage.approval) delivery.usage!.approval = usage.approval;
+      }
+      if (delivery.onlineAccess)
+        (delivery.onlineRuns ??= []).push(
+          structuredClone(delivery.onlineAccess),
+        );
+      delivery.onlineAccess = {
+        runId: exact?.plan.runId ?? randomUUID(),
+        ...(exact?.plan.inference ? { inference: exact.plan.inference } : {}),
+        deliveryId: id,
+        repository: before.repository,
+        fence: this.advanceFence(delivery, db),
+        accountId: decision.accountId,
+        usageScope: usage.scope,
+        policyVersion: onlinePolicyVersion,
+        runtimeVersion: runtime.version ?? "controlled-observation",
+        bindingSha256: qualified.qualification!.bindingSha256!,
+        hostPolicySha256: qualified.qualification!.policySha256!,
+        ...(dependency ? { dependency } : {}),
+        mode: runtime.mode,
+        state: "dispatched",
+        outcome: "running",
+        productionEnabled: false,
+      };
+      if (delivery.usage?.approval)
+        delivery.usage.approval.operationId = delivery.onlineAccess.runId;
+    });
+    const plan = started.onlineAccess!;
+    const authorize = async () => {
+      try {
+        const current = await this.checkUsage(id);
+        const fresh = this.status(id);
+        const u = current.usage!;
+        return (
+          fresh.ownership.held &&
+          fresh.ownership.fence === plan.fence &&
+          fresh.phase === before.phase &&
+          fresh.onlineAccess?.runId === plan.runId &&
+          fresh.onlineAccess.state === "dispatched" &&
+          fresh.qualification?.subscriptionMediation?.mechanismDecision
+            ?.accountId === plan.accountId &&
+          onlineUsagePermits(u, plan)
+        );
+      } catch {
+        return false;
+      }
+    };
+    let proof: OnlineProof | undefined;
+    let stopping: Promise<Delivery> | undefined;
+    const timer = setInterval(() => {
+      void authorize()
+        .then((allowed) => {
+          if (!allowed) stopping ??= this.recoverOnline(id);
+        })
+        .catch(() => {
+          stopping ??= this.recoverOnline(id);
+        });
+    }, 30000);
+    try {
+      proof = await this.observe(runtime.execute(plan, authorize));
+      if (
+        !proof ||
+        proof.runId !== plan.runId ||
+        proof.policyVersion !== onlinePolicyVersion ||
+        proof.model !== "passed" ||
+        proof.dependency !== "passed" ||
+        proof.bypass !== "passed" ||
+        (plan.dependency &&
+          proof.dependencyArtifactSha256 !== plan.dependency.artifactSha256) ||
+        !(await authorize())
+      )
+        proof = undefined;
+    } catch {
+      /* Safe refusal, never provider or worker error text. */
+    } finally {
+      clearInterval(timer);
+    }
+    const stopped = await (stopping ?? this.recoverOnline(id));
+    return this.change(id, (delivery) => {
+      if (
+        delivery.onlineAccess?.runId !== plan.runId ||
+        delivery.onlineAccess.state !== "stopped"
+      )
+        return;
+      if (
+        proof &&
+        stopped.ownership.fence === plan.fence &&
+        stopped.phase === before.phase
+      ) {
+        delivery.onlineAccess.proof = proof;
+        delivery.onlineAccess.outcome = "passed";
+      } else delivery.onlineAccess.outcome = "refused";
+    });
+  }
+
+  private async recoverOnline(id: string): Promise<Delivery> {
+    const snapshot = this.status(id),
+      plan = snapshot.onlineAccess;
+    if (!plan || plan.state === "stopped") return snapshot;
+    let stop: OnlineStop | undefined;
+    try {
+      stop = await this.observe(
+        this.coordination.online?.stop(plan.runId) ??
+          Promise.resolve(undefined),
+      );
+    } catch {}
+    return this.change(id, (delivery) => {
+      if (
+        delivery.onlineAccess?.runId !== plan.runId ||
+        delivery.onlineAccess.state === "stopped"
+      )
+        return;
+      if (
+        stop?.runId === plan.runId &&
+        stop.revoked === true &&
+        stop.remainingProcesses === 0
+      ) {
+        delivery.onlineAccess.state = "stopped";
+        delivery.onlineAccess.shutdown = stop;
+        if (
+          delivery.blocker.code === "UNCERTAIN_SESSION" &&
+          (!delivery.execution || delivery.execution.state === "stopped")
+        )
+          delivery.blocker = this.disabledBlocker();
+        delivery.onlineAccess.outcome = "refused";
+      } else {
+        delivery.onlineAccess.state = "uncertain";
+        delivery.onlineAccess.outcome = "uncertain";
+        delivery.blocker = {
+          code: "UNCERTAIN_SESSION",
+          message: "Online canary shutdown is uncertain.",
+          nextAction:
+            "Recover with the same trusted online runtime; production remains disabled.",
+        };
+      }
+    });
+  }
+
   async run(id: string): Promise<Delivery> {
     const worker = this.coordination.worker;
     const snapshot = this.status(id);
+    if (snapshot.onlineAccess && snapshot.onlineAccess.state !== "stopped")
+      throw new DeliveryError("Recover online canary shutdown first.");
     if (!snapshot.ownership.held || snapshot.phase === "queued")
       throw new DeliveryError(
         "Only the repository owner delivery may dispatch work.",
@@ -417,6 +803,8 @@ export class DeliveryController {
       );
     const planned = this.change(id, (delivery, db) => {
       if (
+        (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped") ||
+        (delivery.execution && delivery.execution.state !== "stopped") ||
         delivery.usage?.checkId !== usage.checkId ||
         delivery.phase !== snapshot.phase ||
         delivery.ownership.fence !== snapshot.ownership.fence ||
@@ -498,6 +886,15 @@ export class DeliveryController {
       clearTimeout(timer);
     }
     const report = assessSubscription(observation);
+    const endorsedAccount =
+      snapshot.qualification?.subscriptionMediation?.mechanismDecision
+        ?.accountId;
+    if (report.scope === "unknown" && endorsedAccount) {
+      report.accountId = endorsedAccount;
+      report.scope = sha256(
+        JSON.stringify({ account: endorsedAccount, windows: "unknown" }),
+      );
+    }
     return this.change(id, (delivery) => {
       if (
         delivery.ownership.fence !== snapshot.ownership.fence ||
@@ -524,6 +921,7 @@ export class DeliveryController {
         usage.decision !== "approval-required" ||
         Date.now() - Date.parse(usage.checkedAt) > 60000 ||
         (delivery.execution && delivery.execution.state !== "stopped") ||
+        (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped") ||
         !delivery.ownership.held ||
         !["blocked", "preparing", "paused"].includes(delivery.phase)
       )
@@ -537,6 +935,11 @@ export class DeliveryController {
   async pollUsage(id: string): Promise<Delivery> {
     const observed = await this.checkUsage(id);
     const usage = observed.usage!;
+    if (
+      observed.onlineAccess?.state === "dispatched" &&
+      !onlineUsagePermits(usage, observed.onlineAccess)
+    )
+      return this.recoverOnline(id);
     if (
       observed.phase === "implementing" &&
       (usage.decision === "exhausted" ||
@@ -581,6 +984,10 @@ export class DeliveryController {
 
   async qualify(id: string): Promise<Delivery> {
     const snapshot = this.status(id);
+    if (snapshot.onlineAccess && snapshot.onlineAccess.state !== "stopped")
+      throw new DeliveryError(
+        "Recover online canary shutdown before qualification.",
+      );
     if (snapshot.execution && snapshot.execution.state !== "stopped")
       throw new DeliveryError(
         "Stop and reconcile the worker before qualification probes.",
@@ -666,10 +1073,11 @@ export class DeliveryController {
       if (
         !delivery.ownership.held ||
         delivery.phase !== "blocked" ||
+        (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped") ||
+        (delivery.execution && delivery.execution.state !== "stopped") ||
         delivery.ownership.fence !== qualified.ownership.fence ||
         delivery.qualification?.bindingSha256 !== pins.bindingSha256 ||
-        delivery.qualification?.policySha256 !== pins.policySha256 ||
-        (delivery.execution && delivery.execution.state !== "stopped")
+        delivery.qualification?.policySha256 !== pins.policySha256
       )
         throw new DeliveryError(
           "Offline canary requires unchanged exclusive repository ownership and stopped workers.",
@@ -1005,13 +1413,19 @@ export class DeliveryController {
         if (delivery.ownership.held) this.advanceFence(delivery, db);
       }
     });
+    if (paused.onlineAccess && paused.onlineAccess.state !== "stopped")
+      await this.recoverOnline(id);
     return paused.execution && paused.execution.state !== "stopped"
       ? this.stopSession(id)
-      : paused;
+      : this.status(id);
   }
 
   resume(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
+        throw new DeliveryError(
+          "Recover online canary shutdown before resuming.",
+        );
       if (delivery.phase === "cancelled")
         throw new DeliveryError("A cancelled delivery cannot be resumed.");
       if (
@@ -1062,13 +1476,17 @@ export class DeliveryController {
         if (delivery.ownership.held) this.advanceFence(delivery, db);
       }
     });
+    if (cancelled.onlineAccess && cancelled.onlineAccess.state !== "stopped")
+      await this.recoverOnline(id);
     return cancelled.execution && cancelled.execution.state !== "stopped"
       ? this.stopSession(id)
-      : cancelled;
+      : this.status(id);
   }
 
   async recover(id: string): Promise<Delivery> {
-    const delivery = this.status(id);
+    let delivery = this.status(id);
+    if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
+      delivery = await this.recoverOnline(id);
     if (!delivery.execution || delivery.execution.state === "stopped")
       return delivery;
     const recovered = await this.stopSession(id);
@@ -1145,6 +1563,10 @@ export class DeliveryController {
 
   release(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
+        throw new DeliveryError(
+          "Recover online canary shutdown before releasing ownership.",
+        );
       if (!delivery.ownership.held) return;
       if (delivery.execution && delivery.execution.state !== "stopped")
         throw new DeliveryError(

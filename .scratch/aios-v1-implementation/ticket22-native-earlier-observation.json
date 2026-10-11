@@ -1,0 +1,35 @@
+{
+  "observedAt": "2026-10-11T19:22:35.833Z",
+  "scope": "Fixed synthetic VM-local model/dependency canary; no credentials, provider requests or live inference",
+  "fault": null,
+  "onlineAccess": {
+    "runId": "23ed6352-9720-4dac-ae85-a189c17954a9",
+    "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+    "repository": "/Users/aaronhoward/.developer-os/ticket4-macos/input",
+    "fence": 22,
+    "accountId": "397124263a7a93863a363c03d1245fa439396ec2edfde186df75802bb7b68f2b",
+    "usageScope": "unknown",
+    "policyVersion": "afe543388e045bb41782cfc89cc855b07dfc974cd7c6e48ac43062d4496a9712",
+    "runtimeVersion": "fe48271d9b2d4059d2d78d1aa0fda3e6b4ba7991961dcfe5490cf6910867676d",
+    "bindingSha256": "7c8b5cb4ddb3335abee76d6eb5ab66ec0face9cba2f96ea27dd1e2fb75a9c9a6",
+    "hostPolicySha256": "8a33daa5fae7722ec7ad04d541f72cf3c713b87f37656b4224e633947849c594",
+    "mode": "live",
+    "state": "stopped",
+    "outcome": "passed",
+    "productionEnabled": false,
+    "shutdown": {
+      "runId": "23ed6352-9720-4dac-ae85-a189c17954a9",
+      "revoked": true,
+      "remainingProcesses": 0
+    },
+    "proof": {
+      "runId": "23ed6352-9720-4dac-ae85-a189c17954a9",
+      "policyVersion": "afe543388e045bb41782cfc89cc855b07dfc974cd7c6e48ac43062d4496a9712",
+      "model": "passed",
+      "dependency": "passed",
+      "bypass": "passed"
+    }
+  },
+  "productionEnabled": false,
+  "liveInferenceExecuted": false
+}

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { NativeOnlineAccess } from "./online-native.js";
+import { NpmArtifactRuntime } from "./npm-artifact.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -12,7 +14,7 @@ import { authorizeSubscriptionAuth } from "./auth-host.js";
 import { prepareSubscriptionAuth } from "./subscription-auth.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit macOS browser consent and host-only Keychain storage, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Native execution is limited to the fixed synthetic offline canary; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit macOS browser consent and host-only Keychain storage, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. Native execution is limited to fixed synthetic canaries; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -29,6 +31,7 @@ function argumentsForCommand() {
         "check-id": { type: "string" },
         "podman-machine": { type: "string" },
         "worker-policy": { type: "string" },
+        "dependency-policy": { type: "string" },
         repo: { type: "string" },
         request: { type: "string" },
         issue: { type: "string" },
@@ -48,6 +51,7 @@ try {
     (![
       "qualify",
       "offline-canary",
+      "online-canary",
       "pin-offline",
       "recover",
       "pause",
@@ -56,6 +60,14 @@ try {
       !values["podman-machine"] ||
       !/^aios-[a-z0-9-]+$/.test(values["podman-machine"]) ||
       values["worker-policy"] === "")
+  )
+    throw new DeliveryError(usage);
+  if (
+    values["dependency-policy"] !== undefined &&
+    (positionals[0] !== "online-canary" ||
+      !values["dependency-policy"] ||
+      !values["podman-machine"] ||
+      !values["worker-policy"])
   )
     throw new DeliveryError(usage);
   const names = tokens
@@ -152,7 +164,17 @@ try {
                 : {}),
             })
           : new SbxHostAdapter(),
-        ...(native ? { offline: native } : {}),
+        ...(native
+          ? {
+              offline: native,
+              online: values["dependency-policy"]
+                ? new NpmArtifactRuntime(
+                    new NativeOnlineAccess(native),
+                    values["dependency-policy"],
+                  )
+                : new NativeOnlineAccess(native),
+            }
+          : {}),
         ...(values["codex-executable"]
           ? {
               subscription: codexSubscriptionReader(values["codex-executable"]),
@@ -204,7 +226,9 @@ try {
             ? "pollUsage"
             : positionals[0] === "offline-canary"
               ? "offlineCanary"
-              : positionals[0];
+              : positionals[0] === "online-canary"
+                ? "onlineCanary"
+                : positionals[0];
       if (
         command === "approve-usage" &&
         values.id &&
@@ -225,6 +249,7 @@ try {
           command === "pollUsage" ||
           command === "qualify" ||
           command === "offlineCanary" ||
+          command === "onlineCanary" ||
           command === "pause" ||
           command === "resume" ||
           command === "cancel" ||
