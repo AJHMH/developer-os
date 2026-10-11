@@ -136,3 +136,20 @@ renewed the same account/registration/scopes into Keychain using existing consen
 A fresh plan `05cac8f2-d0f7-4b2a-87af-ef8a5e84720d` is prepared after another
 successful synthetic native qualification. It requires a new exact-run approval;
 no real actual-Codex subscription inference has succeeded yet.
+
+Renewed approved run `05cac8f2-d0f7-4b2a-87af-ef8a5e84720d` also refused.
+Its account binding, scopes and credential validity through the grant were safely
+confirmed; the old harness did not retain a provider-stage receipt. It may have
+used subscription allowance (at most one provider request); exact dispatch and
+refusal stage are unverified. No retry was sent. The expired first run's receipt
+is retained separately in [expired observation](../ticket21-gateway-expired-observation.json).
+
+Controlled public-status testing reproduced a documented provider shape gap:
+completed Responses can contain a reasoning item alongside the assistant message.
+The corrected gateway discards reasoning metadata, verifies both streamed and
+completed exact text, and returns only the minimal stream. This is a demonstrated
+compatibility correction, not proof of the refused live run's cause. Future
+refusal receipts retain only a fixed stage, attempt count and HTTP status; an
+attempted but refused inference is labeled unverified rather than not-run.
+Final corrected synthetic native qualification and all 123 tests pass. Fresh
+plan `971f4e43-fa29-466d-9045-e9bfd2b92fd0` awaits separate owner approval.

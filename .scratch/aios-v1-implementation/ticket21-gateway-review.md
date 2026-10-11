@@ -49,3 +49,22 @@ sign-in renewed the same account/scopes through the browser into host-only
 Keychain. Fresh plan `05cac8f2-d0f7-4b2a-87af-ef8a5e84720d` passed synthetic
 qualification again and awaits its own owner approval. No code changed after
 review/tests; real integration remains unqualified.
+
+## Provider-shape correction and final review
+
+The renewed real run refused with valid account/registration/scopes and credentials
+valid through the grant. Provider dispatch and exact failure stage were not
+retained by the old harness; usage may have been consumed, bounded to one request.
+The receipt labels that outcome unverified. Controlled red/green testing separately
+reproduced rejection of documented [Responses reasoning output](https://developers.openai.com/cookbook/examples/responses_api/reasoning_items).
+The correction admits reasoning only to discard it, verifies completed message
+text against deltas and the fixed result, and returns canonical minimal output.
+It does not establish the cause of the previous live refusal.
+
+Safe future diagnostics retain fixed phases, provider-attempt counts and numeric
+HTTP status. Review corrected an unconditional not-run receipt: attempted refusals
+are now unverified. Parallel final Standards review reports zero violations or
+judgments; Spec has no unresolved security/input/credential findings after that
+receipt fix. Final synthetic native qualification passed; all 123 tests and format
+checks pass. Prepared corrected run: `971f4e43-fa29-466d-9045-e9bfd2b92fd0`.
+No unapproved live inference or retry was performed.

@@ -46,6 +46,16 @@ export class HostSubscriptionGateway {
   private readonly cancellation = new AbortController();
   private readonly approval: GatewayApproval;
   private used = false;
+  private phase = "not-started";
+  private providerAttempts = 0;
+  private providerStatus: number | undefined;
+  get observation() {
+    return {
+      phase: this.phase,
+      providerAttempts: this.providerAttempts,
+      providerStatus: this.providerStatus,
+    };
+  }
   constructor(
     approval: GatewayApproval,
     private readonly account: () => GatewayAccount,
@@ -133,6 +143,7 @@ export class HostSubscriptionGateway {
       throw Error("Gateway refused");
     // Reserve before credential access: failures cannot retry or refresh.
     this.used = true;
+    this.phase = "account-validation";
     const account = this.account();
     if (
       hash(
@@ -161,16 +172,23 @@ export class HostSubscriptionGateway {
       if (signal.aborted) abort();
     });
     let data: Uint8Array;
+    this.phase = "provider-request";
+    this.providerAttempts++;
     try {
       data = await Promise.race([
         this.provider(account.accessToken, gatewayRequest, signal),
         cancelled,
       ]);
+    } catch (error) {
+      if (error instanceof SubscriptionProviderRefusal)
+        this.providerStatus = error.status;
+      throw Error("Gateway refused");
     } finally {
       signal.removeEventListener("abort", abort);
     }
     if (signal.aborted || Date.now() >= a.expiresAt || data.byteLength > 65536)
       throw Error("Gateway refused");
+    this.phase = "response-validation";
     // Buffer until completion; never deliver partial output after revocation.
     let output = "",
       completed = false;
@@ -196,18 +214,33 @@ export class HostSubscriptionGateway {
           !Array.isArray(event.response.output) ||
           event.response.output.some(
             (i: any) =>
-              i.type !== "message" ||
-              i.role !== "assistant" ||
-              i.content?.some((p: any) => p.type !== "output_text"),
+              i.type !== "reasoning" &&
+              (i.type !== "message" ||
+                i.role !== "assistant" ||
+                !Array.isArray(i.content) ||
+                i.content.some((p: any) => p.type !== "output_text")),
           )
         )
           throw Error("Gateway refused");
+        const finalText = event.response.output
+          .filter((i: any) => i.type === "message")
+          .flatMap((i: any) => i.content)
+          .map((p: any) => p.text)
+          .join("");
+        if (finalText !== gatewayMarker) throw Error("Gateway refused");
         completed = true;
       }
     }
     if (!completed || output !== gatewayMarker) throw Error("Gateway refused");
+    this.phase = "completed";
     // Return a minimal canonical stream; provider metadata never enters the VM.
     return syntheticGatewayResponse();
+  }
+}
+
+class SubscriptionProviderRefusal extends Error {
+  constructor(readonly status: number) {
+    super("Subscription provider refused");
   }
 }
 
@@ -232,7 +265,7 @@ async function subscriptionResponses(
     !response.headers.get("content-type")?.startsWith("text/event-stream") ||
     !response.body
   )
-    throw Error("Subscription response unavailable");
+    throw new SubscriptionProviderRefusal(response.status);
   const reader = response.body.getReader();
   let bytes = 0;
   const chunks: Buffer[] = [];
@@ -359,7 +392,23 @@ export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
       )
         throw Error();
       calls++;
-      return syntheticGatewayResponse();
+      return Buffer.from(
+        syntheticGatewayResponse()
+          .toString()
+          .split("\n")
+          .map((line) => {
+            if (!line.startsWith("data: ")) return line;
+            const event = JSON.parse(line.slice(6));
+            if (event.type === "response.completed")
+              event.response.output.unshift({
+                type: "reasoning",
+                id: "synthetic_reasoning",
+                summary: [],
+              });
+            return "data: " + JSON.stringify(event);
+          })
+          .join("\n"),
+      );
     },
   );
   const deny = async (id: string, cap: string, body: string) => {
@@ -401,11 +450,12 @@ export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
       role: "developer",
       content: "Synthetic context must be discarded",
     });
-    await gateway.respond(
+    const returned = await gateway.respond(
       delivery,
       gateway.capability,
       JSON.stringify(contextual),
     );
+    if (!returned.equals(syntheticGatewayResponse())) throw Error();
     if (
       Number(calls) !== 1 ||
       Number(reads) !== 1 ||

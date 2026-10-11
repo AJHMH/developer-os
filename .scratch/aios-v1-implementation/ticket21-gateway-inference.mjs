@@ -60,6 +60,7 @@ try {
     console.log(JSON.stringify({ status: "completed", runId: plan.runId, deliveryEnabled: false }));
   }
 } catch {
+  if (gateway) writeFileSync(new URL("ticket21-gateway-inference-observation.json", import.meta.url), JSON.stringify({ observedAt: new Date().toISOString(), runId: args[args.indexOf("--approve-run") + 1], status: "refused", scope: "Actual Codex through host-only subscription gateway", approvalConsumed: true, gateway: gateway.observation, subscriptionInference: gateway.observation.providerAttempts > 0 ? "unverified" : "not-run", deliveryEnabled: false }, null, 2) + "\n");
   console.error(JSON.stringify({ status: "refused", nextAction: "Check fresh source/VM pins, exact unused approval and host credential expiry. No retries, refresh or paid fallback.", deliveryEnabled: false }));
   process.exitCode = 1;
 } finally { gateway?.revoke(); }
