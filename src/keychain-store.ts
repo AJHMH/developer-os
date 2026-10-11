@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { assertPrivateAuthStorage } from "./subscription-auth.js";
 import { DeliveryError } from "./controller.js";
 
 const source = `import Foundation
@@ -51,18 +52,6 @@ const fail = () =>
   new DeliveryError(
     "The protected macOS Keychain adapter is unavailable or changed; preserve existing credentials and inspect separate authentication storage before retrying.",
   );
-function ordinary(path: string, maximum: number) {
-  const file = lstatSync(path);
-  if (
-    !file.isFile() ||
-    file.isSymbolicLink() ||
-    file.nlink !== 1 ||
-    file.size > maximum ||
-    (file.mode & 0o077) !== 0
-  )
-    throw fail();
-}
-
 /** Deploys an integrity-pinned, stable native Security-framework helper in the
  * already validated external host registration directory. No shell, candidate
  * script, password argument, credential file or weakened Keychain ACL is used. */
@@ -70,7 +59,19 @@ export function macKeychainStore(directory: string) {
   if (process.platform !== "darwin" || process.arch !== "arm64") throw fail();
   const binary = join(directory, "keychain-helper"),
     manifest = join(directory, "keychain-helper.json");
+  const verifyDeployment = () => {
+    assertPrivateAuthStorage(directory, "directory");
+    assertPrivateAuthStorage(binary, "file", 16777216);
+    assertPrivateAuthStorage(manifest, "file");
+    const pin = JSON.parse(readFileSync(manifest, "utf8"));
+    if (
+      pin.source !== digest(source) ||
+      pin.binary !== digest(readFileSync(binary))
+    )
+      throw fail();
+  };
   try {
+    assertPrivateAuthStorage(directory, "directory");
     if (!existsSync(binary) && !existsSync(manifest)) {
       const staging = mkdtempSync(join(directory, ".keychain-build-"));
       try {
@@ -102,14 +103,7 @@ export function macKeychainStore(directory: string) {
         rmSync(staging, { recursive: true, force: true });
       }
     }
-    ordinary(binary, 16777216);
-    ordinary(manifest, 4096);
-    const pin = JSON.parse(readFileSync(manifest, "utf8"));
-    if (
-      pin.source !== digest(source) ||
-      pin.binary !== digest(readFileSync(binary))
-    )
-      throw fail();
+    verifyDeployment();
   } catch {
     throw fail();
   }
@@ -119,14 +113,11 @@ export function macKeychainStore(directory: string) {
     value?: string,
   ) => {
     if (!/^[a-f0-9]{64}$/.test(account)) throw fail();
-    ordinary(binary, 16777216);
-    ordinary(manifest, 4096);
-    const pin = JSON.parse(readFileSync(manifest, "utf8"));
-    if (
-      pin.source !== digest(source) ||
-      pin.binary !== digest(readFileSync(binary))
-    )
+    try {
+      verifyDeployment();
+    } catch {
       throw fail();
+    }
     const result = spawnSync(binary, [action, account], {
       ...(value === undefined ? {} : { input: value }),
       encoding: "utf8",
