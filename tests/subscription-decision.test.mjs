@@ -146,12 +146,15 @@ test("qualification and status expose owner-state positive mediation without aut
       .qualified,
     true,
   );
-  chmodSync(readablePolicyParent, 0o777);
-  assert.equal(
-    c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
-    undefined,
-  );
-  chmodSync(readablePolicyParent, 0o755);
+  // POSIX modes do not change Windows ACLs; this is a macOS-only mechanism.
+  if (process.platform !== "win32") {
+    chmodSync(readablePolicyParent, 0o777);
+    assert.equal(
+      c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+      undefined,
+    );
+    chmodSync(readablePolicyParent, 0o755);
+  }
   writeFileSync(recordPath, JSON.stringify(record));
   // Source, independent policy, registration and fresh binding drift invalidate the decision.
   for (const field of [
@@ -197,28 +200,32 @@ test("qualification and status expose owner-state positive mediation without aut
     undefined,
   );
   writeFileSync(marker, "one-shot approval consumed\n", { mode: 0o600 });
-  chmodSync(recordPath, 0o644);
-  assert.equal(
-    c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
-    undefined,
-  );
-  chmodSync(recordPath, 0o600);
+  if (process.platform !== "win32") {
+    chmodSync(recordPath, 0o644);
+    assert.equal(
+      c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+      undefined,
+    );
+    chmodSync(recordPath, 0o600);
+  }
   linkSync(recordPath, join(root, "duplicate-evidence"));
   assert.equal(
     c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
     undefined,
   );
   unlinkSync(join(root, "duplicate-evidence"));
-  unlinkSync(recordPath);
-  symlinkSync(
-    join(repo, "subscription-decision-" + d.id + ".json"),
-    recordPath,
-  );
-  assert.equal(
-    c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
-    undefined,
-  );
-  unlinkSync(recordPath);
+  if (process.platform !== "win32") {
+    unlinkSync(recordPath);
+    symlinkSync(
+      join(repo, "subscription-decision-" + d.id + ".json"),
+      recordPath,
+    );
+    assert.equal(
+      c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+      undefined,
+    );
+    unlinkSync(recordPath);
+  }
   writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
   q.offlineAdmission.allowed = false;
   assert.equal(
