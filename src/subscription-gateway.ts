@@ -224,6 +224,34 @@ export class HostSubscriptionGateway {
     // Buffer until completion; never deliver partial output after revocation.
     let output = "",
       completed = false;
+    let responseId: string | undefined;
+    let messageId: string | undefined;
+    let messageIndex = -1;
+    let messageStage:
+      | "awaiting-part"
+      | "reading-text"
+      | "text-finalized"
+      | "part-finalized"
+      | "item-finalized" = "awaiting-part";
+    const items = new Map<
+      number,
+      { id: string; type: string; done: boolean }
+    >();
+    const validId = (id: unknown): id is string =>
+      typeof id === "string" && id.length > 0 && id.length <= 256;
+    const linked = (event: any) =>
+      event.item_id === messageId &&
+      event.output_index === messageIndex &&
+      event.content_index === 0;
+    const finalMessage = (item: any) =>
+      item?.type === "message" &&
+      item.id === messageId &&
+      item.role === "assistant" &&
+      item.status === "completed" &&
+      Array.isArray(item.content) &&
+      item.content.length === 1 &&
+      item.content[0]?.type === "output_text" &&
+      item.content[0].text === gatewayMarker;
     for (const record of Buffer.from(data)
       .toString("utf8")
       .replace(/\r\n/g, "\n")
@@ -235,6 +263,7 @@ export class HostSubscriptionGateway {
         .join("\n");
       if (!line || line === "[DONE]") continue;
       const event = JSON.parse(line);
+      if (completed) throw Error("Gateway refused");
       this.stream.records++;
       const knownType = [
         "response.created",
@@ -278,8 +307,110 @@ export class HostSubscriptionGateway {
           : "unrecognized";
         throw Error("Gateway refused");
       }
+      if (event.type === "response.created") {
+        if (
+          responseId ||
+          !validId(event.response?.id) ||
+          event.response.status !== "in_progress"
+        )
+          throw Error("Gateway refused");
+        responseId = event.response.id;
+      } else if (!responseId) throw Error("Gateway refused");
+      if (
+        event.type === "response.in_progress" &&
+        event.response?.id !== responseId
+      )
+        throw Error("Gateway refused");
+      if (event.type === "response.output_item.added") {
+        const item = event.item,
+          index = event.output_index;
+        if (
+          !Number.isSafeInteger(index) ||
+          index < 0 ||
+          index >= 64 ||
+          items.has(index) ||
+          !validId(item?.id) ||
+          [...items.values()].some((i) => i.id === item.id) ||
+          !["message", "reasoning"].includes(item.type)
+        )
+          throw Error("Gateway refused");
+        items.set(index, { id: item.id, type: item.type, done: false });
+        if (item.type === "message") {
+          if (
+            messageId ||
+            item.role !== "assistant" ||
+            item.status !== "in_progress" ||
+            !Array.isArray(item.content) ||
+            item.content.length !== 0
+          )
+            throw Error("Gateway refused");
+          messageId = item.id;
+          messageIndex = index;
+        }
+      }
+      if (event.type === "response.content_part.added") {
+        if (
+          !messageId ||
+          !linked(event) ||
+          messageStage !== "awaiting-part" ||
+          event.part?.type !== "output_text" ||
+          event.part.text !== ""
+        )
+          throw Error("Gateway refused");
+        messageStage = "reading-text";
+      }
+      if (event.type === "response.output_text.done") {
+        if (
+          !linked(event) ||
+          messageStage !== "reading-text" ||
+          output !== gatewayMarker ||
+          event.text !== output
+        )
+          throw Error("Gateway refused");
+        messageStage = "text-finalized";
+      }
+      if (event.type === "response.content_part.done") {
+        if (
+          !linked(event) ||
+          messageStage !== "text-finalized" ||
+          event.part?.type !== "output_text" ||
+          event.part.text !== output
+        )
+          throw Error("Gateway refused");
+        messageStage = "part-finalized";
+      }
+      if (event.type === "response.output_item.done") {
+        const item = items.get(event.output_index);
+        if (
+          !item ||
+          item.done ||
+          item.id !== event.item?.id ||
+          item.type !== event.item?.type
+        )
+          throw Error("Gateway refused");
+        if (item.type === "message") {
+          if (messageStage !== "part-finalized" || !finalMessage(event.item))
+            throw Error("Gateway refused");
+          messageStage = "item-finalized";
+        }
+        item.done = true;
+      }
+      if (
+        knownType === "other" &&
+        !/^response\.reasoning_(summary_)?(text|part)\.(added|delta|done)$/.test(
+          event.type ?? "",
+        )
+      )
+        throw Error("Gateway refused");
       if (event.type === "response.output_text.delta") {
+        if (
+          !linked(event) ||
+          messageStage !== "reading-text" ||
+          typeof event.delta !== "string"
+        )
+          throw Error("Gateway refused");
         output += event.delta;
+        if (!gatewayMarker.startsWith(output)) throw Error("Gateway refused");
         this.stream.deltas++;
         this.stream.deltaTextLength = output.length;
         this.stream.deltaMatches = output === gatewayMarker;
@@ -301,6 +432,11 @@ export class HostSubscriptionGateway {
           );
         if (
           event.response?.status !== "completed" ||
+          event.response.id !== responseId ||
+          event.response.error != null ||
+          event.response.incomplete_details != null ||
+          messageStage !== "item-finalized" ||
+          [...items.values()].some((i) => !i.done) ||
           !this.stream.completedOutputAllowed
         )
           throw Error("Gateway refused");
@@ -315,7 +451,12 @@ export class HostSubscriptionGateway {
         this.stream.completedTextTrimMatches =
           finalText.trim() === gatewayMarker;
         this.stream.completedTextMatches = finalText === gatewayMarker;
-        if (finalText !== gatewayMarker) throw Error("Gateway refused");
+        if (
+          messages.length > 1 ||
+          (messages.length === 1 &&
+            (!finalMessage(messages[0]) || finalText !== gatewayMarker))
+        )
+          throw Error("Gateway refused");
         completed = true;
       }
     }
@@ -416,6 +557,13 @@ export function syntheticGatewayResponse(): Buffer {
       content_index: 0,
       text: gatewayMarker,
     },
+    {
+      type: "response.content_part.done",
+      item_id: item.id,
+      output_index: 0,
+      content_index: 0,
+      part: item.content[0],
+    },
     { type: "response.output_item.done", output_index: 0, item },
     { type: "response.completed", response },
   ];
@@ -490,12 +638,7 @@ export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
           .map((line) => {
             if (!line.startsWith("data: ")) return line;
             const event = JSON.parse(line.slice(6));
-            if (event.type === "response.completed")
-              event.response.output.unshift({
-                type: "reasoning",
-                id: "synthetic_reasoning",
-                summary: [],
-              });
+            if (event.type === "response.completed") event.response.output = [];
             return "data: " + JSON.stringify(event);
           })
           .join("\n"),
@@ -548,6 +691,127 @@ export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
       JSON.stringify(contextual),
     );
     if (!returned.equals(syntheticGatewayResponse())) throw Error();
+    // Controlled protocol mutations run through the same public qualification canary.
+    const events = syntheticGatewayResponse()
+      .toString()
+      .split("\n")
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => JSON.parse(line.slice(6)));
+    const variants: { events: any[]; accepted: boolean }[] = [
+      { events, accepted: true },
+      {
+        events: events.map((e) =>
+          e.type === "response.completed"
+            ? {
+                ...e,
+                response: {
+                  ...e.response,
+                  output: [{ type: "reasoning", summary: [] }],
+                },
+              }
+            : e,
+        ),
+        accepted: true,
+      },
+    ];
+    for (const type of [
+      "response.created",
+      "response.output_item.added",
+      "response.content_part.added",
+      "response.output_text.delta",
+      "response.output_text.done",
+      "response.content_part.done",
+      "response.output_item.done",
+      "response.completed",
+    ])
+      variants.push({
+        events: events.filter((e) => e.type !== type),
+        accepted: false,
+      });
+    for (const field of ["item_id", "output_index", "content_index"])
+      variants.push({
+        events: events.map((e) =>
+          e.type === "response.output_text.done"
+            ? { ...e, [field]: field === "item_id" ? "wrong-item" : 1 }
+            : e,
+        ),
+        accepted: false,
+      });
+    for (const type of [
+      "response.output_text.done",
+      "response.content_part.done",
+      "response.output_item.done",
+      "response.completed",
+    ]) {
+      const changed = structuredClone(events);
+      const e = changed.find((e) => e.type === type);
+      if (type === "response.output_text.done") e.text = "wrong";
+      if (type === "response.content_part.done") e.part.text = "wrong";
+      if (type === "response.output_item.done")
+        e.item.content[0].text = "wrong";
+      if (type === "response.completed")
+        e.response.output[0].content[0].text = "wrong";
+      variants.push({ events: changed, accepted: false });
+      variants.push({
+        events: events.flatMap((e) => (e.type === type ? [e, e] : [e])),
+        accepted: false,
+      });
+    }
+    variants.push({
+      events: [
+        ...events,
+        events.find((e) => e.type === "response.output_text.delta"),
+      ],
+      accepted: false,
+    });
+    variants.push({
+      events: events.map((e) =>
+        e.type === "response.output_item.added"
+          ? { ...e, item: { ...e.item, type: "function_call" } }
+          : e,
+      ),
+      accepted: false,
+    });
+    variants.push({
+      events: events.map((e) =>
+        e.type === "response.completed"
+          ? { ...e, response: { ...e.response, status: "incomplete" } }
+          : e,
+      ),
+      accepted: false,
+    });
+    variants.push({
+      events: events.map((e) =>
+        e.type === "response.completed"
+          ? { ...e, response: { ...e.response, error: { code: "synthetic" } } }
+          : e,
+      ),
+      accepted: false,
+    });
+    for (const variant of variants) {
+      const probe = new HostSubscriptionGateway(
+        syntheticGatewayApproval(delivery, account),
+        () => account,
+        async () =>
+          Buffer.from(
+            variant.events
+              .map((e) => "data: " + JSON.stringify(e) + "\n\n")
+              .join(""),
+          ),
+      );
+      let accepted = false;
+      try {
+        accepted = (
+          await probe.respond(delivery, probe.capability, gatewayRequest)
+        ).equals(syntheticGatewayResponse());
+      } catch {
+        /* Fixed refusal is the expected negative verdict. */
+      } finally {
+        probe.revoke();
+      }
+      if (accepted !== variant.accepted) throw Error();
+    }
+
     if (
       Number(calls) !== 1 ||
       Number(reads) !== 1 ||

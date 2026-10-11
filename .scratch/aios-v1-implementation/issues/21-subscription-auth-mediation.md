@@ -270,3 +270,31 @@ observed-shape command reproduces that refusal. A proposed strict linked-event
 repair and remaining uncertainties are recorded in
 `debug/completed-message-repair-plan.md`; no production acceptance change was made.
 The expired prior run's receipt was archived as `ticket21-expired-diagnostic-refusal.json`.
+
+## Owner-selected linked-event repair implemented
+
+The owner chose strict linked-event validation. Public qualification canary
+regression first failed (hostGateway not-run instead of passed), then passed
+with the repair. A single assistant message must be established by valid linked
+item/part events; deltas, text-done, content-done and item-done must agree exactly
+with the fixed result. Successful completion must refer to the created response;
+any terminal message echo must also match. Missing, duplicate, wrong-link,
+conflicting, tool, incomplete and post-completion mutations refuse. Reasoning
+metadata is discarded. Named protocol states make transition guards explicit.
+The canonical VM response now includes content_part.done.
+
+Offline command `node .scratch/aios-v1-implementation/debug/completed-message-loop.mjs linked-sparse`
+passes with the recorded 14-event/six-delta shape and synthetic fully linked
+finalization payloads. This is a structural reconstruction, not original bytes:
+the live receipt did not retain final item/part content, so the repair still
+requires separate actual qualification. The matching full-envelope control passes.
+
+All 123 tests and formatting passed; the final state-name cleanup passed build
+and all nine public admission tests. Standards review: zero hard violations and
+zero unresolved judgments. Spec review: zero corrective findings. Fresh native
+synthetic qualification passed against the final gateway source and v3 policy.
+Prepared plan `55f1cce4-6ea9-484d-8433-51e5cf6ed98f` is UNAPPROVED for live
+inference. No additional provider attempt, refresh or fallback occurred after
+the consumed approved run. Credentials were last observed to expire at 2:32 p.m.
+Central today; a future grant must fit their remaining validity and plan expiry.
+Positive acceptance stays open and production delivery remains disabled.
