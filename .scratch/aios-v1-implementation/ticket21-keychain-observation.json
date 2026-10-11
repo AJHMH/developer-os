@@ -7,7 +7,7 @@
     "outcome": "rejected; synthetic entries removed; live authorization broker stopped before exchange"
   },
   "securityFrameworkAdapter": {
-    "syntheticPayloadBytes": 16384,
+    "syntheticPayloadBytes": 65536,
     "largeValueExactReadback": true,
     "reopenedReplacementExactReadback": true,
     "syntheticCleanupExit": 0

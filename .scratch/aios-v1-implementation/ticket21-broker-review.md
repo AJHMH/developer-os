@@ -34,3 +34,23 @@ No live sign-in, owner credentials, VM dispatch or subscription inference ran.
 
 Standards: 1 optional finding resolved, 0 hard violations. Spec: 1 documentation
 finding resolved, 3 positive-qualification requirements remain incomplete.
+
+
+## Native storage correction and follow-up review
+
+The first live setup attempt was stopped before exchange after a disposable
+Keychain canary exposed `security -i` truncation and nonzero exit behavior. Commit
+`f4f238f` replaces that transport with a stable native Security-framework helper.
+The helper is deployed outside the candidate; credentials travel through pipes
+and remain in Keychain. Source and binary digests pin its deployment.
+
+The follow-up Spec review found insufficient ownership checks for existing
+storage. Commit `bc03427` requires the effective owner, private mode bits and no
+macOS extended ACLs for the directory and files, initially and before use.
+Public setup tests refuse shared and ACL-bearing storage. Both reviewers confirm
+that the security finding is resolved; Standards has no unresolved judgments.
+
+Typecheck and formatting pass; all 114 tests pass on this Mac. The corrected
+native helper stored a 64 KiB synthetic payload, read it back after reopening,
+replaced it exactly and removed the synthetic entry. This is native persistence
+evidence, not owner credential isolation or VM mediation qualification.
