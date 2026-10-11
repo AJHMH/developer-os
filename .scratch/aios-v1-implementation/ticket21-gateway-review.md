@@ -153,3 +153,15 @@ not permission to renew or retry during inference. Approval must be used before
 both plan and credential expiry, with time for qualification and the full grant.
 The original completed-message discrepancy remains unresolved; strict completion
 consistency and disabled production delivery remain enforced.
+
+## Approved renewed run narrows completed-message discrepancy
+
+Run `237f6664-3fc6-4152-aac0-dba167f1f4d2` executed once after owner approval,
+with unknown usage and no retries, refresh or paid fallback. It refused after one
+provider attempt. Safe diagnostics show 34-character deltas and text-done both
+match, followed by successful completion with zero message items/text parts.
+Usage may have been consumed; live integration remains unverified. The offline
+observed-shape command reproduces that refusal. A proposed strict linked-event
+repair and remaining uncertainties are recorded in
+`debug/completed-message-repair-plan.md`; no production acceptance change was made.
+The expired prior run's receipt was archived as `ticket21-expired-diagnostic-refusal.json`.

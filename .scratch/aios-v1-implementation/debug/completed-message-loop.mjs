@@ -5,12 +5,14 @@ const variant = process.argv[2] ?? 'matching';
 const completedOutputs = {
   matching: [{type:'message',role:'assistant',content:[{type:'output_text',text:gatewayMarker}]}],
   omitted: [],
+  observed: [],
   whitespace: [{type:'message',role:'assistant',content:[{type:'output_text',text:gatewayMarker+'\n'}]}],
   different: [{type:'message',role:'assistant',content:[{type:'output_text',text:'synthetic different result'}]}],
 };
 assert.ok(Object.hasOwn(completedOutputs, variant), 'Unknown synthetic variant');
 const events = [
   {type:'response.output_text.delta',delta:gatewayMarker},
+  ...(variant === 'observed' ? [{type:'response.output_text.done',text:gatewayMarker}] : []),
   {type:'response.completed',response:{status:'completed',output:completedOutputs[variant]}},
 ];
 const body = Buffer.from(events.map(e=>`data: ${JSON.stringify(e)}\n\n`).join(''));
