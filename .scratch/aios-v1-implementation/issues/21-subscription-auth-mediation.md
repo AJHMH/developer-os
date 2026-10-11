@@ -153,3 +153,16 @@ refusal receipts retain only a fixed stage, attempt count and HTTP status; an
 attempted but refused inference is labeled unverified rather than not-run.
 Final corrected synthetic native qualification and all 123 tests pass. Fresh
 plan `971f4e43-fa29-466d-9045-e9bfd2b92fd0` awaits separate owner approval.
+
+Corrected approved run `971f4e43-fa29-466d-9045-e9bfd2b92fd0` refused at the
+provider transport stage with one attempt and HTTP 200; completed inference and
+usage remain unverified. [Retained provider refusal](../ticket21-gateway-provider-refusal.json).
+The provider wrapper required SSE MIME metadata before reading the body. Controlled
+HTTP-adapter red/green testing reproduced rejection of a valid bounded SSE body
+labeled application/json. Acceptance now relies on the actual bounded body and
+strict completion/exact-text checks, not MIME labels. HTTP 200 with malformed
+content still refuses. The actual refused response body was not retained, so its
+format/cause remains unverified. Fixed origin, redirect denial, no tools/context,
+size/deadline, one-shot use and canonical VM output remain enforced. Fresh final
+synthetic/native qualification passed. Plan `717a2831-d4f6-445f-9368-2e719cacf753`
+requires its own owner approval; no automatic retry was performed.

@@ -59,7 +59,7 @@ export class HostSubscriptionGateway {
   constructor(
     approval: GatewayApproval,
     private readonly account: () => GatewayAccount,
-    private readonly provider: SubscriptionProvider = subscriptionResponses,
+    private readonly provider: SubscriptionProvider = subscriptionResponses(),
   ) {
     this.approval = Object.freeze({ ...approval });
     if (
@@ -245,42 +245,41 @@ class SubscriptionProviderRefusal extends Error {
 }
 
 /** Fixed subscription origin. No redirects, refresh, retries or paid fallback. */
-async function subscriptionResponses(
-  token: string,
-  body: string,
-  signal: AbortSignal,
-): Promise<Uint8Array> {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    redirect: "error",
-    signal,
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-    },
-    body,
-  });
-  if (
-    !response.ok ||
-    !response.headers.get("content-type")?.startsWith("text/event-stream") ||
-    !response.body
-  )
-    throw new SubscriptionProviderRefusal(response.status);
-  const reader = response.body.getReader();
-  let bytes = 0;
-  const chunks: Buffer[] = [];
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (bytes > 65536) throw Error("Subscription response unavailable");
-      chunks.push(Buffer.from(value));
+export function subscriptionResponses(
+  fetchResponse: typeof fetch = fetch,
+): SubscriptionProvider {
+  return async (token, body, signal) => {
+    const response = await fetchResponse(
+      "https://api.openai.com/v1/responses",
+      {
+        method: "POST",
+        redirect: "error",
+        signal,
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body,
+      },
+    );
+    if (!response.ok || !response.body)
+      throw new SubscriptionProviderRefusal(response.status);
+    const reader = response.body.getReader();
+    let bytes = 0;
+    const chunks: Buffer[] = [];
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > 65536) throw Error("Subscription response unavailable");
+        chunks.push(Buffer.from(value));
+      }
+    } finally {
+      await reader.cancel();
     }
-  } finally {
-    await reader.cancel();
-  }
-  return Buffer.concat(chunks);
+    return Buffer.concat(chunks);
+  };
 }
 
 export function syntheticGatewayResponse(): Buffer {
@@ -384,15 +383,19 @@ export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
       reads++;
       return account;
     },
-    async (token, body, signal) => {
+    subscriptionResponses(async (url, options) => {
       if (
-        token !== account.accessToken ||
-        body !== gatewayRequest ||
-        signal.aborted
+        url !== "https://api.openai.com/v1/responses" ||
+        options?.method !== "POST" ||
+        options.redirect !== "error" ||
+        (options.headers as Record<string, string>).authorization !==
+          `Bearer ${account.accessToken}` ||
+        options.body !== gatewayRequest ||
+        options.signal?.aborted
       )
         throw Error();
       calls++;
-      return Buffer.from(
+      return new Response(
         syntheticGatewayResponse()
           .toString()
           .split("\n")
@@ -408,8 +411,9 @@ export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
             return "data: " + JSON.stringify(event);
           })
           .join("\n"),
+        { status: 200, headers: { "content-type": "application/json" } },
       );
-    },
+    }),
   );
   const deny = async (id: string, cap: string, body: string) => {
     try {
@@ -490,6 +494,31 @@ export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
       }
       if (!refused || leaked) throw Error();
     }
+    const malformed = new HostSubscriptionGateway(
+      syntheticGatewayApproval(delivery, account),
+      () => account,
+      subscriptionResponses(
+        async () =>
+          new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    );
+    let malformedRefused = false;
+    try {
+      await malformed.respond(delivery, malformed.capability, gatewayRequest);
+    } catch {
+      malformedRefused = true;
+    } finally {
+      malformed.revoke();
+    }
+    if (
+      !malformedRefused ||
+      malformed.observation.providerAttempts !== 1 ||
+      malformed.observation.phase !== "response-validation"
+    )
+      throw Error();
     let started!: () => void;
     const pending = new Promise<void>((resolve) => {
       started = resolve;

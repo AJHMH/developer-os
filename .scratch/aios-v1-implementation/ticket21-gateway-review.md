@@ -68,3 +68,16 @@ judgments; Spec has no unresolved security/input/credential findings after that
 receipt fix. Final synthetic native qualification passed; all 123 tests and format
 checks pass. Prepared corrected run: `971f4e43-fa29-466d-9045-e9bfd2b92fd0`.
 No unapproved live inference or retry was performed.
+
+## Fixed-origin transport correction
+
+The third approved real run retained HTTP 200, one provider attempt and refusal
+before body parsing. Exact provider content and completed inference remain
+unverified. Controlled public-status testing reproduced rejection of valid SSE
+with a non-SSE MIME label. The focused injected HTTP adapter now exercises the
+same fixed-origin wrapper as production; bounded strict body/completion validation
+is the authority check. Malformed HTTP 200 still refuses. This does not prove the
+actual refused response shape. Parallel review reports zero Standards violations
+or judgments and zero corrective Spec findings. Final native synthetic proof,
+all 123 tests and formatting pass. Fresh plan:
+`717a2831-d4f6-445f-9368-2e719cacf753`, awaiting exact owner approval.
