@@ -202,3 +202,13 @@ fallback was performed. Usage may have been consumed. The exact-match consistenc
 check remains enforced. Live integration remains unverified, positive acceptance
 open and production delivery disabled. Next work is a controlled reproduction of
 completed-message inconsistency before any separately approved live run.
+
+## Diagnosis loop and authorized evidence preparation
+
+The diagnosis established that three different synthetic discrepancies generate
+the same retained completed-text failure flags. It has not reproduced the actual
+live discrepancy. See [diagnosis and offline command](../debug/completed-message-diagnosis.md).
+The owner authorized preparing bounded event-structure, length and comparison
+diagnostics only, with no live inference. Exact completion consistency remains
+unchanged. All 123 existing tests and formatting pass. Fresh native proof and an
+exact separately approved plan remain necessary before another live request.

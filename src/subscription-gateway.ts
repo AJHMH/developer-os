@@ -61,13 +61,24 @@ export class HostSubscriptionGateway {
     completedTextMatches: false,
     format: "unobserved",
     errorCode: "none",
+    // Temporary ticket 21 diagnostics: fixed labels/counts only, never content.
+    eventTypes: [] as string[],
+    eventTypesTruncated: false,
+    deltaTextLength: 0,
+    textDoneSeen: false,
+    textDoneLength: 0,
+    textDoneMatches: false,
+    completedMessageCount: 0,
+    completedTextPartCount: 0,
+    completedTextLength: 0,
+    completedTextTrimMatches: false,
   };
   get observation() {
     return {
       phase: this.phase,
       providerAttempts: this.providerAttempts,
       providerStatus: this.providerStatus,
-      stream: { ...this.stream },
+      stream: { ...this.stream, eventTypes: [...this.stream.eventTypes] },
     };
   }
   constructor(
@@ -225,6 +236,31 @@ export class HostSubscriptionGateway {
       if (!line || line === "[DONE]") continue;
       const event = JSON.parse(line);
       this.stream.records++;
+      const knownType = [
+        "response.created",
+        "response.in_progress",
+        "response.output_item.added",
+        "response.content_part.added",
+        "response.output_text.delta",
+        "response.output_text.done",
+        "response.content_part.done",
+        "response.output_item.done",
+        "response.completed",
+        "response.failed",
+        "response.incomplete",
+        "error",
+      ].includes(event.type)
+        ? event.type
+        : "other";
+      if (this.stream.eventTypes.length < 32)
+        this.stream.eventTypes.push(knownType);
+      else this.stream.eventTypesTruncated = true;
+      if (event.type === "response.output_text.done") {
+        this.stream.textDoneSeen = true;
+        this.stream.textDoneLength =
+          typeof event.text === "string" ? event.text.length : 0;
+        this.stream.textDoneMatches = event.text === gatewayMarker;
+      }
       if (
         ["error", "response.failed", "response.incomplete"].includes(event.type)
       ) {
@@ -245,6 +281,7 @@ export class HostSubscriptionGateway {
       if (event.type === "response.output_text.delta") {
         output += event.delta;
         this.stream.deltas++;
+        this.stream.deltaTextLength = output.length;
         this.stream.deltaMatches = output === gatewayMarker;
       }
       if (event.type === "response.completed") {
@@ -267,11 +304,16 @@ export class HostSubscriptionGateway {
           !this.stream.completedOutputAllowed
         )
           throw Error("Gateway refused");
-        const finalText = event.response.output
-          .filter((i: any) => i.type === "message")
-          .flatMap((i: any) => i.content)
-          .map((p: any) => p.text)
-          .join("");
+        const messages = event.response.output.filter(
+          (i: any) => i.type === "message",
+        );
+        const textParts = messages.flatMap((i: any) => i.content);
+        const finalText = textParts.map((p: any) => p.text).join("");
+        this.stream.completedMessageCount = messages.length;
+        this.stream.completedTextPartCount = textParts.length;
+        this.stream.completedTextLength = finalText.length;
+        this.stream.completedTextTrimMatches =
+          finalText.trim() === gatewayMarker;
         this.stream.completedTextMatches = finalText === gatewayMarker;
         if (finalText !== gatewayMarker) throw Error("Gateway refused");
         completed = true;
