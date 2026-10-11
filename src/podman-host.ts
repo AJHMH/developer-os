@@ -253,6 +253,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
         try {
           const observed = await this.options.native.probeIsolation(
             delivery.repository,
+            delivery.id,
           );
           if (
             [
@@ -348,6 +349,15 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 "codex-account-read",
                 "codex-process-exited",
                 "codex-process-audit",
+                "codex-relay-shutdown",
+                "codex-post-binding",
+                "codex-process-privileges",
+                "codex-process-environment",
+                "codex-relay-start",
+                "codex-relay-denials",
+                "codex-relay-turn",
+                "codex-relay-revocation",
+                "codex-relay-expiry",
               ].includes(observed.codex.blockedStage)
             ) {
               report.subscriptionMediation.workerBlocker =
@@ -368,6 +378,31 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 observed.codex.binarySha256;
               report.subscriptionMediation.nextAction =
                 "Qualify delivery-scoped model-only endpoint mediation with this isolated Codex worker before preparing another owner-approved inference; keep reusable owner credentials on the host and production delivery disabled.";
+              if (
+                observed.codex.endpointEnforcement === "passed" &&
+                observed.codex.deliveryCapabilities === "passed" &&
+                observed.codex.relayScope === "synthetic-codex-relay" &&
+                observed.codex.relayDeliveryId === delivery.id &&
+                observed.codex.relayShutdownRemaining === 0 &&
+                JSON.stringify(observed.codex.capabilityChecks) ===
+                  JSON.stringify([
+                    "cross-delivery",
+                    "namespace",
+                    "revocation",
+                    "quota",
+                    "expiry",
+                  ])
+              ) {
+                report.subscriptionMediation.endpointEnforcement = "passed";
+                report.subscriptionMediation.deliveryCapabilities = "passed";
+                report.subscriptionMediation.deliveryCapabilityChecks =
+                  observed.codex.capabilityChecks;
+                report.subscriptionMediation.endpointScope =
+                  "synthetic-codex-relay";
+                report.subscriptionMediation.relayDeliveryId = delivery.id;
+                report.subscriptionMediation.nextAction =
+                  "Integrate and qualify the host-only subscription gateway with this synthetic Codex relay boundary before preparing a fresh owner-approved inference; production delivery remains disabled.";
+              }
             }
           }
         } catch {

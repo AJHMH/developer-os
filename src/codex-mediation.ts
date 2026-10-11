@@ -27,7 +27,11 @@ export interface SubscriptionMediationReport {
   executableSha256?: string;
   credentialIsolation: "passed" | "not-run";
   credentialIsolationScope: "synthetic-restricted-alpine" | "not-run";
-  endpointEnforcement: "not-run";
+  endpointEnforcement: "passed" | "not-run";
+  deliveryCapabilities: "passed" | "not-run";
+  deliveryCapabilityChecks?: string[];
+  relayDeliveryId?: string;
+  endpointScope?: "synthetic-codex-relay";
   subscriptionInference: "not-run";
   nextAction: string;
 }
@@ -45,6 +49,7 @@ export function unqualifiedMediation(): SubscriptionMediationReport {
     credentialIsolation: "not-run",
     credentialIsolationScope: "not-run",
     endpointEnforcement: "not-run",
+    deliveryCapabilities: "not-run",
     subscriptionInference: "not-run",
     nextAction:
       "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
