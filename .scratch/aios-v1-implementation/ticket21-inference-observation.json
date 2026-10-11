@@ -1,0 +1,15 @@
+{
+  "runId": "2c477e41-7dc6-47a9-9e0f-fa6429d5a362",
+  "observedAt": "2026-10-11T13:04:20.517Z",
+  "ownerApproved": true,
+  "unknownUsageApproved": true,
+  "status": "completed",
+  "subscriptionInference": "passed",
+  "scope": "fixed restricted Alpine stdin fixture only",
+  "relayRevoked": true,
+  "deliveryEnabled": false,
+  "requestCount": 1,
+  "retries": 0,
+  "expectedResult": "AIOS model-only inference complete",
+  "actualCodexWorkerQualified": false
+}

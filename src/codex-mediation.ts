@@ -18,6 +18,10 @@ export interface SubscriptionMediationReport {
   relayRevocation: "passed" | "not-run";
   relayVersion?: string;
   modelFrameTransport: "passed" | "not-run";
+  workerProtocol: "passed" | "not-run";
+  codexCredentialIsolation: "passed" | "not-run";
+  workerExecutableSha256?: string;
+  workerBlocker?: string;
   scope: "host-capability-only";
   codexVersion?: "0.161.0";
   executableSha256?: string;
@@ -35,6 +39,8 @@ export function unqualifiedMediation(): SubscriptionMediationReport {
     syntheticRelay: "not-run",
     relayRevocation: "not-run",
     modelFrameTransport: "not-run",
+    workerProtocol: "not-run",
+    codexCredentialIsolation: "not-run",
     scope: "host-capability-only",
     credentialIsolation: "not-run",
     credentialIsolationScope: "not-run",

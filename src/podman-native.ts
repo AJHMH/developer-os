@@ -119,7 +119,7 @@ def effective(name):
  for p in ['/run/podman/podman.sock',engineSocket,'/var/run/docker.sock','/mnt/c','/Users']:
   if subprocess.run(['podman','exec',name,'test','-e',p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
  return dict(hypervisor=True,dedicated=True,mounts=[],managementExposed=False,rootful=False,network='none',readOnly=True,user='65534:65534',capabilities=[],noNewPrivileges=True)
-def create(name,script,labels):
+def create(name,script,labels,memory='64m'):
  profile=json.loads(pathlib.Path('/usr/share/containers/seccomp.json').read_text())
  if profile.get('defaultAction')!='SCMP_ACT_ERRNO': fail()
  for rule in profile['syscalls']:
@@ -127,7 +127,7 @@ def create(name,script,labels):
  profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
  seccomp=root+'/worker-seccomp.json'
  save(seccomp,profile)
- args=['create','--name',name,'--hostname=aios-offline','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+seccomp,'--user=65534:65534','--pid=private','--ipc=private','--pids-limit=32','--memory=64m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/','--log-driver=k8s-file','--restart=no']
+ args=['create','--name',name,'--hostname=aios-offline','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+seccomp,'--user=65534:65534','--pid=private','--ipc=private','--pids-limit=32','--memory='+memory,'--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/','--log-driver=k8s-file','--restart=no']
  for k,v in labels.items(): args += ['--label',k+'='+v]
  pod(*args,R['template'],'/bin/sh','-c',script)
 def stop(name,record):
@@ -295,6 +295,96 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
    shutil.rmtree(directory)
+ elif R['action']=='codex-protocol':
+  stage='codex-binding'
+  import selectors
+  binding={**R['hostBinding'],**snapshot()}
+  if binding!=R['expected']: fail()
+  stage='codex-binary'
+  binary=root+'/codex-0.161.0'
+  st=os.lstat(binary)
+  if not __import__('stat').S_ISREG(st.st_mode) or st.st_nlink!=1 or st.st_uid!=os.getuid() or st.st_mode & 0o077: fail()
+  data=pathlib.Path(binary).read_bytes()
+  binaryHash='0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7'
+  if h(data)!=binaryHash: fail()
+  private=root+'/credential-'+str(uuid.uuid4());secret=uuid.uuid4().hex
+  pathlib.Path(private).write_text(secret);os.chmod(private,0o600)
+  name='aios-codex-protocol-'+str(uuid.uuid4());record=dict(name=name,cgroup='',pids={},stopped=False)
+  probePath=root+'/probe-'+str(uuid.uuid4())+'.json'; child=None
+  try:
+   stage='codex-create'
+   create(name,'sleep 600',{'aios.authority':R['authority']},'512m')
+   save(probePath,record)
+   archive=io.BytesIO()
+   with tarfile.open(fileobj=archive,mode='w') as tar:
+    entry=tarfile.TarInfo('codex');entry.size=len(data);entry.mode=0o555;entry.uid=0;entry.gid=0
+    tar.addfile(entry,io.BytesIO(data))
+   stage='codex-copy'
+   result=subprocess.run(['podman','cp','-',name+':/'],input=archive.getvalue(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15)
+   if result.returncode: fail()
+   pod('start',name);cg=cgroup(inspect(name)['State']['Pid']);record.update(cgroup=cg,pids=census(cg));save(probePath,record)
+   e=effective(name)
+   stage='codex-version'
+   if pod('exec',name,'/codex','--version').strip()!=b'codex-cli 0.161.0': fail()
+   if pathlib.Path(private).read_text()!=secret: fail()
+   for path in [private,*R['challenge']['files']]:
+    if subprocess.run(['podman','exec',name,'cat',path],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
+    if subprocess.run(['podman','exec',name,'cat','/proc/1/root'+path],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
+   stage='codex-credential-denials'
+   pod('exec',name,'mkdir','-m','700','/tmp/empty-codex')
+   cap=uuid.uuid4().hex+uuid.uuid4().hex
+   args=['podman','exec','-i','--env','DELIVERY_CAPABILITY='+cap,'--env','CODEX_HOME=/tmp/empty-codex',name,'/codex','app-server','--listen','stdio://','-c','model_provider="qualification"','-c','model_providers.qualification.name="Synthetic only"','-c','model_providers.qualification.base_url="http://127.0.0.1:1/v1"','-c','model_providers.qualification.env_key="DELIVERY_CAPABILITY"','-c','model_providers.qualification.wire_api="responses"','-c','model_providers.qualification.requires_openai_auth=false','-c','model_providers.qualification.supports_websockets=false']
+   stage='codex-initialize'
+   child=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+   def send(value): child.stdin.write((json.dumps(value)+'\n').encode());child.stdin.flush()
+   send(dict(method='initialize',id=1,params=dict(clientInfo=dict(name='Developer_OS',version='0.1.0'),capabilities={})))
+   selector=selectors.DefaultSelector()
+   selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr')
+   deadline=time.monotonic()+5;total=0;initialized=False;verified=False;pending=b''
+   while time.monotonic()<deadline and not verified:
+    for event,_ in selector.select(0.1):
+     chunk=os.read(event.fileobj.fileno(),4096);total+=len(chunk)
+     if total>65536: fail()
+     if not chunk:
+      selector.unregister(event.fileobj)
+      if event.data=='stdout': stage='codex-process-exited';fail()
+      continue
+     if event.data=='stderr': continue
+     pending+=chunk
+     while b'\n' in pending:
+      line,pending=pending.split(b'\n',1)
+      message=json.loads(line)
+      if message.get('error'): fail()
+      if message.get('id')==1:
+       if not message.get('result'): fail()
+       initialized=True;stage='codex-account-read';send(dict(method='initialized'));send(dict(method='account/read',id=2,params=dict(refreshToken=False)))
+      elif message.get('id')==2:
+       value=message.get('result',{})
+       if not initialized or value.get('account') is not None or value.get('requiresOpenaiAuth') is not False: fail()
+       verified=True;break
+   if not verified: fail()
+   stage='codex-process-audit'
+   # Observe actual Codex processes, not only the initial sleep process.
+   pids=census(cg);codexPids=[]
+   for pid in pids:
+    cmd=pathlib.Path('/proc/'+pid+'/cmdline').read_bytes()
+    if b'/codex' not in cmd: continue
+    values={x.split(':',1)[0]:x.split(':',1)[1].strip() for x in pod('unshare','cat','/proc/'+pid+'/status').decode().splitlines() if ':' in x}
+    if values.get('NoNewPrivs')!='1' or values.get('Seccomp')!='2' or int(values.get('CapEff','f'),16)!=0 or values.get('Uid','').split()!=['65534']*4: fail()
+    env=dict(x.split(b'=',1) for x in pod('unshare','cat','/proc/'+pid+'/environ').split(b'\0') if b'=' in x)
+    if env!={b'PATH':b'/usr/bin:/bin',b'HOME':b'/',b'HOSTNAME':b'aios-offline',b'DELIVERY_CAPABILITY':cap.encode(),b'CODEX_HOME':b'/tmp/empty-codex'}: fail()
+    codexPids.append(pid)
+   if not codexPids or pathlib.Path(private).read_text()!=secret: fail()
+   record['pids'].update(pids);save(probePath,record)
+   stop(name,record);record['stopped']=True;save(probePath,record)
+   child.wait(timeout=5)
+   if {**R['hostBinding'],**snapshot()}!=binding: fail()
+   print(json.dumps(dict(binding=binding,protocol='passed',credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0))))
+  finally:
+   if os.path.exists(probePath) and not record.get('stopped'):
+    stop(name,record);record['stopped']=True;save(probePath,record)
+   if child is not None and child.poll() is None: child.kill();child.wait(timeout=5)
+   if os.path.exists(private): os.unlink(private)
  elif R['action']=='model-frame':
   binding={**R['hostBinding'],**snapshot()}
   if binding!=R['expected']: fail()
@@ -467,7 +557,7 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     const input =
       "import json,base64\n" +
       `R=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n` +
-      (action === "isolate"
+      (["isolate", "codex-protocol"].includes(action)
         ? "stage='initialization'\ntry:\n" +
           guest
             .split("\n")
@@ -551,6 +641,20 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       const observed = this.invoke("isolate", { expected, challenge });
       if (observed.challengeId !== challenge.id)
         throw Error("Unbound isolation evidence");
+      if (observed.passed === true && expected.platform === "darwin") {
+        const codex = this.invoke("codex-protocol", { expected, challenge });
+        if (codex.blockedStage) {
+          observed.codex = { blockedStage: codex.blockedStage };
+        } else if (
+          codex.protocol !== "passed" ||
+          codex.credentialIsolation !== "passed" ||
+          codex.shutdown?.remainingProcesses !== 0 ||
+          codex.observedCodexProcesses < 1 ||
+          JSON.stringify(codex.binding) !== JSON.stringify(expected)
+        )
+          throw Error("Unverified Codex worker");
+        if (!codex.blockedStage) observed.codex = codex;
+      }
       return { ...observed, probeVersion: sha256(guest + hostCanaryVersion) };
     });
     if (evidence.passed === true) {

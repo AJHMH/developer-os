@@ -70,3 +70,17 @@ response must return the exact fixture result through the isolated worker.
 This fixture does not qualify the actual Codex worker, its endpoint policy or
 its delivery-scoped capability. No live inference has run; all acceptance
 boxes remain open and ticket 22 stays blocked. Production gates remain false.
+
+## 11 October approved inference result
+
+The owner approved run `2c477e41-7dc6-47a9-9e0f-fa6429d5a362`, including unknown remaining subscription usage. It completed exactly one fixed subscription Responses request, without retries, returned `AIOS model-only inference complete` through the restricted Alpine fixture, and revoked its relay grant. The external one-shot marker prevents replay. See [non-secret result](../ticket21-inference-observation.json). This supersedes the earlier “no live inference” milestone.
+
+Actual Linux ARM64 Codex qualification is now being tested with the integrity-pinned official 0.161.0 binary and synthetic capability only. No additional inference is authorized by the consumed fixture approval. All positive qualification acceptance boxes remain open; ticket 22 and production dispatch stay blocked.
+
+## Actual Codex credential-free VM observation
+
+The official npm Linux ARM64 Codex 0.161.0 executable, SHA-256 `0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7`, now passes initialization and `account/read` with no account and no OpenAI auth requirement inside the restricted share-free VM. The observer audits actual Codex cgroup processes: UID 65534 in the rootless user namespace, no capabilities, seccomp, no-new-privileges, and an exact environment containing only base variables, an empty disposable Codex home and a synthetic capability. Synthetic credential paths remain inaccessible; all observed processes stop. [Observation](../ticket21-codex-worker-observation.json).
+
+Initial failures remained blocked. Codex requires its empty home to exist before startup. Reading mapped process UIDs/environment requires the management rootless user namespace; the worker gained no privilege. Bounded protocol parsing drains both streams without exposing their contents.
+
+This is actual Codex protocol and synthetic credential-exclusion evidence, not a Codex inference integration. A trusted delivery-scoped relay must still demonstrate independently enforced endpoints and capabilities for actual worker requests. That is the next implementation step; the consumed Alpine inference approval cannot authorize another run.

@@ -335,6 +335,40 @@ export class PodmanHostAdapter implements WorkerAdapter {
               "synthetic-restricted-alpine";
             if (observed.modelFrameTransport === "passed")
               report.subscriptionMediation.modelFrameTransport = "passed";
+            if (
+              typeof observed.codex?.blockedStage === "string" &&
+              [
+                "codex-binding",
+                "codex-binary",
+                "codex-create",
+                "codex-copy",
+                "codex-version",
+                "codex-credential-denials",
+                "codex-initialize",
+                "codex-account-read",
+                "codex-process-exited",
+                "codex-process-audit",
+              ].includes(observed.codex.blockedStage)
+            ) {
+              report.subscriptionMediation.workerBlocker =
+                observed.codex.blockedStage;
+              report.subscriptionMediation.nextAction =
+                "Resolve the credential-free Codex worker probe failure, then qualify delivery-scoped endpoint mediation before preparing another live inference; keep owner credentials on the host.";
+            }
+            if (
+              observed.codex?.protocol === "passed" &&
+              observed.codex?.credentialIsolation === "passed" &&
+              observed.codex?.binarySha256 ===
+                "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7" &&
+              observed.codex?.shutdown?.remainingProcesses === 0
+            ) {
+              report.subscriptionMediation.workerProtocol = "passed";
+              report.subscriptionMediation.codexCredentialIsolation = "passed";
+              report.subscriptionMediation.workerExecutableSha256 =
+                observed.codex.binarySha256;
+              report.subscriptionMediation.nextAction =
+                "Qualify delivery-scoped model-only endpoint mediation with this isolated Codex worker before preparing another owner-approved inference; keep reusable owner credentials on the host and production delivery disabled.";
+            }
           }
         } catch {
           report.blockers.push(

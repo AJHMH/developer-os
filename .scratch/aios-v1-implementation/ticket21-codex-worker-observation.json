@@ -1,0 +1,145 @@
+{
+  "observedAt": "2026-10-11T13:23:06.937Z",
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-11T13:22:44.526Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "4357f00fcbbc767105dae7df337415f713255df2670f541cc7192fc01a73ffdd"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "4357f00fcbbc767105dae7df337415f713255df2670f541cc7192fc01a73ffdd"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "4357f00fcbbc767105dae7df337415f713255df2670f541cc7192fc01a73ffdd"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "4357f00fcbbc767105dae7df337415f713255df2670f541cc7192fc01a73ffdd"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "4357f00fcbbc767105dae7df337415f713255df2670f541cc7192fc01a73ffdd"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "4357f00fcbbc767105dae7df337415f713255df2670f541cc7192fc01a73ffdd"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "4357f00fcbbc767105dae7df337415f713255df2670f541cc7192fc01a73ffdd"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "passed",
+      "workerProtocol": "passed",
+      "codexCredentialIsolation": "passed",
+      "scope": "host-capability-only",
+      "credentialIsolation": "passed",
+      "credentialIsolationScope": "synthetic-restricted-alpine",
+      "endpointEnforcement": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
+      "workerExecutableSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "27.2.0",
+        "provider": "applehv",
+        "machine": "aios-macos-noshare",
+        "hostId": "20545ee771e29474b2aaa775f1e7637d5ae7b5d4a363f3177bf7fba3db5fc549",
+        "engineVersion": "6.1.3",
+        "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+        "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-fead23ebe6644eb529777a68c1a3db64ac15062ba99a6a5afae51f944a1d963d"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "c0a9fda5163399789184f89f0650874ca6f3fd3091a6ae54b9617ef67c702b40",
+    "bindingSha256": "7ba78187971d1e8ba814f2c16b41b1c09f3e86f81d61ea56eac748b7496f1bb0",
+    "adversarial": {
+      "scope": "synthetic-macos-controls",
+      "challengeId": "c7596991-545a-449c-8a66-45a5bed7d559",
+      "probeVersion": "62b1fc0eea0a8ca74089443bd2345d40f15e49ff0e31f96b79c6f91fea24f2aa",
+      "escapeAttempts": [
+        "passed-escape-unshare",
+        "passed-escape-chroot",
+        "passed-escape-cgroup",
+        "passed-escape-proc"
+      ]
+    }
+  },
+  "scope": "Credential-free pinned Linux ARM64 Codex initialization/account-read in restricted VM; no additional inference"
+}

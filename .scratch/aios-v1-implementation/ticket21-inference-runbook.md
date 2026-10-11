@@ -37,3 +37,7 @@ revoked host grant and the same result returned through a shut-down isolated
 fixture worker. Partial streamed output is failure. Even success remains scoped
 to this Alpine fixture: actual Codex worker qualification and ticket 22 remain
 blocked. Repository data, tools, MCP and publication authority are excluded.
+
+## Approved execution observation, 11 October
+
+Run `2c477e41-7dc6-47a9-9e0f-fa6429d5a362` was explicitly approved with unknown remaining usage and executed once. The completed stream returned the exact fixture result; the grant was revoked and delivery stayed disabled. [Observation](ticket21-inference-observation.json). Its approval is consumed. Actual Codex worker endpoint mediation remains unqualified; a later live test needs a fresh prepared run and owner approval.
