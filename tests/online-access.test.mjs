@@ -1,4 +1,5 @@
 import { initializeWindowsAuthDirectory } from "../dist/windows-auth-store.js";
+import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -106,6 +107,14 @@ function fixture(t, online, target = "macos") {
     { mode: 0o600 },
   );
   writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
+  if (target === "windows")
+    ownWindowsFixturePaths([
+      state,
+      policy,
+      registration,
+      recordPath,
+      join(state, "inference-" + run + ".consumed"),
+    ]);
   const usage = {
     observedAt: new Date().toISOString(),
     accountId: record.accountId,

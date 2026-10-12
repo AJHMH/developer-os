@@ -96,3 +96,21 @@ skip; the subsequently added collision regression and all seven store tests
 passed separately. Typecheck, formatting and whitespace checks passed.
 Independent review and final hosted results are recorded after completion.
 No owner credential, native VM, inference or production qualification was run.
+
+## Owner-authorized synthetic evidence fixture repair and replacement PR
+
+Hosted validation at 5ccee94 passed protected storage and authentication setup,
+Linux, macOS, coverage and CodeQL. Three Windows positive qualification tests
+still refused synthetic evidence because elevated-host fixture objects had the
+default Administrators owner. The owner authorized one further repair cycle.
+Test-only setup now assigns current-user ownership to explicitly selected
+disposable evidence objects, leaving access rules untouched. Missing markers,
+hard links, drift, permissive ACL and denied admission tests remain intact.
+Production ownership checks and all approval gates are unchanged.
+
+Both independent review axes reported zero corrective findings. The final full
+local Windows suite passed 200 of 201 tests, with one macOS-only skip and zero
+failures; typecheck, formatting and whitespace checks passed. The owner requested
+closing PR 11 and publishing the signed updates in a new Factory App PR.
+Hosted checks on that replacement remain required before approval readiness.
+No live credentials, native VM or inference were used; production stays disabled.

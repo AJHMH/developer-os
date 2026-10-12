@@ -1,4 +1,5 @@
 import { initializeWindowsAuthDirectory } from "../dist/windows-auth-store.js";
+import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -120,6 +121,14 @@ for (const target of ["macos", "windows"])
       undefined,
     );
     writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
+    if (target === "windows")
+      ownWindowsFixturePaths([
+        state,
+        policy,
+        registration,
+        recordPath,
+        join(state, "inference-" + run + ".consumed"),
+      ]);
     const result = await c.qualify(d.id);
     assert.equal(
       result.qualification.subscriptionMediation.mechanismDecision.qualified,
@@ -149,6 +158,8 @@ for (const target of ["macos", "windows"])
     writeFileSync(readablePolicy, "synthetic independent pins", {
       mode: 0o600,
     });
+    if (target === "windows")
+      ownWindowsFixturePaths([readablePolicyParent, readablePolicy]);
     writeFileSync(
       recordPath,
       JSON.stringify({ ...record, policyPath: readablePolicy }),
@@ -212,6 +223,7 @@ for (const target of ["macos", "windows"])
       undefined,
     );
     writeFileSync(marker, "one-shot approval consumed\n", { mode: 0o600 });
+    if (target === "windows") ownWindowsFixturePaths([marker]);
     if (process.platform !== "win32") {
       chmodSync(recordPath, 0o644);
       assert.equal(
