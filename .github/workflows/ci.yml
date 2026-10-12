@@ -24,8 +24,6 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci --ignore-scripts
-      - if: runner.os == 'Windows'
-        run: npm run build && node scripts/diagnose-windows-new-file.mjs
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm test

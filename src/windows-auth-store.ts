@@ -5,7 +5,6 @@ import {
   lstatSync,
   readFileSync,
   realpathSync,
-  writeFileSync,
   renameSync,
   unlinkSync,
 } from "node:fs";
@@ -94,6 +93,20 @@ try {
  $bytes=[Convert]::FromBase64String($request.bytes)
  $entropy=[Convert]::FromBase64String($request.entropy)
  if($bytes.Length -gt 262144) { throw 'size' }
+ if($request.action -eq 'create') {
+  if($request.paths.Count -ne 1 -or $request.name -notmatch '^(registration\.json|[a-f0-9]{64}\.(dpapi|replace))$') { throw 'name' }
+  $path=[IO.Path]::Combine($request.paths[0],$request.name)
+  $acl=New-Object Security.AccessControl.FileSecurity
+  $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier($sid)))
+  $acl.SetAccessRuleProtection($true,$false)
+  foreach($identity in @($sid,'S-1-5-18','S-1-5-32-544')) {
+   $rule=New-Object Security.AccessControl.FileSystemAccessRule((New-Object Security.Principal.SecurityIdentifier($identity)),'FullControl','Allow')
+   $acl.AddAccessRule($rule)
+  }
+  $stream=New-Object IO.FileStream($path,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::Write,[IO.FileShare]::None,4096,[IO.FileOptions]::WriteThrough,$acl)
+  try { $stream.Write($bytes,0,$bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
+  [Console]::Out.Write('T0s='); exit 0
+ }
  if($request.action -eq 'protect') { $output=[Security.Cryptography.ProtectedData]::Protect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
  elseif($request.action -eq 'unprotect') { $output=[Security.Cryptography.ProtectedData]::Unprotect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
  else { throw 'action' }
@@ -141,6 +154,7 @@ export function windowsAuthStore(
     account: string,
     bytes: Buffer,
     paths: string[],
+    name?: string,
   ) => {
     const entropy = createHash("sha256")
       .update(JSON.stringify([root.toLowerCase(), account]))
@@ -161,6 +175,7 @@ export function windowsAuthStore(
           bytes: bytes.toString("base64"),
           entropy,
           paths,
+          ...(name === undefined ? {} : { name }),
         }),
         encoding: "utf8",
         timeout: 15000,
@@ -181,7 +196,20 @@ export function windowsAuthStore(
   };
   for (const path of metadataPaths) ordinary(path);
   crypt("check", "0".repeat(64), Buffer.alloc(0), [root, ...metadataPaths]);
+  // Set owner and private ACL atomically at CreateNew, including on elevated
+  // hosts whose default file owner is the Administrators group. Never repair
+  // retained files; the same strict checks still apply before and after writes.
+  const create = (name: string, bytes: Buffer) => {
+    crypt("create", "0".repeat(64), bytes, [root], name);
+    const path = join(root, name);
+    ordinary(path);
+    crypt("check", "0".repeat(64), Buffer.alloc(0), [root, path]);
+  };
   return {
+    createRegistration(value: string) {
+      if (!value.length || Buffer.byteLength(value) > 4096) throw failure();
+      create("registration.json", Buffer.from(value));
+    },
     read(account: string) {
       const path = pathFor(account);
       ordinary(path);
@@ -207,10 +235,10 @@ export function windowsAuthStore(
         present ? [root, path] : [root],
       );
       if (!replace) {
-        writeFileSync(path, encrypted, { flag: "wx", flush: true });
+        create(account + ".dpapi", encrypted);
       } else {
         const staging = join(root, account + ".replace");
-        writeFileSync(staging, encrypted, { flag: "wx", flush: true });
+        create(account + ".replace", encrypted);
         try {
           ordinary(path);
           renameSync(staging, path);

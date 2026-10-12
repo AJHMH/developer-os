@@ -36,6 +36,9 @@ test(
     initializeWindowsAuthDirectory(root);
     const store = windowsAuthStore(root);
     const account = "e".repeat(64);
+    store.createRegistration('{"synthetic":true}');
+    windowsAuthStore(root, [join(root, "registration.json")]);
+    assert.throws(() => store.createRegistration("{}"), /unavailable/);
     store.write(account, "fixed synthetic account", false);
     assert.equal(store.read(account), "fixed synthetic account");
     store.write(account, "fixed synthetic replacement", true);
@@ -78,6 +81,10 @@ function fixture(t) {
     if (malformed) return { status: 0, stdout: "not base64!" };
     // Fixed synthetic transformation, never a call to DPAPI or real accounts.
     const input = Buffer.from(request.bytes, "base64");
+    if (request.action === "create") {
+      fs.writeFileSync(join(root, request.name), input, { flag: "wx" });
+      return { status: 0, stdout: Buffer.from("OK").toString("base64") };
+    }
     const bytes =
       request.action === "check"
         ? Buffer.from("OK")
@@ -103,6 +110,24 @@ function fixture(t) {
     mismatch: () => (mismatch = true),
   };
 }
+test("Windows new-file creation preserves existing registration and replacement collisions", (t) => {
+  const f = fixture(t);
+  const store = windowsAuthStore(f.root);
+  for (const value of ["", "x".repeat(4097)])
+    assert.throws(() => store.createRegistration(value), /unavailable/);
+  store.createRegistration('{"fixed":"synthetic"}');
+  const registration = join(f.root, "registration.json");
+  const retained = fs.readFileSync(registration);
+  assert.throws(() => store.createRegistration("{}"));
+  assert.deepEqual(fs.readFileSync(registration), retained);
+  const account = "f".repeat(64);
+  store.write(account, "fixed retained account", false);
+  const staging = join(f.root, account + ".replace");
+  fs.writeFileSync(staging, "fixed retained staging");
+  assert.throws(() => store.write(account, "fixed replacement", true));
+  assert.equal(fs.readFileSync(staging, "utf8"), "fixed retained staging");
+  assert.equal(store.read(account), "fixed retained account");
+});
 test("Windows protected store scopes synthetic encryption and verifies create/replace before readback", (t) => {
   const f = fixture(t);
   initializeWindowsAuthDirectory(f.root);

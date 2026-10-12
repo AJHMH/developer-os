@@ -73,3 +73,26 @@ ACL skip, zero failures; typechecking and formatting also passed. This uses the
 one owner-approved additional repair cycle. Required hosted checks must pass on
 the final published head before approval readiness can be claimed. Native
 qualification and live inference were not rerun; production remains disabled.
+
+## Owner-authorized protected-file creation repair
+
+The owner granted one further repair cycle after the module fix exposed hosted
+Windows storage refusals. GitHub verified the same-tree signed replacement
+f54906e; its Linux, macOS, Factory and CodeQL checks passed, while Windows failed.
+The credential-free ownership probe in run 38321285284, job 115049708209,
+confirmed the initialized directory was current-user owned but its Node-created
+file was Administrators owned. Both had no unexpected Allow entries. Only
+booleans were logged, using fixed synthetic bytes and disposable storage.
+
+New registration, DPAPI ciphertext and replacement files now receive the
+current-user owner and private ACL atomically through FileStream CreateNew.
+No retained owner or ACL is repaired or relaxed. Existing registration and
+replacement collisions preserve their bytes; CurrentUser DPAPI and post-write
+verification remain mandatory. The ACL refusal fixture changes only Access
+rules, avoiding audit privilege requirements and implicit module autoload.
+Temporary diagnostic workflow and script changes are removed from the final
+tree. The full local Windows suite passed 199 of 200 tests, with one macOS-only
+skip; the subsequently added collision regression and all seven store tests
+passed separately. Typecheck, formatting and whitespace checks passed.
+Independent review and final hosted results are recorded after completion.
+No owner credential, native VM, inference or production qualification was run.

@@ -117,12 +117,17 @@ test("Windows preparation refuses permissive retained registration without rewri
   const original = readFileSync(path, "utf8");
   const script = String.raw`
 $ErrorActionPreference='Stop'
+$PSModuleAutoLoadingPreference='None'
+foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')) {
+ Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,($name+'.psd1'))) -ErrorAction Stop
+}
 $path=[Console]::In.ReadToEnd() | ConvertFrom-Json
-$acl=Get-Acl -LiteralPath $path
+$file=New-Object IO.FileInfo($path)
+$acl=$file.GetAccessControl([Security.AccessControl.AccessControlSections]::Access)
 $sid=New-Object Security.Principal.SecurityIdentifier('S-1-1-0')
 $rule=New-Object Security.AccessControl.FileSystemAccessRule($sid,'Write','Allow')
 $acl.AddAccessRule($rule)
-Set-Acl -LiteralPath $path -AclObject $acl
+$file.SetAccessControl($acl)
 `;
   const changed = spawnSync(
     join(
@@ -141,6 +146,7 @@ Set-Acl -LiteralPath $path -AclObject $acl
     {
       input: JSON.stringify(path),
       encoding: "utf8",
+      timeout: 15000,
       env: { SystemRoot: process.env.SystemRoot },
       windowsHide: true,
     },

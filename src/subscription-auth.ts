@@ -161,11 +161,15 @@ export function prepareSubscriptionAuth(
         hostId: `urn:uuid:${randomUUID()}`,
         agentName: "Developer OS",
       };
-      writeFileSync(path, JSON.stringify(registration, null, 2) + "\n", {
-        flag: "wx",
-        mode: 0o600,
-        flush: true,
-      });
+      const serialized = JSON.stringify(registration, null, 2) + "\n";
+      if (process.platform === "win32")
+        windowsAuthStore(target).createRegistration(serialized);
+      else
+        writeFileSync(path, serialized, {
+          flag: "wx",
+          mode: 0o600,
+          flush: true,
+        });
     }
     return {
       status: "prepared",
