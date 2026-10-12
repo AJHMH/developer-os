@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "target": {
+    "platform": "win32",
+    "arch": "x64",
+    "provider": "hyperv"
+  },
+  "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+  "outcome": "qualified",
+  "source": {
+    "evidenceMode": "live",
+    "checkedAt": "2026-10-12T19:22:12.530Z",
+    "bindingSha256": "c5597e52c076780b039da277e20914281cb83a25f9d2a0bc5de4ca495c501088",
+    "policySha256": "2b0026cfcd2a6630e46974ee6ef12f6f4dce570d76ded5e62a85ae3bfbfdb85c",
+    "binding": {
+      "osVersion": "10.0.26300",
+      "machine": "aios-podman-noshare",
+      "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+      "engineVersion": "6.0.2",
+      "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+      "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+      "workerVersion": "1.1.0",
+      "policyVersion": "offline-native-v3-aef148fa1e418432dbe52739d35e95c20f40ff6a40a1f625e52110f9f6bf781f"
+    }
+  },
+  "checks": {
+    "hostBinding": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "c5597e52c076780b039da277e20914281cb83a25f9d2a0bc5de4ca495c501088"
+    },
+    "offlineTransfer": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5"
+    },
+    "adversarialIsolation": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "634615b2a5c330a2b9a140be8b8117f837d59934ff24fd5a369171de2aef5ad4"
+    },
+    "onlinePolicy": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "03af77a485cbbdb83f0a07f465b95e5c96fae76aa030ddb06feb69b8e7aff4d7"
+    },
+    "authentication": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "edc4f05f8914dac70e7357db595a3427a17fc1193291af0bdcfe569a3ee67296"
+    },
+    "usageGate": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "6b87e8573ae3b3830d29581496126f16dcab1487351600b4acc5e24735f59293"
+    },
+    "fencingRecovery": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "9c6aba0e1a757c50dd3be62b31ff6944c57d5f0314a69ea114ce32eb0bf9a206"
+    },
+    "syntheticTask": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "b421dc9a8c5b831176604202f1b51c5d8079ccbb05f6b9a52d1ee4b438f8ed1f"
+    },
+    "isolatedValidation": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "56576d11b2458334ab9e4ed78cdd51e9fb42a724198f9d0eae5c341e25b45e1f"
+    }
+  },
+  "blockers": [],
+  "productionEnabled": false
+}

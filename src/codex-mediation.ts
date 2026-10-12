@@ -16,10 +16,13 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { syntheticRelayCanary, modelRelayVersion } from "./model-relay.js";
 
 export interface SubscriptionMediationReport {
+  workerDiagnostic?: import("./native-diagnostics.js").NativeProbeDiagnostic;
   qualified: false;
   mechanismDecision?: {
     qualified: true;
-    scope: "macos-fixed-codex-subscription";
+    scope:
+      | "macos-fixed-codex-subscription"
+      | "windows-fixed-codex-subscription";
     runId: string;
     observedAt: string;
     accountId: string;
@@ -35,6 +38,7 @@ export interface SubscriptionMediationReport {
   relayVersion?: string;
   modelFrameTransport: "passed" | "not-run";
   workerProtocol: "passed" | "not-run";
+  explicitResume?: "passed";
   codexCredentialIsolation: "passed" | "not-run";
   workerExecutableSha256?: string;
   workerBlocker?: string;

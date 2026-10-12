@@ -1,0 +1,36 @@
+{
+  "observedAt": "2026-10-12T19:01:54.535Z",
+  "runId": "e1860e24-8f3d-474a-ab94-31e742a8ee31",
+  "status": "refused",
+  "scope": "Actual Codex through host-only subscription gateway",
+  "approvalConsumed": true,
+  "gateway": {
+    "phase": "account-validation",
+    "providerAttempts": 0,
+    "stream": {
+      "bytes": 0,
+      "records": 0,
+      "deltas": 0,
+      "completed": false,
+      "failed": false,
+      "deltaMatches": false,
+      "completedOutputPresent": false,
+      "completedOutputAllowed": false,
+      "completedTextMatches": false,
+      "format": "unobserved",
+      "errorCode": "none",
+      "eventTypes": [],
+      "eventTypesTruncated": false,
+      "deltaTextLength": 0,
+      "textDoneSeen": false,
+      "textDoneLength": 0,
+      "textDoneMatches": false,
+      "completedMessageCount": 0,
+      "completedTextPartCount": 0,
+      "completedTextLength": 0,
+      "completedTextTrimMatches": false
+    }
+  },
+  "subscriptionInference": "not-run",
+  "deliveryEnabled": false
+}

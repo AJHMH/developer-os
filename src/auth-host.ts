@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { macKeychainStore } from "./keychain-store.js";
+import { windowsAuthStore } from "./windows-auth-store.js";
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 import {
@@ -14,7 +15,7 @@ import { DeliveryError } from "./controller.js";
 
 const refusal = (stage = "setup") =>
   new DeliveryError(
-    `Separate subscription authorization did not complete at ${stage}. Check browser consent and macOS Keychain access, then retry; production delivery remains disabled.`,
+    `Separate subscription authorization did not complete at ${stage}. Check browser consent and protected host storage, then retry; production delivery remains disabled.`,
   );
 async function fetchBoundedJson(url: string, init?: RequestInit): Promise<any> {
   const response = await fetch(url, {
@@ -60,7 +61,7 @@ interface AuthorizationHostAdapters {
   platform: NodeJS.Platform;
   arch: string;
   transport: AuthorizationTransport;
-  keychainStore: typeof macKeychainStore;
+  keychainStore: (directory: string) => ReturnType<typeof macKeychainStore>;
 }
 function store(
   account: ValidatedAccount,
@@ -94,10 +95,16 @@ export async function authorizeSubscriptionAuth(
     platform: process.platform,
     arch: process.arch,
     transport: openAI,
-    keychainStore: macKeychainStore,
+    keychainStore:
+      process.platform === "win32" ? windowsAuthStore : macKeychainStore,
   },
 ) {
-  if (adapters.platform !== "darwin" || adapters.arch !== "arm64")
+  if (
+    !(
+      (adapters.platform === "darwin" && adapters.arch === "arm64") ||
+      (adapters.platform === "win32" && adapters.arch === "x64")
+    )
+  )
     throw refusal();
   const registration = prepareSubscriptionAuth(
     directory,
@@ -203,7 +210,10 @@ export async function authorizeSubscriptionAuth(
       status: "authorized",
       accountId,
       credentialsStored: true,
-      storage: "macOS Keychain",
+      storage:
+        adapters.platform === "win32"
+          ? "Windows CurrentUser DPAPI"
+          : "macOS Keychain",
       planUsageAuthorized: account.planUsageAuthorized,
       deliveryEnabled: false,
       nextAction:

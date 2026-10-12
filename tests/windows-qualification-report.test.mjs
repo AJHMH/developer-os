@@ -19,6 +19,274 @@ import { isolationProbes } from "../dist/qualification.js";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
+test("Windows controls qualification requires a trusted runtime and cannot be supplied by candidate evidence", async (t) => {
+  const f = fixture(t);
+  await assert.rejects(
+    async () => f.controller.qualifyWindowsControls(f.delivery.id),
+    /trusted Windows controls runtime/i,
+  );
+  assert.equal(f.controller.status(f.delivery.id).windowsControls, undefined);
+});
+
+test("Windows report needs measured supplemental controls and refuses a missing stopped lifecycle session", async (t) => {
+  const { windowsControlNames, windowsControlsVersion } = await import(
+    "../dist/windows-controls.js"
+  );
+  const { readFileSync } = await import("node:fs");
+  const f = fixture(t),
+    d = structuredClone(await f.controller.qualify(f.delivery.id));
+  const q = d.qualification;
+  q.adversarial = {
+    scope: "synthetic-windows-controls",
+    challengeId: "123e4567-e89b-42d3-a456-426614174000",
+    probeVersion: "d".repeat(64),
+    escapeAttempts: [
+      "passed-escape-unshare",
+      "passed-escape-chroot",
+      "passed-escape-cgroup",
+      "passed-escape-proc",
+    ],
+  };
+  q.probes = q.probes.map((p) => ({
+    name: p.name,
+    outcome: [
+      "host-files",
+      "controller-ledger",
+      "owner-credentials",
+      "host-docker",
+      "skills-mcp-hooks",
+      "network-bypass",
+      "cross-delivery",
+    ].includes(p.name)
+      ? "passed"
+      : "not-run",
+    evidenceSha256: "d".repeat(64),
+  }));
+  const operationId = "123e4567-e89b-42d3-a456-426614174001";
+  d.execution = { operationId, state: "stopped" };
+  d.windowsControls = {
+    mode: "controlled",
+    outcome: "passed",
+    productionEnabled: false,
+    version: windowsControlsVersion,
+    nativeVersion: digest(
+      readFileSync(new URL("../dist/podman-native.js", import.meta.url)),
+    ),
+    operationId,
+    bindingSha256: q.bindingSha256,
+    policySha256: q.policySha256,
+    checks: windowsControlNames.map((name) => ({
+      name,
+      evidenceSha256: "e".repeat(64),
+    })),
+    censuses: [1, 2].map(() => ({
+      observedProcesses: 8,
+      remainingProcesses: 0,
+      censusSha256: "f".repeat(64),
+    })),
+  };
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.fencingRecovery.result,
+    "passed",
+  );
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.adversarialIsolation.result,
+    "failed",
+    "online controls remain missing",
+  );
+  const complete = structuredClone(d);
+  complete.qualification.subscriptionMediation.explicitResume = "passed";
+  complete.qualification.subscriptionMediation.mechanismDecision = {
+    qualified: true,
+    scope: "windows-fixed-codex-subscription",
+    bindingSha256: q.bindingSha256,
+    inferenceAuthorized: false,
+  };
+  complete.onlineAccess = {
+    mode: "controlled",
+    state: "stopped",
+    outcome: "passed",
+    productionEnabled: false,
+    runId: "measured-online",
+    policyVersion: "controlled-policy",
+    usageScope: "account-window",
+    bindingSha256: q.bindingSha256,
+    hostPolicySha256: q.policySha256,
+    proof: {
+      runId: "measured-online",
+      policyVersion: "controlled-policy",
+      model: "passed",
+      dependency: "passed",
+      bypass: "passed",
+    },
+    shutdown: { revoked: true, remainingProcesses: 0 },
+  };
+  complete.usage = {
+    checkId: "fresh-check",
+    scope: "account-window",
+    decision: "ready",
+    checkedAt: new Date().toISOString(),
+  };
+  assert.equal(
+    windowsWorkerQualificationReport(complete).checks.adversarialIsolation
+      .result,
+    "passed",
+  );
+  assert.equal(
+    windowsWorkerQualificationReport(complete).outcome,
+    "blocked",
+    "controlled aggregation never qualifies Windows production",
+  );
+  delete complete.qualification.subscriptionMediation.explicitResume;
+  assert.equal(
+    windowsWorkerQualificationReport(complete).checks.adversarialIsolation
+      .result,
+    "failed",
+  );
+  complete.qualification.subscriptionMediation.explicitResume = "passed";
+  complete.qualification.probes.find((p) => p.name === "ssh-gpg").outcome =
+    "failed";
+  assert.equal(
+    windowsWorkerQualificationReport(complete).checks.adversarialIsolation
+      .result,
+    "failed",
+    "supplemental evidence cannot erase an explicit isolation failure",
+  );
+  d.execution.state = "uncertain";
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.fencingRecovery.result,
+    "not-run",
+  );
+  d.execution.state = "stopped";
+  d.windowsControls.censuses[1].remainingProcesses = 1;
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.fencingRecovery.result,
+    "not-run",
+  );
+  d.windowsControls.censuses[1].remainingProcesses = 0;
+  d.windowsControls.nativeVersion = "a".repeat(64);
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.fencingRecovery.result,
+    "not-run",
+  );
+});
+
+test("public Windows controls qualifier binds stopped observations and rejects native source drift", async (t) => {
+  const { windowsControlsVersion, windowsControlNames } = await import(
+    "../dist/windows-controls.js"
+  );
+  const { readFileSync } = await import("node:fs");
+  const { canaryOutput, sha256 } = await import("../dist/offline-canary.js");
+  const f = fixture(t),
+    q = (await f.controller.qualify(f.delivery.id)).qualification;
+  writeFileSync(
+    join(f.repository, "canary.txt"),
+    "AIOS offline canary input\n",
+  );
+  let drift = false;
+  const offline = {
+    mode: "controlled",
+    async execute(r) {
+      return {
+        ...r.session,
+        bindingSha256: r.bindingSha256,
+        policySha256: r.policySha256,
+        status: "running",
+        fresh: true,
+        binding: r.binding,
+        effective: r.effective,
+      };
+    },
+    async stop(s, p) {
+      return {
+        ...s,
+        ...p,
+        status: "stopped",
+        revoked: true,
+        descendantsStopped: true,
+        evidence: {
+          observedProcesses: 8,
+          remainingProcesses: 0,
+          censusSha256: "d".repeat(64),
+        },
+      };
+    },
+    async collect(s, p) {
+      return {
+        ...s,
+        ...p,
+        status: "stopped",
+        files: [
+          {
+            path: "result.txt",
+            bytes: Buffer.from(canaryOutput),
+            ordinary: true,
+            links: 1,
+            beforeSha256: sha256(canaryOutput),
+            afterSha256: sha256(canaryOutput),
+          },
+        ],
+      };
+    },
+  };
+  const runtime = {
+    mode: "controlled",
+    version: windowsControlsVersion,
+    async qualify() {
+      const d = await c.offlineCanary(f.delivery.id);
+      return {
+        version: windowsControlsVersion,
+        nativeVersion: drift
+          ? "a".repeat(64)
+          : digest(
+              readFileSync(
+                new URL("../dist/podman-native.js", import.meta.url),
+              ),
+            ),
+        mode: "controlled",
+        outcome: "passed",
+        productionEnabled: false,
+        operationId: d.execution.operationId,
+        bindingSha256: q.bindingSha256,
+        policySha256: q.policySha256,
+        checks: windowsControlNames.map((name) => ({
+          name,
+          evidenceSha256: "e".repeat(64),
+        })),
+        censuses: [
+          d.offlineCanary.shutdownProof,
+          d.offlineCanary.shutdownProof,
+        ],
+      };
+    },
+  };
+  const c = new DeliveryController(
+    f.state,
+    {},
+    {
+      worker: { probe: async () => structuredClone(q) },
+      offline,
+      windowsControls: runtime,
+    },
+  );
+  const passed = await c.qualifyWindowsControls(f.delivery.id);
+  assert.equal(passed.windowsControls.outcome, "passed");
+  assert.equal(
+    c.qualificationReport(f.delivery.id).checks.fencingRecovery.result,
+    "passed",
+  );
+  assert.equal(c.qualificationReport(f.delivery.id).outcome, "blocked");
+  drift = true;
+  await assert.rejects(
+    () => c.qualifyWindowsControls(f.delivery.id),
+    /evidence.*verify/i,
+  );
+  assert.equal(
+    c.status(f.delivery.id).windowsControls.operationId,
+    passed.windowsControls.operationId,
+  );
+});
+
 function fixture(t, effectiveOverrides = {}, bindingOverrides = {}) {
   const root = realpathSync(
     mkdtempSync(join(tmpdir(), "aios-windows-report-")),
@@ -365,6 +633,31 @@ test("report accepts complete controlled evidence while retaining production blo
     windowsWorkerQualificationReport(wrongApproval).checks.usageGate.result,
     "not-run",
   );
+  const historical = structuredClone(approvedUsage);
+  const instant = Date.now() - 120000;
+  historical.usage.checkedAt = new Date(instant - 1000).toISOString();
+  historical.usage.approval.at = new Date(instant - 500).toISOString();
+  historical.onlineAccess.usageAuthorization = {
+    authorizedAt: new Date(instant).toISOString(),
+    usage: structuredClone(historical.usage),
+  };
+  assert.equal(
+    windowsWorkerQualificationReport(historical).checks.usageGate.result,
+    "passed",
+    "fresh run-bound dispatch evidence survives elapsed wall time",
+  );
+  const { onlineUsagePermits } = await import("../dist/online-access.js");
+  assert.equal(
+    onlineUsagePermits(historical.usage, historical.onlineAccess),
+    false,
+    "historical qualification does not authorize a future request",
+  );
+  historical.onlineAccess.usageAuthorization.usage.approval.operationId =
+    "other-run";
+  assert.equal(
+    windowsWorkerQualificationReport(historical).checks.usageGate.result,
+    "not-run",
+  );
   const incompleteCanary = structuredClone(qualified);
   delete incompleteCanary.offlineCanary.outputSha256;
   assert.equal(
@@ -375,6 +668,24 @@ test("report accepts complete controlled evidence while retaining production blo
   const liveEvidence = structuredClone(qualified);
   liveEvidence.qualification.mode = "live";
   liveEvidence.offlineCanary.mode = "live";
+  const { readFileSync } = await import("node:fs");
+  const { onlinePolicyVersion } = await import("../dist/online-access.js");
+  liveEvidence.onlineAccess.mode = "live";
+  liveEvidence.onlineAccess.policyVersion = onlinePolicyVersion;
+  liveEvidence.onlineAccess.proof.policyVersion = onlinePolicyVersion;
+  liveEvidence.onlineAccess.runtimeVersion = digest(
+    readFileSync(new URL("../dist/online-native.js", import.meta.url)),
+  );
+  assert.equal(
+    windowsWorkerQualificationReport(liveEvidence).checks.onlinePolicy.result,
+    "passed",
+  );
+  liveEvidence.onlineAccess.runtimeVersion = "a".repeat(64);
+  assert.equal(
+    windowsWorkerQualificationReport(liveEvidence).checks.onlinePolicy.result,
+    "failed",
+    "native runtime source drift cannot retain positive online evidence",
+  );
   assert.equal(
     windowsWorkerQualificationReport(liveEvidence).checks.fencingRecovery
       .evidenceMode,
@@ -382,6 +693,32 @@ test("report accepts complete controlled evidence while retaining production blo
   );
 
   const uncertainRecovery = structuredClone(qualified);
+  const resolvedRecovery = structuredClone(qualified);
+  resolvedRecovery.recovery = [
+    { outcome: "uncertain", fence: 1 },
+    { outcome: "stopped", fence: 2 },
+  ];
+  assert.equal(
+    windowsWorkerQualificationReport(resolvedRecovery).checks.fencingRecovery
+      .result,
+    "passed",
+    "verified recovery retains historical uncertainty without a permanent blocker",
+  );
+  resolvedRecovery.sessions = [{ state: "uncertain" }];
+  assert.equal(
+    windowsWorkerQualificationReport(resolvedRecovery).checks.fencingRecovery
+      .result,
+    "not-run",
+    "a later stopped event cannot hide an unresolved retained session",
+  );
+  resolvedRecovery.sessions = [{ state: "stopped" }];
+  resolvedRecovery.recovery.push({ outcome: "uncertain", fence: 3 });
+  assert.equal(
+    windowsWorkerQualificationReport(resolvedRecovery).checks.fencingRecovery
+      .result,
+    "not-run",
+    "new uncertainty remains a blocker",
+  );
   uncertainRecovery.recovery = [{ outcome: "uncertain" }];
   assert.equal(
     windowsWorkerQualificationReport(uncertainRecovery).checks.fencingRecovery
@@ -403,3 +740,243 @@ test("report accepts complete controlled evidence while retaining production blo
     "not-run",
   );
 });
+
+test("Windows report binds task validation evidence and refuses altered output or worker versions", async (t) => {
+  const { syntheticSiteInput, syntheticSiteOutput, syntheticTaskVersion } =
+    await import("../dist/synthetic-task.js");
+  const f = fixture(t);
+  const d = await f.controller.qualify(f.delivery.id);
+  d.qualification.subscriptionMediation.mechanismDecision = {
+    qualified: true,
+    scope: "windows-fixed-codex-subscription",
+    bindingSha256: d.qualification.bindingSha256,
+    inferenceAuthorized: false,
+    requestSha256: "d".repeat(64),
+  };
+  d.offlineCanary = {
+    mode: "controlled",
+    outcome: "completed",
+    session: {
+      operationId: "00000000-0000-4000-8000-000000000024",
+      state: "stopped",
+    },
+    bindingSha256: d.qualification.bindingSha256,
+    policySha256: d.qualification.policySha256,
+    shutdownProof: { remainingProcesses: 0, censusSha256: "a".repeat(64) },
+    inputSha256: "a".repeat(64),
+    outputSha256: "b".repeat(64),
+  };
+  d.syntheticTask = {
+    mode: "controlled",
+    outcome: "completed",
+    version: syntheticTaskVersion,
+    bindingSha256: d.qualification.bindingSha256,
+    policySha256: d.qualification.policySha256,
+    session: d.offlineCanary.session,
+    shutdownProof: d.offlineCanary.shutdownProof,
+    productionEnabled: false,
+    result: {
+      operationId: d.offlineCanary.session.operationId,
+      version: syntheticTaskVersion,
+      inputSha256: digest(syntheticSiteInput),
+      outputSha256: digest(syntheticSiteOutput),
+      output: syntheticSiteOutput,
+      validation: "passed",
+      negativeValidation: "passed",
+      httpValidation: "passed",
+      collectionSha256: "e".repeat(64),
+    },
+  };
+  const report = windowsWorkerQualificationReport(d);
+  assert.equal(report.checks.authentication.result, "passed");
+  assert.equal(report.checks.syntheticTask.result, "passed");
+  assert.equal(report.checks.isolatedValidation.result, "passed");
+  assert.equal(report.outcome, "blocked");
+  assert.equal(report.productionEnabled, false);
+  d.syntheticTask.result.output = "unverified output";
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.syntheticTask.result,
+    "not-run",
+  );
+  d.syntheticTask.result.output = syntheticSiteOutput;
+  d.syntheticTask.version = "f".repeat(64);
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.isolatedValidation.result,
+    "not-run",
+  );
+});
+
+async function nativeControlsScenario(t, refusal) {
+  const { NativeWindowsControls, windowsControlNames } = await import(
+    "../dist/windows-controls.js"
+  );
+  const fs = (await import("node:fs")).default;
+  const cp = (await import("node:child_process")).default;
+  const os = (await import("node:os")).default;
+  const { syncBuiltinESMExports } = await import("node:module");
+  const f = fixture(t);
+  writeFileSync(
+    join(f.repository, "canary.txt"),
+    "AIOS offline canary input\n",
+  );
+  const qualified = await f.controller.qualify(f.delivery.id);
+  const q = structuredClone(qualified.qualification);
+  q.mode = "live";
+  const effective = q.offlineAdmission.effective;
+  const { sha256, canaryOutput } = await import("../dist/offline-canary.js");
+  const revoked = new Set();
+  const native = {
+    mode: "live",
+    observe: () => ({ binding: f.binding, effective }),
+    machine: f.binding.machine,
+    policyPath: join(f.repository, "..", "pins.json"),
+    authorityDirectory: f.state,
+    async execute(r) {
+      if (revoked.has(r.session.operationId) || !r.mayDispatch())
+        throw Error("revoked");
+      return {
+        ...r.session,
+        status: "running",
+        fresh: true,
+        bindingSha256: r.bindingSha256,
+        policySha256: r.policySha256,
+        binding: f.binding,
+        effective,
+      };
+    },
+    async stop(s, p) {
+      revoked.add(s.operationId);
+      return {
+        ...s,
+        ...p,
+        status: "stopped",
+        revoked: true,
+        descendantsStopped: true,
+        evidence: {
+          observedProcesses: 8,
+          remainingProcesses: 0,
+          censusSha256: "e".repeat(64),
+        },
+      };
+    },
+    async collect(s, p) {
+      assert.ok(revoked.has(s.operationId));
+      return {
+        ...s,
+        ...p,
+        status: "stopped",
+        files: [
+          {
+            path: "result.txt",
+            bytes: Buffer.from(canaryOutput),
+            ordinary: true,
+            links: 1,
+            beforeSha256: sha256(canaryOutput),
+            afterSha256: sha256(canaryOutput),
+          },
+        ],
+      };
+    },
+  };
+  const originals = {
+    lstat: fs.lstatSync,
+    realpath: fs.realpathSync,
+    read: fs.readFileSync,
+    exists: fs.existsSync,
+    spawn: cp.spawn,
+  };
+  const special = (path) =>
+    /(?:podman\.exe|aios-report-test\.json)$/.test(String(path));
+  t.mock.method(os, "platform", () => "win32");
+  t.mock.method(os, "arch", () => "x64");
+  t.mock.method(fs, "lstatSync", (p) =>
+    special(p)
+      ? { isFile: () => true, isSymbolicLink: () => false, nlink: 1, size: 100 }
+      : originals.lstat(p),
+  );
+  t.mock.method(fs, "realpathSync", (p) =>
+    special(p) ? String(p) : originals.realpath(p),
+  );
+  t.mock.method(fs, "existsSync", (p) =>
+    special(p) || String(p).endsWith("ssh.exe") ? true : originals.exists(p),
+  );
+  t.mock.method(fs, "readFileSync", (p, o) =>
+    String(p).endsWith("aios-report-test.json")
+      ? JSON.stringify({
+          Name: f.binding.machine,
+          Version: 1,
+          HyperVHypervisor: {},
+          Mounts: [],
+          HostUser: { Rootful: false },
+        })
+      : originals.read(p, o),
+  );
+  t.mock.method(cp, "spawnSync", (_exe, _args, options) => {
+    const r = JSON.parse(options.input.split("\n")[1]);
+    assert.equal(options.shell, false);
+    assert.equal(options.windowsHide, true);
+    if (refusal === "allowed-stage" || refusal === "unknown-stage")
+      return {
+        status: 1,
+        stderr: refusal === "allowed-stage" ? "authority" : "synthetic-private",
+      };
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        challenge: refusal === "challenge" ? "wrong" : r.challenge,
+        operationId: r.session.operationId,
+        names: windowsControlNames.slice(0, 3),
+        positiveControls: true,
+        privilegedDenial: refusal !== "denial",
+      }),
+    };
+  });
+  let child;
+  t.mock.method(cp, "spawn", (exe, _args, options) => {
+    assert.equal(exe, process.execPath);
+    const script = String.raw`
+let text='';for await(const chunk of process.stdin)text+=chunk;
+const r=JSON.parse(text);const {DeliveryController}=await import(r.controller);
+const q=JSON.parse(process.env.SYNTHETIC_QUALIFICATION);
+const offline={mode:'live',execute:async request=>{console.log('AIOS_ACCEPTED');await new Promise(()=>setInterval(()=>{},1000));}};
+await new DeliveryController(r.state,{}, {worker:{probe:async()=>q},offline}).offlineCanary(r.id);
+`;
+    child = originals.spawn(exe, ["--input-type=module", "-e", script], {
+      ...options,
+      cwd: f.repository,
+      env: { ...options.env, SYNTHETIC_QUALIFICATION: JSON.stringify(q) },
+    });
+    return child;
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    child?.kill();
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  if (refusal) {
+    await assert.rejects(
+      new NativeWindowsControls(native).qualify(qualified),
+      /(?:boundary|Boundary)/,
+    );
+    assert.equal(f.controller.status(f.delivery.id).execution.state, "stopped");
+    return;
+  }
+  const result = await new NativeWindowsControls(native).qualify(qualified);
+  assert.deepEqual(
+    result.checks.map((c) => c.name).toSorted(),
+    windowsControlNames.toSorted(),
+  );
+  assert.equal(result.censuses.length, 2);
+  assert.equal(result.productionEnabled, false);
+  assert.equal(f.controller.status(f.delivery.id).execution.state, "stopped");
+  assert.ok(child.exitCode !== null || child.signalCode !== null);
+  assert.ok(
+    result.checks.every((c) => /^[a-f0-9]{64}$/.test(c.evidenceSha256)),
+  );
+}
+test("native Windows controls coordinate synthetic boundary denial, revoked sender and killed-controller recovery", (t) =>
+  nativeControlsScenario(t));
+for (const refusal of ["allowed-stage", "unknown-stage", "challenge", "denial"])
+  test(`native Windows controls refuse ${refusal} boundary evidence and still stop the worker`, (t) =>
+    nativeControlsScenario(t, refusal));

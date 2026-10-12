@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "target": {
+    "platform": "win32",
+    "arch": "x64",
+    "provider": "hyperv"
+  },
+  "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+  "outcome": "blocked",
+  "source": {
+    "evidenceMode": "live",
+    "checkedAt": "2026-10-12T01:28:20.424Z",
+    "bindingSha256": "87423a1bf990a8569a2a092074ea03106f00c25aaede2226a5ca22284c4d829f",
+    "policySha256": "ce8c2e04f91899970e39593df53803abe94a766b47937d6f78e79d00f64b723f",
+    "binding": {
+      "osVersion": "10.0.26300",
+      "machine": "aios-podman-noshare",
+      "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+      "engineVersion": "6.0.2",
+      "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+      "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+      "workerVersion": "1.1.0",
+      "policyVersion": "offline-native-v3-d4385844370baac7066e9cf3dc1e1bb201869c81b4227de85ea7de2302465a32"
+    }
+  },
+  "checks": {
+    "hostBinding": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "87423a1bf990a8569a2a092074ea03106f00c25aaede2226a5ca22284c4d829f"
+    },
+    "offlineTransfer": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5"
+    },
+    "adversarialIsolation": {
+      "result": "failed",
+      "evidenceMode": "live",
+      "evidenceSha256": "3aadcb021fe3f8fb103ec2864c458f85e1899c600bdf5aa332210015d9cea895"
+    },
+    "onlinePolicy": {
+      "result": "not-run",
+      "evidenceMode": "unavailable"
+    },
+    "authentication": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "edc4f05f8914dac70e7357db595a3427a17fc1193291af0bdcfe569a3ee67296"
+    },
+    "usageGate": {
+      "result": "not-run",
+      "evidenceMode": "unavailable"
+    },
+    "fencingRecovery": {
+      "result": "not-run",
+      "evidenceMode": "live",
+      "evidenceSha256": "e24b0a4e0b7fe21a7aa695a40c3dcc5f481faa29487ecb94ed750dff4ab2fa95"
+    },
+    "syntheticTask": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "b421dc9a8c5b831176604202f1b51c5d8079ccbb05f6b9a52d1ee4b438f8ed1f"
+    },
+    "isolatedValidation": {
+      "result": "passed",
+      "evidenceMode": "live",
+      "evidenceSha256": "fe76306edb459e518427cb2e8e2c1bd3f7db113e48df2867848ba3215c3a2118"
+    }
+  },
+  "blockers": [
+    "The complete native Windows positive/negative isolation and escape-control report is not recorded.",
+    "Native model and dependency endpoint enforcement is not qualified for this Windows binding.",
+    "A fresh account/window-scoped usage check has not authorized this online run.",
+    "Native Windows fencing and recovery evidence is incomplete for this delivery."
+  ],
+  "productionEnabled": false
+}

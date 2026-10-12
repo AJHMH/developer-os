@@ -1,5 +1,18 @@
+import { subscriptionDecisionScope } from "./subscription-decision.js";
 import type { Delivery } from "./controller.js";
+import {
+  syntheticSiteInput,
+  syntheticSiteOutput,
+  syntheticTaskVersion,
+} from "./synthetic-task.js";
+import { sha256 as digest } from "./offline-canary.js";
 import { isolationProbes } from "./qualification.js";
+import { readFileSync } from "node:fs";
+import { onlinePolicyVersion } from "./online-access.js";
+import {
+  windowsControlsVersion,
+  windowsControlNames,
+} from "./windows-controls.js";
 
 export type QualificationCheckResult = "passed" | "failed" | "not-run";
 export interface QualificationCheck {
@@ -121,6 +134,34 @@ export function windowsWorkerQualificationReport(
   );
 
   const requiredIsolation = isolationProbes;
+  const controls = delivery.windowsControls;
+  const controlsPassed = Boolean(
+    matchingBinding &&
+      controls?.outcome === "passed" &&
+      controls.productionEnabled === false &&
+      controls.mode === evidenceMode &&
+      controls.version === windowsControlsVersion &&
+      controls.nativeVersion ===
+        digest(readFileSync(new URL("./podman-native.js", import.meta.url))) &&
+      controls.bindingSha256 === q?.bindingSha256 &&
+      controls.policySha256 === q?.policySha256 &&
+      [delivery.execution, ...(delivery.sessions ?? [])].some(
+        (s) => s?.operationId === controls.operationId && s.state === "stopped",
+      ) &&
+      controls.checks.length === windowsControlNames.length &&
+      windowsControlNames.every((name) =>
+        controls.checks.some(
+          (c) => c.name === name && sha256(c.evidenceSha256),
+        ),
+      ) &&
+      controls.censuses.length >= 2 &&
+      controls.censuses.every(
+        (c) =>
+          c.observedProcesses >= 8 &&
+          c.remainingProcesses === 0 &&
+          sha256(c.censusSha256),
+      ),
+  );
   const probes = q?.probes ?? [];
   const adversarial = q?.adversarial;
   const adversarialPassed = Boolean(
@@ -137,18 +178,32 @@ export function windowsWorkerQualificationReport(
         return probe?.outcome === "passed" && sha256(probe.evidenceSha256);
       }),
   );
-  const adversarialIsolation = check(
+  let adversarialIsolation = check(
     adversarial ? (adversarialPassed ? "passed" : "failed") : "not-run",
     adversarial ? evidenceMode : "unavailable",
     adversarial?.probeVersion,
   );
 
   const online = delivery.onlineAccess;
+  const nativeOnlineVersion = digest(
+    readFileSync(new URL("./online-native.js", import.meta.url)),
+  );
+  const nativeArtifactVersion = digest(
+    readFileSync(new URL("./npm-artifact.js", import.meta.url)) +
+      "\n" +
+      nativeOnlineVersion,
+  );
   const onlinePassed = Boolean(
     matchingBinding &&
       online?.outcome === "passed" &&
       online.state === "stopped" &&
       online.productionEnabled === false &&
+      online.mode === evidenceMode &&
+      (evidenceMode !== "live" ||
+        (online.policyVersion === onlinePolicyVersion &&
+          [nativeOnlineVersion, nativeArtifactVersion].includes(
+            online.runtimeVersion,
+          ))) &&
       online.bindingSha256 === q?.bindingSha256 &&
       online.hostPolicySha256 === q?.policySha256 &&
       online.proof?.runId === online.runId &&
@@ -165,25 +220,45 @@ export function windowsWorkerQualificationReport(
     online?.policyVersion,
   );
 
-  const authentication = check("not-run", "unavailable");
-  const usageAge = delivery.usage
-    ? Date.now() - Date.parse(delivery.usage.checkedAt)
+  const decision = q?.subscriptionMediation?.mechanismDecision;
+  const authentication = check(
+    matchingBinding &&
+      decision?.qualified === true &&
+      decision.scope === "windows-fixed-codex-subscription" &&
+      decision.scope === subscriptionDecisionScope(binding) &&
+      decision.bindingSha256 === q?.bindingSha256 &&
+      decision.inferenceAuthorized === false
+      ? "passed"
+      : "not-run",
+    decision ? evidenceMode : "unavailable",
+    decision?.requestSha256,
+  );
+  // Historical dispatch evidence expires at its authorization instant, never
+  // conferring authority for another request. Live dispatch still rechecks usage.
+  const authorized = online?.usageAuthorization;
+  const usage = authorized?.usage ?? delivery.usage;
+  const authorizationTime = authorized
+    ? Date.parse(authorized.authorizedAt)
+    : Date.now();
+  const usageAge = usage
+    ? authorizationTime - Date.parse(usage.checkedAt)
     : Number.NaN;
   const usageApprovedForRun = Boolean(
-    delivery.usage &&
-      (delivery.usage.decision === "ready" ||
-        (delivery.usage.decision === "approval-required" &&
-          delivery.usage.approval?.scope === delivery.usage.scope &&
-          delivery.usage.approval.operationId === online?.runId &&
-          Date.now() - Date.parse(delivery.usage.approval.at) >= 0 &&
-          Date.now() - Date.parse(delivery.usage.approval.at) <= 60000)),
+    usage &&
+      (usage.decision === "ready" ||
+        (usage.decision === "approval-required" &&
+          usage.approval?.scope === usage.scope &&
+          usage.approval.operationId === online?.runId &&
+          authorizationTime - Date.parse(usage.approval.at) >= 0 &&
+          authorizationTime - Date.parse(usage.approval.at) <= 60000)),
   );
   const usageGate = check(
     onlinePassed &&
-      delivery.usage?.checkId &&
-      delivery.usage.scope === online?.usageScope &&
-      (!delivery.usage.accountId ||
-        delivery.usage.accountId === online?.accountId) &&
+      (evidenceMode !== "live" || authorized) &&
+      authorizationTime <= Date.now() &&
+      usage?.checkId &&
+      usage.scope === online?.usageScope &&
+      (!usage.accountId || usage.accountId === online?.accountId) &&
       usageAge >= 0 &&
       usageAge <= 60000 &&
       usageApprovedForRun
@@ -193,23 +268,113 @@ export function windowsWorkerQualificationReport(
     online?.usageScope,
   );
 
+  if (
+    !adversarialPassed &&
+    controlsPassed &&
+    onlinePassed &&
+    usageGate.result === "passed" &&
+    authentication.result === "passed" &&
+    q?.subscriptionMediation?.explicitResume === "passed" &&
+    adversarial &&
+    adversarial.scope === "synthetic-windows-controls" &&
+    /^[a-f0-9-]{36}$/.test(adversarial.challengeId) &&
+    sha256(adversarial.probeVersion) &&
+    adversarial.escapeAttempts.length === 4 &&
+    ["unshare", "chroot", "cgroup", "proc"].every((name) =>
+      adversarial.escapeAttempts.includes("passed-escape-" + name),
+    ) &&
+    requiredIsolation.every((name) => {
+      const probe = probes.find((p) => p.name === name);
+      if (probe?.outcome === "failed") return false;
+      if (probe?.outcome === "passed" && sha256(probe.evidenceSha256))
+        return true;
+      if (
+        windowsControlNames.includes(
+          name as (typeof windowsControlNames)[number],
+        )
+      )
+        return true;
+      return [
+        "model-only-auth",
+        "spending-control",
+        "dependency-egress",
+      ].includes(name);
+    })
+  )
+    adversarialIsolation = check(
+      "passed",
+      evidenceMode,
+      adversarial.probeVersion,
+    );
+
   const fencingPassed = Boolean(
-    adversarialPassed &&
-      canary?.outcome === "completed" &&
-      canary.shutdownProof?.remainingProcesses === 0 &&
-      !delivery.recovery?.some((event) => event.outcome === "uncertain"),
+    (controlsPassed ||
+      (evidenceMode === "controlled" &&
+        adversarialPassed &&
+        canary?.outcome === "completed" &&
+        canary.shutdownProof?.remainingProcesses === 0)) &&
+      ![delivery.execution, ...(delivery.sessions ?? [])].some(
+        (session) => session && session.state !== "stopped",
+      ) &&
+      !delivery.recovery?.some(
+        (event, index, history) =>
+          event.outcome === "uncertain" &&
+          !history
+            .slice(index + 1)
+            .some(
+              (later) =>
+                later.outcome === "stopped" &&
+                Number.isSafeInteger(event.fence) &&
+                Number.isSafeInteger(later.fence) &&
+                later.fence >= event.fence,
+            ),
+      ),
   );
   const fencingRecovery = check(
     fencingPassed ? "passed" : "not-run",
-    canary?.mode === "live" && evidenceMode === "live"
+    (controls?.mode === "live" || canary?.mode === "live") &&
+      evidenceMode === "live"
       ? "live"
       : canary
         ? "controlled"
         : "unavailable",
-    canary?.shutdownProof?.censusSha256,
+    controlsPassed
+      ? controls?.censuses.at(-1)?.censusSha256
+      : canary?.shutdownProof?.censusSha256,
   );
-  const syntheticTask = check("not-run", "unavailable");
-  const isolatedValidation = check("not-run", "unavailable");
+  const task = delivery.syntheticTask;
+  const taskPassed = Boolean(
+    matchingBinding &&
+      authentication.result === "passed" &&
+      task?.outcome === "completed" &&
+      task.productionEnabled === false &&
+      task.version === syntheticTaskVersion &&
+      task.bindingSha256 === q?.bindingSha256 &&
+      task.policySha256 === q?.policySha256 &&
+      task.session?.state === "stopped" &&
+      task.session.operationId === canary?.session?.operationId &&
+      task.shutdownProof?.remainingProcesses === 0 &&
+      sha256(task.shutdownProof.censusSha256) &&
+      task.result?.version === task.version &&
+      task.result.operationId === task.session.operationId &&
+      task.result.inputSha256 === digest(syntheticSiteInput) &&
+      task.result.output === syntheticSiteOutput &&
+      task.result.outputSha256 === digest(syntheticSiteOutput) &&
+      task.result.validation === "passed" &&
+      task.result.negativeValidation === "passed" &&
+      task.result.httpValidation === "passed" &&
+      sha256(task.result.collectionSha256),
+  );
+  const syntheticTask = check(
+    taskPassed ? "passed" : "not-run",
+    task?.mode ?? "unavailable",
+    task?.result?.outputSha256,
+  );
+  const isolatedValidation = check(
+    taskPassed ? "passed" : "not-run",
+    task?.mode ?? "unavailable",
+    task?.result?.collectionSha256,
+  );
 
   const checks = {
     hostBinding,

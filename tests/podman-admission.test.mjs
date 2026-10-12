@@ -373,6 +373,7 @@ test("public qualification records synthetic credential isolation, endpoint, del
     mode: 0o600,
   });
   const gateway = await import("../dist/subscription-gateway.js");
+  let codexFailure;
   const delivery = new DeliveryController(
     state,
     {},
@@ -414,11 +415,14 @@ test("public qualification records synthetic credential isolation, endpoint, del
                 positiveControlsBeforeAfter: true,
               },
               modelFrameTransport: "passed",
-              codex: {
+              codex: codexFailure ?? {
                 protocol: "passed",
+                explicitResume: "passed",
+                resumeInferenceRequests: 0,
+                observedCodexProcesses: 1,
                 credentialIsolation: "passed",
                 binarySha256:
-                  "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+                  "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
                 shutdown: { remainingProcesses: 0 },
                 endpointEnforcement: "passed",
                 deliveryCapabilities: "passed",
@@ -451,9 +455,59 @@ test("public qualification records synthetic credential isolation, endpoint, del
   assert.equal(mediation.credentialIsolation, "passed");
   assert.equal(mediation.modelFrameTransport, "passed");
   assert.equal(mediation.workerProtocol, "passed");
+  assert.equal(mediation.explicitResume, "passed");
   assert.equal(mediation.endpointEnforcement, "passed");
   assert.equal(mediation.deliveryCapabilities, "passed");
   assert.equal(mediation.gatewayIntegration, "passed");
   assert.equal(result.qualification.liveReady, false);
   assert.equal(result.execution, undefined);
+  codexFailure = {
+    blockedStage: "codex-resume-kill",
+    diagnostic: {
+      elapsedMs: 14200,
+      commandElapsedMs: 15000,
+      failureKind: "timeout",
+      originalCodexProcesses: 2,
+      remainingOriginalCodexProcesses: 1,
+      stderr: "synthetic-private-token",
+      command: "/private/path",
+    },
+  };
+  const refused = await delivery.qualify(request.id);
+  assert.deepEqual(
+    refused.qualification.subscriptionMediation.workerDiagnostic,
+    {
+      elapsedMs: 14200,
+      commandElapsedMs: 15000,
+      failureKind: "timeout",
+      originalCodexProcesses: 2,
+      remainingOriginalCodexProcesses: 1,
+    },
+  );
+  assert.equal(
+    refused.qualification.subscriptionMediation.workerBlocker,
+    "codex-resume-kill",
+  );
+  assert.equal(
+    refused.qualification.subscriptionMediation.workerProtocol,
+    "not-run",
+  );
+  assert.doesNotMatch(
+    JSON.stringify(refused),
+    /synthetic-private-token|\/private\/path/,
+  );
+  codexFailure.diagnostic.elapsedMs = -1;
+  const malformed = await delivery.qualify(request.id);
+  assert.equal(
+    malformed.qualification.subscriptionMediation.workerDiagnostic,
+    undefined,
+  );
+  assert.equal(
+    malformed.qualification.subscriptionMediation.workerBlocker,
+    "codex-resume-kill",
+  );
+  assert.equal(
+    malformed.qualification.subscriptionMediation.workerProtocol,
+    "not-run",
+  );
 });

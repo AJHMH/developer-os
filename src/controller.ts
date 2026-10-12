@@ -3,6 +3,12 @@ import {
   subscriptionGatewayVersion,
 } from "./subscription-gateway.js";
 import {
+  windowsControlsVersion,
+  windowsControlNames,
+  type WindowsControlsEvidence,
+  type WindowsControlsRuntime,
+} from "./windows-controls.js";
+import {
   onlinePolicyVersion,
   onlineUsagePermits,
   type OnlineAccessRuntime,
@@ -11,13 +17,26 @@ import {
   type OnlineStop,
   type PreparedOnline,
 } from "./online-access.js";
-import { projectSubscriptionDecision } from "./subscription-decision.js";
+import {
+  projectSubscriptionDecision,
+  subscriptionDecisionScope,
+} from "./subscription-decision.js";
 import { randomUUID } from "node:crypto";
+import {
+  syntheticSiteInput,
+  syntheticSiteOutput,
+  syntheticSiteValidator,
+  syntheticTaskVersion,
+  type SyntheticTaskRuntime,
+  type SyntheticTaskEvidence,
+  type SyntheticTaskResult,
+} from "./synthetic-task.js";
 import {
   existsSync,
   lstatSync,
   mkdirSync,
   realpathSync,
+  readFileSync,
   statSync,
   unlinkSync,
   writeFileSync,
@@ -148,6 +167,8 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  windowsControls?: WindowsControlsRuntime;
+  synthetic?: SyntheticTaskRuntime;
   offline?: OfflineCanaryRuntime;
   online?: OnlineAccessRuntime;
   subscription?: SubscriptionReader;
@@ -184,6 +205,8 @@ export interface Delivery {
   onboarding: OnboardingReport;
   qualification?: WorkerQualification;
   offlineCanary?: OfflineCanaryEvidence;
+  syntheticTask?: SyntheticTaskEvidence;
+  windowsControls?: WindowsControlsEvidence;
   onlineAccess?: OnlineAccessEvidence;
   onlineRuns?: OnlineAccessEvidence[];
   onlinePlan?: PreparedOnline;
@@ -392,7 +415,10 @@ export class DeliveryController {
         qualified.qualification?.subscriptionMediation?.mechanismDecision;
     if (
       !decision?.qualified ||
-      decision.scope !== "macos-fixed-codex-subscription"
+      decision.scope !==
+        subscriptionDecisionScope(
+          qualified.qualification?.offlineAdmission?.binding,
+        )
     )
       throw new DeliveryError(
         "Positive fixed-request authentication mediation is required.",
@@ -523,7 +549,10 @@ export class DeliveryController {
       qualified.qualification?.subscriptionMediation?.mechanismDecision;
     if (
       !decision?.qualified ||
-      decision.scope !== "macos-fixed-codex-subscription" ||
+      decision.scope !==
+        subscriptionDecisionScope(
+          qualified.qualification?.offlineAdmission?.binding,
+        ) ||
       !qualified.qualification?.offlineAdmission?.allowed ||
       (runtime.mode === "live" && qualified.qualification.mode !== "live")
     )
@@ -634,7 +663,7 @@ export class DeliveryController {
         const current = await this.checkUsage(id);
         const fresh = this.status(id);
         const u = current.usage!;
-        return (
+        const allowed =
           fresh.ownership.held &&
           fresh.ownership.fence === plan.fence &&
           fresh.phase === before.phase &&
@@ -642,8 +671,27 @@ export class DeliveryController {
           fresh.onlineAccess.state === "dispatched" &&
           fresh.qualification?.subscriptionMediation?.mechanismDecision
             ?.accountId === plan.accountId &&
-          onlineUsagePermits(u, plan)
-        );
+          onlineUsagePermits(u, plan);
+        if (!allowed) return false;
+        const authorizedAt = new Date().toISOString();
+        this.change(id, (delivery) => {
+          if (
+            !delivery.ownership.held ||
+            delivery.ownership.fence !== plan.fence ||
+            delivery.phase !== before.phase ||
+            delivery.onlineAccess?.runId !== plan.runId ||
+            delivery.onlineAccess.state !== "dispatched" ||
+            !onlineUsagePermits(delivery.usage, plan)
+          )
+            throw new DeliveryError(
+              "Online authorization changed before recording.",
+            );
+          delivery.onlineAccess.usageAuthorization ??= {
+            authorizedAt,
+            usage: structuredClone(delivery.usage!),
+          };
+        });
+        return true;
       } catch {
         return false;
       }
@@ -1026,6 +1074,69 @@ export class DeliveryController {
     );
   }
 
+  async qualifyWindowsControls(id: string): Promise<Delivery> {
+    const runtime = this.coordination.windowsControls;
+    if (!runtime || runtime.version !== windowsControlsVersion)
+      throw new DeliveryError(
+        "A trusted Windows controls runtime is required.",
+      );
+    const before = await this.qualify(id);
+    if (
+      !before.ownership.held ||
+      before.phase !== "blocked" ||
+      before.qualification?.offlineAdmission?.binding?.platform !== "win32" ||
+      !before.qualification.offlineAdmission.allowed ||
+      before.qualification.mode !== runtime.mode
+    )
+      throw new DeliveryError(
+        "Windows controls require an owned stopped admitted Windows binding.",
+      );
+    const evidence = await runtime.qualify(before);
+    const after = await this.qualify(id);
+    if (
+      evidence.version !== runtime.version ||
+      evidence.nativeVersion !==
+        sha256(readFileSync(new URL("./podman-native.js", import.meta.url))) ||
+      evidence.mode !== runtime.mode ||
+      evidence.outcome !== "passed" ||
+      evidence.productionEnabled !== false ||
+      evidence.bindingSha256 !== after.qualification?.bindingSha256 ||
+      evidence.policySha256 !== after.qualification?.policySha256 ||
+      evidence.operationId !== after.execution?.operationId ||
+      after.execution.state !== "stopped" ||
+      !after.ownership.held ||
+      after.phase !== "blocked" ||
+      evidence.checks.length !== windowsControlNames.length ||
+      !windowsControlNames.every((name) =>
+        evidence.checks.some(
+          (check) =>
+            check.name === name && /^[a-f0-9]{64}$/.test(check.evidenceSha256),
+        ),
+      ) ||
+      evidence.censuses.length < 2 ||
+      !evidence.censuses.every(
+        (c) =>
+          c.observedProcesses >= 8 &&
+          c.remainingProcesses === 0 &&
+          /^[a-f0-9]{64}$/.test(c.censusSha256),
+      )
+    )
+      throw new DeliveryError(
+        "Windows controls evidence or ownership did not verify.",
+      );
+    return this.change(id, (d) => {
+      if (
+        d.ownership.fence !== after.ownership.fence ||
+        !d.ownership.held ||
+        d.execution?.operationId !== evidence.operationId ||
+        d.execution.state !== "stopped" ||
+        d.phase !== "blocked"
+      )
+        throw new DeliveryError("Windows controls authority changed.");
+      d.windowsControls = structuredClone(evidence);
+    });
+  }
+
   /** Fixed synthetic workload only. Admission never enables feature delivery. */
   async offlineCanary(
     id: string,
@@ -1058,7 +1169,10 @@ export class DeliveryController {
       !/^[a-f0-9]{64}$/.test(pins.bindingSha256) ||
       !/^[a-f0-9]{64}$/.test(pins.policySha256) ||
       !runtime ||
-      runtime.mode !== qualified.qualification?.mode
+      runtime.mode !== qualified.qualification?.mode ||
+      (runtime === this.coordination.synthetic &&
+        qualified.qualification?.subscriptionMediation?.mechanismDecision
+          ?.scope !== "windows-fixed-codex-subscription")
     )
       return refuse(
         "Offline canary refused: matching admitted VM bindings and a trusted offline management driver are required.",
@@ -1137,7 +1251,10 @@ export class DeliveryController {
               current.ownership.fence === session.fence &&
               current.phase === "blocked" &&
               current.execution?.operationId === session.operationId &&
-              current.execution.state === "dispatched"
+              current.execution.state === "dispatched" &&
+              (runtime !== this.coordination.synthetic ||
+                current.qualification?.subscriptionMediation?.mechanismDecision
+                  ?.scope === "windows-fixed-codex-subscription")
             );
           },
         }),
@@ -1278,6 +1395,88 @@ export class DeliveryController {
       }
       throw error;
     }
+  }
+
+  async syntheticTask(id: string): Promise<Delivery> {
+    const runtime = this.coordination.synthetic;
+    const qualified = await this.qualify(id);
+    const decision =
+      qualified.qualification?.subscriptionMediation?.mechanismDecision;
+    if (
+      !runtime ||
+      runtime !== this.coordination.offline ||
+      runtime.version !== syntheticTaskVersion ||
+      !decision?.qualified ||
+      decision.scope !== "windows-fixed-codex-subscription"
+    )
+      throw new DeliveryError(
+        "Synthetic Windows work requires a trusted fixed task runtime and independent positive authentication; no inference is authorized.",
+      );
+    const files = admitFiles(
+      {
+        files: [
+          { path: "index.html", sha256: sha256(syntheticSiteInput) },
+          { path: "validate.sh", sha256: sha256(syntheticSiteValidator) },
+        ],
+      },
+      qualified.repository,
+    );
+    runtime.stage(files);
+    const completed = await this.offlineCanary(id);
+    const canary = completed.offlineCanary;
+    const session = completed.execution;
+    let result: SyntheticTaskResult | undefined;
+    if (
+      canary?.outcome === "completed" &&
+      session?.state === "stopped" &&
+      canary.shutdownProof?.remainingProcesses === 0
+    ) {
+      try {
+        const collected = await this.observe(
+          runtime.collectTask(session, canary),
+        );
+        if (
+          collected?.operationId === session.operationId &&
+          collected.version === runtime.version &&
+          collected.inputSha256 === sha256(syntheticSiteInput) &&
+          collected.output === syntheticSiteOutput &&
+          collected.outputSha256 === sha256(syntheticSiteOutput) &&
+          collected.validation === "passed" &&
+          collected.negativeValidation === "passed" &&
+          collected.httpValidation === "passed" &&
+          /^[a-f0-9]{64}$/.test(collected.collectionSha256)
+        )
+          result = collected;
+      } catch {
+        /* Unverified results cannot become imported task evidence. */
+      }
+    }
+    return this.change(id, (delivery) => {
+      if (
+        !session ||
+        delivery.execution?.operationId !== session.operationId ||
+        delivery.execution.state !== "stopped" ||
+        delivery.ownership.fence !== completed.ownership.fence ||
+        !delivery.ownership.held ||
+        delivery.phase !== "blocked"
+      )
+        throw new DeliveryError(
+          "Synthetic task authority changed; no output imported.",
+        );
+      delivery.syntheticTask = {
+        bindingSha256: canary?.bindingSha256 ?? "",
+        policySha256: canary?.policySha256 ?? "",
+        version: runtime.version,
+        mode: runtime.mode,
+        outcome: result ? "completed" : "refused",
+        session: structuredClone(session),
+        ...(result ? { result } : {}),
+        ...(canary?.shutdownProof
+          ? { shutdownProof: canary.shutdownProof }
+          : {}),
+        productionEnabled: false,
+      };
+    });
   }
 
   private async observe<T>(pending: Promise<T>): Promise<T | undefined> {

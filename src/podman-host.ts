@@ -1,9 +1,10 @@
 import { subscriptionGatewayVersion } from "./subscription-gateway.js";
+import { nativeProbeDiagnostic } from "./native-diagnostics.js";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { podmanMachine, podmanCommand } from "./podman-platform.js";
-import { NativePodmanDriver } from "./podman-native.js";
+import { NativePodmanDriver, codexWorkerSha256 } from "./podman-native.js";
 import { inspectCodexMediation } from "./codex-mediation.js";
 import type {
   Delivery,
@@ -348,6 +349,19 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 "codex-credential-denials",
                 "codex-initialize",
                 "codex-account-read",
+                "codex-explicit-resume",
+                "codex-resume-persistence",
+                "codex-resume-exit",
+                "codex-resume-kill",
+                "codex-resume-wait",
+                "codex-resume-status",
+                "codex-resume-census",
+                "codex-resume-initialize",
+                "codex-resume-account",
+                "codex-resume-history",
+                "codex-resume-rollout",
+                "codex-resume-permission",
+                "codex-resume-not-found",
                 "codex-process-exited",
                 "codex-process-audit",
                 "codex-relay-shutdown",
@@ -363,6 +377,11 @@ export class PodmanHostAdapter implements WorkerAdapter {
             ) {
               report.subscriptionMediation.workerBlocker =
                 observed.codex.blockedStage;
+              const diagnostic = nativeProbeDiagnostic(
+                observed.codex.diagnostic,
+              );
+              if (diagnostic)
+                report.subscriptionMediation.workerDiagnostic = diagnostic;
               report.subscriptionMediation.nextAction =
                 "Resolve the credential-free Codex worker probe failure, then qualify delivery-scoped endpoint mediation before preparing another live inference; keep owner credentials on the host.";
             }
@@ -370,10 +389,16 @@ export class PodmanHostAdapter implements WorkerAdapter {
               observed.codex?.protocol === "passed" &&
               observed.codex?.credentialIsolation === "passed" &&
               observed.codex?.binarySha256 ===
-                "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7" &&
+                codexWorkerSha256(binding.platform!, binding.arch!) &&
               observed.codex?.shutdown?.remainingProcesses === 0
             ) {
               report.subscriptionMediation.workerProtocol = "passed";
+              if (
+                observed.codex.explicitResume === "passed" &&
+                observed.codex.resumeInferenceRequests === 0 &&
+                observed.codex.observedCodexProcesses >= 1
+              )
+                report.subscriptionMediation.explicitResume = "passed";
               report.subscriptionMediation.codexCredentialIsolation = "passed";
               report.subscriptionMediation.workerExecutableSha256 =
                 observed.codex.binarySha256;

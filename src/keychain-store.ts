@@ -55,7 +55,7 @@ const fail = () =>
 /** Deploys an integrity-pinned, stable native Security-framework helper in the
  * already validated external host registration directory. No shell, candidate
  * script, password argument, credential file or weakened Keychain ACL is used. */
-export function macKeychainStore(directory: string) {
+export function macKeychainStore(directory: string, readOnly = false) {
   if (process.platform !== "darwin" || process.arch !== "arm64") throw fail();
   const binary = join(directory, "keychain-helper"),
     manifest = join(directory, "keychain-helper.json");
@@ -73,6 +73,7 @@ export function macKeychainStore(directory: string) {
   try {
     assertPrivateAuthStorage(directory, "directory");
     if (!existsSync(binary) && !existsSync(manifest)) {
+      if (readOnly) throw fail();
       const staging = mkdtempSync(join(directory, ".keychain-build-"));
       try {
         const input = join(staging, "main.swift"),
@@ -131,6 +132,7 @@ export function macKeychainStore(directory: string) {
   return {
     read: (account: string) => invoke("read", account),
     write: (account: string, value: string, replace: boolean) => {
+      if (readOnly) throw fail();
       invoke(replace ? "replace" : "add", account, value);
     },
   };

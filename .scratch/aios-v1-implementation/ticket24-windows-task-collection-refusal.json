@@ -1,0 +1,183 @@
+{
+  "observedAt": "2026-10-12T01:26:15.610Z",
+  "scope": "Public CLI fixed synthetic HTML edit, isolated repository-script and loopback HTTP validation; no new inference or production execution",
+  "task": {
+    "bindingSha256": "87423a1bf990a8569a2a092074ea03106f00c25aaede2226a5ca22284c4d829f",
+    "policySha256": "ce8c2e04f91899970e39593df53803abe94a766b47937d6f78e79d00f64b723f",
+    "version": "a729e679e4e71a2b48f17828abc040f189048af0509345a4154beacdc23c7689",
+    "mode": "live",
+    "outcome": "refused",
+    "session": {
+      "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "intent": "start",
+      "repositoryKey": "path:c:\\users\\mraar\\.developer-os\\ticket19-native\\repo",
+      "operationId": "a5bd8508-8dcc-440b-a97e-aacebee756d4",
+      "sandboxId": "0f06a0ea-5a68-4f7c-967c-c9cb1591d0dd",
+      "workerSessionId": "41efc4cd-ffcf-4d26-a449-d7e8ea46698d",
+      "runnerId": "ba20fdcc-8b26-4613-926c-78702f9827c3",
+      "fence": 68,
+      "state": "stopped"
+    },
+    "shutdownProof": {
+      "observedProcesses": 8,
+      "remainingProcesses": 0,
+      "censusSha256": "b766cbfc4174c57cbfb10c3c7a7aeec5f17b2252077e5268e351494a9c6a24d2"
+    },
+    "productionEnabled": false
+  },
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-12T01:24:56.643Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "d93002db744088f72bd3e133319c6c1d2c201d52634ebb8f52b30c3e2c6706ac"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "d93002db744088f72bd3e133319c6c1d2c201d52634ebb8f52b30c3e2c6706ac"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "d93002db744088f72bd3e133319c6c1d2c201d52634ebb8f52b30c3e2c6706ac"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "d93002db744088f72bd3e133319c6c1d2c201d52634ebb8f52b30c3e2c6706ac"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "d93002db744088f72bd3e133319c6c1d2c201d52634ebb8f52b30c3e2c6706ac"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "d93002db744088f72bd3e133319c6c1d2c201d52634ebb8f52b30c3e2c6706ac"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "d93002db744088f72bd3e133319c6c1d2c201d52634ebb8f52b30c3e2c6706ac"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "passed",
+      "workerProtocol": "passed",
+      "codexCredentialIsolation": "passed",
+      "scope": "host-capability-only",
+      "credentialIsolation": "passed",
+      "credentialIsolationScope": "synthetic-restricted-alpine",
+      "endpointEnforcement": "passed",
+      "deliveryCapabilities": "passed",
+      "hostGateway": "passed",
+      "gatewayIntegration": "passed",
+      "subscriptionInference": "not-run",
+      "nextAction": "Prepare a fresh owner-approved one-shot inference through the qualified synthetic host gateway/Codex bridge; live subscription integration remains not-run and production delivery remains disabled.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
+      "workerExecutableSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+      "deliveryCapabilityChecks": [
+        "cross-delivery",
+        "namespace",
+        "revocation",
+        "quota",
+        "expiry"
+      ],
+      "endpointScope": "synthetic-codex-relay",
+      "relayDeliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "gatewayScope": "synthetic-host-subscription"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+        "engineVersion": "6.0.2",
+        "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+        "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-d4385844370baac7066e9cf3dc1e1bb201869c81b4227de85ea7de2302465a32"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "ce8c2e04f91899970e39593df53803abe94a766b47937d6f78e79d00f64b723f",
+    "bindingSha256": "87423a1bf990a8569a2a092074ea03106f00c25aaede2226a5ca22284c4d829f",
+    "adversarial": {
+      "scope": "synthetic-windows-controls",
+      "challengeId": "06f797ec-8f62-496a-a22a-2e961d5691e9",
+      "probeVersion": "3aadcb021fe3f8fb103ec2864c458f85e1899c600bdf5aa332210015d9cea895",
+      "escapeAttempts": [
+        "passed-escape-unshare",
+        "passed-escape-chroot",
+        "passed-escape-cgroup",
+        "passed-escape-proc"
+      ]
+    }
+  }
+}

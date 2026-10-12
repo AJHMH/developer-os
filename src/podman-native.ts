@@ -7,6 +7,7 @@ import {
   subscriptionGatewayVersion,
 } from "./subscription-gateway.js";
 import { randomUUID } from "node:crypto";
+import { nativeProbeDiagnostic } from "./native-diagnostics.js";
 import { codexEndpointFixture } from "./codex-endpoint.js";
 import { spawn, spawnSync } from "node:child_process";
 import { hostname, platform } from "node:os";
@@ -55,6 +56,14 @@ export const offlineTemplate =
 const macosOfflineTemplate =
   "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f";
 
+/** Exact official Codex 0.161.0 Linux worker artifacts, independently pinned. */
+export function codexWorkerSha256(platform: string, arch: string) {
+  if (platform === "darwin" && arch === "arm64")
+    return "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7";
+  if (platform === "win32" && arch === "x64")
+    return "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c";
+  return undefined;
+}
 /** Runs only in the VM's trusted management namespace, not in the worker.
  * A machine-wide flock serializes dispatch with durable revocation. A single
  * authority directory is bound during explicit enrollment. Worker containers
@@ -63,11 +72,32 @@ const macosOfflineTemplate =
  * independent cgroup/PID shutdown. No tar extraction or guest paths are imported. */
 const guest = String.raw`
 import os,json,subprocess,hashlib,base64,fcntl,pathlib,uuid,time,io,tarfile
-def fail(): raise RuntimeError('Native offline observation unavailable')
+def fail():
+ if 'diagnostic' in globals(): diagnostic['failed']=True
+ raise RuntimeError('Native offline observation unavailable')
+def freeze_failure(error):
+ if diagnostic.get('failed'): return
+ diagnostic['failed']=True
+ if isinstance(error,subprocess.TimeoutExpired):
+  diagnostic.update(failureKind='timeout',commandElapsedMs=round(error.timeout*1000))
+ else:
+  diagnostic.update(failureKind='check');diagnostic.pop('commandElapsedMs',None);diagnostic.pop('exitCode',None)
 def command(args):
- p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
- if p.returncode: fail()
- if len(p.stdout)>1048576: fail()
+ started=time.monotonic()
+ recording='diagnostic' in globals() and not diagnostic.get('failed')
+ if recording: diagnostic.update(failureKind='check');diagnostic.pop('exitCode',None)
+ try:
+  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+ except subprocess.TimeoutExpired:
+  if recording: diagnostic.update(failureKind='timeout',commandElapsedMs=round((time.monotonic()-started)*1000),failed=True)
+  raise
+ if recording: diagnostic.update(commandElapsedMs=round((time.monotonic()-started)*1000))
+ if p.returncode:
+  if recording: diagnostic.update(failureKind='exit',exitCode=p.returncode)
+  fail()
+ if len(p.stdout)>1048576:
+  if recording: diagnostic.update(failureKind='output-limit')
+  fail()
  return p.stdout
 def pod(*args): return command(['podman',*args])
 engineSocket='/run/user/'+str(os.getuid())+'/podman/podman.sock'
@@ -306,6 +336,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker','owner-credentials']
    proof=h(json.dumps(dict(challenge=nonce,observed=observed,binding=binding,stopped=record['stopped']),sort_keys=True).encode())
    print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-5:-1],credentialExclusion=dict(hostFilesDenied=observed[:3]==['passed-host-files']*3,guestFileDenied=observed[-1]=='passed-owner-credentials',environmentScrubbed=True,mountsAbsent=True,networkAbsent=True,positiveControlsBeforeAfter=True),scope='Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
+  except Exception as error:
+   freeze_failure(error)
+   raise
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
@@ -320,7 +353,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
   st=os.lstat(binary)
   if not __import__('stat').S_ISREG(st.st_mode) or st.st_nlink!=1 or st.st_uid!=os.getuid() or st.st_mode & 0o077: fail()
   data=pathlib.Path(binary).read_bytes()
-  binaryHash='0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7'
+  binaryHash='9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c' if R['hostBinding']['platform']=='win32' and R['hostBinding']['arch']=='x64' else '0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7'
   if h(data)!=binaryHash: fail()
   private=root+'/credential-'+str(uuid.uuid4());secret=uuid.uuid4().hex
   pathlib.Path(private).write_text(secret);os.chmod(private,0o600)
@@ -329,7 +362,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
   endpointSource=base64.b64decode('${Buffer.from(codexEndpointFixture).toString("base64")}').decode()
   try:
    stage='codex-create'
-   create(name,'sleep 600',{'aios.authority':R['authority']},'512m')
+   create(name,'sleep 600 & wait',{'aios.authority':R['authority']},'512m')
    save(probePath,record)
    archive=io.BytesIO()
    with tarfile.open(fileobj=archive,mode='w') as tar:
@@ -364,14 +397,14 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
      return json.loads(line)
     if event()!=dict(ready=True,deliveryId=identity): fail()
     return p,event
-   proxy,relayEvent=relay(name,18081,delivery,cap,2,45)
+   proxy,relayEvent=relay(name,18081,delivery,cap,2,60)
    peer='aios-relay-peer-'+str(uuid.uuid4());peerRecord=dict(name=peer,cgroup='',pids={},stopped=False)
    peerPath=root+'/probe-'+str(uuid.uuid4())+'.json'
    create(peer,'sleep 600',{'aios.authority':R['authority']})
    save(peerPath,peerRecord)
    pod('start',peer);peerRecord['cgroup']=cgroup(inspect(peer)['State']['Pid']);peerRecord['pids']=census(peerRecord['cgroup']);save(peerPath,peerRecord)
    peerId=str(uuid.uuid4());peerCap=uuid.uuid4().hex+uuid.uuid4().hex
-   peerProxy,peerEvent=relay(peer,18082,peerId,peerCap,3)
+   peerProxy,peerEvent=relay(peer,18082,peerId,peerCap,3,60)
    body=json.dumps(dict(model='gpt-6.1-sol',input=[dict(role='user',content='Say exactly: AIOS model-only inference complete')],store=False,stream=True)).encode()
    def request(worker,port,method='POST',path='/v1/responses',token=cap,identity=delivery,payload=body,extra=b''):
     header=(method+' '+path+' HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+token+'\r\nX-AIOS-Delivery: '+identity+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(payload))+'\r\nConnection: close\r\n').encode()+extra+b'\r\n'+payload
@@ -418,7 +451,15 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
      while b'\n' in pending:
       line,pending=pending.split(b'\n',1)
       message=json.loads(line)
-      if message.get('error'): fail()
+      if message.get('error'):
+       if message.get('id')==6 and time.monotonic()<persistenceBy:
+        time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
+       if message.get('id')==5:
+        detail=str(message['error'].get('message','')).lower()
+        if 'rollout' in detail: stage='codex-resume-rollout'
+        elif 'permission' in detail or 'denied' in detail: stage='codex-resume-permission'
+        elif 'not found' in detail: stage='codex-resume-not-found'
+       fail()
       if message.get('id')==1:
        if not message.get('result'): fail()
        initialized=True;stage='codex-account-read';send(dict(method='initialized'));send(dict(method='account/read',id=2,params=dict(refreshToken=False)))
@@ -426,7 +467,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        value=message.get('result',{})
        if not initialized or value.get('account') is not None or value.get('requiresOpenaiAuth') is not False: fail()
        accountVerified=True;stage='codex-relay-turn'
-       send(dict(method='thread/start',id=3,params=dict(model='gpt-6.1-sol',cwd='/tmp/empty-codex',approvalPolicy='never',sandbox='read-only',ephemeral=True)))
+       send(dict(method='thread/start',id=3,params=dict(model='gpt-6.1-sol',cwd='/tmp/empty-codex',approvalPolicy='never',sandbox='read-only',ephemeral=False)))
       elif message.get('id')==3:
        thread=message.get('result',{}).get('thread',{}).get('id')
        if not accountVerified or not isinstance(thread,str): fail()
@@ -435,6 +476,49 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        answer+=message.get('params',{}).get('delta','')
       elif message.get('method')=='turn/completed':
        if message.get('params',{}).get('turn',{}).get('status')!='completed' or answer!='AIOS model-only inference complete': fail()
+       stage='codex-resume-persistence'
+       persistenceBy=time.monotonic()+2
+       send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)))
+      elif message.get('id')==6:
+       saved=message.get('result',{}).get('thread',{})
+       if saved.get('id')!=thread or 'AIOS model-only inference complete' not in json.dumps(saved.get('turns',[])):
+        if time.monotonic()>=persistenceBy: fail()
+        time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
+       stage='codex-resume-exit'
+       previous=census(cg);previousCodex={pid:start for pid,start in previous.items() if b'/codex' in pathlib.Path('/proc/'+pid+'/cmdline').read_bytes()}
+       if not previousCodex: fail()
+       diagnostic['originalCodexProcesses']=len(previousCodex)
+       record['pids'].update(previous);save(probePath,record)
+       stage='codex-resume-kill'
+       pod('exec',name,'killall','-KILL','codex')
+       stage='codex-resume-wait'
+       child.stdin.close();child.wait(timeout=10)
+       stage='codex-resume-status'
+       if child.returncode not in [0,137,-9]: fail()
+       stage='codex-resume-census'
+       exitedBy=time.monotonic()+2
+       while any(census(cg).get(pid)==start for pid,start in previousCodex.items()) and time.monotonic()<exitedBy: time.sleep(0.05)
+       diagnostic['remainingOriginalCodexProcesses']=sum(census(cg).get(pid)==start for pid,start in previousCodex.items())
+       if diagnostic['remainingOriginalCodexProcesses']: fail()
+       selector.unregister(child.stdout);selector.unregister(child.stderr)
+       child=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+       selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr')
+       pending=b''
+       stage='codex-resume-initialize'
+       send(dict(method='initialize',id=11,params=dict(clientInfo=dict(name='Developer_OS',version='0.1.0'),capabilities={})))
+      elif message.get('id')==11:
+       if not message.get('result'): fail()
+       stage='codex-resume-account'
+       send(dict(method='initialized'));send(dict(method='account/read',id=12,params=dict(refreshToken=False)))
+      elif message.get('id')==12:
+       value=message.get('result',{})
+       if value.get('account') is not None or value.get('requiresOpenaiAuth') is not False: fail()
+       stage='codex-explicit-resume'
+       send(dict(method='thread/resume',id=5,params=dict(threadId=thread)))
+      elif message.get('id')==5:
+       resumed=message.get('result',{}).get('thread',{})
+       stage='codex-resume-history'
+       if resumed.get('id')!=thread or not resumed.get('turns') or 'AIOS model-only inference complete' not in json.dumps(resumed['turns']): fail()
        verified=True;break
    if not verified or not gatewayCompleted or len(gatewayAccepted)!=1: fail()
    stage='codex-relay-revocation'
@@ -496,7 +580,11 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    child.wait(timeout=5)
    stage='codex-post-binding'
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
-   print(json.dumps(dict(binding=binding,protocol='passed',credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'])))
+   print(json.dumps(dict(binding=binding,protocol='passed',explicitResume='passed',resumeInferenceRequests=0,credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'])))
+  except Exception as error:
+   freeze_failure(error)
+   raise
+
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
@@ -685,12 +773,12 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       "import json,base64\n" +
       `R=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n` +
       (["isolate", "codex-protocol"].includes(action)
-        ? "stage='initialization'\ntry:\n" +
+        ? "stage='initialization'\ndiagnostic={'failureKind':'check'}\nprobeStarted=__import__('time').monotonic()\ntry:\n" +
           guest
             .split("\n")
             .map((line) => " " + line)
             .join("\n") +
-          "\nexcept BaseException:\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'])))\n"
+          "\nexcept BaseException:\n diagnostic['elapsedMs']=round((__import__('time').monotonic()-probeStarted)*1000)\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'],diagnostic=diagnostic)))\n"
         : guest);
     return { host, input, executableSha256 };
   }
@@ -914,15 +1002,23 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       const observed = this.invoke("isolate", { expected, challenge });
       if (observed.challengeId !== challenge.id)
         throw Error("Unbound isolation evidence");
-      if (observed.passed === true && expected.platform === "darwin") {
+      if (
+        observed.passed === true &&
+        codexWorkerSha256(expected.platform!, expected.arch!)
+      ) {
         const codex = await this.gatewayInvocation(
           { expected, challenge, deliveryId },
           deliveryId,
         );
         if (codex.blockedStage) {
-          observed.codex = { blockedStage: codex.blockedStage };
+          observed.codex = {
+            blockedStage: codex.blockedStage,
+            diagnostic: nativeProbeDiagnostic(codex.diagnostic),
+          };
         } else if (
           codex.protocol !== "passed" ||
+          codex.explicitResume !== "passed" ||
+          codex.resumeInferenceRequests !== 0 ||
           codex.credentialIsolation !== "passed" ||
           codex.shutdown?.remainingProcesses !== 0 ||
           codex.observedCodexProcesses < 1 ||
@@ -960,14 +1056,17 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
   async inferThroughGateway(
     repository: string,
     deliveryId: string,
-    gateway: HostSubscriptionGateway,
+    approvedGateway: HostSubscriptionGateway | (() => HostSubscriptionGateway),
   ): Promise<any> {
-    const expected = this.policy(repository);
+    let gateway =
+      typeof approvedGateway === "function" ? undefined : approvedGateway;
     try {
+      const expected = this.policy(repository);
       const proof = await withHostCanary(async (challenge) => {
         const isolation = this.invoke("isolate", { expected, challenge });
         if (isolation.passed !== true || isolation.challengeId !== challenge.id)
           throw Error("Unverified isolation");
+        gateway ??= (approvedGateway as () => HostSubscriptionGateway)();
         const codex = await this.gatewayInvocation(
           { expected, challenge, deliveryId },
           deliveryId,
@@ -975,6 +1074,8 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
         );
         if (
           codex.protocol !== "passed" ||
+          codex.explicitResume !== "passed" ||
+          codex.resumeInferenceRequests !== 0 ||
           codex.credentialIsolation !== "passed" ||
           codex.gatewayIntegration !== "passed" ||
           codex.relayDeliveryId !== deliveryId ||
@@ -987,7 +1088,7 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       });
       return proof;
     } finally {
-      gateway.revoke();
+      gateway?.revoke();
     }
   }
   /** Fixed synthetic request/result transport only, not a production worker. */
