@@ -3,7 +3,13 @@ import { test } from "node:test";
 import { runWindowsQualification } from "../scripts/run-windows-qualification.mjs";
 import { readWindowsQualificationManifest } from "../scripts/run-windows-qualification.mjs";
 import { createHash } from "node:crypto";
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  writeFileSync,
+  rmSync,
+  existsSync,
+  realpathSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -163,7 +169,7 @@ test("planning is portable and starts no child or state lock even without approv
   assert.equal(calls, 0);
 });
 test("operator manifests reject script drift and embedded approvals before execution", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "windows-plan-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "windows-plan-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const script = join(root, "fixture.mjs");
   const bytes = "process.exit(0);";
@@ -226,7 +232,7 @@ test("operator manifests reject script drift and embedded approvals before execu
   );
 });
 test("real child stages share the canonical acceptance lock and stop on script drift", async (t) => {
-  const root = mkdtempSync(join(tmpdir(), "windows-lock-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "windows-lock-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const script = join(root, "fixture.mjs");
   const bytes = "await new Promise(r=>setTimeout(r,100));";

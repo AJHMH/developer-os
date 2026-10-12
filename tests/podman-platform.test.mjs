@@ -567,3 +567,116 @@ print('preserved')
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim(), "preserved");
 });
+
+test("native fixed task enforces staging, dispatch authority and exact stopped collection bindings", async (t) => {
+  const {
+    NativeSyntheticTask,
+    syntheticSiteInput,
+    syntheticSiteOutput,
+    syntheticSiteValidator,
+  } = await import("../dist/synthetic-task.js");
+  const f = hostFixture(t, "win32");
+  const pins = { bindingSha256: "a".repeat(64), policySha256: "b".repeat(64) };
+  const session = {
+    sandboxId: "00000000-0000-4000-8000-000000000001",
+    operationId: "00000000-0000-4000-8000-000000000002",
+  };
+  let allowed = true,
+    dispatches = 0,
+    stops = 0,
+    collections = 0;
+  const native = {
+    machine: "aios-test",
+    async execute() {
+      dispatches++;
+      return { status: "running" };
+    },
+    async stop() {
+      stops++;
+      return { status: "stopped" };
+    },
+    async collect() {
+      collections++;
+      return { files: [] };
+    },
+  };
+  const task = new NativeSyntheticTask(native);
+  const request = { ...pins, session, mayDispatch: () => allowed };
+  await assert.rejects(task.execute(request), /input or ownership/);
+  assert.throws(() => task.stage([]), /fixed synthetic/);
+  const files = [
+    { path: "index.html", bytes: Buffer.from(syntheticSiteInput) },
+    { path: "validate.sh", bytes: Buffer.from(syntheticSiteValidator) },
+  ];
+  task.stage(files);
+  files[0].bytes.fill(0);
+  let failure = false,
+    malformed = false;
+  t.mock.method(childProcess, "spawnSync", (_exe, args, options) => {
+    const data = JSON.parse(options.input.split("\n")[1]);
+    assert.equal(options.shell, false);
+    assert.equal(options.windowsHide, true);
+    assert.deepEqual(data.pins, pins);
+    assert.equal(
+      Buffer.from(data.files[0].bytes, "base64").toString(),
+      syntheticSiteInput,
+    );
+    assert.equal(
+      Buffer.from(data.expected, "base64").toString(),
+      syntheticSiteOutput,
+    );
+    if (failure) return { status: 1, stderr: "private fixture error" };
+    if (malformed) return { status: 0, stdout: "invalid" };
+    return {
+      status: 0,
+      stdout: JSON.stringify({ action: data.action, files: [] }),
+    };
+  });
+  syncBuiltinESMExports();
+  assert.equal((await task.execute(request)).status, "running");
+  assert.equal(dispatches, 1);
+  allowed = false;
+  await assert.rejects(task.execute(request), /ownership/);
+  assert.equal(dispatches, 1);
+  allowed = true;
+  native.execute = async () => {
+    allowed = false;
+    return {};
+  };
+  await assert.rejects(task.execute(request), /authority changed/);
+  await assert.rejects(
+    task.collectTask(session, pins),
+    /verified native collection/,
+  );
+  await task.stop(session, pins);
+  assert.equal(stops, 1);
+  await task.collect(session, pins);
+  assert.equal(collections, 1);
+  assert.equal((await task.collectTask(session, pins)).action, "collect");
+  await assert.rejects(
+    task.collectTask(session, { ...pins, policySha256: "c".repeat(64) }),
+    /matching verified/,
+  );
+  await task.collect({ ...session, sandboxId: "invalid" }, pins);
+  await assert.rejects(
+    task.collectTask({ ...session, sandboxId: "invalid" }, pins),
+    /Invalid synthetic session/,
+  );
+  await task.collect(session, pins);
+  failure = true;
+  await assert.rejects(
+    task.collectTask(session, pins),
+    (error) => !error.message.includes("private fixture"),
+  );
+  failure = false;
+  malformed = true;
+  await assert.rejects(task.collectTask(session, pins), SyntaxError);
+  task.stage([
+    { path: "index.html", bytes: Buffer.from(syntheticSiteInput) },
+    { path: "validate.sh", bytes: Buffer.from(syntheticSiteValidator) },
+  ]);
+  await assert.rejects(
+    task.collectTask(session, pins),
+    /verified native collection/,
+  );
+});

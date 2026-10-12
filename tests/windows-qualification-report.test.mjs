@@ -805,3 +805,160 @@ test("Windows report binds task validation evidence and refuses altered output o
     "not-run",
   );
 });
+
+test("native Windows controls coordinate synthetic boundary denial, revoked sender and killed-controller recovery", async (t) => {
+  const { NativeWindowsControls, windowsControlNames } = await import(
+    "../dist/windows-controls.js"
+  );
+  const fs = (await import("node:fs")).default;
+  const cp = (await import("node:child_process")).default;
+  const os = (await import("node:os")).default;
+  const { syncBuiltinESMExports } = await import("node:module");
+  const f = fixture(t);
+  writeFileSync(
+    join(f.repository, "canary.txt"),
+    "AIOS offline canary input\n",
+  );
+  const qualified = await f.controller.qualify(f.delivery.id);
+  const q = structuredClone(qualified.qualification);
+  q.mode = "live";
+  const effective = q.offlineAdmission.effective;
+  const { sha256, canaryOutput } = await import("../dist/offline-canary.js");
+  const revoked = new Set();
+  const native = {
+    mode: "live",
+    observe: () => ({ binding: f.binding, effective }),
+    machine: f.binding.machine,
+    policyPath: join(f.repository, "..", "pins.json"),
+    authorityDirectory: f.state,
+    async execute(r) {
+      if (revoked.has(r.session.operationId) || !r.mayDispatch())
+        throw Error("revoked");
+      return {
+        ...r.session,
+        status: "running",
+        fresh: true,
+        bindingSha256: r.bindingSha256,
+        policySha256: r.policySha256,
+        binding: f.binding,
+        effective,
+      };
+    },
+    async stop(s, p) {
+      revoked.add(s.operationId);
+      return {
+        ...s,
+        ...p,
+        status: "stopped",
+        revoked: true,
+        descendantsStopped: true,
+        evidence: {
+          observedProcesses: 8,
+          remainingProcesses: 0,
+          censusSha256: "e".repeat(64),
+        },
+      };
+    },
+    async collect(s, p) {
+      assert.ok(revoked.has(s.operationId));
+      return {
+        ...s,
+        ...p,
+        status: "stopped",
+        files: [
+          {
+            path: "result.txt",
+            bytes: Buffer.from(canaryOutput),
+            ordinary: true,
+            links: 1,
+            beforeSha256: sha256(canaryOutput),
+            afterSha256: sha256(canaryOutput),
+          },
+        ],
+      };
+    },
+  };
+  const originals = {
+    lstat: fs.lstatSync,
+    realpath: fs.realpathSync,
+    read: fs.readFileSync,
+    exists: fs.existsSync,
+    spawn: cp.spawn,
+  };
+  const special = (path) =>
+    /(?:podman\.exe|aios-report-test\.json)$/.test(String(path));
+  t.mock.method(os, "platform", () => "win32");
+  t.mock.method(os, "arch", () => "x64");
+  t.mock.method(fs, "lstatSync", (p) =>
+    special(p)
+      ? { isFile: () => true, isSymbolicLink: () => false, nlink: 1, size: 100 }
+      : originals.lstat(p),
+  );
+  t.mock.method(fs, "realpathSync", (p) =>
+    special(p) ? String(p) : originals.realpath(p),
+  );
+  t.mock.method(fs, "existsSync", (p) =>
+    special(p) || String(p).endsWith("ssh.exe") ? true : originals.exists(p),
+  );
+  t.mock.method(fs, "readFileSync", (p, o) =>
+    String(p).endsWith("aios-report-test.json")
+      ? JSON.stringify({
+          Name: f.binding.machine,
+          Version: 1,
+          HyperVHypervisor: {},
+          Mounts: [],
+          HostUser: { Rootful: false },
+        })
+      : originals.read(p, o),
+  );
+  t.mock.method(cp, "spawnSync", (_exe, _args, options) => {
+    const r = JSON.parse(options.input.split("\n")[1]);
+    assert.equal(options.shell, false);
+    assert.equal(options.windowsHide, true);
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        challenge: r.challenge,
+        operationId: r.session.operationId,
+        names: windowsControlNames.slice(0, 3),
+        positiveControls: true,
+        privilegedDenial: true,
+      }),
+    };
+  });
+  let child;
+  t.mock.method(cp, "spawn", (exe, _args, options) => {
+    assert.equal(exe, process.execPath);
+    const script = String.raw`
+let text='';for await(const chunk of process.stdin)text+=chunk;
+const r=JSON.parse(text);const {DeliveryController}=await import(r.controller);
+const q=JSON.parse(process.env.SYNTHETIC_QUALIFICATION);
+const offline={mode:'live',execute:async request=>{console.log('AIOS_ACCEPTED');await new Promise(()=>setInterval(()=>{},1000));}};
+await new DeliveryController(r.state,{}, {worker:{probe:async()=>q},offline}).offlineCanary(r.id);
+`;
+    child = originals.spawn(exe, ["--input-type=module", "-e", script], {
+      ...options,
+      cwd: f.repository,
+      env: { ...options.env, SYNTHETIC_QUALIFICATION: JSON.stringify(q) },
+    });
+    return child;
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    child?.kill();
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  const result = await new NativeWindowsControls(native).qualify(qualified);
+  assert.deepEqual(
+    result.checks.map((c) => c.name).toSorted(),
+    windowsControlNames.toSorted(),
+  );
+  assert.equal(result.censuses.length, 2);
+  assert.equal(result.productionEnabled, false);
+  assert.equal(f.controller.status(f.delivery.id).execution.state, "stopped");
+  assert.ok(child.exitCode !== null || child.signalCode !== null);
+  assert.ok(
+    result.checks.every((c) => /^[a-f0-9]{64}$/.test(c.evidenceSha256)),
+  );
+});
