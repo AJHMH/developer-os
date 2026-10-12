@@ -47,3 +47,20 @@ Validation: typecheck and focused public-platform tests passed. Full suite:
 164 tests, 163 passed, one macOS-only ACL skip, zero failures. Standards and Spec
 reviews cleared this slice. Windows plan preparation passed under the serial
 native acceptance lock; actual provider inference remains not-run.
+
+## Approved inference result
+
+The owner explicitly approved run `dfbabb04-9892-496e-867b-58bcfa213173`
+and its unknown remaining-usage allowance. At 7:36 p.m. Central on October 11,
+the one-shot actual Windows Codex subscription inference passed. The harness
+requalified synthetic controls, matched exact plan identities, consumed the
+external approval marker before DPAPI credential access and sent only the fixed
+request. Receipt: `ticket24-windows-gateway-inference-observation.json`.
+Gateway revoked, worker and relay remaining processes zero, credentials stayed
+on the host, production delivery remained disabled. The consumed run cannot be
+reused. The plan file retains its original preparation snapshot.
+
+This establishes the exact Windows fixture's live subscription inference. It
+does not publish a trusted Windows capability decision or complete general
+online/usage dispatch, complete report aggregation, synthetic production task or
+isolated validation; ticket 24 remains open.

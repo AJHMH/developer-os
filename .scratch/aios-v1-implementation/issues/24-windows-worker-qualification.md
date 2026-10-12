@@ -77,3 +77,15 @@ See [review and provenance](../ticket24-windows-inference-review.md) and
 [exact plan](../ticket24-windows-gateway-inference-plan.json).
 No real inference has run; production remains disabled and complete acceptance
 criteria remain open.
+
+### Exact approved Windows inference passed
+
+Owner-approved run `dfbabb04-9892-496e-867b-58bcfa213173` and explicit unknown
+usage allowance completed the fixed actual Codex turn through the host-only
+subscription gateway. Approval was durably consumed; no retry, refresh or paid
+fallback occurred. The receipt records credential isolation, endpoint enforcement,
+five capability checks, gateway revocation and zero remaining worker/relay
+processes. See [live receipt](../ticket24-windows-gateway-inference-observation.json).
+Production remains disabled. Publishing the trusted Windows capability decision,
+general online/usage qualification, complete report controls and production task/
+isolated validation still remain. Complete acceptance stays open.
