@@ -201,3 +201,33 @@ test("read-only macOS account storage refuses missing deployment without writing
   );
   assert.deepEqual(commands, ["/bin/ls"]);
 });
+
+test("auth status supports independent Apple silicon inspection and refuses malformed encoding or clock", () => {
+  const adapters = {
+    platform: "darwin",
+    arch: "arm64",
+    registration: () => ({ hostId: account.hostId }),
+    readAccount: () => Buffer.from(JSON.stringify(account)).toString("base64"),
+    now: () => 70000,
+  };
+  assert.equal(
+    inspectSubscriptionAuth("/auth", "/repo", "/state", id, adapters).status,
+    "eligible",
+  );
+  for (const encoded of ["!private!", "A".repeat(349529)])
+    assert.equal(
+      inspectSubscriptionAuth("/auth", "/repo", "/state", id, {
+        ...adapters,
+        readAccount: () => encoded,
+      }).status,
+      "unavailable",
+    );
+  for (const now of [-1, 1.5, NaN])
+    assert.equal(
+      inspectSubscriptionAuth("/auth", "/repo", "/state", id, {
+        ...adapters,
+        now: () => now,
+      }).status,
+      "unavailable",
+    );
+});

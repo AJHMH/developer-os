@@ -100,14 +100,14 @@ test("Windows protected store rejects changed files and sanitizes host encryptio
   const account = "c".repeat(64);
   store.write(account, "synthetic-only", false);
   const original = fs.lstatSync;
-  t.mock.method(fs, "lstatSync", (path) =>
+  const observation = t.mock.method(fs, "lstatSync", (path) =>
     String(path).endsWith(".dpapi")
       ? { isFile: () => true, isSymbolicLink: () => false, nlink: 2, size: 10 }
       : original(path),
   );
   syncBuiltinESMExports();
   assert.throws(() => store.read(account), /unavailable/);
-  t.mock.method(fs, "lstatSync", original);
+  observation.mock.restore();
   syncBuiltinESMExports();
   f.refuse();
   assert.throws(
@@ -125,5 +125,44 @@ test("Windows protected store refuses malformed host output and changed readback
     /unavailable/,
   );
   f.malform();
+  assert.throws(() => windowsAuthStore(f.root), /unavailable/);
+});
+
+test("Windows protected storage refuses path drift and cleans failed replacement without changing retained bytes", (t) => {
+  const f = fixture(t);
+  const store = windowsAuthStore(f.root);
+  const account = "e".repeat(64);
+  store.write(account, "synthetic-retained", false);
+  t.mock.method(fs, "renameSync", () => {
+    throw Error("synthetic rename refused");
+  });
+  syncBuiltinESMExports();
+  assert.throws(
+    () => store.write(account, "synthetic-new", true),
+    /rename refused/,
+  );
+  assert.equal(fs.existsSync(join(f.root, account + ".replace")), false);
+  assert.equal(store.read(account), "synthetic-retained");
+  const real = fs.realpathSync;
+  t.mock.method(fs, "realpathSync", (path) =>
+    path === f.root ? f.root + "-drift" : real(path),
+  );
+  syncBuiltinESMExports();
+  assert.throws(() => windowsAuthStore(f.root), /unavailable/);
+});
+test("Windows protected storage refuses unsupported architectures and uses only the fixed OS executable fallback", (t) => {
+  const f = fixture(t);
+  const retainedRoot = process.env.SystemRoot;
+  delete process.env.SystemRoot;
+  t.after(() => {
+    if (retainedRoot === undefined) delete process.env.SystemRoot;
+    else process.env.SystemRoot = retainedRoot;
+  });
+  initializeWindowsAuthDirectory(f.root);
+  windowsAuthStore(f.root);
+  Object.defineProperty(process, "arch", {
+    value: "arm64",
+    configurable: true,
+  });
   assert.throws(() => windowsAuthStore(f.root), /unavailable/);
 });

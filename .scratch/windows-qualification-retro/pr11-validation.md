@@ -30,3 +30,17 @@ and separate live qualification authorization still apply. Publication uses a
 verified signed commit pushed by the Factory App. Owner review must target the
 final published head. Corrective work used two reviewed batches and remains
 within the repository repair allowance.
+
+## Final bounded branch-coverage batch
+
+Factory line metrics passed at b1a0643: global 93.73%, changed 93.68%.
+Changed branch coverage was 87.53%, below the unchanged 90% requirement.
+Added public malformed diagnostic/auth tests, protected-storage path/architecture
+and failed-rename cleanup tests, and native boundary failure/challenge/denial
+cases that still require stopped worker state. Fixed fixture mock restoration.
+Both independent reviews cleared the final batch with zero corrective findings.
+Final full Windows synthetic suite: 199 tests, 198 passed, one macOS-only skip,
+zero failures. Typecheck/formatting/whitespace passed. Hosted Factory branch
+metrics must be confirmed after publication; no native acceptance was rerun.
+The three-cycle repair allowance is now consumed; preserve any remaining
+blocker rather than silently starting a fourth repair cycle.

@@ -806,7 +806,7 @@ test("Windows report binds task validation evidence and refuses altered output o
   );
 });
 
-test("native Windows controls coordinate synthetic boundary denial, revoked sender and killed-controller recovery", async (t) => {
+async function nativeControlsScenario(t, refusal) {
   const { NativeWindowsControls, windowsControlNames } = await import(
     "../dist/windows-controls.js"
   );
@@ -915,14 +915,19 @@ test("native Windows controls coordinate synthetic boundary denial, revoked send
     const r = JSON.parse(options.input.split("\n")[1]);
     assert.equal(options.shell, false);
     assert.equal(options.windowsHide, true);
+    if (refusal === "allowed-stage" || refusal === "unknown-stage")
+      return {
+        status: 1,
+        stderr: refusal === "allowed-stage" ? "authority" : "synthetic-private",
+      };
     return {
       status: 0,
       stdout: JSON.stringify({
-        challenge: r.challenge,
+        challenge: refusal === "challenge" ? "wrong" : r.challenge,
         operationId: r.session.operationId,
         names: windowsControlNames.slice(0, 3),
         positiveControls: true,
-        privilegedDenial: true,
+        privilegedDenial: refusal !== "denial",
       }),
     };
   });
@@ -949,6 +954,14 @@ await new DeliveryController(r.state,{}, {worker:{probe:async()=>q},offline}).of
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
+  if (refusal) {
+    await assert.rejects(
+      new NativeWindowsControls(native).qualify(qualified),
+      /(?:boundary|Boundary)/,
+    );
+    assert.equal(f.controller.status(f.delivery.id).execution.state, "stopped");
+    return;
+  }
   const result = await new NativeWindowsControls(native).qualify(qualified);
   assert.deepEqual(
     result.checks.map((c) => c.name).toSorted(),
@@ -961,4 +974,9 @@ await new DeliveryController(r.state,{}, {worker:{probe:async()=>q},offline}).of
   assert.ok(
     result.checks.every((c) => /^[a-f0-9]{64}$/.test(c.evidenceSha256)),
   );
-});
+}
+test("native Windows controls coordinate synthetic boundary denial, revoked sender and killed-controller recovery", (t) =>
+  nativeControlsScenario(t));
+for (const refusal of ["allowed-stage", "unknown-stage", "challenge", "denial"])
+  test(`native Windows controls refuse ${refusal} boundary evidence and still stop the worker`, (t) =>
+    nativeControlsScenario(t, refusal));
