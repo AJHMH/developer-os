@@ -316,132 +316,136 @@ test("native model-frame transport returns only binding-matched bounded frames",
   );
 });
 
-test("native isolation uses a synthetic host process and model-only gateway capability", async (t) => {
-  const f = hostFixture(t, "darwin");
-  f.setResult((request) => {
-    if (request.action === "isolate")
-      return {
-        status: 0,
-        stdout: JSON.stringify({
-          challengeId: request.challenge.id,
-          passed: true,
-        }),
-      };
-    if (request.action === "model-frame")
-      return {
-        status: 0,
-        stdout: JSON.stringify({
-          binding: request.expected,
-          frame: request.frame,
-          shutdown: { remainingProcesses: 0 },
-        }),
-      };
-    assert.fail(`Unexpected native action: ${request.action}`);
-  });
+for (const hostPlatform of ["darwin", "win32"])
+  test(`native ${hostPlatform} isolation uses a synthetic host process and model-only gateway capability`, async (t) => {
+    const f = hostFixture(t, hostPlatform);
+    f.setResult((request) => {
+      if (request.action === "isolate")
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            challengeId: request.challenge.id,
+            passed: true,
+          }),
+        };
+      if (request.action === "model-frame")
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            binding: request.expected,
+            frame: request.frame,
+            shutdown: { remainingProcesses: 0 },
+          }),
+        };
+      assert.fail(`Unexpected native action: ${request.action}`);
+    });
 
-  const nativeSpawn = childProcess.spawn;
-  const fakeChildren = [];
-  t.mock.method(childProcess, "spawn", (executable, args, options) => {
-    if (executable === process.execPath)
-      return nativeSpawn(executable, args, options);
+    const nativeSpawn = childProcess.spawn;
+    const fakeChildren = [];
+    t.mock.method(childProcess, "spawn", (executable, args, options) => {
+      if (executable === process.execPath)
+        return nativeSpawn(executable, args, options);
 
-    const child = new EventEmitter();
-    child.exitCode = null;
-    child.stderr = new EventEmitter();
-    child.stdout = new EventEmitter();
-    let closed = false;
-    const close = (code) => {
-      if (closed) return;
-      closed = true;
-      child.exitCode = code;
-      queueMicrotask(() => child.emit("close", code));
-    };
-    child.kill = () => {
-      close(1);
-      return true;
-    };
-    child.stdin = new Writable({
-      write(chunk, _encoding, callback) {
-        try {
-          const python = Buffer.from(
-            chunk.toString().trim(),
-            "base64",
-          ).toString();
-          const encodedRequest = python.match(
-            /base64\.b64decode\('([^']+)'\)/,
-          )?.[1];
-          assert.ok(encodedRequest, "expected bounded native request envelope");
-          const request = JSON.parse(Buffer.from(encodedRequest, "base64"));
-          const frame = {
-            capability: request.gatewayCapability,
-            deliveryId: request.deliveryId,
-            gatewayRequest: Buffer.from(gatewayRequest).toString("base64"),
-          };
-          queueMicrotask(() =>
-            child.stdout.emit(
-              "data",
-              Buffer.from(JSON.stringify(frame) + "\n"),
-            ),
-          );
-          child.stdin.writeResponse = () => {
-            const proof = {
-              protocol: "passed",
-              credentialIsolation: "passed",
-              gatewayIntegration: "passed",
-              gatewayVersion: subscriptionGatewayVersion,
-              shutdown: { remainingProcesses: 0 },
-              observedCodexProcesses: 1,
-              binding: request.expected,
+      const child = new EventEmitter();
+      child.exitCode = null;
+      child.stderr = new EventEmitter();
+      child.stdout = new EventEmitter();
+      let closed = false;
+      const close = (code) => {
+        if (closed) return;
+        closed = true;
+        child.exitCode = code;
+        queueMicrotask(() => child.emit("close", code));
+      };
+      child.kill = () => {
+        close(1);
+        return true;
+      };
+      child.stdin = new Writable({
+        write(chunk, _encoding, callback) {
+          try {
+            const python = Buffer.from(
+              chunk.toString().trim(),
+              "base64",
+            ).toString();
+            const encodedRequest = python.match(
+              /base64\.b64decode\('([^']+)'\)/,
+            )?.[1];
+            assert.ok(
+              encodedRequest,
+              "expected bounded native request envelope",
+            );
+            const request = JSON.parse(Buffer.from(encodedRequest, "base64"));
+            const frame = {
+              capability: request.gatewayCapability,
+              deliveryId: request.deliveryId,
+              gatewayRequest: Buffer.from(gatewayRequest).toString("base64"),
             };
-            queueMicrotask(() => {
+            queueMicrotask(() =>
               child.stdout.emit(
                 "data",
-                Buffer.from(JSON.stringify(proof) + "\n"),
-              );
-              close(0);
-            });
-          };
-        } catch (error) {
-          callback(error);
-          return;
+                Buffer.from(JSON.stringify(frame) + "\n"),
+              ),
+            );
+            child.stdin.writeResponse = () => {
+              const proof = {
+                protocol: "passed",
+                credentialIsolation: "passed",
+                gatewayIntegration: "passed",
+                gatewayVersion: subscriptionGatewayVersion,
+                shutdown: { remainingProcesses: 0 },
+                observedCodexProcesses: 1,
+                binding: request.expected,
+              };
+              queueMicrotask(() => {
+                child.stdout.emit(
+                  "data",
+                  Buffer.from(JSON.stringify(proof) + "\n"),
+                );
+                close(0);
+              });
+            };
+          } catch (error) {
+            callback(error);
+            return;
+          }
+          callback();
+        },
+      });
+      const write = child.stdin.write.bind(child.stdin);
+      child.stdin.write = (chunk, ...rest) => {
+        if (String(chunk).includes("gatewayResponse")) {
+          const value = JSON.parse(String(chunk));
+          assert.equal(
+            value.gatewayResponse,
+            syntheticGatewayResponse().toString("base64"),
+          );
+          child.stdin.writeResponse();
         }
-        callback();
-      },
+        return write(chunk, ...rest);
+      };
+      fakeChildren.push(child);
+      return child;
     });
-    const write = child.stdin.write.bind(child.stdin);
-    child.stdin.write = (chunk, ...rest) => {
-      if (String(chunk).includes("gatewayResponse")) {
-        const value = JSON.parse(String(chunk));
-        assert.equal(
-          value.gatewayResponse,
-          syntheticGatewayResponse().toString("base64"),
-        );
-        child.stdin.writeResponse();
-      }
-      return write(chunk, ...rest);
-    };
-    fakeChildren.push(child);
-    return child;
-  });
-  syncBuiltinESMExports();
-  t.after(() => {
-    t.mock.restoreAll();
     syncBuiltinESMExports();
-  });
+    t.after(() => {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
 
-  const driver = new NativePodmanDriver(
-    "aios-test",
-    "/authority",
-    "/pins.json",
-  );
-  const deliveryId = "00000000-0000-4000-8000-000000000001";
-  const proof = await driver.probeIsolation("/candidate", deliveryId);
-  assert.equal(proof.passed, true);
-  assert.equal(proof.codex.credentialIsolation, "passed");
-  assert.equal(proof.modelFrameTransport, "passed");
-  assert.equal(
-    f.requests.filter((request) => request.action === "model-frame").length,
-    2,
-  );
-  assert.equal(fakeChildren.length, 1);
-});
+    const driver = new NativePodmanDriver(
+      "aios-test",
+      "/authority",
+      "/pins.json",
+    );
+    const deliveryId = "00000000-0000-4000-8000-000000000001";
+    const proof = await driver.probeIsolation("/candidate", deliveryId);
+    assert.equal(proof.passed, true);
+    assert.equal(proof.codex.credentialIsolation, "passed");
+    assert.equal(proof.modelFrameTransport, "passed");
+    assert.equal(
+      f.requests.filter((request) => request.action === "model-frame").length,
+      2,
+    );
+    assert.equal(fakeChildren.length, 1);
+  });

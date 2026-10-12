@@ -65,3 +65,15 @@ remain blockers. All acceptance boxes remain unchecked.
 Validation: full suite 163 tests, 162 passed, one macOS-only ACL skip; no failures.
 Standards and Spec reviews both cleared the metadata ACL fix. This evidence
 qualifies the protected-authentication prerequisite slice, not production delivery.
+
+### Independent Windows sign-in and inference preparation
+
+Windows sign-in completed successfully with protected DPAPI credentials and
+subscription-use scope. Actual isolated Linux x64 Codex 0.161.0 passed independent
+synthetic host-gateway, credential-exclusion, endpoint/capability and shutdown
+qualification under fresh Windows pins. The exact one-request inference plan is
+prepared, with unknown remaining usage requiring explicit owner approval.
+See [review and provenance](../ticket24-windows-inference-review.md) and
+[exact plan](../ticket24-windows-gateway-inference-plan.json).
+No real inference has run; production remains disabled and complete acceptance
+criteria remain open.

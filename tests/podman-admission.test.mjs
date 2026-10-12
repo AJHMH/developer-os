@@ -418,7 +418,7 @@ test("public qualification records synthetic credential isolation, endpoint, del
                 protocol: "passed",
                 credentialIsolation: "passed",
                 binarySha256:
-                  "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+                  "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
                 shutdown: { remainingProcesses: 0 },
                 endpointEnforcement: "passed",
                 deliveryCapabilities: "passed",

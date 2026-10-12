@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { podmanMachine, podmanCommand } from "./podman-platform.js";
-import { NativePodmanDriver } from "./podman-native.js";
+import { NativePodmanDriver, codexWorkerSha256 } from "./podman-native.js";
 import { inspectCodexMediation } from "./codex-mediation.js";
 import type {
   Delivery,
@@ -370,7 +370,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
               observed.codex?.protocol === "passed" &&
               observed.codex?.credentialIsolation === "passed" &&
               observed.codex?.binarySha256 ===
-                "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7" &&
+                codexWorkerSha256(binding.platform!, binding.arch!) &&
               observed.codex?.shutdown?.remainingProcesses === 0
             ) {
               report.subscriptionMediation.workerProtocol = "passed";

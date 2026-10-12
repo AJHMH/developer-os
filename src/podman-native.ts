@@ -55,6 +55,14 @@ export const offlineTemplate =
 const macosOfflineTemplate =
   "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f";
 
+/** Exact official Codex 0.161.0 Linux worker artifacts, independently pinned. */
+export function codexWorkerSha256(platform: string, arch: string) {
+  if (platform === "darwin" && arch === "arm64")
+    return "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7";
+  if (platform === "win32" && arch === "x64")
+    return "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c";
+  return undefined;
+}
 /** Runs only in the VM's trusted management namespace, not in the worker.
  * A machine-wide flock serializes dispatch with durable revocation. A single
  * authority directory is bound during explicit enrollment. Worker containers
@@ -320,7 +328,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
   st=os.lstat(binary)
   if not __import__('stat').S_ISREG(st.st_mode) or st.st_nlink!=1 or st.st_uid!=os.getuid() or st.st_mode & 0o077: fail()
   data=pathlib.Path(binary).read_bytes()
-  binaryHash='0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7'
+  binaryHash='9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c' if R['hostBinding']['platform']=='win32' and R['hostBinding']['arch']=='x64' else '0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7'
   if h(data)!=binaryHash: fail()
   private=root+'/credential-'+str(uuid.uuid4());secret=uuid.uuid4().hex
   pathlib.Path(private).write_text(secret);os.chmod(private,0o600)
@@ -914,7 +922,10 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       const observed = this.invoke("isolate", { expected, challenge });
       if (observed.challengeId !== challenge.id)
         throw Error("Unbound isolation evidence");
-      if (observed.passed === true && expected.platform === "darwin") {
+      if (
+        observed.passed === true &&
+        codexWorkerSha256(expected.platform!, expected.arch!)
+      ) {
         const codex = await this.gatewayInvocation(
           { expected, challenge, deliveryId },
           deliveryId,
