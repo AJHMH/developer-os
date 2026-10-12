@@ -14,9 +14,10 @@ import { NativePodmanDriver } from "./podman-native.js";
 import { codexSubscriptionReader } from "./codex-usage.js";
 import { authorizeSubscriptionAuth } from "./auth-host.js";
 import { prepareSubscriptionAuth } from "./subscription-auth.js";
+import { inspectSubscriptionAuth } from "./auth-status.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify-windows-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent Windows authentication qualification. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify-windows-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use auth-status with the same repo/state/auth-directory and a required --auth-account to inspect host-only eligibility before requesting inference approval; it performs no refresh and grants no inference authority. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent Windows authentication qualification. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -94,7 +95,11 @@ try {
       !values["worker-policy"])
   )
     throw new DeliveryError(usage);
-  if (["prepare-auth", "authorize-auth"].includes(positionals[0] ?? "")) {
+  if (
+    ["prepare-auth", "authorize-auth", "auth-status"].includes(
+      positionals[0] ?? "",
+    )
+  ) {
     if (
       !values.repo ||
       !values["auth-directory"] ||
@@ -104,10 +109,14 @@ try {
             "repo",
             "state-dir",
             "auth-directory",
-            ...(positionals[0] === "authorize-auth" ? ["auth-account"] : []),
+            ...(["authorize-auth", "auth-status"].includes(positionals[0]!)
+              ? ["auth-account"]
+              : []),
           ].includes(name),
       )
     )
+      throw new DeliveryError(usage);
+    if (positionals[0] === "auth-status" && !values["auth-account"])
       throw new DeliveryError(usage);
     if (
       values["auth-account"] !== undefined &&
@@ -117,23 +126,32 @@ try {
         "The selected account must be the identifier returned by successful authorization.",
       );
     const prepared =
-      positionals[0] === "authorize-auth"
-        ? await authorizeSubscriptionAuth(
+      positionals[0] === "auth-status"
+        ? inspectSubscriptionAuth(
             values["auth-directory"],
             values.repo,
             stateDirectory,
-            (url) =>
-              process.stdout.write(
-                `${JSON.stringify({ status: "awaiting-owner-consent", authorizationUrl: url, deliveryEnabled: false })}\n`,
-              ),
-            values["auth-account"],
+            values["auth-account"]!,
           )
-        : prepareSubscriptionAuth(
-            values["auth-directory"],
-            values.repo,
-            stateDirectory,
-          );
+        : positionals[0] === "authorize-auth"
+          ? await authorizeSubscriptionAuth(
+              values["auth-directory"],
+              values.repo,
+              stateDirectory,
+              (url) =>
+                process.stdout.write(
+                  `${JSON.stringify({ status: "awaiting-owner-consent", authorizationUrl: url, deliveryEnabled: false })}\n`,
+                ),
+              values["auth-account"],
+            )
+          : prepareSubscriptionAuth(
+              values["auth-directory"],
+              values.repo,
+              stateDirectory,
+            );
     process.stdout.write(`${JSON.stringify(prepared)}\n`);
+    if (positionals[0] === "auth-status" && prepared.status !== "eligible")
+      process.exitCode = 1;
   } else {
     if (
       values["auth-directory"] !== undefined ||

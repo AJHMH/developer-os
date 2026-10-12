@@ -1,4 +1,5 @@
 import { subscriptionGatewayVersion } from "./subscription-gateway.js";
+import { nativeProbeDiagnostic } from "./native-diagnostics.js";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -376,6 +377,11 @@ export class PodmanHostAdapter implements WorkerAdapter {
             ) {
               report.subscriptionMediation.workerBlocker =
                 observed.codex.blockedStage;
+              const diagnostic = nativeProbeDiagnostic(
+                observed.codex.diagnostic,
+              );
+              if (diagnostic)
+                report.subscriptionMediation.workerDiagnostic = diagnostic;
               report.subscriptionMediation.nextAction =
                 "Resolve the credential-free Codex worker probe failure, then qualify delivery-scoped endpoint mediation before preparing another live inference; keep owner credentials on the host.";
             }

@@ -373,6 +373,7 @@ test("public qualification records synthetic credential isolation, endpoint, del
     mode: 0o600,
   });
   const gateway = await import("../dist/subscription-gateway.js");
+  let codexFailure;
   const delivery = new DeliveryController(
     state,
     {},
@@ -414,7 +415,7 @@ test("public qualification records synthetic credential isolation, endpoint, del
                 positiveControlsBeforeAfter: true,
               },
               modelFrameTransport: "passed",
-              codex: {
+              codex: codexFailure ?? {
                 protocol: "passed",
                 explicitResume: "passed",
                 resumeInferenceRequests: 0,
@@ -460,4 +461,53 @@ test("public qualification records synthetic credential isolation, endpoint, del
   assert.equal(mediation.gatewayIntegration, "passed");
   assert.equal(result.qualification.liveReady, false);
   assert.equal(result.execution, undefined);
+  codexFailure = {
+    blockedStage: "codex-resume-kill",
+    diagnostic: {
+      elapsedMs: 14200,
+      commandElapsedMs: 15000,
+      failureKind: "timeout",
+      originalCodexProcesses: 2,
+      remainingOriginalCodexProcesses: 1,
+      stderr: "synthetic-private-token",
+      command: "/private/path",
+    },
+  };
+  const refused = await delivery.qualify(request.id);
+  assert.deepEqual(
+    refused.qualification.subscriptionMediation.workerDiagnostic,
+    {
+      elapsedMs: 14200,
+      commandElapsedMs: 15000,
+      failureKind: "timeout",
+      originalCodexProcesses: 2,
+      remainingOriginalCodexProcesses: 1,
+    },
+  );
+  assert.equal(
+    refused.qualification.subscriptionMediation.workerBlocker,
+    "codex-resume-kill",
+  );
+  assert.equal(
+    refused.qualification.subscriptionMediation.workerProtocol,
+    "not-run",
+  );
+  assert.doesNotMatch(
+    JSON.stringify(refused),
+    /synthetic-private-token|\/private\/path/,
+  );
+  codexFailure.diagnostic.elapsedMs = -1;
+  const malformed = await delivery.qualify(request.id);
+  assert.equal(
+    malformed.qualification.subscriptionMediation.workerDiagnostic,
+    undefined,
+  );
+  assert.equal(
+    malformed.qualification.subscriptionMediation.workerBlocker,
+    "codex-resume-kill",
+  );
+  assert.equal(
+    malformed.qualification.subscriptionMediation.workerProtocol,
+    "not-run",
+  );
 });

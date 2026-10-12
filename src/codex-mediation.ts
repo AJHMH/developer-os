@@ -16,6 +16,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { syntheticRelayCanary, modelRelayVersion } from "./model-relay.js";
 
 export interface SubscriptionMediationReport {
+  workerDiagnostic?: import("./native-diagnostics.js").NativeProbeDiagnostic;
   qualified: false;
   mechanismDecision?: {
     qualified: true;

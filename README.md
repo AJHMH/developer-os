@@ -160,9 +160,11 @@ protocol and synthetic relay inspection also passed. Production delivery stays
 disabled pending actual subscription mediation, online policy and complete
 worker qualification. See [macOS setup, pins and evidence](docs/macos-worker-qualification.md).
 
-The explicit macOS host acceptance suite runs serially with `npm run acceptance:macos -- <delivery-id> /absolute/external-pins.json`. See [qualification prerequisites and lock recovery](docs/macos-worker-qualification.md). CI runs the portable checks on Ubuntu and macOS; it does not provision a worker VM.
+The explicit macOS host acceptance suite runs serially with `npm run acceptance:macos -- <delivery-id> /absolute/external-pins.json`. See [qualification prerequisites and lock recovery](docs/macos-worker-qualification.md). CI runs the credential-free checks on Ubuntu, macOS and Windows; it does not provision a worker VM.
 
 ## Windows fixed synthetic task (ticket 24)
+
+For explicit Windows acceptance, protected auth freshness inspection and approval boundaries, see [Windows worker qualification](docs/windows-worker-qualification.md).
 
 `synthetic-task --id <delivery-id> --state-dir <external-state> --podman-machine <aios-name> --worker-policy <external-pins> --adversarial` admits only the fixed ordinary `index.html` and `validate.sh` fixture defined in `src/synthetic-task.ts`, alongside the existing offline canary input. It requires independently qualified Windows subscription capability evidence in protected controller storage. That historical evidence grants no new inference authority.
 

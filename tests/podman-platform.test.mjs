@@ -112,6 +112,7 @@ function hostFixture(
   let executable = "trusted-runtime";
   let version = "6.1.1";
   const requests = [];
+  const programs = [];
   const nativeReadFile = fs.readFileSync;
   t.mock.method(os, "platform", () => platform);
   t.mock.method(os, "arch", () => arch);
@@ -151,6 +152,7 @@ function hostFixture(
         stdout: JSON.stringify({ Client: { Version: version } }),
       };
     if (args.includes("python3")) {
+      programs.push(options.input);
       const encoded = options.input.match(/base64.b64decode\('([^']+)'\)/)[1];
       const request = JSON.parse(Buffer.from(encoded, "base64"));
       requests.push(request);
@@ -166,6 +168,7 @@ function hostFixture(
   return {
     config,
     requests,
+    programs,
     setConfig: (value) => {
       config = value;
     },
@@ -515,3 +518,52 @@ for (const hostPlatform of ["darwin", "win32"])
     );
     assert.equal(fakeChildren.length, 1);
   });
+
+test("generated native management freezes direct wait failures before successful or failed cleanup", (t) => {
+  const runPython = childProcess.spawnSync;
+  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const available = runPython(python, ["--version"], {
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (available.status !== 0) {
+    t.skip("Python required to exercise generated management code");
+    return;
+  }
+  const f = hostFixture(t, "win32");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const result = runPython(
+    python,
+    [
+      "-c",
+      String.raw`
+import ast,json,sys,subprocess,time
+program=ast.parse(sys.stdin.read())
+functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command','freeze_failure']]
+# Exercise the actual emitted exception handler, replacing VM work and cleanup
+# with fixed synthetic subprocess outcomes; no management authority is opened.
+branch=next(n for n in ast.walk(program) if isinstance(n,ast.If) and ast.unparse(n.test)=="R['action'] == 'codex-protocol'")
+protected=next(n for n in branch.body if isinstance(n,ast.Try) and n.handlers and n.finalbody)
+handler=protected.handlers
+for cleanupExit in [0,7]:
+ diagnostic={'failureKind':'check','commandElapsedMs':3}
+ subprocess.run=lambda *a,**k: subprocess.CompletedProcess(a,cleanupExit,b'',b'')
+ synthetic=ast.Try(body=ast.parse("raise subprocess.TimeoutExpired('synthetic-child',10)").body,handlers=handler,orelse=[],finalbody=ast.parse("command(['synthetic-cleanup'])").body)
+ module=ast.fix_missing_locations(ast.Module(body=functions+[synthetic],type_ignores=[]))
+ try: exec(compile(module,'synthetic-management','exec'))
+ except Exception: pass
+ assert diagnostic['failed'] is True
+ assert diagnostic['failureKind']=='timeout',diagnostic
+ assert diagnostic['commandElapsedMs']==10000,diagnostic
+ assert 'exitCode' not in diagnostic,diagnostic
+print('preserved')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "preserved");
+});

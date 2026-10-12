@@ -61,7 +61,7 @@ interface AuthorizationHostAdapters {
   platform: NodeJS.Platform;
   arch: string;
   transport: AuthorizationTransport;
-  keychainStore: typeof macKeychainStore;
+  keychainStore: (directory: string) => ReturnType<typeof macKeychainStore>;
 }
 function store(
   account: ValidatedAccount,

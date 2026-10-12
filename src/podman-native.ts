@@ -7,6 +7,7 @@ import {
   subscriptionGatewayVersion,
 } from "./subscription-gateway.js";
 import { randomUUID } from "node:crypto";
+import { nativeProbeDiagnostic } from "./native-diagnostics.js";
 import { codexEndpointFixture } from "./codex-endpoint.js";
 import { spawn, spawnSync } from "node:child_process";
 import { hostname, platform } from "node:os";
@@ -71,11 +72,32 @@ export function codexWorkerSha256(platform: string, arch: string) {
  * independent cgroup/PID shutdown. No tar extraction or guest paths are imported. */
 const guest = String.raw`
 import os,json,subprocess,hashlib,base64,fcntl,pathlib,uuid,time,io,tarfile
-def fail(): raise RuntimeError('Native offline observation unavailable')
+def fail():
+ if 'diagnostic' in globals(): diagnostic['failed']=True
+ raise RuntimeError('Native offline observation unavailable')
+def freeze_failure(error):
+ if diagnostic.get('failed'): return
+ diagnostic['failed']=True
+ if isinstance(error,subprocess.TimeoutExpired):
+  diagnostic.update(failureKind='timeout',commandElapsedMs=round(error.timeout*1000))
+ else:
+  diagnostic.update(failureKind='check');diagnostic.pop('commandElapsedMs',None);diagnostic.pop('exitCode',None)
 def command(args):
- p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
- if p.returncode: fail()
- if len(p.stdout)>1048576: fail()
+ started=time.monotonic()
+ recording='diagnostic' in globals() and not diagnostic.get('failed')
+ if recording: diagnostic.update(failureKind='check');diagnostic.pop('exitCode',None)
+ try:
+  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+ except subprocess.TimeoutExpired:
+  if recording: diagnostic.update(failureKind='timeout',commandElapsedMs=round((time.monotonic()-started)*1000),failed=True)
+  raise
+ if recording: diagnostic.update(commandElapsedMs=round((time.monotonic()-started)*1000))
+ if p.returncode:
+  if recording: diagnostic.update(failureKind='exit',exitCode=p.returncode)
+  fail()
+ if len(p.stdout)>1048576:
+  if recording: diagnostic.update(failureKind='output-limit')
+  fail()
  return p.stdout
 def pod(*args): return command(['podman',*args])
 engineSocket='/run/user/'+str(os.getuid())+'/podman/podman.sock'
@@ -314,6 +336,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker','owner-credentials']
    proof=h(json.dumps(dict(challenge=nonce,observed=observed,binding=binding,stopped=record['stopped']),sort_keys=True).encode())
    print(json.dumps(dict(binding=binding,challengeId=nonce,passed=observed==expected,probes=[dict(name=n,outcome='passed' if observed==expected else 'failed',evidenceSha256=proof) for n in names],escapeAttempts=observed[-5:-1],credentialExclusion=dict(hostFilesDenied=observed[:3]==['passed-host-files']*3,guestFileDenied=observed[-1]=='passed-owner-credentials',environmentScrubbed=True,mountsAbsent=True,networkAbsent=True,positiveControlsBeforeAfter=True),scope='Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim',shutdown=dict(observedProcesses=len(record['pids']),remainingProcesses=0))))
+  except Exception as error:
+   freeze_failure(error)
+   raise
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
@@ -462,6 +487,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        stage='codex-resume-exit'
        previous=census(cg);previousCodex={pid:start for pid,start in previous.items() if b'/codex' in pathlib.Path('/proc/'+pid+'/cmdline').read_bytes()}
        if not previousCodex: fail()
+       diagnostic['originalCodexProcesses']=len(previousCodex)
        record['pids'].update(previous);save(probePath,record)
        stage='codex-resume-kill'
        pod('exec',name,'killall','-KILL','codex')
@@ -472,7 +498,8 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        stage='codex-resume-census'
        exitedBy=time.monotonic()+2
        while any(census(cg).get(pid)==start for pid,start in previousCodex.items()) and time.monotonic()<exitedBy: time.sleep(0.05)
-       if any(census(cg).get(pid)==start for pid,start in previousCodex.items()): fail()
+       diagnostic['remainingOriginalCodexProcesses']=sum(census(cg).get(pid)==start for pid,start in previousCodex.items())
+       if diagnostic['remainingOriginalCodexProcesses']: fail()
        selector.unregister(child.stdout);selector.unregister(child.stderr)
        child=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
        selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr')
@@ -554,6 +581,10 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    stage='codex-post-binding'
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
    print(json.dumps(dict(binding=binding,protocol='passed',explicitResume='passed',resumeInferenceRequests=0,credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'])))
+  except Exception as error:
+   freeze_failure(error)
+   raise
+
   finally:
    if os.path.exists(probePath) and not record.get('stopped'):
     stop(name,record);record['stopped']=True;save(probePath,record)
@@ -742,12 +773,12 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       "import json,base64\n" +
       `R=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n` +
       (["isolate", "codex-protocol"].includes(action)
-        ? "stage='initialization'\ntry:\n" +
+        ? "stage='initialization'\ndiagnostic={'failureKind':'check'}\nprobeStarted=__import__('time').monotonic()\ntry:\n" +
           guest
             .split("\n")
             .map((line) => " " + line)
             .join("\n") +
-          "\nexcept BaseException:\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'])))\n"
+          "\nexcept BaseException:\n diagnostic['elapsedMs']=round((__import__('time').monotonic()-probeStarted)*1000)\n print(json.dumps(dict(blockedStage=stage,challengeId=R['challenge']['id'],diagnostic=diagnostic)))\n"
         : guest);
     return { host, input, executableSha256 };
   }
@@ -980,7 +1011,10 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
           deliveryId,
         );
         if (codex.blockedStage) {
-          observed.codex = { blockedStage: codex.blockedStage };
+          observed.codex = {
+            blockedStage: codex.blockedStage,
+            diagnostic: nativeProbeDiagnostic(codex.diagnostic),
+          };
         } else if (
           codex.protocol !== "passed" ||
           codex.explicitResume !== "passed" ||
