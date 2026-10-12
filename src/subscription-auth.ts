@@ -19,6 +19,10 @@ import {
 } from "node:path";
 import { DeliveryError } from "./controller.js";
 import { redact } from "./redaction.js";
+import {
+  initializeWindowsAuthDirectory,
+  windowsAuthStore,
+} from "./windows-auth-store.js";
 
 function canonical(path: string): string {
   const missing: string[] = [];
@@ -116,7 +120,10 @@ export function prepareSubscriptionAuth(
       inside(target, state)
     )
       throw Error();
+    const newDirectory = !existsSync(target);
     mkdirSync(target, { recursive: true, mode: 0o700 });
+    if (newDirectory && process.platform === "win32")
+      initializeWindowsAuthDirectory(target);
     if (
       lstatSync(target).isSymbolicLink() ||
       !lstatSync(target).isDirectory() ||
@@ -124,10 +131,12 @@ export function prepareSubscriptionAuth(
     )
       throw Error();
     assertPrivateAuthStorage(target, "directory");
+    if (process.platform === "win32") windowsAuthStore(target);
     const path = join(target, "registration.json");
     let registration: { schema: number; hostId: string; agentName: string };
     if (existsSync(path)) {
       assertPrivateAuthStorage(path, "file");
+      if (process.platform === "win32") windowsAuthStore(target, [path]);
       const entry = lstatSync(path);
       if (
         !entry.isFile() ||

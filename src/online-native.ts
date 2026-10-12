@@ -287,8 +287,6 @@ export class NativeOnlineAccess implements OnlineAccessRuntime {
   ): Promise<OnlineProof | OnlineStop> {
     if (!/^[a-f0-9-]{36}$/.test(runId)) throw Error("Invalid online run");
     const host = podmanMachine(this.native.machine);
-    if (host.platform !== "darwin")
-      throw Error("Online native canary is macOS-only");
     const authority = createHash("sha256")
       .update(this.native.authorityDirectory)
       .digest("hex");
@@ -303,16 +301,19 @@ export class NativeOnlineAccess implements OnlineAccessRuntime {
           "python3",
           "-u",
           "-c",
-          `'exec(__import__("base64").b64decode("${source}"))'`,
+          "'import sys,base64;exec(base64.b64decode(sys.stdin.readline()))'",
         ],
         {
           cwd: host.cwd,
           env: host.env,
           stdio: ["pipe", "pipe", "ignore"],
           shell: false,
+          windowsHide: true,
         },
       );
-      // stdin remains open for host-owned request authorization.
+      // Windows SSH truncates long command arguments. Fixed management source
+      // is a bounded first stdin line; later lines carry requests/authorization.
+      child.stdin.write(source + "\n");
       child.stdin.write(
         JSON.stringify({
           action,

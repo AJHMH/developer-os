@@ -107,6 +107,13 @@ test("native online access refuses a dispatched request when owner authorization
     child.kill = () => setImmediate(() => child.emit("close", 1));
     let writes = 0;
     child.stdin.write = (chunk) => {
+      if (writes === 0 && !String(chunk).startsWith("{")) {
+        assert.match(
+          Buffer.from(String(chunk).trim(), "base64").toString(),
+          /import sys/,
+        );
+        return true;
+      }
       writes++;
       const value = JSON.parse(String(chunk));
       if (writes === 1) {
@@ -219,5 +226,7 @@ test("native online access refuses a dispatched request when owner authorization
     Ansible: null,
     Resources: { USBs: [] },
   });
-  assert.throws(() => access.stop(runId), /Online native canary is macOS-only/);
+  childScenario = "accept";
+  const windowsProof = await access.execute(plan, async () => true);
+  assert.equal(windowsProof.model, "passed");
 });
