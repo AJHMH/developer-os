@@ -44,3 +44,32 @@ zero failures. Typecheck/formatting/whitespace passed. Hosted Factory branch
 metrics must be confirmed after publication; no native acceptance was rerun.
 The three-cycle repair allowance is now consumed; preserve any remaining
 blocker rather than silently starting a fourth repair cycle.
+
+## Owner-authorized Windows hosted repair cycle
+
+On October 12 the owner extended the repair allowance by one cycle and approved
+temporary repository-scoped Factory App workflow permission for diagnosis and
+publication. Each installation token is revoked after publication. The initial
+Windows run 38316713780 timed out at ten minutes; protected-storage initialization
+also refused after the unchanged fifteen-second subprocess deadline.
+
+Credential-free hosted probes established that stdin was received, but implicit
+PowerShell module loading stalled. Explicit import of the OS Utility module made
+JSON conversion pass, after which Security module autoload stalled at Get-Acl
+(diagnostic job 115045704326). Matching the hosted Node version locally passed;
+changing hosted stdin readers, pipe style or the minimal module search path alone
+did not resolve the stall.
+
+The repair explicitly imports Utility, Management and Security manifests from
+the running OS PowerShell installation and disables implicit module loading.
+It preserves the minimal environment, fixed executable and scripts, stdin-only
+data, private ACL requirements, CurrentUser DPAPI, limits and redacted refusals.
+Temporary diagnostic workflow/script changes are removed from the final tree.
+The public host regression first refused with module autoload disabled, then
+passed setup, create/read and replace/read with fixed synthetic account values.
+Independent Standards and Spec reviews cleared the final net batch with zero
+corrective findings. Local Windows validation: 200 tests, 199 passed, one macOS
+ACL skip, zero failures; typechecking and formatting also passed. This uses the
+one owner-approved additional repair cycle. Required hosted checks must pass on
+the final published head before approval readiness can be claimed. Native
+qualification and live inference were not rerun; production remains disabled.

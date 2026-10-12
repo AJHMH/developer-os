@@ -16,11 +16,21 @@ const failure = () =>
   new DeliveryError(
     "Windows protected authentication storage is unavailable; preserve existing credentials and inspect separate host storage. Production remains disabled.",
   );
+
+// Minimal child environments cannot rely on the host's module autoload cache.
+// Load only the fixed OS modules, never user or candidate module search paths.
+const systemModules = String.raw`
+$PSModuleAutoLoadingPreference='None'
+foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')) {
+ Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,($name+'.psd1'))) -ErrorAction Stop
+}
+`;
 /** Initialize only a newly created setup directory; never repair existing ACLs. */
 export function initializeWindowsAuthDirectory(directory: string) {
   const setup = String.raw`
 $ErrorActionPreference='Stop'
 try {
+ ${systemModules}
  $path=[Console]::In.ReadToEnd() | ConvertFrom-Json
  $item=Get-Item -LiteralPath $path -Force
  if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or (Get-ChildItem -LiteralPath $path -Force).Count -ne 0) { throw 'unsafe' }
@@ -67,6 +77,7 @@ try {
 const script = String.raw`
 $ErrorActionPreference='Stop'
 try {
+ ${systemModules}
  Add-Type -AssemblyName System.Security
  $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value

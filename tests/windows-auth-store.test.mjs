@@ -10,6 +10,39 @@ import {
   initializeWindowsAuthDirectory,
 } from "../dist/windows-auth-store.js";
 
+test(
+  "Windows host storage works with implicit module loading disabled",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const root = fs.realpathSync(
+      fs.mkdtempSync(join(tmpdir(), "aios-explicit-modules-")),
+    );
+    const original = cp.spawnSync;
+    t.mock.method(cp, "spawnSync", (exe, args, options) => {
+      const updated = [...args];
+      const index = updated.indexOf("-EncodedCommand") + 1;
+      const script =
+        "$PSModuleAutoLoadingPreference='None';\n" +
+        Buffer.from(updated[index], "base64").toString("utf16le");
+      updated[index] = Buffer.from(script, "utf16le").toString("base64");
+      return original(exe, updated, options);
+    });
+    syncBuiltinESMExports();
+    t.after(() => {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
+    initializeWindowsAuthDirectory(root);
+    const store = windowsAuthStore(root);
+    const account = "e".repeat(64);
+    store.write(account, "fixed synthetic account", false);
+    assert.equal(store.read(account), "fixed synthetic account");
+    store.write(account, "fixed synthetic replacement", true);
+    assert.equal(store.read(account), "fixed synthetic replacement");
+  },
+);
+
 function fixture(t) {
   const root = fs.realpathSync(
     fs.mkdtempSync(join(tmpdir(), "synthetic-auth-store-")),
