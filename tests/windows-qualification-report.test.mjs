@@ -403,3 +403,68 @@ test("report accepts complete controlled evidence while retaining production blo
     "not-run",
   );
 });
+
+test("Windows report binds task validation evidence and refuses altered output or worker versions", async (t) => {
+  const { syntheticSiteInput, syntheticSiteOutput, syntheticTaskVersion } =
+    await import("../dist/synthetic-task.js");
+  const f = fixture(t);
+  const d = await f.controller.qualify(f.delivery.id);
+  d.qualification.subscriptionMediation.mechanismDecision = {
+    qualified: true,
+    scope: "windows-fixed-codex-subscription",
+    bindingSha256: d.qualification.bindingSha256,
+    inferenceAuthorized: false,
+    requestSha256: "d".repeat(64),
+  };
+  d.offlineCanary = {
+    mode: "controlled",
+    outcome: "completed",
+    session: {
+      operationId: "00000000-0000-4000-8000-000000000024",
+      state: "stopped",
+    },
+    bindingSha256: d.qualification.bindingSha256,
+    policySha256: d.qualification.policySha256,
+    shutdownProof: { remainingProcesses: 0, censusSha256: "a".repeat(64) },
+    inputSha256: "a".repeat(64),
+    outputSha256: "b".repeat(64),
+  };
+  d.syntheticTask = {
+    mode: "controlled",
+    outcome: "completed",
+    version: syntheticTaskVersion,
+    bindingSha256: d.qualification.bindingSha256,
+    policySha256: d.qualification.policySha256,
+    session: d.offlineCanary.session,
+    shutdownProof: d.offlineCanary.shutdownProof,
+    productionEnabled: false,
+    result: {
+      operationId: d.offlineCanary.session.operationId,
+      version: syntheticTaskVersion,
+      inputSha256: digest(syntheticSiteInput),
+      outputSha256: digest(syntheticSiteOutput),
+      output: syntheticSiteOutput,
+      validation: "passed",
+      negativeValidation: "passed",
+      httpValidation: "passed",
+      collectionSha256: "e".repeat(64),
+    },
+  };
+  const report = windowsWorkerQualificationReport(d);
+  assert.equal(report.checks.authentication.result, "passed");
+  assert.equal(report.checks.syntheticTask.result, "passed");
+  assert.equal(report.checks.isolatedValidation.result, "passed");
+  assert.equal(report.outcome, "blocked");
+  assert.equal(report.productionEnabled, false);
+  d.syntheticTask.result.output = "unverified output";
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.syntheticTask.result,
+    "not-run",
+  );
+  d.syntheticTask.result.output = syntheticSiteOutput;
+  d.syntheticTask.version = "f".repeat(64);
+  assert.equal(
+    windowsWorkerQualificationReport(d).checks.isolatedValidation.result,
+    "not-run",
+  );
+});

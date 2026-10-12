@@ -1,3 +1,4 @@
+import { initializeWindowsAuthDirectory } from "../dist/windows-auth-store.js";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -23,9 +24,11 @@ import {
 } from "../dist/subscription-gateway.js";
 import { modelRelayVersion } from "../dist/model-relay.js";
 const hash = (v) => createHash("sha256").update(v).digest("hex");
-function fixture(t, online) {
+function fixture(t, online, target = "macos") {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-decision-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
+  if (target === "windows" && process.platform === "win32")
+    initializeWindowsAuthDirectory(root);
   const repo = join(root, "repo"),
     state = join(root, "state");
   mkdirSync(repo);
@@ -52,7 +55,10 @@ function fixture(t, online) {
     offlineAdmission: {
       allowed: true,
       scope: "offline-probe-only",
-      binding: { platform: "darwin", arch: "arm64", provider: "applehv" },
+      binding:
+        target === "macos"
+          ? { platform: "darwin", arch: "arm64", provider: "applehv" }
+          : { platform: "win32", arch: "x64", provider: "hyperv" },
     },
     subscriptionMediation: {
       qualified: false,
@@ -628,4 +634,150 @@ test("an exact inference plan that expires during qualification cannot be dispat
   await assert.rejects(() => f.c.onlineCanary(f.d.id), /approval changed/i);
   assert.equal(effects, 0);
   assert.equal(f.c.status(f.d.id).onlinePlan.consumed, false);
+});
+
+test("Windows positive mediation permits only synthetic online controls and keeps production disabled", async (t) => {
+  let count = 0;
+  const online = {
+    mode: "controlled",
+    async execute(plan, authorize) {
+      assert.equal(await authorize(), true);
+      count++;
+      return {
+        runId: plan.runId,
+        policyVersion: plan.policyVersion,
+        model: "passed",
+        dependency: "passed",
+        bypass: "passed",
+      };
+    },
+    async stop(runId) {
+      return { runId, revoked: true, remainingProcesses: 0 };
+    },
+  };
+  const f = fixture(t, online, "windows");
+  const result = await f.c.onlineCanary(f.d.id);
+  assert.equal(result.onlineAccess.outcome, "passed");
+  assert.equal(result.onlineAccess.productionEnabled, false);
+  assert.equal(count, 1);
+});
+
+test("synthetic Windows site task validates only inside its worker and imports after verified shutdown", async (t) => {
+  const {
+    syntheticSiteInput,
+    syntheticSiteOutput,
+    syntheticSiteValidator,
+    syntheticTaskVersion,
+  } = await import("../dist/synthetic-task.js");
+  const { canaryOutput, sha256 } = await import("../dist/offline-canary.js");
+  const f = fixture(t, undefined, "windows");
+  const repo = f.d.repository;
+  writeFileSync(join(repo, "canary.txt"), "AIOS offline canary input\n");
+  writeFileSync(join(repo, "index.html"), syntheticSiteInput);
+  writeFileSync(join(repo, "validate.sh"), syntheticSiteValidator);
+  f.q.offlineAdmission.effective = {};
+  let request,
+    stopped = false,
+    valid = true,
+    collected = 0;
+  const runtime = {
+    mode: "controlled",
+    version: syntheticTaskVersion,
+    stage(files) {
+      assert.equal(files[0].bytes.toString(), syntheticSiteInput);
+    },
+    async execute(r) {
+      assert.equal(r.mayDispatch(), true);
+      request = r;
+      stopped = false;
+      return {
+        ...r.session,
+        bindingSha256: r.bindingSha256,
+        policySha256: r.policySha256,
+        status: "running",
+        fresh: true,
+        binding: r.binding,
+        effective: r.effective,
+      };
+    },
+    async stop(session, pins) {
+      stopped = true;
+      return {
+        ...session,
+        ...pins,
+        status: "stopped",
+        revoked: true,
+        descendantsStopped: true,
+        evidence: {
+          observedProcesses: 2,
+          remainingProcesses: 0,
+          censusSha256: "d".repeat(64),
+        },
+      };
+    },
+    async collect(session, pins) {
+      assert.equal(stopped, true);
+      return {
+        ...session,
+        ...pins,
+        status: "stopped",
+        files: [
+          {
+            path: "result.txt",
+            bytes: Buffer.from(canaryOutput),
+            ordinary: true,
+            links: 1,
+            beforeSha256: sha256(canaryOutput),
+            afterSha256: sha256(canaryOutput),
+          },
+        ],
+      };
+    },
+    async collectTask(session) {
+      assert.equal(stopped, true);
+      collected++;
+      return {
+        operationId: session.operationId,
+        version: syntheticTaskVersion,
+        inputSha256: sha256(syntheticSiteInput),
+        outputSha256: sha256(syntheticSiteOutput),
+        output: syntheticSiteOutput,
+        validation: valid ? "passed" : "failed",
+        negativeValidation: "passed",
+        httpValidation: "passed",
+        collectionSha256: "e".repeat(64),
+      };
+    },
+  };
+  const c = new DeliveryController(
+    f.state,
+    {},
+    { ...f.options, offline: runtime, synthetic: runtime },
+  );
+  const result = await c.syntheticTask(f.d.id);
+  assert.equal(result.syntheticTask.outcome, "completed");
+  assert.equal(result.syntheticTask.result.output, syntheticSiteOutput);
+  assert.equal(result.syntheticTask.productionEnabled, false);
+  assert.equal(
+    readFileSync(join(repo, "index.html"), "utf8"),
+    syntheticSiteInput,
+  );
+  assert.equal(collected, 1);
+  valid = false;
+  const rejected = await c.syntheticTask(f.d.id);
+  assert.equal(rejected.syntheticTask.outcome, "refused");
+  assert.equal(rejected.syntheticTask.result, undefined);
+  let probes = 0,
+    dispatches = 0;
+  const originalExecute = runtime.execute;
+  runtime.execute = async (...args) => {
+    dispatches++;
+    return originalExecute(...args);
+  };
+  f.options.worker.probe = async () => {
+    if (++probes === 2) unlinkSync(f.recordPath);
+    return structuredClone(f.q);
+  };
+  await c.syntheticTask(f.d.id);
+  assert.equal(dispatches, 0, "authentication drift must prevent dispatch");
 });

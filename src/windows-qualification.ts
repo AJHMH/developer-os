@@ -1,4 +1,11 @@
+import { subscriptionDecisionScope } from "./subscription-decision.js";
 import type { Delivery } from "./controller.js";
+import {
+  syntheticSiteInput,
+  syntheticSiteOutput,
+  syntheticTaskVersion,
+} from "./synthetic-task.js";
+import { sha256 as digest } from "./offline-canary.js";
 import { isolationProbes } from "./qualification.js";
 
 export type QualificationCheckResult = "passed" | "failed" | "not-run";
@@ -165,7 +172,19 @@ export function windowsWorkerQualificationReport(
     online?.policyVersion,
   );
 
-  const authentication = check("not-run", "unavailable");
+  const decision = q?.subscriptionMediation?.mechanismDecision;
+  const authentication = check(
+    matchingBinding &&
+      decision?.qualified === true &&
+      decision.scope === "windows-fixed-codex-subscription" &&
+      decision.scope === subscriptionDecisionScope(binding) &&
+      decision.bindingSha256 === q?.bindingSha256 &&
+      decision.inferenceAuthorized === false
+      ? "passed"
+      : "not-run",
+    decision ? evidenceMode : "unavailable",
+    decision?.requestSha256,
+  );
   const usageAge = delivery.usage
     ? Date.now() - Date.parse(delivery.usage.checkedAt)
     : Number.NaN;
@@ -208,8 +227,39 @@ export function windowsWorkerQualificationReport(
         : "unavailable",
     canary?.shutdownProof?.censusSha256,
   );
-  const syntheticTask = check("not-run", "unavailable");
-  const isolatedValidation = check("not-run", "unavailable");
+  const task = delivery.syntheticTask;
+  const taskPassed = Boolean(
+    matchingBinding &&
+      authentication.result === "passed" &&
+      task?.outcome === "completed" &&
+      task.productionEnabled === false &&
+      task.version === syntheticTaskVersion &&
+      task.bindingSha256 === q?.bindingSha256 &&
+      task.policySha256 === q?.policySha256 &&
+      task.session?.state === "stopped" &&
+      task.session.operationId === canary?.session?.operationId &&
+      task.shutdownProof?.remainingProcesses === 0 &&
+      sha256(task.shutdownProof.censusSha256) &&
+      task.result?.version === task.version &&
+      task.result.operationId === task.session.operationId &&
+      task.result.inputSha256 === digest(syntheticSiteInput) &&
+      task.result.output === syntheticSiteOutput &&
+      task.result.outputSha256 === digest(syntheticSiteOutput) &&
+      task.result.validation === "passed" &&
+      task.result.negativeValidation === "passed" &&
+      task.result.httpValidation === "passed" &&
+      sha256(task.result.collectionSha256),
+  );
+  const syntheticTask = check(
+    taskPassed ? "passed" : "not-run",
+    task?.mode ?? "unavailable",
+    task?.result?.outputSha256,
+  );
+  const isolatedValidation = check(
+    taskPassed ? "passed" : "not-run",
+    task?.mode ?? "unavailable",
+    task?.result?.collectionSha256,
+  );
 
   const checks = {
     hostBinding,

@@ -1,0 +1,171 @@
+{
+  "observedAt": "2026-10-12T01:01:21.041Z",
+  "scope": "Independent Windows positive historical capability; no new inference authority",
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-12T01:00:31.443Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "93eb69c553f7e2618497bd6e758b571d5ffd5934e61078967a312030fcad9801"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "93eb69c553f7e2618497bd6e758b571d5ffd5934e61078967a312030fcad9801"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "93eb69c553f7e2618497bd6e758b571d5ffd5934e61078967a312030fcad9801"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "93eb69c553f7e2618497bd6e758b571d5ffd5934e61078967a312030fcad9801"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "93eb69c553f7e2618497bd6e758b571d5ffd5934e61078967a312030fcad9801"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "93eb69c553f7e2618497bd6e758b571d5ffd5934e61078967a312030fcad9801"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "93eb69c553f7e2618497bd6e758b571d5ffd5934e61078967a312030fcad9801"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "passed",
+      "workerProtocol": "passed",
+      "codexCredentialIsolation": "passed",
+      "scope": "host-capability-only",
+      "credentialIsolation": "passed",
+      "credentialIsolationScope": "synthetic-restricted-alpine",
+      "endpointEnforcement": "passed",
+      "deliveryCapabilities": "passed",
+      "hostGateway": "passed",
+      "gatewayIntegration": "passed",
+      "subscriptionInference": "not-run",
+      "nextAction": "The pinned supported-host fixed-request mediation mechanism has positive evidence. Its approval is consumed; production delivery remains disabled. Implement and qualify separate online dispatch, dependency access and usage/re-dispatch gates before feature delivery.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
+      "workerExecutableSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+      "deliveryCapabilityChecks": [
+        "cross-delivery",
+        "namespace",
+        "revocation",
+        "quota",
+        "expiry"
+      ],
+      "endpointScope": "synthetic-codex-relay",
+      "relayDeliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "gatewayScope": "synthetic-host-subscription",
+      "mechanismDecision": {
+        "qualified": true,
+        "scope": "windows-fixed-codex-subscription",
+        "runId": "dfbabb04-9892-496e-867b-58bcfa213173",
+        "observedAt": "2026-10-12T00:36:06.943Z",
+        "accountId": "6eb3ba924beedc723aaedd7d0a9a0f33b2a3ab65da012ec2bd5e07437b35f439",
+        "requestSha256": "edc4f05f8914dac70e7357db595a3427a17fc1193291af0bdcfe569a3ee67296",
+        "gatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+        "workerExecutableSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+        "bindingSha256": "87423a1bf990a8569a2a092074ea03106f00c25aaede2226a5ca22284c4d829f",
+        "inferenceAuthorized": false
+      }
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+        "engineVersion": "6.0.2",
+        "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+        "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-d4385844370baac7066e9cf3dc1e1bb201869c81b4227de85ea7de2302465a32"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "ce8c2e04f91899970e39593df53803abe94a766b47937d6f78e79d00f64b723f",
+    "bindingSha256": "87423a1bf990a8569a2a092074ea03106f00c25aaede2226a5ca22284c4d829f",
+    "adversarial": {
+      "scope": "synthetic-windows-controls",
+      "challengeId": "793d80aa-8f4e-4127-8ebf-d1c4129988cd",
+      "probeVersion": "3aadcb021fe3f8fb103ec2864c458f85e1899c600bdf5aa332210015d9cea895",
+      "escapeAttempts": [
+        "passed-escape-unshare",
+        "passed-escape-chroot",
+        "passed-escape-cgroup",
+        "passed-escape-proc"
+      ]
+    }
+  }
+}

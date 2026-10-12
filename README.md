@@ -161,3 +161,9 @@ disabled pending actual subscription mediation, online policy and complete
 worker qualification. See [macOS setup, pins and evidence](docs/macos-worker-qualification.md).
 
 The explicit macOS host acceptance suite runs serially with `npm run acceptance:macos -- <delivery-id> /absolute/external-pins.json`. See [qualification prerequisites and lock recovery](docs/macos-worker-qualification.md). CI runs the portable checks on Ubuntu and macOS; it does not provision a worker VM.
+
+## Windows fixed synthetic task (ticket 24)
+
+`synthetic-task --id <delivery-id> --state-dir <external-state> --podman-machine <aios-name> --worker-policy <external-pins> --adversarial` admits only the fixed ordinary `index.html` and `validate.sh` fixture defined in `src/synthetic-task.ts`, alongside the existing offline canary input. It requires independently qualified Windows subscription capability evidence in protected controller storage. That historical evidence grants no new inference authority.
+
+The fresh restricted worker edits the HTML, verifies that the supplied validator rejects the original and accepts the edited result, then checks a byte-identical HTTP round trip inside its network-isolated namespace. No validator runs on the host. Native fencing, revocation and independently verified descendant shutdown precede collection of the bounded result. The public Windows report binds these observations to the exact task version, host and policy; missing or changed controls keep qualification blocked. This deterministic fixture does not qualify general Codex feature work or enable production delivery.

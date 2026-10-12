@@ -11,8 +11,20 @@ import {
   type OnlineStop,
   type PreparedOnline,
 } from "./online-access.js";
-import { projectSubscriptionDecision } from "./subscription-decision.js";
+import {
+  projectSubscriptionDecision,
+  subscriptionDecisionScope,
+} from "./subscription-decision.js";
 import { randomUUID } from "node:crypto";
+import {
+  syntheticSiteInput,
+  syntheticSiteOutput,
+  syntheticSiteValidator,
+  syntheticTaskVersion,
+  type SyntheticTaskRuntime,
+  type SyntheticTaskEvidence,
+  type SyntheticTaskResult,
+} from "./synthetic-task.js";
 import {
   existsSync,
   lstatSync,
@@ -148,6 +160,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  synthetic?: SyntheticTaskRuntime;
   offline?: OfflineCanaryRuntime;
   online?: OnlineAccessRuntime;
   subscription?: SubscriptionReader;
@@ -184,6 +197,7 @@ export interface Delivery {
   onboarding: OnboardingReport;
   qualification?: WorkerQualification;
   offlineCanary?: OfflineCanaryEvidence;
+  syntheticTask?: SyntheticTaskEvidence;
   onlineAccess?: OnlineAccessEvidence;
   onlineRuns?: OnlineAccessEvidence[];
   onlinePlan?: PreparedOnline;
@@ -392,7 +406,10 @@ export class DeliveryController {
         qualified.qualification?.subscriptionMediation?.mechanismDecision;
     if (
       !decision?.qualified ||
-      decision.scope !== "macos-fixed-codex-subscription"
+      decision.scope !==
+        subscriptionDecisionScope(
+          qualified.qualification?.offlineAdmission?.binding,
+        )
     )
       throw new DeliveryError(
         "Positive fixed-request authentication mediation is required.",
@@ -523,7 +540,10 @@ export class DeliveryController {
       qualified.qualification?.subscriptionMediation?.mechanismDecision;
     if (
       !decision?.qualified ||
-      decision.scope !== "macos-fixed-codex-subscription" ||
+      decision.scope !==
+        subscriptionDecisionScope(
+          qualified.qualification?.offlineAdmission?.binding,
+        ) ||
       !qualified.qualification?.offlineAdmission?.allowed ||
       (runtime.mode === "live" && qualified.qualification.mode !== "live")
     )
@@ -1058,7 +1078,10 @@ export class DeliveryController {
       !/^[a-f0-9]{64}$/.test(pins.bindingSha256) ||
       !/^[a-f0-9]{64}$/.test(pins.policySha256) ||
       !runtime ||
-      runtime.mode !== qualified.qualification?.mode
+      runtime.mode !== qualified.qualification?.mode ||
+      (runtime === this.coordination.synthetic &&
+        qualified.qualification?.subscriptionMediation?.mechanismDecision
+          ?.scope !== "windows-fixed-codex-subscription")
     )
       return refuse(
         "Offline canary refused: matching admitted VM bindings and a trusted offline management driver are required.",
@@ -1137,7 +1160,10 @@ export class DeliveryController {
               current.ownership.fence === session.fence &&
               current.phase === "blocked" &&
               current.execution?.operationId === session.operationId &&
-              current.execution.state === "dispatched"
+              current.execution.state === "dispatched" &&
+              (runtime !== this.coordination.synthetic ||
+                current.qualification?.subscriptionMediation?.mechanismDecision
+                  ?.scope === "windows-fixed-codex-subscription")
             );
           },
         }),
@@ -1278,6 +1304,88 @@ export class DeliveryController {
       }
       throw error;
     }
+  }
+
+  async syntheticTask(id: string): Promise<Delivery> {
+    const runtime = this.coordination.synthetic;
+    const qualified = await this.qualify(id);
+    const decision =
+      qualified.qualification?.subscriptionMediation?.mechanismDecision;
+    if (
+      !runtime ||
+      runtime !== this.coordination.offline ||
+      runtime.version !== syntheticTaskVersion ||
+      !decision?.qualified ||
+      decision.scope !== "windows-fixed-codex-subscription"
+    )
+      throw new DeliveryError(
+        "Synthetic Windows work requires a trusted fixed task runtime and independent positive authentication; no inference is authorized.",
+      );
+    const files = admitFiles(
+      {
+        files: [
+          { path: "index.html", sha256: sha256(syntheticSiteInput) },
+          { path: "validate.sh", sha256: sha256(syntheticSiteValidator) },
+        ],
+      },
+      qualified.repository,
+    );
+    runtime.stage(files);
+    const completed = await this.offlineCanary(id);
+    const canary = completed.offlineCanary;
+    const session = completed.execution;
+    let result: SyntheticTaskResult | undefined;
+    if (
+      canary?.outcome === "completed" &&
+      session?.state === "stopped" &&
+      canary.shutdownProof?.remainingProcesses === 0
+    ) {
+      try {
+        const collected = await this.observe(
+          runtime.collectTask(session, canary),
+        );
+        if (
+          collected?.operationId === session.operationId &&
+          collected.version === runtime.version &&
+          collected.inputSha256 === sha256(syntheticSiteInput) &&
+          collected.output === syntheticSiteOutput &&
+          collected.outputSha256 === sha256(syntheticSiteOutput) &&
+          collected.validation === "passed" &&
+          collected.negativeValidation === "passed" &&
+          collected.httpValidation === "passed" &&
+          /^[a-f0-9]{64}$/.test(collected.collectionSha256)
+        )
+          result = collected;
+      } catch {
+        /* Unverified results cannot become imported task evidence. */
+      }
+    }
+    return this.change(id, (delivery) => {
+      if (
+        !session ||
+        delivery.execution?.operationId !== session.operationId ||
+        delivery.execution.state !== "stopped" ||
+        delivery.ownership.fence !== completed.ownership.fence ||
+        !delivery.ownership.held ||
+        delivery.phase !== "blocked"
+      )
+        throw new DeliveryError(
+          "Synthetic task authority changed; no output imported.",
+        );
+      delivery.syntheticTask = {
+        bindingSha256: canary?.bindingSha256 ?? "",
+        policySha256: canary?.policySha256 ?? "",
+        version: runtime.version,
+        mode: runtime.mode,
+        outcome: result ? "completed" : "refused",
+        session: structuredClone(session),
+        ...(result ? { result } : {}),
+        ...(canary?.shutdownProof
+          ? { shutdownProof: canary.shutdownProof }
+          : {}),
+        productionEnabled: false,
+      };
+    });
   }
 
   private async observe<T>(pending: Promise<T>): Promise<T | undefined> {

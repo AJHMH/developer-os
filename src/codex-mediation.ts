@@ -19,7 +19,9 @@ export interface SubscriptionMediationReport {
   qualified: false;
   mechanismDecision?: {
     qualified: true;
-    scope: "macos-fixed-codex-subscription";
+    scope:
+      | "macos-fixed-codex-subscription"
+      | "windows-fixed-codex-subscription";
     runId: string;
     observedAt: string;
     accountId: string;

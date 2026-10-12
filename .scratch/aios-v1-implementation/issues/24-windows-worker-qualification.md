@@ -89,3 +89,33 @@ processes. See [live receipt](../ticket24-windows-gateway-inference-observation.
 Production remains disabled. Publishing the trusted Windows capability decision,
 general online/usage qualification, complete report controls and production task/
 isolated validation still remain. Complete acceptance stays open.
+
+### Trusted Windows capability and fixed task completion
+
+The public controller/CLI now reads the trusted Windows capability decision from
+external protected state, including native ownership/ACL verification of every
+authority input. The already-consumed inference approval stays consumed and
+grants no new inference authority. Authentication drift during requalification
+prevents task dispatch.
+
+The actual Windows Hyper-V `synthetic-task` completed a fixed admitted HTML edit,
+negative and positive repository-script validation, and byte-identical HTTP
+validation inside the restricted offline worker. Native shutdown independently
+observed eight processes and verified zero remaining before safe result import.
+The public report now marks authentication, syntheticTask and isolatedValidation
+passed with live evidence. See [task receipt](../ticket24-windows-synthetic-task-observation.json),
+[public report](../ticket24-windows-qualification-after-task.json), and
+[review/validation](../ticket24-windows-task-review.md).
+
+Standards and Spec reviews cleared the changes. The final suite passed 167 tests,
+with one macOS-only ACL skip (168 total); typechecking and formatting passed.
+Initial execution and duplicate-spool collection refusals are preserved as failed
+attempts with verified shutdown. No provider request, image/policy replacement or
+production execution occurred during this continuation.
+
+Complete acceptance remains unchecked. The fixed deterministic fixture does not
+prove general Codex feature implementation or the complete application validation
+set. The public report remains blocked on complete isolation probes, native model
+and dependency online-policy evidence, fresh online usage authorization, and
+complete fencing/recovery aggregation. Publication, approval, merge and pilot
+qualification remain separate downstream gates.

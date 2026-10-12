@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { NativeSyntheticTask } from "./synthetic-task.js";
 import { NativeOnlineAccess } from "./online-native.js";
 import { NpmArtifactRuntime } from "./npm-artifact.js";
 import { homedir } from "node:os";
@@ -14,7 +15,7 @@ import { authorizeSubscriptionAuth } from "./auth-host.js";
 import { prepareSubscriptionAuth } from "./subscription-auth.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows worker report and never enables production. Native execution is limited to fixed synthetic canaries; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent Windows authentication qualification. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -52,6 +53,7 @@ try {
       "qualify",
       "offline-canary",
       "online-canary",
+      "synthetic-task",
       "pin-offline",
       "recover",
       "pause",
@@ -83,7 +85,7 @@ try {
     values["state-dir"] ?? join(homedir(), ".developer-os");
   if (
     values.adversarial !== undefined &&
-    (positionals[0] !== "qualify" ||
+    (!["qualify", "synthetic-task"].includes(positionals[0] ?? "") ||
       !values["podman-machine"] ||
       !values["worker-policy"])
   )
@@ -142,6 +144,10 @@ try {
             values["worker-policy"],
           )
         : undefined;
+    const synthetic =
+      positionals[0] === "synthetic-task" && native
+        ? new NativeSyntheticTask(native)
+        : undefined;
     const controller = new DeliveryController(
       stateDirectory,
       {
@@ -166,7 +172,8 @@ try {
           : new SbxHostAdapter(),
         ...(native
           ? {
-              offline: native,
+              offline: synthetic ?? native,
+              ...(synthetic ? { synthetic } : {}),
               online: values["dependency-policy"]
                 ? new NpmArtifactRuntime(
                     new NativeOnlineAccess(native),
@@ -220,17 +227,19 @@ try {
           : controller.status(values.id);
     } else {
       const command =
-        positionals[0] === "check-usage"
-          ? "checkUsage"
-          : positionals[0] === "poll-usage"
-            ? "pollUsage"
-            : positionals[0] === "offline-canary"
-              ? "offlineCanary"
-              : positionals[0] === "online-canary"
-                ? "onlineCanary"
-                : positionals[0] === "qualification-report"
-                  ? "qualificationReport"
-                  : positionals[0];
+        positionals[0] === "synthetic-task"
+          ? "syntheticTask"
+          : positionals[0] === "check-usage"
+            ? "checkUsage"
+            : positionals[0] === "poll-usage"
+              ? "pollUsage"
+              : positionals[0] === "offline-canary"
+                ? "offlineCanary"
+                : positionals[0] === "online-canary"
+                  ? "onlineCanary"
+                  : positionals[0] === "qualification-report"
+                    ? "qualificationReport"
+                    : positionals[0];
       if (
         command === "approve-usage" &&
         values.id &&
@@ -252,6 +261,7 @@ try {
           command === "pollUsage" ||
           command === "qualify" ||
           command === "offlineCanary" ||
+          command === "syntheticTask" ||
           command === "onlineCanary" ||
           command === "pause" ||
           command === "resume" ||

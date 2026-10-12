@@ -1,3 +1,4 @@
+import { windowsAuthStore } from "./windows-auth-store.js";
 import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -27,6 +28,22 @@ const within = (root: string, path: string) => {
   );
 };
 
+export function subscriptionDecisionScope(binding?: Record<string, string>) {
+  if (
+    binding?.platform === "win32" &&
+    binding.arch === "x64" &&
+    binding.provider === "hyperv"
+  )
+    return "windows-fixed-codex-subscription" as const;
+  if (
+    binding?.platform === "darwin" &&
+    binding.arch === "arm64" &&
+    binding.provider === "applehv"
+  )
+    return "macos-fixed-codex-subscription" as const;
+  return undefined;
+}
+
 /** Operator-endorsed evidence lives only in protected controller state. There is
  * deliberately no candidate receipt import or inference-authorizing API. */
 export function projectSubscriptionDecision(
@@ -39,6 +56,17 @@ export function projectSubscriptionDecision(
   delete mediation.mechanismDecision;
   try {
     const repository = realpathSync(delivery.repository);
+    const binding = q.offlineAdmission?.binding;
+    const windows =
+      binding?.platform === "win32" &&
+      binding.arch === "x64" &&
+      binding.provider === "hyperv";
+    const macos =
+      binding?.platform === "darwin" &&
+      binding.arch === "arm64" &&
+      binding.provider === "applehv";
+    if (!windows && !macos) throw Error();
+    if (windows && process.platform === "win32") windowsAuthStore(state);
     assertPrivateAuthStorage(state, "directory");
     const read = (
       path: string,
@@ -57,6 +85,8 @@ export function projectSubscriptionDecision(
         parentAccess,
       );
       assertPrivateAuthStorage(path, "file", 65536);
+      if (windows && process.platform === "win32")
+        windowsAuthStore(resolve(path, ".."), [path]);
       return readFileSync(path);
     };
     if (within(repository, realpathSync(state))) throw Error();
@@ -97,9 +127,6 @@ export function projectSubscriptionDecision(
       throw Error();
     if (
       q.offlineAdmission?.allowed !== true ||
-      q.offlineAdmission.binding?.platform !== "darwin" ||
-      q.offlineAdmission.binding?.arch !== "arm64" ||
-      q.offlineAdmission.binding?.provider !== "applehv" ||
       q.policySha256 !== r.policySha256 ||
       q.bindingSha256 !== r.bindingSha256 ||
       mediation.hostGateway !== "passed" ||
@@ -114,7 +141,9 @@ export function projectSubscriptionDecision(
       throw Error();
     mediation.mechanismDecision = {
       qualified: true,
-      scope: "macos-fixed-codex-subscription",
+      scope: windows
+        ? "windows-fixed-codex-subscription"
+        : "macos-fixed-codex-subscription",
       runId: r.runId,
       observedAt: r.observedAt,
       accountId: r.accountId,
@@ -125,7 +154,7 @@ export function projectSubscriptionDecision(
       inferenceAuthorized: false,
     };
     mediation.nextAction =
-      "The pinned macOS fixed-request mediation mechanism has positive evidence. Its approval is consumed; production delivery remains disabled. Implement and qualify separate online dispatch, dependency access and usage/re-dispatch gates before feature delivery.";
+      "The pinned supported-host fixed-request mediation mechanism has positive evidence. Its approval is consumed; production delivery remains disabled. Implement and qualify separate online dispatch, dependency access and usage/re-dispatch gates before feature delivery.";
     q.ready = false;
     q.liveReady = false;
   } catch {
