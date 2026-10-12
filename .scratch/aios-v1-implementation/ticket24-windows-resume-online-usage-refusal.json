@@ -1,0 +1,1 @@
+{"scope":"Credential-free online preflight after restoring qualification","status":"refused","reason":"account-scoped-usage-approval-required","onlineDispatch":false,"usageAllowanceConsumed":false,"productionEnabled":false,"resolution":"Persist positive public account qualification before the final preflight and fresh usage grant"}

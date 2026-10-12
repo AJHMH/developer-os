@@ -348,6 +348,19 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 "codex-credential-denials",
                 "codex-initialize",
                 "codex-account-read",
+                "codex-explicit-resume",
+                "codex-resume-persistence",
+                "codex-resume-exit",
+                "codex-resume-kill",
+                "codex-resume-wait",
+                "codex-resume-status",
+                "codex-resume-census",
+                "codex-resume-initialize",
+                "codex-resume-account",
+                "codex-resume-history",
+                "codex-resume-rollout",
+                "codex-resume-permission",
+                "codex-resume-not-found",
                 "codex-process-exited",
                 "codex-process-audit",
                 "codex-relay-shutdown",
@@ -374,6 +387,12 @@ export class PodmanHostAdapter implements WorkerAdapter {
               observed.codex?.shutdown?.remainingProcesses === 0
             ) {
               report.subscriptionMediation.workerProtocol = "passed";
+              if (
+                observed.codex.explicitResume === "passed" &&
+                observed.codex.resumeInferenceRequests === 0 &&
+                observed.codex.observedCodexProcesses >= 1
+              )
+                report.subscriptionMediation.explicitResume = "passed";
               report.subscriptionMediation.codexCredentialIsolation = "passed";
               report.subscriptionMediation.workerExecutableSha256 =
                 observed.codex.binarySha256;

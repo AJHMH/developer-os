@@ -37,6 +37,7 @@ export interface SubscriptionMediationReport {
   relayVersion?: string;
   modelFrameTransport: "passed" | "not-run";
   workerProtocol: "passed" | "not-run";
+  explicitResume?: "passed";
   codexCredentialIsolation: "passed" | "not-run";
   workerExecutableSha256?: string;
   workerBlocker?: string;

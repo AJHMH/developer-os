@@ -1,0 +1,34 @@
+{
+  "runId": "1766fed9-545d-4d59-91cd-f0e88514d508",
+  "preparedAt": "2026-10-12T18:28:53.064Z",
+  "expiresAt": 1791833333064,
+  "accountId": "6eb3ba924beedc723aaedd7d0a9a0f33b2a3ab65da012ec2bd5e07437b35f439",
+  "hostId": "urn:uuid:84f707e8-e701-44fd-a0b7-d36473126def",
+  "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+  "request": {
+    "model": "gpt-6.1-sol",
+    "input": [
+      {
+        "role": "user",
+        "content": "Say exactly: AIOS model-only inference complete"
+      }
+    ],
+    "store": false,
+    "stream": true
+  },
+  "requestSha256": "edc4f05f8914dac70e7357db595a3427a17fc1193291af0bdcfe569a3ee67296",
+  "policySha256": "b7993720f9d14cd32e0300c6b92789824115c5430c04af9843dc993e149a5021",
+  "bindingSha256": "8a52edd818e5c9de970e130b5eb2bef9beff17103fe0a06a723c03f1edbc4d15",
+  "gatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+  "workerExecutableSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+  "upstream": "POST https://api.openai.com/v1/responses",
+  "maxRequests": 1,
+  "retries": 0,
+  "refresh": false,
+  "deadlineSeconds": 30,
+  "maxResponseBytes": 65536,
+  "usage": "unknown remaining subscription usage; exact run requires separate approval",
+  "worker": "isolated actual Codex 0.161.0 through VM management relay and host gateway; no tools/context forwarded upstream",
+  "credentialLocation": "host-only Windows CurrentUser DPAPI and trusted host memory",
+  "inferenceExecuted": false
+}

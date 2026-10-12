@@ -12,9 +12,9 @@ Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [c
 
 ## Acceptance criteria
 
-- [ ] A real controller/CLI synthetic worker task and isolated validation exercise pinned transfer, authentication, offline/online policies, usage gates, safe collection and fencing/recovery.
-- [ ] The complete version-bound Windows worker qualification report admits only the positively qualified host/binding and refuses missing/failed controls.
-- [ ] Signed publication, human approval, merge and full delivery/pilot qualification remain separate downstream gates.
+- [x] A real controller/CLI synthetic worker task and isolated validation exercise pinned transfer, authentication, offline/online policies, usage gates, safe collection and fencing/recovery.
+- [x] The complete version-bound Windows worker qualification report admits only the positively qualified host/binding and refuses missing/failed controls.
+- [x] Signed publication, human approval, merge and full delivery/pilot qualification remain separate downstream gates.
 
 ## Comments
 
@@ -119,3 +119,43 @@ set. The public report remains blocked on complete isolation probes, native mode
 and dependency online-policy evidence, fresh online usage authorization, and
 complete fencing/recovery aggregation. Publication, approval, merge and pilot
 qualification remain separate downstream gates.
+
+### 12 October completed native Windows qualification
+
+The current v8 Hyper-V binding passed all nine live public qualification checks:
+host binding, offline transfer, complete adversarial isolation, online policy,
+authentication, usage gate, fencing/recovery, synthetic task and isolated
+validation. See [complete public report](../ticket24-windows-complete-qualification.json)
+and [independent review and retained refusals](../ticket24-windows-controls-review.md).
+
+The independently approved fixed inference run
+`bb18f46b-1b99-473b-ae3e-3565a9f66d18` passed actual pinned Codex saved-thread
+crash/resume with zero extra inference requests and verified worker/relay cleanup.
+The trusted protected capability record is current-source bound and grants no
+future inference authority. One separately approved credential-free online run
+`6381d171-77b4-4697-ae5f-82c9789f1c3f` passed fixed model/dependency access, bypass
+denial and revocation; dispatch-time account/window/run usage evidence remains
+historical proof, never a reusable grant.
+
+The public fixed HTML task passed negative/positive repository-script checks and
+byte-identical loopback HTTP validation, with safe collection only after verified
+shutdown. All six supplemental controls passed, including native revoked-sender
+fencing, queued repository contention, killed-controller recovery and two
+independent descendant censuses. All current and retained sessions are stopped.
+
+Historical uncertain recovery events remain preserved, but a later verified
+stopped event and stopped session inventory reconcile them. Unresolved current
+or archived sessions, malformed recovery fences and newer uncertainty still block
+the report. The regression demonstrated this aggregation bug before the fix.
+
+The expired-token inference refusal remains consumed with zero provider attempts;
+separate browser sign-in and fresh exact approval preceded the successful run.
+Transient credential-free probe refusals and an operator usage-scope sequencing
+refusal are retained; none enabled production or consumed synthetic online
+traffic authorization.
+
+Ticket 24 worker-boundary acceptance is complete and remains ready for human
+review. The evidence covers the fixed request, generated credential/helper
+fixtures and deterministic site task. Parent 04, general feature delivery, signed
+publication, approval, merge and full pilot qualification remain separate gates.
+Production is disabled.

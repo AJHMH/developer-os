@@ -13,6 +13,69 @@ import {
   podmanCommand,
 } from "../dist/podman-platform.js";
 import { NativePodmanDriver } from "../dist/podman-native.js";
+
+test("native inference starts its one-shot gateway lease only after bound isolation and always revokes it", async () => {
+  const native = new NativePodmanDriver(
+    "aios-test",
+    "/authority",
+    "/pins.json",
+  );
+  const binding = { platform: "win32", arch: "x64" };
+  let created = 0,
+    revoked = 0,
+    refused = false;
+  const gateway = {
+    revoke() {
+      revoked++;
+    },
+  };
+  native.policy = () => binding;
+  native.invoke = (action, payload) => {
+    assert.equal(action, "isolate");
+    assert.equal(
+      created,
+      0,
+      "request deadline does not include isolation preparation",
+    );
+    return { passed: !refused, challengeId: payload.challenge.id };
+  };
+  native.gatewayInvocation = async (payload, deliveryId, supplied) => {
+    assert.equal(created, 1);
+    assert.equal(supplied, gateway);
+    return {
+      protocol: "passed",
+      explicitResume: "passed",
+      resumeInferenceRequests: 0,
+      credentialIsolation: "passed",
+      gatewayIntegration: "passed",
+      relayDeliveryId: deliveryId,
+      shutdown: { remainingProcesses: 0 },
+      relayShutdownRemaining: 0,
+      binding: payload.expected,
+    };
+  };
+  await native.inferThroughGateway("/candidate", "delivery", () => {
+    created++;
+    return gateway;
+  });
+  assert.equal(created, 1);
+  assert.equal(revoked, 1);
+  created = 0;
+  refused = true;
+  await assert.rejects(
+    native.inferThroughGateway("/candidate", "delivery", () => {
+      created++;
+      return gateway;
+    }),
+    /Unverified isolation/,
+  );
+  assert.equal(
+    created,
+    0,
+    "failed isolation cannot create a gateway or open credentials",
+  );
+  assert.equal(revoked, 1);
+});
 import {
   gatewayRequest,
   subscriptionGatewayVersion,
@@ -390,6 +453,8 @@ for (const hostPlatform of ["darwin", "win32"])
             child.stdin.writeResponse = () => {
               const proof = {
                 protocol: "passed",
+                explicitResume: "passed",
+                resumeInferenceRequests: 0,
                 credentialIsolation: "passed",
                 gatewayIntegration: "passed",
                 gatewayVersion: subscriptionGatewayVersion,
@@ -442,6 +507,7 @@ for (const hostPlatform of ["darwin", "win32"])
     const proof = await driver.probeIsolation("/candidate", deliveryId);
     assert.equal(proof.passed, true);
     assert.equal(proof.codex.credentialIsolation, "passed");
+    assert.equal(proof.codex.explicitResume, "passed");
     assert.equal(proof.modelFrameTransport, "passed");
     assert.equal(
       f.requests.filter((request) => request.action === "model-frame").length,

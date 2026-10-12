@@ -89,6 +89,7 @@ export interface OnlineAccessEvidence extends OnlinePlan {
   state: "dispatched" | "stopped" | "uncertain";
   outcome: "running" | "passed" | "refused" | "uncertain";
   productionEnabled: false;
+  usageAuthorization?: { authorizedAt: string; usage: UsageReport };
   proof?: OnlineProof;
   shutdown?: OnlineStop;
 }
@@ -103,9 +104,13 @@ export function onlineUsagePermits(
     usage &&
       usage.scope === plan.usageScope &&
       (!usage.accountId || usage.accountId === plan.accountId) &&
+      Date.now() - Date.parse(usage.checkedAt) >= 0 &&
       Date.now() - Date.parse(usage.checkedAt) <= 60000 &&
       (usage.decision === "ready" ||
         (usage.decision === "approval-required" &&
-          usage.approval?.operationId === plan.runId)),
+          usage.approval?.operationId === plan.runId &&
+          usage.approval.scope === usage.scope &&
+          Date.now() - Date.parse(usage.approval.at) >= 0 &&
+          Date.now() - Date.parse(usage.approval.at) <= 60000)),
   );
 }

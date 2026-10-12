@@ -1,0 +1,9 @@
+{
+  "scope": "Credential-free public capability requalification before endorsement",
+  "status": "refused",
+  "workerBlocker": "codex-relay-revocation",
+  "executionState": "stopped",
+  "providerRequests": 0,
+  "capabilityRecordReplaced": false,
+  "productionEnabled": false
+}

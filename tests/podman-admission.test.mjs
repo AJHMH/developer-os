@@ -416,6 +416,9 @@ test("public qualification records synthetic credential isolation, endpoint, del
               modelFrameTransport: "passed",
               codex: {
                 protocol: "passed",
+                explicitResume: "passed",
+                resumeInferenceRequests: 0,
+                observedCodexProcesses: 1,
                 credentialIsolation: "passed",
                 binarySha256:
                   "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
@@ -451,6 +454,7 @@ test("public qualification records synthetic credential isolation, endpoint, del
   assert.equal(mediation.credentialIsolation, "passed");
   assert.equal(mediation.modelFrameTransport, "passed");
   assert.equal(mediation.workerProtocol, "passed");
+  assert.equal(mediation.explicitResume, "passed");
   assert.equal(mediation.endpointEnforcement, "passed");
   assert.equal(mediation.deliveryCapabilities, "passed");
   assert.equal(mediation.gatewayIntegration, "passed");
