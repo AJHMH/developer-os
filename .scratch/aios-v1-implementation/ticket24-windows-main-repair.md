@@ -175,3 +175,28 @@ separate one-run synthetic unknown-usage allowance. Finish Windows capability,
 fixed task, online access and aggregate stopped-session report before macOS handoff.
 The owner-approved cycle produced a passing repair and is now recorded; any new
 repair batch after a refusal needs an owner extension under CONTEXT.md.
+
+### Approved inference execution refused before live authority
+
+The owner approved exact plan df296f65-5156-4c82-882f-fde2719cce09 and separately
+approved one fresh synthetic online allowance. Execution attempted once on the
+unchanged source/pins. The credential-free preflight refused at codex-explicit-resume:
+32/32 tasks, 29 task-limit hits, history-store error -32603. The original Codex
+identity was gone (zero remaining), but replacement durable history was unavailable.
+The Tokio/Rayon caps therefore do not establish reliable crash/resume qualification.
+Prior passing observations remain preserved and are not promoted to completion.
+
+The runner refused before approval consumption, credential access or gateway
+construction; zero provider attempts occurred. The exact inference approval and
+synthetic online allowance remain unconsumed. Capability, task and online stages
+were not dispatched. Public delivery execution and all retained sessions/runs are
+stopped. See ticket24-windows-thread-budget-execution-refusal.json and its full
+public status receipt. Production remains disabled and no macOS work occurred.
+
+This failed revalidation consumes the third owner-approved cycle. Under CONTEXT.md,
+"Repair cycle": "An attempt to fix a batch of validation or review findings
+followed by relevant revalidation." Further repair requires a new owner extension;
+there is no automatic retry, inference or refresh. Any source/pin correction
+invalidates this exact plan and requires fresh plan approval. Next repair should
+measure the resumed process's task demand without raising the 32-task ceiling or
+relaxing durable history, exact identity, credential isolation or cleanup checks.

@@ -189,3 +189,11 @@ Task pressure is reduced (29/32 tasks, two denials), not eliminated. Windows liv
 inference, fresh online usage approval, capability/task/aggregate qualification
 remain pending. No macOS handoff or production readiness is claimed. See the
 current repair record for pins, evidence, review and approval boundaries.
+
+Approved live execution of the new plan subsequently refused in credential-free
+explicit-resume preflight: 32/32 tasks, 29 task-limit hits and unavailable history.
+The thread caps are insufficient for reliable qualification. Zero provider requests
+and no credential access occurred; exact/online approvals remain unconsumed.
+Windows remains blocked, production disabled, and the repair cycle is consumed.
+No capability/task/online follow-up or macOS handoff ran. Further repair requires
+an owner extension; any binding correction needs fresh exact-plan approval.

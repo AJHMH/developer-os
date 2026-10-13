@@ -1,0 +1,184 @@
+{
+  "observedAt": "2026-10-13T01:12:14.888Z",
+  "runId": "df296f65-5156-4c82-882f-fde2719cce09",
+  "scope": "Approved inference execution refused in credential-free preflight",
+  "approvalConsumed": false,
+  "providerAttempts": 0,
+  "credentialAccess": false,
+  "syntheticOnlineAllowanceConsumed": false,
+  "executionState": "stopped",
+  "workerBlocker": "codex-explicit-resume",
+  "diagnostic": {
+    "elapsedMs": 11333,
+    "failureKind": "check",
+    "commandElapsedMs": 88,
+    "originalCodexProcesses": 1,
+    "remainingOriginalCodexProcesses": 0,
+    "responseBytes": 2239,
+    "responseStatus": 200,
+    "processLimitHits": 29,
+    "workerTaskCount": 32,
+    "workerTaskLimit": 32,
+    "requestExitCode": 0,
+    "persistenceErrorCode": -32603,
+    "persistenceErrorFlags": 101134848,
+    "persistenceErrorReason": "history"
+  },
+  "policySha256": "474d634ac2df7982e8a4039dd8aa193ae0f13dc86fbcc692e07e94f83df77cdc",
+  "bindingSha256": "4dcac5919df22493434fca37d69bb04d29b7bf1adbb60db4b2b04e4bd0c16f39",
+  "sessions": [
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    },
+    {
+      "state": "stopped"
+    }
+  ],
+  "onlineRuns": [
+    {
+      "state": "stopped"
+    }
+  ],
+  "productionEnabled": false
+}
