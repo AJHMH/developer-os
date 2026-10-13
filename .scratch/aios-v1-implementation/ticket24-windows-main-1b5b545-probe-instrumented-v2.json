@@ -1,0 +1,86 @@
+{
+  "observedAt": "2026-10-13T00:05:41.545Z",
+  "evidence": {
+    "binding": {
+      "platform": "win32",
+      "arch": "x64",
+      "osVersion": "10.0.26300",
+      "provider": "hyperv",
+      "machine": "aios-podman-noshare",
+      "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+      "engineVersion": "6.0.2",
+      "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+      "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+      "workerVersion": "1.1.0",
+      "policyVersion": "offline-native-v3-43b1583bb1ada3bbdb5e974a7bdb7a3d9436a3fb6d99ff8b1fce4e0bbdebf578"
+    },
+    "challengeId": "230e0702-09b7-4edf-a3ee-8ab3aafd6b46",
+    "passed": true,
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "dc6406ef8cf471fca1d699d694a18a9517ca98881683fb1fd95715e3c332fb53"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "dc6406ef8cf471fca1d699d694a18a9517ca98881683fb1fd95715e3c332fb53"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "dc6406ef8cf471fca1d699d694a18a9517ca98881683fb1fd95715e3c332fb53"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "dc6406ef8cf471fca1d699d694a18a9517ca98881683fb1fd95715e3c332fb53"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "dc6406ef8cf471fca1d699d694a18a9517ca98881683fb1fd95715e3c332fb53"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "dc6406ef8cf471fca1d699d694a18a9517ca98881683fb1fd95715e3c332fb53"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "dc6406ef8cf471fca1d699d694a18a9517ca98881683fb1fd95715e3c332fb53"
+      }
+    ],
+    "escapeAttempts": [
+      "passed-escape-unshare",
+      "passed-escape-chroot",
+      "passed-escape-cgroup",
+      "passed-escape-proc"
+    ],
+    "credentialExclusion": {
+      "hostFilesDenied": true,
+      "guestFileDenied": true,
+      "environmentScrubbed": true,
+      "mountsAbsent": true,
+      "networkAbsent": true,
+      "positiveControlsBeforeAfter": true
+    },
+    "scope": "Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim",
+    "shutdown": {
+      "observedProcesses": 1,
+      "remainingProcesses": 0
+    },
+    "codex": {
+      "blockedStage": "codex-resume-persistence",
+      "diagnostic": {
+        "elapsedMs": 12400,
+        "failureKind": "check",
+        "commandElapsedMs": 27
+      }
+    },
+    "probeVersion": "37f26b070b60eb11e6b7413fa165affe4c4ab7530fbe24f141c6c5ef630e23a2",
+    "modelFrameTransport": "passed"
+  }
+}

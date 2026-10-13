@@ -1,0 +1,218 @@
+{
+  "observedAt": "2026-10-13T01:58:02.661Z",
+  "scope": "Owner-approved one-run unknown usage; VM-local synthetic model/dependency/bypass qualification only; no inference",
+  "onlineAccess": {
+    "runId": "a7f2d264-d5db-403d-ba1c-ee3ed602c9f3",
+    "deliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+    "repository": "C:\\Users\\mraar\\.developer-os\\ticket19-native\\repo",
+    "fence": 117,
+    "accountId": "6eb3ba924beedc723aaedd7d0a9a0f33b2a3ab65da012ec2bd5e07437b35f439",
+    "usageScope": "6b87e8573ae3b3830d29581496126f16dcab1487351600b4acc5e24735f59293",
+    "policyVersion": "03af77a485cbbdb83f0a07f465b95e5c96fae76aa030ddb06feb69b8e7aff4d7",
+    "runtimeVersion": "c5cd7cd48b89e73e402113ead4a9e219a1113c8908feeff13a91181f23cfe2c0",
+    "bindingSha256": "38eb2e7d7c5f7dca5c2fcbce1f47922b154e0e617791a81a7ce745f6128dcf1f",
+    "hostPolicySha256": "5310530c34c0daef2f6713ac90690729ced4db36292d5a0a11a7143afc7eebdb",
+    "mode": "live",
+    "state": "stopped",
+    "outcome": "passed",
+    "productionEnabled": false,
+    "usageAuthorization": {
+      "authorizedAt": "2026-10-13T01:57:37.372Z",
+      "usage": {
+        "checkId": "012ea6ac-4b3f-421b-880c-6a1e9bb40c48",
+        "checkedAt": "2026-10-13T01:57:35.508Z",
+        "decision": "approval-required",
+        "remainingPercent": null,
+        "scope": "6b87e8573ae3b3830d29581496126f16dcab1487351600b4acc5e24735f59293",
+        "accountId": "6eb3ba924beedc723aaedd7d0a9a0f33b2a3ab65da012ec2bd5e07437b35f439",
+        "approval": {
+          "scope": "6b87e8573ae3b3830d29581496126f16dcab1487351600b4acc5e24735f59293",
+          "at": "2026-10-13T01:57:23.367Z",
+          "operationId": "a7f2d264-d5db-403d-ba1c-ee3ed602c9f3"
+        }
+      }
+    },
+    "shutdown": {
+      "runId": "a7f2d264-d5db-403d-ba1c-ee3ed602c9f3",
+      "revoked": true,
+      "remainingProcesses": 0
+    },
+    "proof": {
+      "runId": "a7f2d264-d5db-403d-ba1c-ee3ed602c9f3",
+      "policyVersion": "03af77a485cbbdb83f0a07f465b95e5c96fae76aa030ddb06feb69b8e7aff4d7",
+      "model": "passed",
+      "dependency": "passed",
+      "bypass": "passed",
+      "dependencyArtifactSha256": "a9134366fcf82408198a83e2d5afaea509dd5b36d5952ea34d3dd59ddd633918"
+    }
+  },
+  "usage": {
+    "checkId": "d2bada97-ce7c-4447-9dee-bef1fe4fc53a",
+    "checkedAt": "2026-10-13T01:57:56.027Z",
+    "decision": "approval-required",
+    "remainingPercent": null,
+    "scope": "6b87e8573ae3b3830d29581496126f16dcab1487351600b4acc5e24735f59293",
+    "accountId": "6eb3ba924beedc723aaedd7d0a9a0f33b2a3ab65da012ec2bd5e07437b35f439",
+    "approval": {
+      "scope": "6b87e8573ae3b3830d29581496126f16dcab1487351600b4acc5e24735f59293",
+      "at": "2026-10-13T01:57:23.367Z",
+      "operationId": "a7f2d264-d5db-403d-ba1c-ee3ed602c9f3"
+    }
+  },
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-13T01:56:05.546Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "1e6374cbcbea595b8d35cf1e0149375b9a0d0cc121cab2e8fee544120c890ff2"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "1e6374cbcbea595b8d35cf1e0149375b9a0d0cc121cab2e8fee544120c890ff2"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "1e6374cbcbea595b8d35cf1e0149375b9a0d0cc121cab2e8fee544120c890ff2"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "1e6374cbcbea595b8d35cf1e0149375b9a0d0cc121cab2e8fee544120c890ff2"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "1e6374cbcbea595b8d35cf1e0149375b9a0d0cc121cab2e8fee544120c890ff2"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "1e6374cbcbea595b8d35cf1e0149375b9a0d0cc121cab2e8fee544120c890ff2"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "1e6374cbcbea595b8d35cf1e0149375b9a0d0cc121cab2e8fee544120c890ff2"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "passed",
+      "workerProtocol": "passed",
+      "codexCredentialIsolation": "passed",
+      "scope": "host-capability-only",
+      "credentialIsolation": "passed",
+      "credentialIsolationScope": "synthetic-restricted-alpine",
+      "endpointEnforcement": "passed",
+      "deliveryCapabilities": "passed",
+      "hostGateway": "passed",
+      "gatewayIntegration": "passed",
+      "subscriptionInference": "not-run",
+      "nextAction": "Prepare a fresh owner-approved one-shot inference through the qualified synthetic host gateway/Codex bridge; live subscription integration remains not-run and production delivery remains disabled.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
+      "explicitResume": "passed",
+      "workerExecutableSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+      "deliveryCapabilityChecks": [
+        "cross-delivery",
+        "namespace",
+        "revocation",
+        "quota",
+        "expiry"
+      ],
+      "endpointScope": "synthetic-codex-relay",
+      "relayDeliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "gatewayScope": "synthetic-host-subscription"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+        "engineVersion": "6.0.2",
+        "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+        "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-8bd17c91289ded04e8c484da20783c54b559f70c2d13c57debdd79091f267735"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "5310530c34c0daef2f6713ac90690729ced4db36292d5a0a11a7143afc7eebdb",
+    "bindingSha256": "38eb2e7d7c5f7dca5c2fcbce1f47922b154e0e617791a81a7ce745f6128dcf1f",
+    "adversarial": {
+      "scope": "synthetic-windows-controls",
+      "challengeId": "2fadfbdc-f2a2-4d69-a678-9faf3f4f41e1",
+      "probeVersion": "a81979afc3deddc4dd694f9b38ee71a0e1188ee425f2b499e5a6daa931307df9",
+      "escapeAttempts": [
+        "passed-escape-unshare",
+        "passed-escape-chroot",
+        "passed-escape-cgroup",
+        "passed-escape-proc"
+      ]
+    }
+  }
+}

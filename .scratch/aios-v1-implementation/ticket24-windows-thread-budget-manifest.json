@@ -1,0 +1,67 @@
+{
+  "steps": {
+    "controls": {
+      "sha256": "6eca2d179104f4598d7e6d5a6969f9806e096e975543b827390504b6e645e416",
+      "args": [],
+      "script": "D:/repos/developer-os/.scratch/aios-v1-implementation/windows-main-1b5b545-thread-budget-controls-acceptance.mjs"
+    },
+    "authStatus": {
+      "sha256": "f0994dc8a55a9d671d510e4768469e80daa318ca0d0a93e60251dcf344b9e9bc",
+      "args": [
+        "auth-status",
+        "--repo",
+        "C:\\Users\\mraar\\.developer-os\\ticket19-native\\repo",
+        "--state-dir",
+        "C:\\Users\\mraar\\.developer-os\\ticket19-native\\state",
+        "--auth-directory",
+        "C:/Users/mraar/.developer-os-model-auth/windows-ticket24",
+        "--auth-account",
+        "6eb3ba924beedc723aaedd7d0a9a0f33b2a3ab65da012ec2bd5e07437b35f439"
+      ],
+      "script": "D:\\repos\\developer-os\\dist\\cli.js"
+    },
+    "prepareInference": {
+      "sha256": "a90a02d20d3f321f2d0fdf30107f12dd92fcb02eadb310d755f01f32611d78de",
+      "args": [
+        "--policy",
+        "C:/Users/mraar/.developer-os/ticket19-native/pins-windows-ticket24-thread-budget-20261012.json"
+      ],
+      "script": "D:/repos/developer-os/.scratch/aios-v1-implementation/ticket24-windows-thread-budget-gateway-inference.mjs"
+    },
+    "inference": {
+      "sha256": "a90a02d20d3f321f2d0fdf30107f12dd92fcb02eadb310d755f01f32611d78de",
+      "args": [
+        "--policy",
+        "C:/Users/mraar/.developer-os/ticket19-native/pins-windows-ticket24-thread-budget-20261012.json"
+      ],
+      "script": "D:/repos/developer-os/.scratch/aios-v1-implementation/ticket24-windows-thread-budget-gateway-inference.mjs"
+    },
+    "capability": {
+      "sha256": "975f2d3371549171c57004f19e91c78bb7e6b863436c284a4be4a08a60bf54ce",
+      "args": [],
+      "script": "D:\\repos\\developer-os\\.scratch\\aios-v1-implementation\\windows-thread-budget-public-capability-acceptance.mjs"
+    },
+    "task": {
+      "sha256": "f05ffeb485e18bd8656eaa518f7c9464d286e008e50306260516f9a3e7a6d23a",
+      "args": [],
+      "script": "D:\\repos\\developer-os\\.scratch\\aios-v1-implementation\\windows-thread-budget-synthetic-task-acceptance.mjs"
+    },
+    "online": {
+      "sha256": "3a4af86da762ef82011638f99bb6cdd5d140474b467f7f0727dcb0e3bc184d1a",
+      "args": [],
+      "script": "D:\\repos\\developer-os\\.scratch\\aios-v1-implementation\\windows-thread-budget-online-qualification-acceptance.mjs"
+    },
+    "report": {
+      "sha256": "6b31509cdeebad266d88fde7b0873937925f7947f8d2ed83313ee2e0844f2324",
+      "args": [
+        "--state-dir",
+        "C:\\Users\\mraar\\.developer-os\\ticket19-native\\state",
+        "--id",
+        "46f3cefb-57e3-48fa-be4f-24fae4b37505"
+      ],
+      "script": "D:\\repos\\developer-os\\scripts\\assert-windows-qualification.mjs"
+    }
+  },
+  "stateDirectory": "C:\\Users\\mraar\\.developer-os\\ticket19-native\\state",
+  "schema": 1
+}

@@ -568,6 +568,125 @@ print('preserved')
   assert.equal(result.stdout.trim(), "preserved");
 });
 
+test("Windows native Codex launch constrains thread pools and audits the exact environment", (t) => {
+  const runPython = childProcess.spawnSync;
+  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const available = runPython(python, ["--version"], {
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (available.status !== 0) {
+    t.skip("Python required to exercise generated management code");
+    return;
+  }
+  const f = hostFixture(t, "win32");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const result = runPython(
+    python,
+    [
+      "-c",
+      String.raw`
+import ast,sys
+program=ast.parse(sys.stdin.read())
+nodes=list(ast.walk(program))
+assignment=next(n for n in nodes if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='runtimeEnv' for t in n.targets))
+insertion=next(n for n in nodes if isinstance(n,ast.For) and ast.unparse(n.iter)=='runtimeEnv.items()')
+audit=next(n for n in nodes if isinstance(n,ast.If) and ast.unparse(n.test).startswith('env !=') and 'runtimeEnv' in ast.unparse(n.test))
+def fail(): raise RuntimeError('environment refused')
+base={b'PATH':b'/usr/bin:/bin',b'HOME':b'/',b'HOSTNAME':b'aios-offline',b'DELIVERY_CAPABILITY':b'synthetic',b'CODEX_HOME':b'/tmp/empty-codex'}
+for platform in ['win32','darwin']:
+ binding={'platform':platform};cap='synthetic';args=['podman','exec','-i','worker','/codex']
+ exec(compile(ast.fix_missing_locations(ast.Module(body=[assignment,insertion],type_ignores=[])),'launch','exec'))
+ expected={b'TOKIO_WORKER_THREADS':b'1',b'RAYON_NUM_THREADS':b'1'} if platform=='win32' else {}
+ assert runtimeEnv==expected
+ assert args[-2:]==['worker','/codex']
+ assert len(args)==5+2*len(expected)
+ env={**base,**expected}
+ code=compile(ast.fix_missing_locations(ast.Module(body=[audit],type_ignores=[])),'audit','exec')
+ exec(code)
+ for altered in [{**env,b'OWNER_TOKEN':b'private'}, {**env,b'TOKIO_WORKER_THREADS':b'2'}, {k:v for k,v in env.items() if k!=b'DELIVERY_CAPABILITY'}]:
+  env=altered
+  try: exec(code)
+  except RuntimeError: pass
+  else: raise AssertionError('unsafe environment accepted')
+create=next(n for n in nodes if isinstance(n,ast.FunctionDef) and n.name=='create')
+assert '--pids-limit=32' in ast.unparse(create)
+print('bounded')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "bounded");
+});
+
+test("Windows Codex task-headroom gate waits for idle workers and refuses exhausted budgets", (t) => {
+  const runPython = childProcess.spawnSync;
+  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const f = hostFixture(t, "win32");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const result = runPython(
+    python,
+    [
+      "-c",
+      String.raw`
+import ast,sys
+program=ast.parse(sys.stdin.read())
+gate=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='awaitTaskBudget')
+class Clock:
+ def __init__(self): self.now=0
+ def monotonic(self): return self.now
+ def sleep(self,seconds): self.now+=seconds
+def fail(): raise RuntimeError('refused')
+for samples,allowed in [([(32,12),(28,6),(26,4)],True), ([(32,12)],False), ([(26,12)],False), ([(30,4)],False), ([(26,4)],True)]:
+ time=Clock();binding={'platform':'win32'};diagnostic={};observations=0
+ def observeTaskLimits():
+  global observations
+  tasks,runtime=samples[min(observations,len(samples)-1)];observations+=1
+  diagnostic.update(workerTaskCount=tasks,workerTaskLimit=32,codexRuntimeTasks=runtime)
+ exec(compile(ast.fix_missing_locations(ast.Module(body=[gate],type_ignores=[])),'gate','exec'))
+ try: awaitTaskBudget()
+ except RuntimeError: assert not allowed
+ else: assert allowed
+ assert time.now<=12.1
+binding={'platform':'darwin'};observations=0;awaitTaskBudget();assert observations==0
+calls=[n for n in ast.walk(program) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='awaitTaskBudget']
+assert len(calls)==3
+requestNode=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='request')
+cap='synthetic';delivery='synthetic';body=b'{}';name='worker';diagnostic={}
+class Process:
+ PIPE=1;DEVNULL=2
+ def run(self,*args,**kwargs):
+  events.append('request')
+  return type('Result',(),{'stdout':b'HTTP/1.1 403 Forbidden\r\n\r\n','returncode':0})()
+subprocess=Process()
+exec(compile(ast.fix_missing_locations(ast.Module(body=[requestNode],type_ignores=[])),'request','exec'))
+for platform,worker,running,expected in [('win32','worker',True,['gate','request']),('win32','worker',False,['request']),('win32','peer',True,['request']),('darwin','worker',True,['request'])]:
+ binding={'platform':platform};child=object() if running else None;stage='revoked';events=[]
+ def awaitTaskBudget(): events.append('gate')
+ assert request(worker,18081).startswith(b'HTTP/1.1 403 ')
+ assert events==expected and stage=='revoked'
+binding={'platform':'win32'};child=object();events=[];stage='revoked'
+def awaitTaskBudget(): raise RuntimeError('headroom refused')
+try: request(name,18081)
+except RuntimeError: pass
+else: raise AssertionError('exhausted request executed')
+assert events==[] and stage=='codex-relay-task-budget'
+print('headroom enforced')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "headroom enforced");
+});
+
 test("native fixed task enforces staging, dispatch authority and exact stopped collection bindings", async (t) => {
   const {
     NativeSyntheticTask,

@@ -510,4 +510,47 @@ test("public qualification records synthetic credential isolation, endpoint, del
     malformed.qualification.subscriptionMediation.workerProtocol,
     "not-run",
   );
+  codexFailure.diagnostic = {
+    elapsedMs: 12000,
+    failureKind: "check",
+    workerTaskCount: 32,
+    workerTaskLimit: 32,
+    codexRuntimeTasks: 12,
+    taskNames: ["synthetic-private-token"],
+  };
+  for (const stage of [
+    "codex-start-task-budget",
+    "codex-resume-task-budget",
+    "codex-relay-task-budget",
+    "codex-relay-revoke-event",
+    "codex-persistence-read-error",
+    "codex-persistence-thread",
+    "codex-persistence-history",
+    "codex-relay-revoke-denial",
+    "codex-relay-peer-response",
+    "codex-relay-peer-count",
+  ]) {
+    codexFailure.blockedStage = stage;
+    const detailed = await delivery.qualify(request.id);
+    assert.equal(
+      detailed.qualification.subscriptionMediation.workerBlocker,
+      stage,
+    );
+    assert.equal(
+      detailed.qualification.subscriptionMediation.workerProtocol,
+      "not-run",
+    );
+    assert.equal(detailed.qualification.liveReady, false);
+    assert.equal(
+      detailed.qualification.subscriptionMediation.workerDiagnostic
+        .workerTaskCount,
+      32,
+    );
+    assert.equal(
+      detailed.qualification.subscriptionMediation.workerDiagnostic
+        .codexRuntimeTasks,
+      12,
+    );
+    assert.doesNotMatch(JSON.stringify(detailed), /synthetic-private-token/);
+  }
 });

@@ -159,3 +159,79 @@ review. The evidence covers the fixed request, generated credential/helper
 fixtures and deterministic site task. Parent 04, general feature delivery, signed
 publication, approval, merge and full pilot qualification remain separate gates.
 Production is disabled.
+
+### Current main Windows requalification
+
+The October 12 worker acceptance above is historical after main merge and source
+changes. Fresh Windows qualification on main `1b5b545` remains blocked by Codex
+saved-history persistence, with an earlier kill-command exit 255 also retained.
+The additional approved repair cycle fixed a reproduced Windows relay buffering
+race but final native revalidation still refused. See
+[current repair evidence and next boundary](../ticket24-windows-main-repair.md).
+No fresh inference plan or macOS handoff is ready; production remains disabled.
+
+The next separately approved Windows cycle replaced name-based crash signaling
+with verified exact process handles. Its fake-child negative tests, native
+crash/resume and all six supplemental controls passed on fresh pins. After
+separately approved browser sign-in, final preparation still refused at
+`codex-persistence-read-error`; no current plan or live inference followed.
+The delivery is stopped. That cycle is consumed and another owner extension is
+required for the remaining persistence repair. Reviews reported zero corrective
+findings; full suite passed 200 tests with one platform-specific skip.
+
+The third owner-approved Windows repair cycle recorded task-budget exhaustion
+(32/32 tasks, 98 denials) alongside unavailable thread history, then constrained
+Windows Tokio/Rayon parallelism while preserving the 32-task limit and all gates.
+Fresh native persistence/crash/resume, six supplemental controls and final
+credential-free preparation passed; full host suite passed 201/202 with one
+platform skip. A fresh exact unapproved inference plan is ready, not executed.
+Task pressure is reduced (29/32 tasks, two denials), not eliminated. Windows live
+inference, fresh online usage approval, capability/task/aggregate qualification
+remain pending. No macOS handoff or production readiness is claimed. See the
+current repair record for pins, evidence, review and approval boundaries.
+
+Approved live execution of the new plan subsequently refused in credential-free
+explicit-resume preflight: 32/32 tasks, 29 task-limit hits and unavailable history.
+The thread caps are insufficient for reliable qualification. Zero provider requests
+and no credential access occurred; exact/online approvals remain unconsumed.
+Windows remains blocked, production disabled, and the repair cycle is consumed.
+No capability/task/online follow-up or macOS handoff ran. Further repair requires
+an owner extension; any binding correction needs fresh exact-plan approval.
+
+The fourth owner-approved Windows cycle measured replacement runtime demand and
+added bounded observed-headroom gates before startup/resume. Native revalidation
+passed durable history/crash/resume but refused revoked-request denial with exit255,
+30/32 tasks and nine task-limit hits. No inference or online allowance was consumed.
+Public headroom-stage reporting was corrected after review; full host suite passed
+203/204 with one platform skip. Independent VM census found zero running rootless
+or rootful containers. Windows remains blocked, this repair cycle is consumed and
+another owner extension is required. No current exact plan or macOS handoff is ready.
+
+The fifth owner-approved Windows repair cycle adds observed headroom before
+post-resume relay requests, preserving the 32-task ceiling and all denial/history/
+identity/cleanup gates. Native protocol and all six Windows controls passed on
+relay-headroom pins; control censuses found zero remaining processes. Separate
+Standards and Spec reviews found no corrective issues. Full synthetic suite:
+203 passed, zero failed, one platform skip. The owner-approved separate Windows
+sign-in completed and host eligibility passed. No inference or online allowance
+was consumed. Fresh exact-plan approval, capability/task/online validation remain
+before Windows completion or macOS handoff; production remains disabled.
+Final credential-free plan preparation also passed; exact run
+7012b784-d1e8-4b52-9190-f693e835849e is prepared but unapproved (expires Oct12
+9:46 PM Central). Independent VM census: zero rootless/rootful running containers.
+Await fresh exact-plan approval; no live request was sent.
+
+### 12 October current-build Windows acceptance complete
+
+Exact owner-approved run7012b784-d1e8-4b52-9190-f693e835849e passed; its approval
+is consumed. Trusted public capability, fixed synthetic task, isolated script/HTTP
+validation and synthetic online run a7f2d264-d5db-403d-ba1c-ee3ed602c9f3 passed.
+The online run consumed the previously approved fresh account/window/run-bound
+unknown-usage allowance. No retry, refresh, paid fallback or further inference
+is authorized. Final report: all nine checks passed with live evidence, outcome
+qualified, production disabled. Independent assertion verified all sessions/runs
+stopped; native census found zero rootless/rootful running containers.
+See [current Windows report](../ticket24-windows-relay-headroom-final-report.json)
+and [current-build evidence narrative](../ticket24-windows-main-repair.md).
+Windows-only work stops for the owner to switch devices. Independent macOS and
+publication/approval/merge/full pilot gates remain separate.
