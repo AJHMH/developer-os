@@ -5,6 +5,9 @@ export interface NativeProbeDiagnostic {
   exitCode?: number;
   originalCodexProcesses?: number;
   remainingOriginalCodexProcesses?: number;
+  responseBytes?: number;
+  responseStatus?: number;
+  requestExitCode?: number;
 }
 
 /** A diagnostic is explanatory only; it can never make a failed probe pass. */
@@ -30,12 +33,25 @@ export function nativeProbeDiagnostic(
     "commandElapsedMs",
     "originalCodexProcesses",
     "remainingOriginalCodexProcesses",
+    "responseBytes",
+    "responseStatus",
   ] as const) {
     if (input[key] !== undefined) {
-      if (!integer(input[key], 0, key === "commandElapsedMs" ? 600000 : 100000))
-        return undefined;
+      const max =
+        key === "commandElapsedMs"
+          ? 600000
+          : key === "responseBytes"
+            ? 65536
+            : key === "responseStatus"
+              ? 599
+              : 100000;
+      if (!integer(input[key], 0, max)) return undefined;
       result[key] = input[key] as number;
     }
+  }
+  if (input.requestExitCode !== undefined) {
+    if (!integer(input.requestExitCode, -128, 255)) return undefined;
+    result.requestExitCode = input.requestExitCode as number;
   }
   if (input.exitCode !== undefined) {
     if (!integer(input.exitCode, -128, 255)) return undefined;

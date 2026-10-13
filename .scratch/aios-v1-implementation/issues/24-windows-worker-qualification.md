@@ -169,3 +169,12 @@ The additional approved repair cycle fixed a reproduced Windows relay buffering
 race but final native revalidation still refused. See
 [current repair evidence and next boundary](../ticket24-windows-main-repair.md).
 No fresh inference plan or macOS handoff is ready; production remains disabled.
+
+The next separately approved Windows cycle replaced name-based crash signaling
+with verified exact process handles. Its fake-child negative tests, native
+crash/resume and all six supplemental controls passed on fresh pins. After
+separately approved browser sign-in, final preparation still refused at
+`codex-persistence-read-error`; no current plan or live inference followed.
+The delivery is stopped. That cycle is consumed and another owner extension is
+required for the remaining persistence repair. Reviews reported zero corrective
+findings; full suite passed 200 tests with one platform-specific skip.

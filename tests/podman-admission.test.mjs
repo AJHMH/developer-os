@@ -512,6 +512,9 @@ test("public qualification records synthetic credential isolation, endpoint, del
   );
   for (const stage of [
     "codex-relay-revoke-event",
+    "codex-persistence-read-error",
+    "codex-persistence-thread",
+    "codex-persistence-history",
     "codex-relay-revoke-denial",
     "codex-relay-peer-response",
     "codex-relay-peer-count",

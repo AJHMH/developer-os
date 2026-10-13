@@ -9,6 +9,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { nativeProbeDiagnostic } from "./native-diagnostics.js";
 import { codexEndpointFixture } from "./codex-endpoint.js";
+import { windowsCodexCrashFixture } from "./windows-codex-crash.js";
 import { spawn, spawnSync } from "node:child_process";
 import { hostname, platform } from "node:os";
 import { podmanMachine, podmanCommand } from "./podman-platform.js";
@@ -412,6 +413,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    def request(worker,port,method='POST',path='/v1/responses',token=cap,identity=delivery,payload=body,extra=b''):
     header=(method+' '+path+' HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+token+'\r\nX-AIOS-Delivery: '+identity+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(payload))+'\r\nConnection: close\r\n').encode()+extra+b'\r\n'+payload
     result=subprocess.run(['podman','exec','-i',worker,'nc','-w','2','127.0.0.1',str(port)],input=header,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=4)
+    if binding['platform']=='win32':
+     status=result.stdout.split(b'\r\n',1)[0].split(b' ')
+     diagnostic.update(responseBytes=len(result.stdout),responseStatus=int(status[1]) if len(status)>1 and status[1].isdigit() and len(status[1])==3 else 0,requestExitCode=result.returncode)
     if len(result.stdout)>65536: fail()
     return result.stdout
    def denied(output):
@@ -455,6 +459,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
       line,pending=pending.split(b'\n',1)
       message=json.loads(line)
       if message.get('error'):
+       if message.get('id')==6 and binding['platform']=='win32': stage='codex-persistence-read-error'
        if message.get('id')==6 and time.monotonic()<persistenceBy:
         time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
        if message.get('id')==5:
@@ -485,6 +490,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
       elif message.get('id')==6:
        saved=message.get('result',{}).get('thread',{})
        if saved.get('id')!=thread or 'AIOS model-only inference complete' not in json.dumps(saved.get('turns',[])):
+        if binding['platform']=='win32': stage='codex-persistence-thread' if saved.get('id')!=thread else 'codex-persistence-history'
         if time.monotonic()>=persistenceBy: fail()
         time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
        stage='codex-resume-exit'
@@ -493,7 +499,13 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        diagnostic['originalCodexProcesses']=len(previousCodex)
        record['pids'].update(previous);save(probePath,record)
        stage='codex-resume-kill'
-       try: pod('exec',name,'killall','-KILL','codex')
+       try:
+        if binding['platform']=='win32':
+         current=inspect(name)
+         if current['Config'].get('Labels',{}).get('aios.authority')!=R['authority'] or cgroup(current['State']['Pid'])!=cg: fail()
+         crashSource=base64.b64decode('${Buffer.from(windowsCodexCrashFixture).toString("base64")}').decode()
+         pod('unshare','python3','-c',crashSource,json.dumps(dict(cgroup=cg,pids=previousCodex)))
+        else: pod('exec',name,'killall','-KILL','codex')
        except Exception:
         if binding['platform']=='win32': diagnostic['remainingOriginalCodexProcesses']=sum(census(cg).get(pid)==start for pid,start in previousCodex.items())
         raise

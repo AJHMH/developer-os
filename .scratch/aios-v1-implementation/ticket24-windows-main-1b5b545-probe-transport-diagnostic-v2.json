@@ -1,0 +1,128 @@
+{
+  "observedAt": "2026-10-13T00:27:58.843Z",
+  "evidence": {
+    "binding": {
+      "platform": "win32",
+      "arch": "x64",
+      "osVersion": "10.0.26300",
+      "provider": "hyperv",
+      "machine": "aios-podman-noshare",
+      "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+      "engineVersion": "6.0.2",
+      "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+      "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+      "workerVersion": "1.1.0",
+      "policyVersion": "offline-native-v3-8206fc3d3d61fb4f158f5f89885537f6b58d2090c4bf10f62ff280cf82239bba"
+    },
+    "challengeId": "2eae8f13-3c31-487c-8b64-89d64f69444d",
+    "passed": true,
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "7437d85be9ad0a034c4d918b2018ed9c025646f1577e2ca9db790b30288ea69b"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "7437d85be9ad0a034c4d918b2018ed9c025646f1577e2ca9db790b30288ea69b"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "7437d85be9ad0a034c4d918b2018ed9c025646f1577e2ca9db790b30288ea69b"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "7437d85be9ad0a034c4d918b2018ed9c025646f1577e2ca9db790b30288ea69b"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "7437d85be9ad0a034c4d918b2018ed9c025646f1577e2ca9db790b30288ea69b"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "7437d85be9ad0a034c4d918b2018ed9c025646f1577e2ca9db790b30288ea69b"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "7437d85be9ad0a034c4d918b2018ed9c025646f1577e2ca9db790b30288ea69b"
+      }
+    ],
+    "escapeAttempts": [
+      "passed-escape-unshare",
+      "passed-escape-chroot",
+      "passed-escape-cgroup",
+      "passed-escape-proc"
+    ],
+    "credentialExclusion": {
+      "hostFilesDenied": true,
+      "guestFileDenied": true,
+      "environmentScrubbed": true,
+      "mountsAbsent": true,
+      "networkAbsent": true,
+      "positiveControlsBeforeAfter": true
+    },
+    "scope": "Synthetic host/MCP IPv4, management and peer controls only; no exhaustive escape claim",
+    "shutdown": {
+      "observedProcesses": 1,
+      "remainingProcesses": 0
+    },
+    "codex": {
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+        "engineVersion": "6.0.2",
+        "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+        "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-8206fc3d3d61fb4f158f5f89885537f6b58d2090c4bf10f62ff280cf82239bba"
+      },
+      "protocol": "passed",
+      "explicitResume": "passed",
+      "resumeInferenceRequests": 0,
+      "credentialIsolation": "passed",
+      "binarySha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      },
+      "observedCodexProcesses": 1,
+      "shutdown": {
+        "remainingProcesses": 0
+      },
+      "endpointEnforcement": "passed",
+      "deliveryCapabilities": "passed",
+      "relayDeliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "relayScope": "synthetic-codex-relay",
+      "relayShutdownRemaining": 0,
+      "gatewayIntegration": "passed",
+      "gatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "capabilityChecks": [
+        "cross-delivery",
+        "namespace",
+        "revocation",
+        "quota",
+        "expiry"
+      ]
+    },
+    "probeVersion": "8c3fcd08fe45ddaf5bc75d8497d84702999b82788daef178c84c707fc228b55e",
+    "modelFrameTransport": "passed"
+  }
+}

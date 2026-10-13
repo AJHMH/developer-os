@@ -15,6 +15,9 @@ test("native diagnostics refuse malformed known fields and strip arbitrary priva
         commandElapsedMs: 600000,
         originalCodexProcesses: 100000,
         remainingOriginalCodexProcesses: 0,
+        responseBytes: 65536,
+        responseStatus: 403,
+        requestExitCode: 255,
         stderr: "synthetic-private",
       }),
       {
@@ -24,6 +27,9 @@ test("native diagnostics refuse malformed known fields and strip arbitrary priva
         commandElapsedMs: 600000,
         originalCodexProcesses: 100000,
         remainingOriginalCodexProcesses: 0,
+        responseBytes: 65536,
+        responseStatus: 403,
+        requestExitCode: 255,
       },
     );
   for (const field of [
@@ -32,6 +38,9 @@ test("native diagnostics refuse malformed known fields and strip arbitrary priva
     "originalCodexProcesses",
     "remainingOriginalCodexProcesses",
     "exitCode",
+    "responseBytes",
+    "responseStatus",
+    "requestExitCode",
   ])
     for (const value of [
       "1",
