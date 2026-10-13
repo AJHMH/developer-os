@@ -623,6 +623,50 @@ print('bounded')
   assert.equal(result.stdout.trim(), "bounded");
 });
 
+test("Windows Codex task-headroom gate waits for idle workers and refuses exhausted budgets", (t) => {
+  const runPython = childProcess.spawnSync;
+  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const f = hostFixture(t, "win32");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const result = runPython(
+    python,
+    [
+      "-c",
+      String.raw`
+import ast,sys
+program=ast.parse(sys.stdin.read())
+gate=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='awaitTaskBudget')
+class Clock:
+ def __init__(self): self.now=0
+ def monotonic(self): return self.now
+ def sleep(self,seconds): self.now+=seconds
+def fail(): raise RuntimeError('refused')
+for samples,allowed in [([(32,12),(28,6),(26,4)],True), ([(32,12)],False), ([(26,12)],False), ([(30,4)],False), ([(26,4)],True)]:
+ time=Clock();binding={'platform':'win32'};diagnostic={};observations=0
+ def observeTaskLimits():
+  global observations
+  tasks,runtime=samples[min(observations,len(samples)-1)];observations+=1
+  diagnostic.update(workerTaskCount=tasks,workerTaskLimit=32,codexRuntimeTasks=runtime)
+ exec(compile(ast.fix_missing_locations(ast.Module(body=[gate],type_ignores=[])),'gate','exec'))
+ try: awaitTaskBudget()
+ except RuntimeError: assert not allowed
+ else: assert allowed
+ assert time.now<=12.1
+binding={'platform':'darwin'};observations=0;awaitTaskBudget();assert observations==0
+calls=[n for n in ast.walk(program) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='awaitTaskBudget']
+assert len(calls)==2
+print('headroom enforced')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "headroom enforced");
+});
+
 test("native fixed task enforces staging, dispatch authority and exact stopped collection bindings", async (t) => {
   const {
     NativeSyntheticTask,

@@ -349,6 +349,8 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 "codex-credential-denials",
                 "codex-initialize",
                 "codex-account-read",
+                "codex-start-task-budget",
+                "codex-resume-task-budget",
                 "codex-explicit-resume",
                 "codex-resume-persistence",
                 "codex-persistence-read-error",

@@ -49,6 +49,12 @@ export interface NativeProbeDiagnostic {
   processLimitHits?: number;
   workerTaskCount?: number;
   workerTaskLimit?: number;
+  codexRuntimeTasks?: number;
+  codexSqliteTasks?: number;
+  codexOtherTasks?: number;
+  codexAllocatorTasks?: number;
+  originalCodexTasks?: number;
+  postCrashTasks?: number;
   persistenceErrorReason?:
     | "not-materialized"
     | "rollout"
@@ -97,6 +103,12 @@ export function nativeProbeDiagnostic(
     "processLimitHits",
     "workerTaskCount",
     "workerTaskLimit",
+    "codexRuntimeTasks",
+    "codexSqliteTasks",
+    "codexOtherTasks",
+    "codexAllocatorTasks",
+    "originalCodexTasks",
+    "postCrashTasks",
   ] as const) {
     if (input[key] !== undefined) {
       const max =

@@ -443,10 +443,33 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    gatewayAccepted=[];gatewayCompleted=False
    def observeTaskLimits():
     if binding['platform']!='win32': return
+    counts=dict(codexRuntimeTasks=0,codexSqliteTasks=0,codexAllocatorTasks=0,codexOtherTasks=0)
+    for pid in census(cg):
+     try:
+      if b'/codex' not in pathlib.Path('/proc/'+pid+'/cmdline').read_bytes(): continue
+     except FileNotFoundError: continue
+     for task in pathlib.Path('/proc/'+pid+'/task').iterdir():
+      try: title=(task/'comm').read_text().lower()
+      except FileNotFoundError: continue
+      key='codexSqliteTasks' if 'sqlite' in title else 'codexRuntimeTasks' if 'tokio' in title else 'codexAllocatorTasks' if 'jemalloc' in title else 'codexOtherTasks'
+      counts[key]+=1
+    diagnostic.update(counts)
     taskRoot=pathlib.Path('/sys/fs/cgroup')/cg.lstrip('/')
     if (taskRoot/'pids.events').exists(): diagnostic['processLimitHits']=int(dict(line.split() for line in (taskRoot/'pids.events').read_text().splitlines())['max'])
     for key,file in [('workerTaskCount','pids.current'),('workerTaskLimit','pids.max')]:
      if (taskRoot/file).exists() and (taskRoot/file).read_text().strip().isdigit(): diagnostic[key]=int((taskRoot/file).read_text().strip())
+   def awaitTaskBudget():
+    if binding['platform']!='win32': return
+    # Tokio's blocking pool expires idle threads after ten seconds. Reserve
+    # six tasks for history connection/startup work rather than overlapping it
+    # with the initial filesystem burst. Capacity is observed, never assumed.
+    by=time.monotonic()+12
+    while True:
+     observeTaskLimits()
+     if diagnostic.get('workerTaskLimit')!=32: fail()
+     if diagnostic.get('workerTaskCount',33)<=26 and diagnostic.get('codexRuntimeTasks',33)<=4: return
+     if time.monotonic()>=by: fail()
+     time.sleep(0.05)
    deadline=time.monotonic()+35;total=0;initialized=False;verified=False;accountVerified=False;pending=b'';answer=''
    while time.monotonic()<deadline and not verified:
     for event,_ in selector.select(0.1):
@@ -495,6 +518,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        value=message.get('result',{})
        if not initialized or value.get('account') is not None or value.get('requiresOpenaiAuth') is not False: fail()
        accountVerified=True;stage='codex-relay-turn'
+       if binding['platform']=='win32': stage='codex-start-task-budget'
+       awaitTaskBudget()
+       stage='codex-relay-turn'
        send(dict(method='thread/start',id=3,params=dict(model='gpt-6.1-sol',cwd='/tmp/empty-codex',approvalPolicy='never',sandbox='read-only',ephemeral=False)))
       elif message.get('id')==3:
        thread=message.get('result',{}).get('thread',{}).get('id')
@@ -515,6 +541,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
         time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
        stage='codex-resume-exit'
        observeTaskLimits()
+       if binding['platform']=='win32': diagnostic['originalCodexTasks']=diagnostic['workerTaskCount']
        previous=census(cg);previousCodex={pid:start for pid,start in previous.items() if b'/codex' in pathlib.Path('/proc/'+pid+'/cmdline').read_bytes()}
        if not previousCodex: fail()
        diagnostic['originalCodexProcesses']=len(previousCodex)
@@ -539,6 +566,8 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        while any(census(cg).get(pid)==start for pid,start in previousCodex.items()) and time.monotonic()<exitedBy: time.sleep(0.05)
        diagnostic['remainingOriginalCodexProcesses']=sum(census(cg).get(pid)==start for pid,start in previousCodex.items())
        if diagnostic['remainingOriginalCodexProcesses']: fail()
+       observeTaskLimits()
+       if binding['platform']=='win32': diagnostic['postCrashTasks']=diagnostic['workerTaskCount']
        selector.unregister(child.stdout);selector.unregister(child.stderr)
        child=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
        selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr')
@@ -552,12 +581,15 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
       elif message.get('id')==12:
        value=message.get('result',{})
        if value.get('account') is not None or value.get('requiresOpenaiAuth') is not False: fail()
+       if binding['platform']=='win32': stage='codex-resume-task-budget'
+       awaitTaskBudget()
        stage='codex-explicit-resume'
        send(dict(method='thread/resume',id=5,params=dict(threadId=thread)))
       elif message.get('id')==5:
        resumed=message.get('result',{}).get('thread',{})
        stage='codex-resume-history'
        if resumed.get('id')!=thread or not resumed.get('turns') or 'AIOS model-only inference complete' not in json.dumps(resumed['turns']): fail()
+       observeTaskLimits()
        verified=True;break
    if not verified or not gatewayCompleted or len(gatewayAccepted)!=1: fail()
    stage='codex-relay-revocation'
@@ -623,7 +655,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    child.wait(timeout=5)
    stage='codex-post-binding'
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
-   print(json.dumps(dict(binding=binding,protocol='passed',explicitResume='passed',resumeInferenceRequests=0,credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'],**({'taskLimits':{key:diagnostic[key] for key in ['processLimitHits','workerTaskCount','workerTaskLimit'] if key in diagnostic}} if binding['platform']=='win32' else {}))))
+   print(json.dumps(dict(binding=binding,protocol='passed',explicitResume='passed',resumeInferenceRequests=0,credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'],**({'taskLimits':{key:diagnostic[key] for key in ['processLimitHits','workerTaskCount','workerTaskLimit','codexRuntimeTasks','codexSqliteTasks','codexOtherTasks','codexAllocatorTasks','originalCodexTasks','postCrashTasks'] if key in diagnostic}} if binding['platform']=='win32' else {}))))
   except Exception as error:
    freeze_failure(error)
    raise

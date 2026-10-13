@@ -200,3 +200,64 @@ there is no automatic retry, inference or refresh. Any source/pin correction
 invalidates this exact plan and requires fresh plan approval. Next repair should
 measure the resumed process's task demand without raising the 32-task ceiling or
 relaxing durable history, exact identity, credential isolation or cleanup checks.
+
+## Fourth owner-approved Windows repair cycle
+
+The owner approved one Windows-only cycle to measure and repair resumed app-server
+task pressure, with no new inference, refresh, online allowance or macOS authority.
+Diagnostic-only probes expose bounded task-category counts, not raw process names.
+The original Codex crash left only two baseline worker tasks. A later failing
+probe recorded 12 runtime tasks, ten SQLite tasks, eight other Codex tasks, zero
+allocator tasks, 32 total tasks and 102 limit denials. Thus runtime pressure remains
+without original-process leakage or allocator background threads.
+
+Primary pinned sources: Codex rust-v0.161.0 arg0/src/lib.rs builds the default Tokio
+runtime; state/src/sqlite.rs sets five writable connections per pool and exposes
+only sqlite_home. Tokio Builder documents separate blocking-worker limits and a
+ten-second idle lifetime. Sources:
+https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/arg0/src/lib.rs
+https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/state/src/sqlite.rs
+https://docs.rs/tokio/latest/tokio/runtime/struct.Builder.html#method.thread_keep_alive
+
+Added a Windows-only observed-headroom gate before thread/start and thread/resume.
+It allows at most twelve seconds for total tasks <=26 and runtime tasks <=4 while
+requiring the original 32-task limit. Persistent pressure refuses; macOS bypasses
+this observation. No extra turn, binary replacement, disabled SQLite/history,
+changed crash identities or relaxed cleanup was introduced. The generated public
+regression failed before the gate, then passed recovery and persistent-pressure
+cases with a fake clock. Numeric diagnostics refuse malformed counts/private names.
+
+Fresh native revalidation pins were pins-windows-ticket24-task-headroom-20261012.json,
+policy offline-native-v3-7152568ff8b2a5fc5f5065f8f5a3e72053615b6293bda2f3a8bc71e07d3e4727.
+Revalidation reached saved-history verification and exact crash/resume, but refused
+at codex-relay-revoke-denial: empty response, command exit255, 30/32 tasks and nine
+limit hits. Original Codex tasks were gone (zero); post-crash tasks were two.
+This is a failed repair revalidation, not qualification. See probe-task-headroom
+receipt. No passing retry or further functional repair followed.
+
+Standards review found missing public diagnostic-stage allowlisting. Both fixed
+headroom stages were added, with a red-to-green public qualification regression
+that retains counters and refuses live readiness/private fields. All ten admission
+tests passed. This reporting correction changed source binding after the native
+refusal; that receipt stays tied to its recorded pins and is not reclassified.
+Typecheck, format check, build and diff checks passed. Final host suite: 204 tests,
+203 passed, zero failed, one platform skip (56.3 seconds). An earlier full suite
+before the reporting correction passed the same test count; its log is retained.
+
+Independent read-only VM census observed zero running rootless and rootful
+containers. No provider request, credential read, token refresh or approval
+consumption occurred. The prior exact inference approval and online allowance
+remain unused, but source drift invalidates the old plan. Its file was moved to
+...gateway-inference-plan-unconsumed-before-task-headroom.json to prevent accidental
+execution. No current exact plan or macOS handoff is ready; production is disabled.
+
+The fourth cycle is consumed by failed native revalidation. Further functional
+repair requires another owner extension under CONTEXT.md. The next repair should
+address task headroom during post-resume relay denial requests; bounded readiness
+before startup/resume alone is insufficient. Preserve the 32-task ceiling and
+failures, and prepare a fresh exact plan only after stable source-bound controls.
+
+Final independent review: Standards diagnostic integration finding resolved,
+zero remaining hard breaches; minor existing vocabulary-duplication judgment only.
+Spec zero corrective findings. Reviews confirmed the retained refusal is not
+promoted to qualification after the reporting change.

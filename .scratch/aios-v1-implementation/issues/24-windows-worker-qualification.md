@@ -197,3 +197,12 @@ and no credential access occurred; exact/online approvals remain unconsumed.
 Windows remains blocked, production disabled, and the repair cycle is consumed.
 No capability/task/online follow-up or macOS handoff ran. Further repair requires
 an owner extension; any binding correction needs fresh exact-plan approval.
+
+The fourth owner-approved Windows cycle measured replacement runtime demand and
+added bounded observed-headroom gates before startup/resume. Native revalidation
+passed durable history/crash/resume but refused revoked-request denial with exit255,
+30/32 tasks and nine task-limit hits. No inference or online allowance was consumed.
+Public headroom-stage reporting was corrected after review; full host suite passed
+203/204 with one platform skip. Independent VM census found zero running rootless
+or rootful containers. Windows remains blocked, this repair cycle is consumed and
+another owner extension is required. No current exact plan or macOS handoff is ready.

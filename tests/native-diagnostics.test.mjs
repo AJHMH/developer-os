@@ -2,6 +2,32 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { nativeProbeDiagnostic } from "../dist/native-diagnostics.js";
 
+test("Codex task diagnostics expose only bounded counts, never raw task identities", () => {
+  const base = { elapsedMs: 1, failureKind: "check" };
+  for (const field of [
+    "codexRuntimeTasks",
+    "codexSqliteTasks",
+    "codexAllocatorTasks",
+    "codexOtherTasks",
+    "originalCodexTasks",
+    "postCrashTasks",
+  ]) {
+    assert.deepEqual(
+      nativeProbeDiagnostic({
+        ...base,
+        [field]: 32,
+        taskNames: ["synthetic-private"],
+      }),
+      { ...base, [field]: 32 },
+    );
+    for (const value of [-1, 100001, 0.5, "32", null, {}])
+      assert.equal(
+        nativeProbeDiagnostic({ ...base, [field]: value }),
+        undefined,
+      );
+  }
+});
+
 test("native diagnostics refuse malformed known fields and strip arbitrary private metadata", () => {
   for (const value of [null, undefined, "secret", 42, false])
     assert.equal(nativeProbeDiagnostic(value), undefined);
