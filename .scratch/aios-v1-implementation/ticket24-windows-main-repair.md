@@ -302,3 +302,35 @@ usage only with owner approval. No live inference ran. Independent VM census
 found zero running rootless and rootful containers; the acceptance lock released.
 The prior online synthetic allowance is still unused. Await fresh exact-plan
 approval before inference and subsequent Windows qualification stages.
+
+### Current-build Windows qualification complete (12 October, 8:58 PM Central)
+
+The owner approved exact inference run 7012b784-d1e8-4b52-9190-f693e835849e
+with unknown remaining usage. It completed one fixed gpt-6.1-sol request through
+the Windows host-only gateway. Its one-shot approval was durably consumed;
+no retry, token refresh or paid fallback occurred. Exact saved-thread resume
+passed with zero additional inference requests. Worker and relay shutdown each
+reported zero remaining processes. The trusted public capability decision passed
+and explicitly grants no further inference authority.
+
+The public CLI fixed synthetic HTML task passed negative and positive repository
+validation, isolated HTTP validation, safe result collection and stopped-session
+checks. The previously approved unused synthetic online allowance was then
+consumed by run a7f2d264-d5db-403d-ba1c-ee3ed602c9f3, with fresh account/window/run
+binding. Fixed VM-local model/dependency/bypass checks passed; no new provider
+inference occurred. Online authority was revoked with zero remaining processes.
+
+The final public report is qualified: all nine required checks passed with live
+evidence. scripts/assert-windows-qualification.mjs independently verified the
+report and every recorded session/run stopped. A separate native VM census found
+zero running rootless/rootful containers. The existing 32-task limit and all
+authority, history, identity and cleanup gates remain. Historical failed attempts
+and process-limit hits are retained; this evidence qualifies the pinned fixed
+Windows worker path, not arbitrary production delivery. productionEnabled=false.
+
+See ticket24-windows-relay-headroom-final-report.json and the sibling inference,
+public-capability, synthetic-task, online and final-stopped-census receipts.
+No source changed after reviewed signed commit 07f6ac9; its passing full suite
+remains applicable (203 passed, one platform skip). Windows work stops here for
+the owner to switch to macOS. macOS independent qualification and downstream
+publication/approval/merge/full pilot gates remain separate.

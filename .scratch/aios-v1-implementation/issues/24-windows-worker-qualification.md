@@ -220,3 +220,18 @@ Final credential-free plan preparation also passed; exact run
 7012b784-d1e8-4b52-9190-f693e835849e is prepared but unapproved (expires Oct12
 9:46 PM Central). Independent VM census: zero rootless/rootful running containers.
 Await fresh exact-plan approval; no live request was sent.
+
+### 12 October current-build Windows acceptance complete
+
+Exact owner-approved run7012b784-d1e8-4b52-9190-f693e835849e passed; its approval
+is consumed. Trusted public capability, fixed synthetic task, isolated script/HTTP
+validation and synthetic online run a7f2d264-d5db-403d-ba1c-ee3ed602c9f3 passed.
+The online run consumed the previously approved fresh account/window/run-bound
+unknown-usage allowance. No retry, refresh, paid fallback or further inference
+is authorized. Final report: all nine checks passed with live evidence, outcome
+qualified, production disabled. Independent assertion verified all sessions/runs
+stopped; native census found zero rootless/rootful running containers.
+See [current Windows report](../ticket24-windows-relay-headroom-final-report.json)
+and [current-build evidence narrative](../ticket24-windows-main-repair.md).
+Windows-only work stops for the owner to switch devices. Independent macOS and
+publication/approval/merge/full pilot gates remain separate.
