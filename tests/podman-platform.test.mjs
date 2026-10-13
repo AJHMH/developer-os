@@ -568,6 +568,61 @@ print('preserved')
   assert.equal(result.stdout.trim(), "preserved");
 });
 
+test("Windows native Codex launch constrains thread pools and audits the exact environment", (t) => {
+  const runPython = childProcess.spawnSync;
+  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const available = runPython(python, ["--version"], {
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (available.status !== 0) {
+    t.skip("Python required to exercise generated management code");
+    return;
+  }
+  const f = hostFixture(t, "win32");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const result = runPython(
+    python,
+    [
+      "-c",
+      String.raw`
+import ast,sys
+program=ast.parse(sys.stdin.read())
+nodes=list(ast.walk(program))
+assignment=next(n for n in nodes if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='runtimeEnv' for t in n.targets))
+insertion=next(n for n in nodes if isinstance(n,ast.For) and ast.unparse(n.iter)=='runtimeEnv.items()')
+audit=next(n for n in nodes if isinstance(n,ast.If) and ast.unparse(n.test).startswith('env !=') and 'runtimeEnv' in ast.unparse(n.test))
+def fail(): raise RuntimeError('environment refused')
+base={b'PATH':b'/usr/bin:/bin',b'HOME':b'/',b'HOSTNAME':b'aios-offline',b'DELIVERY_CAPABILITY':b'synthetic',b'CODEX_HOME':b'/tmp/empty-codex'}
+for platform in ['win32','darwin']:
+ binding={'platform':platform};cap='synthetic';args=['podman','exec','-i','worker','/codex']
+ exec(compile(ast.fix_missing_locations(ast.Module(body=[assignment,insertion],type_ignores=[])),'launch','exec'))
+ expected={b'TOKIO_WORKER_THREADS':b'1',b'RAYON_NUM_THREADS':b'1'} if platform=='win32' else {}
+ assert runtimeEnv==expected
+ assert args[-2:]==['worker','/codex']
+ assert len(args)==5+2*len(expected)
+ env={**base,**expected}
+ code=compile(ast.fix_missing_locations(ast.Module(body=[audit],type_ignores=[])),'audit','exec')
+ exec(code)
+ for altered in [{**env,b'OWNER_TOKEN':b'private'}, {**env,b'TOKIO_WORKER_THREADS':b'2'}, {k:v for k,v in env.items() if k!=b'DELIVERY_CAPABILITY'}]:
+  env=altered
+  try: exec(code)
+  except RuntimeError: pass
+  else: raise AssertionError('unsafe environment accepted')
+create=next(n for n in nodes if isinstance(n,ast.FunctionDef) and n.name=='create')
+assert '--pids-limit=32' in ast.unparse(create)
+print('bounded')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "bounded");
+});
+
 test("native fixed task enforces staging, dispatch authority and exact stopped collection bindings", async (t) => {
   const {
     NativeSyntheticTask,

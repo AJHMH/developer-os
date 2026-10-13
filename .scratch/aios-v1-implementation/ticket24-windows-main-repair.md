@@ -126,3 +126,52 @@ the pinned Codex read error using fixed reason/code metadata, without retaining
 raw protocol errors or weakening saved-history/crash checks. Passing attempts
 remain scoped observations, not evidence that the intermittent persistence
 failure has been resolved.
+
+## Third owner-approved Windows repair cycle
+
+The owner authorized one further Windows-only repair cycle for the confirmed
+thread/read persistence error. Diagnosis retained fixed error code/reason flags
+and numeric cgroup task counters without raw errors, stderr or credential data.
+The pinned public Codex artifact contains the matching unavailable-history-store
+and SQLite initialization errors, and supports Tokio/Rayon thread configuration.
+The pre-fix `probe-read-pids-v2` receipt records 32 tasks against the 32-task limit,
+98 kernel task-limit hits and a history-read -32603 refusal. This demonstrates
+resource pressure alongside the store refusal, not a direct SQLite internal trace.
+
+Windows Codex subprocesses now receive exactly TOKIO_WORKER_THREADS=1 and
+RAYON_NUM_THREADS=1. Their process-environment audit requires these values.
+The 32-task ceiling, memory/network/credential restrictions, durable history,
+exact-process crash, exact-thread resume and cleanup gates remain unchanged.
+macOS receives neither new variable. The generated public-driver regression
+exercises both launch branches and refuses unexpected credentials, altered thread
+counts and missing capability. It passed with the bundled Python interpreter.
+
+Fresh policy: offline-native-v3-0decfa9fc9d2f52da282e40cd68d77a3859fb1d62308d309bcc50bb44e921875,
+external pins `pins-windows-ticket24-thread-budget-20261012.json`.
+The source-bound native probe passed persistence, crash/resume with zero additional
+inference requests, capability denials and zero worker/relay survivors. Its
+persistence checkpoint records 29/32 tasks and two limit hits: pressure is reduced,
+not eliminated. Earlier failed and passing diagnostics are retained; a passing
+attempt alone does not erase intermittent failure evidence.
+
+Typecheck, format check, build and diff whitespace checks passed. The sandboxed
+full suite encountered EPERM protected-storage/temp-file errors. The unsandboxed
+host suite passed 202 tests: 201 passed, zero failed, one platform-specific skip
+(57.0 seconds), using synthetic accounts and fake child boundaries. Review:
+Standards zero blocking findings, one minor duplication heuristic for persistence
+reason labels; Spec zero corrective findings. Full Windows qualification remains
+pending; production is disabled and no live inference/refresh/usage grant ran.
+
+All six source-bound supplemental controls passed, including two independent
+zero-process censuses. Final controller qualification/preparation also passed and
+wrote fresh unapproved plan df296f65-5156-4c82-882f-fde2719cce09, expiring October 12
+at 9:08 PM Central. The read-only auth status remains eligible. No live request or
+approval consumption occurred. The old pre-sign-in proposal remains historical.
+
+Prepared fresh-pinned capability/task/online harnesses and a hash-bound operator
+manifest. They were syntax checked, but their remaining acceptance stages have
+not executed. Next boundary: owner approval of the exact one-request plan and a
+separate one-run synthetic unknown-usage allowance. Finish Windows capability,
+fixed task, online access and aggregate stopped-session report before macOS handoff.
+The owner-approved cycle produced a passing repair and is now recorded; any new
+repair batch after a refusal needs an owner extension under CONTEXT.md.

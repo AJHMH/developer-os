@@ -7,7 +7,10 @@ import {
   subscriptionGatewayVersion,
 } from "./subscription-gateway.js";
 import { randomUUID } from "node:crypto";
-import { nativeProbeDiagnostic } from "./native-diagnostics.js";
+import {
+  nativeProbeDiagnostic,
+  persistenceErrorVocabulary,
+} from "./native-diagnostics.js";
 import { codexEndpointFixture } from "./codex-endpoint.js";
 import { windowsCodexCrashFixture } from "./windows-codex-crash.js";
 import { spawn, spawnSync } from "node:child_process";
@@ -428,6 +431,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
    if peerEvent().get('accepted')!=1: fail()
    args=['podman','exec','-i','--env','DELIVERY_CAPABILITY='+cap,'--env','CODEX_HOME=/tmp/empty-codex',name,'/codex','app-server','--listen','stdio://','-c','model_provider="qualification"','-c','model_providers.qualification.name="Synthetic only"','-c','model_providers.qualification.base_url="http://127.0.0.1:18081/v1"','-c','model_providers.qualification.env_key="DELIVERY_CAPABILITY"','-c','model_providers.qualification.wire_api="responses"','-c','model_providers.qualification.requires_openai_auth=false','-c','model_providers.qualification.supports_websockets=false','-c','model_providers.qualification.http_headers.X-AIOS-Delivery="'+delivery+'"']
+   # Bound runtime parallelism within the unchanged 32-task worker budget.
+   runtimeEnv={b'TOKIO_WORKER_THREADS':b'1',b'RAYON_NUM_THREADS':b'1'} if binding['platform']=='win32' else {}
+   for key,value in runtimeEnv.items(): args[3:3]=['--env',key.decode()+'='+value.decode()]
    stage='codex-initialize'
    child=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
    def send(value): child.stdin.write((json.dumps(value)+'\n').encode());child.stdin.flush()
@@ -435,6 +441,12 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    selector=selectors.DefaultSelector()
    selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr');selector.register(proxy.stdout,selectors.EVENT_READ,'gateway')
    gatewayAccepted=[];gatewayCompleted=False
+   def observeTaskLimits():
+    if binding['platform']!='win32': return
+    taskRoot=pathlib.Path('/sys/fs/cgroup')/cg.lstrip('/')
+    if (taskRoot/'pids.events').exists(): diagnostic['processLimitHits']=int(dict(line.split() for line in (taskRoot/'pids.events').read_text().splitlines())['max'])
+    for key,file in [('workerTaskCount','pids.current'),('workerTaskLimit','pids.max')]:
+     if (taskRoot/file).exists() and (taskRoot/file).read_text().strip().isdigit(): diagnostic[key]=int((taskRoot/file).read_text().strip())
    deadline=time.monotonic()+35;total=0;initialized=False;verified=False;accountVerified=False;pending=b'';answer=''
    while time.monotonic()<deadline and not verified:
     for event,_ in selector.select(0.1):
@@ -459,7 +471,15 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
       line,pending=pending.split(b'\n',1)
       message=json.loads(line)
       if message.get('error'):
-       if message.get('id')==6 and binding['platform']=='win32': stage='codex-persistence-read-error'
+       if message.get('id') in [5,6] and binding['platform']=='win32':
+        if message.get('id')==6: stage='codex-persistence-read-error'
+        detail=json.dumps(message['error']).lower()
+        observeTaskLimits()
+        diagnostic['persistenceErrorFlags']=sum(1<<i for i,word in enumerate(${JSON.stringify(persistenceErrorVocabulary)}) if word in detail)
+        reasons=[('closing-thread',['closing','closed']),('not-loaded',['not loaded']),('not-materialized',['materializ']),('permission',['permission','denied']),('not-found',['not found']),('rollout',['rollout']),('not-persisted',['persist']),('active-thread',['active']),('not-initialized',['initializ']),('history',['history']),('database',['sqlite','database']),('invalid-data',['json','invalid']),('file',['file','directory']),('read',['read']),('missing',['missing']),('internal',['internal'])]
+        diagnostic['persistenceErrorReason']=next((reason for reason,words in reasons if any(word in detail for word in words)),'other')
+        code=message['error'].get('code')
+        if type(code)==int and -32768<=code<=32767: diagnostic['persistenceErrorCode']=code
        if message.get('id')==6 and time.monotonic()<persistenceBy:
         time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
        if message.get('id')==5:
@@ -494,6 +514,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
         if time.monotonic()>=persistenceBy: fail()
         time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
        stage='codex-resume-exit'
+       observeTaskLimits()
        previous=census(cg);previousCodex={pid:start for pid,start in previous.items() if b'/codex' in pathlib.Path('/proc/'+pid+'/cmdline').read_bytes()}
        if not previousCodex: fail()
        diagnostic['originalCodexProcesses']=len(previousCodex)
@@ -579,7 +600,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
     if values.get('NoNewPrivs')!='1' or values.get('Seccomp')!='2' or int(values.get('CapEff','f'),16)!=0 or values.get('Uid','').split()!=['65534']*4: fail()
     stage='codex-process-environment'
     env=dict(x.split(b'=',1) for x in pod('unshare','cat','/proc/'+pid+'/environ').split(b'\0') if b'=' in x)
-    if env!={b'PATH':b'/usr/bin:/bin',b'HOME':b'/',b'HOSTNAME':b'aios-offline',b'DELIVERY_CAPABILITY':cap.encode(),b'CODEX_HOME':b'/tmp/empty-codex'}: fail()
+    if env!={b'PATH':b'/usr/bin:/bin',b'HOME':b'/',b'HOSTNAME':b'aios-offline',b'DELIVERY_CAPABILITY':cap.encode(),b'CODEX_HOME':b'/tmp/empty-codex',**runtimeEnv}: fail()
     codexPids.append(pid);stage='codex-process-audit'
    if not codexPids or pathlib.Path(private).read_text()!=secret: fail()
    record['pids'].update(pids);save(probePath,record)
@@ -602,7 +623,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    child.wait(timeout=5)
    stage='codex-post-binding'
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
-   print(json.dumps(dict(binding=binding,protocol='passed',explicitResume='passed',resumeInferenceRequests=0,credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'])))
+   print(json.dumps(dict(binding=binding,protocol='passed',explicitResume='passed',resumeInferenceRequests=0,credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'],**({'taskLimits':{key:diagnostic[key] for key in ['processLimitHits','workerTaskCount','workerTaskLimit'] if key in diagnostic}} if binding['platform']=='win32' else {}))))
   except Exception as error:
    freeze_failure(error)
    raise

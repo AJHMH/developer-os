@@ -18,6 +18,12 @@ test("native diagnostics refuse malformed known fields and strip arbitrary priva
         responseBytes: 65536,
         responseStatus: 403,
         requestExitCode: 255,
+        persistenceErrorCode: -32600,
+        persistenceErrorReason: "not-materialized",
+        persistenceErrorFlags: 4294967295,
+        processLimitHits: 1,
+        workerTaskCount: 32,
+        workerTaskLimit: 32,
         stderr: "synthetic-private",
       }),
       {
@@ -30,6 +36,12 @@ test("native diagnostics refuse malformed known fields and strip arbitrary priva
         responseBytes: 65536,
         responseStatus: 403,
         requestExitCode: 255,
+        persistenceErrorCode: -32600,
+        persistenceErrorReason: "not-materialized",
+        persistenceErrorFlags: 4294967295,
+        processLimitHits: 1,
+        workerTaskCount: 32,
+        workerTaskLimit: 32,
       },
     );
   for (const field of [
@@ -41,6 +53,9 @@ test("native diagnostics refuse malformed known fields and strip arbitrary priva
     "responseBytes",
     "responseStatus",
     "requestExitCode",
+    "processLimitHits",
+    "workerTaskCount",
+    "workerTaskLimit",
   ])
     for (const value of [
       "1",
@@ -62,4 +77,49 @@ test("native diagnostics refuse malformed known fields and strip arbitrary priva
     ...base,
     exitCode: 255,
   });
+  for (const persistenceErrorReason of [
+    "not-materialized",
+    "rollout",
+    "permission",
+    "not-found",
+    "not-persisted",
+    "closing-thread",
+    "not-loaded",
+    "internal",
+    "missing",
+    "active-thread",
+    "not-initialized",
+    "history",
+    "database",
+    "invalid-data",
+    "file",
+    "read",
+    "other",
+  ])
+    assert.equal(
+      nativeProbeDiagnostic({ ...base, persistenceErrorReason })
+        ?.persistenceErrorReason,
+      persistenceErrorReason,
+    );
+  for (const value of [
+    "raw-private-message",
+    42,
+    null,
+    ["rollout"],
+    { toString: () => "rollout" },
+  ])
+    assert.equal(
+      nativeProbeDiagnostic({ ...base, persistenceErrorReason: value }),
+      undefined,
+    );
+  for (const value of [-32769, 32768, "-32600", 0.5])
+    assert.equal(
+      nativeProbeDiagnostic({ ...base, persistenceErrorCode: value }),
+      undefined,
+    );
+  for (const value of [-1, 4294967296, "1", 0.5])
+    assert.equal(
+      nativeProbeDiagnostic({ ...base, persistenceErrorFlags: value }),
+      undefined,
+    );
 });

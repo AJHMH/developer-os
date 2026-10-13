@@ -178,3 +178,14 @@ separately approved browser sign-in, final preparation still refused at
 The delivery is stopped. That cycle is consumed and another owner extension is
 required for the remaining persistence repair. Reviews reported zero corrective
 findings; full suite passed 200 tests with one platform-specific skip.
+
+The third owner-approved Windows repair cycle recorded task-budget exhaustion
+(32/32 tasks, 98 denials) alongside unavailable thread history, then constrained
+Windows Tokio/Rayon parallelism while preserving the 32-task limit and all gates.
+Fresh native persistence/crash/resume, six supplemental controls and final
+credential-free preparation passed; full host suite passed 201/202 with one
+platform skip. A fresh exact unapproved inference plan is ready, not executed.
+Task pressure is reduced (29/32 tasks, two denials), not eliminated. Windows live
+inference, fresh online usage approval, capability/task/aggregate qualification
+remain pending. No macOS handoff or production readiness is claimed. See the
+current repair record for pins, evidence, review and approval boundaries.

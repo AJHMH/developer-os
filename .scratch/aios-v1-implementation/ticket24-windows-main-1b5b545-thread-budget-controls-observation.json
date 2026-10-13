@@ -1,0 +1,208 @@
+{
+  "observedAt": "2026-10-13T01:07:05.191Z",
+  "scope": "Synthetic signing/publication exclusion, effective mounts, descendant stop, revoked repository fencing, killed controller and exact-session recovery; no provider inference",
+  "controls": {
+    "version": "6133ff37bd06a501a675d90afd84534b077431eadea3ca24ec972402440ff669",
+    "nativeVersion": "2b3e04a068c37052f682101170a5ec21ad838010b9f482c071aff4ad103bc29e",
+    "mode": "live",
+    "operationId": "198d8b18-992c-4b4c-91f7-604efd0a6d29",
+    "outcome": "passed",
+    "bindingSha256": "4dcac5919df22493434fca37d69bb04d29b7bf1adbb60db4b2b04e4bd0c16f39",
+    "policySha256": "474d634ac2df7982e8a4039dd8aa193ae0f13dc86fbcc692e07e94f83df77cdc",
+    "checks": [
+      {
+        "name": "ssh-gpg",
+        "evidenceSha256": "c333c8f9983f0dff1704af0a6cd05b6b41200326c5ee4e03e818f17372316df4"
+      },
+      {
+        "name": "github-binding",
+        "evidenceSha256": "721a9fe07fd8ae225b2a6766a9bc9711f8ef1f2bc2d1f22dfb80206bbe15f9a2"
+      },
+      {
+        "name": "effective-mounts",
+        "evidenceSha256": "c1d5199d691d24530f7193e1a29d4f31b6cd5c5e07a5fdcd6b422082a5485ebf"
+      },
+      {
+        "name": "repository-fencing",
+        "evidenceSha256": "94b04663e9e0cdaa597ea42e464a4261f7d70a522dad5af6b76ec6b69a561048"
+      },
+      {
+        "name": "orphan-resume",
+        "evidenceSha256": "cbde07e24452fcb9247572274c4e9a7e6e9f4f8b1cc1c476b2365fda736346f1"
+      },
+      {
+        "name": "descendant-stop",
+        "evidenceSha256": "09920b3c0aa446509e8f6ca50a67224f6408297b01334610922d01874ecc1d9b"
+      }
+    ],
+    "censuses": [
+      {
+        "observedProcesses": 8,
+        "remainingProcesses": 0,
+        "censusSha256": "7ea56b90cb5eda61fe7c057c10a00ec5be87f29183d3ddd3cf4a6dad35a48f46"
+      },
+      {
+        "observedProcesses": 8,
+        "remainingProcesses": 0,
+        "censusSha256": "e06d8434f8818dc7b2ed51c557dc92b810aa8566387cb8414129cc4f401f96b3"
+      }
+    ],
+    "productionEnabled": false
+  },
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-13T01:06:18.382Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "814ce91a9eb21f0183316287e42eba5d46a82a83ba33ea64d5ebe3fa6c9987bd"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "814ce91a9eb21f0183316287e42eba5d46a82a83ba33ea64d5ebe3fa6c9987bd"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "814ce91a9eb21f0183316287e42eba5d46a82a83ba33ea64d5ebe3fa6c9987bd"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "814ce91a9eb21f0183316287e42eba5d46a82a83ba33ea64d5ebe3fa6c9987bd"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "814ce91a9eb21f0183316287e42eba5d46a82a83ba33ea64d5ebe3fa6c9987bd"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "814ce91a9eb21f0183316287e42eba5d46a82a83ba33ea64d5ebe3fa6c9987bd"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "814ce91a9eb21f0183316287e42eba5d46a82a83ba33ea64d5ebe3fa6c9987bd"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "passed",
+      "workerProtocol": "passed",
+      "codexCredentialIsolation": "passed",
+      "scope": "host-capability-only",
+      "credentialIsolation": "passed",
+      "credentialIsolationScope": "synthetic-restricted-alpine",
+      "endpointEnforcement": "passed",
+      "deliveryCapabilities": "passed",
+      "hostGateway": "passed",
+      "gatewayIntegration": "passed",
+      "subscriptionInference": "not-run",
+      "nextAction": "Prepare a fresh owner-approved one-shot inference through the qualified synthetic host gateway/Codex bridge; live subscription integration remains not-run and production delivery remains disabled.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
+      "explicitResume": "passed",
+      "workerExecutableSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+      "deliveryCapabilityChecks": [
+        "cross-delivery",
+        "namespace",
+        "revocation",
+        "quota",
+        "expiry"
+      ],
+      "endpointScope": "synthetic-codex-relay",
+      "relayDeliveryId": "46f3cefb-57e3-48fa-be4f-24fae4b37505",
+      "gatewayScope": "synthetic-host-subscription"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "win32",
+        "arch": "x64",
+        "osVersion": "10.0.26300",
+        "provider": "hyperv",
+        "machine": "aios-podman-noshare",
+        "hostId": "366aab49592dd282dc55b03448d0a4b3327ee7e2abc5244da1bce18ef80d6622",
+        "engineVersion": "6.0.2",
+        "vmImageSha256": "3cd56bf0481db4327c4455ce8ef64000afcff149bdce9af7cdb9650f9ed270df",
+        "template": "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-0decfa9fc9d2f52da282e40cd68d77a3859fb1d62308d309bcc50bb44e921875"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "474d634ac2df7982e8a4039dd8aa193ae0f13dc86fbcc692e07e94f83df77cdc",
+    "bindingSha256": "4dcac5919df22493434fca37d69bb04d29b7bf1adbb60db4b2b04e4bd0c16f39",
+    "adversarial": {
+      "scope": "synthetic-windows-controls",
+      "challengeId": "54ee2163-0769-4d4d-a0f9-a97fbb7758db",
+      "probeVersion": "6446a80fc24738826fbdf27bb32a3a5fd30ee0b4f82ed1ee7425e2b4520cbc4c",
+      "escapeAttempts": [
+        "passed-escape-unshare",
+        "passed-escape-chroot",
+        "passed-escape-cgroup",
+        "passed-escape-proc"
+      ]
+    }
+  }
+}
