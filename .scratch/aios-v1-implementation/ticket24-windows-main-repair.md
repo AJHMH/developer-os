@@ -261,3 +261,44 @@ Final independent review: Standards diagnostic integration finding resolved,
 zero remaining hard breaches; minor existing vocabulary-duplication judgment only.
 Spec zero corrective findings. Reviews confirmed the retained refusal is not
 promoted to qualification after the reporting change.
+
+### Fifth owner-approved Windows cycle: relay task headroom (2026-10-12)
+
+The owner approved one Windows-only repair cycle for post-resume relay denial
+checks. The existing observed headroom gate now runs before a request in the
+Windows Codex worker while its child exists. It retains the 32-task ceiling,
+12-second bounded wait, runtime/task thresholds, exact process identity, saved
+history, empty-body HTTP 403 denial, revocation and cleanup checks. Peer requests,
+pre-start requests and macOS retain their existing paths. No request retry was
+added. A fixed codex-relay-task-budget failure stage is publicly allowlisted.
+
+A generated-driver regression verifies the routing, original stage restoration
+and refusal before subprocess execution. Targeted tests passed 15/15. Build,
+typecheck, formatting and diff checks passed. Full synthetic host suite passed
+203/204, zero failures, one platform skip (58.5 seconds).
+
+Fresh pins: pins-windows-ticket24-relay-headroom-20261012.json; policy
+ offline-native-v3-8bd17c91289ded04e8c484da20783c54b559f70c2d13c57debdd79091f267735.
+The native protocol probe passed. All six native Windows controls passed:
+ssh-gpg, github-binding, effective-mounts, repository-fencing, orphan-resume and
+descendant-stop. All control censuses reported zero remaining processes and
+productionEnabled=false. Separate Standards and Spec reviews found zero
+corrective issues. Historical failed receipts remain bound to their original pins.
+
+Host auth inspection found the token expired. The owner explicitly approved a
+separate browser sign-in, which completed with Windows CurrentUser DPAPI storage.
+The subsequent eligibility check passed without refresh or inference. No provider
+request or inference/online approval consumption occurred in this repair cycle.
+The old source-bound plan remains invalid and unconsumed. Final preparation and
+fresh exact inference approval are separate; Windows completion and the macOS
+handoff still require inference, public capability, synthetic task and online
+qualification on these current bindings. Production remains disabled.
+
+Final credential-free preparation passed on the same source/pins and produced
+unapproved exact run 7012b784-d1e8-4b52-9190-f693e835849e, expiring October 12
+at 9:46 PM Central. The relay-headroom plan permits exactly one fixed
+ gpt-6.1-sol request, 30 seconds/64 KiB, no retry/refresh/paid fallback, unknown
+usage only with owner approval. No live inference ran. Independent VM census
+found zero running rootless and rootful containers; the acceptance lock released.
+The prior online synthetic allowance is still unused. Await fresh exact-plan
+approval before inference and subsequent Windows qualification stages.

@@ -657,7 +657,27 @@ for samples,allowed in [([(32,12),(28,6),(26,4)],True), ([(32,12)],False), ([(26
  assert time.now<=12.1
 binding={'platform':'darwin'};observations=0;awaitTaskBudget();assert observations==0
 calls=[n for n in ast.walk(program) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='awaitTaskBudget']
-assert len(calls)==2
+assert len(calls)==3
+requestNode=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='request')
+cap='synthetic';delivery='synthetic';body=b'{}';name='worker';diagnostic={}
+class Process:
+ PIPE=1;DEVNULL=2
+ def run(self,*args,**kwargs):
+  events.append('request')
+  return type('Result',(),{'stdout':b'HTTP/1.1 403 Forbidden\r\n\r\n','returncode':0})()
+subprocess=Process()
+exec(compile(ast.fix_missing_locations(ast.Module(body=[requestNode],type_ignores=[])),'request','exec'))
+for platform,worker,running,expected in [('win32','worker',True,['gate','request']),('win32','worker',False,['request']),('win32','peer',True,['request']),('darwin','worker',True,['request'])]:
+ binding={'platform':platform};child=object() if running else None;stage='revoked';events=[]
+ def awaitTaskBudget(): events.append('gate')
+ assert request(worker,18081).startswith(b'HTTP/1.1 403 ')
+ assert events==expected and stage=='revoked'
+binding={'platform':'win32'};child=object();events=[];stage='revoked'
+def awaitTaskBudget(): raise RuntimeError('headroom refused')
+try: request(name,18081)
+except RuntimeError: pass
+else: raise AssertionError('exhausted request executed')
+assert events==[] and stage=='codex-relay-task-budget'
 print('headroom enforced')
 `,
     ],

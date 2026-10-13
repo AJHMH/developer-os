@@ -521,6 +521,7 @@ test("public qualification records synthetic credential isolation, endpoint, del
   for (const stage of [
     "codex-start-task-budget",
     "codex-resume-task-budget",
+    "codex-relay-task-budget",
     "codex-relay-revoke-event",
     "codex-persistence-read-error",
     "codex-persistence-thread",

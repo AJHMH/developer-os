@@ -414,6 +414,11 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    peerProxy,peerEvent=relay(peer,18082,peerId,peerCap,3,60)
    body=json.dumps(dict(model='gpt-6.1-sol',input=[dict(role='user',content='Say exactly: AIOS model-only inference complete')],store=False,stream=True)).encode()
    def request(worker,port,method='POST',path='/v1/responses',token=cap,identity=delivery,payload=body,extra=b''):
+    global stage
+    if binding['platform']=='win32' and worker==name and child is not None:
+     requestedStage=stage;stage='codex-relay-task-budget'
+     awaitTaskBudget()
+     stage=requestedStage
     header=(method+' '+path+' HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+token+'\r\nX-AIOS-Delivery: '+identity+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(payload))+'\r\nConnection: close\r\n').encode()+extra+b'\r\n'+payload
     result=subprocess.run(['podman','exec','-i',worker,'nc','-w','2','127.0.0.1',str(port)],input=header,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=4)
     if binding['platform']=='win32':

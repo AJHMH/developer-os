@@ -1,0 +1,67 @@
+{
+  "steps": {
+    "controls": {
+      "sha256": "3a13ebc0ed6c5b1ed09d4d9838ac0205b38c9d46a1d041f82cd59d22925d693b",
+      "args": [],
+      "script": "D:/repos/developer-os/.scratch/aios-v1-implementation/windows-main-1b5b545-relay-headroom-controls-acceptance.mjs"
+    },
+    "authStatus": {
+      "sha256": "f0994dc8a55a9d671d510e4768469e80daa318ca0d0a93e60251dcf344b9e9bc",
+      "args": [
+        "auth-status",
+        "--repo",
+        "C:\\Users\\mraar\\.developer-os\\ticket19-native\\repo",
+        "--state-dir",
+        "C:\\Users\\mraar\\.developer-os\\ticket19-native\\state",
+        "--auth-directory",
+        "C:/Users/mraar/.developer-os-model-auth/windows-ticket24",
+        "--auth-account",
+        "6eb3ba924beedc723aaedd7d0a9a0f33b2a3ab65da012ec2bd5e07437b35f439"
+      ],
+      "script": "D:\\repos\\developer-os\\dist\\cli.js"
+    },
+    "prepareInference": {
+      "sha256": "9019c27d4c7275dd5818bd06cdd18d7f25945564c4f81828cdbe0993971151f2",
+      "args": [
+        "--policy",
+        "C:/Users/mraar/.developer-os/ticket19-native/pins-windows-ticket24-relay-headroom-20261012.json"
+      ],
+      "script": "D:/repos/developer-os/.scratch/aios-v1-implementation/ticket24-windows-relay-headroom-gateway-inference.mjs"
+    },
+    "inference": {
+      "sha256": "9019c27d4c7275dd5818bd06cdd18d7f25945564c4f81828cdbe0993971151f2",
+      "args": [
+        "--policy",
+        "C:/Users/mraar/.developer-os/ticket19-native/pins-windows-ticket24-relay-headroom-20261012.json"
+      ],
+      "script": "D:/repos/developer-os/.scratch/aios-v1-implementation/ticket24-windows-relay-headroom-gateway-inference.mjs"
+    },
+    "capability": {
+      "sha256": "9357326531ec13f12c4f228e476497d45fac2173e44aec91e6b8813a7744b385",
+      "args": [],
+      "script": "D:\\repos\\developer-os\\.scratch\\aios-v1-implementation\\windows-relay-headroom-public-capability-acceptance.mjs"
+    },
+    "task": {
+      "sha256": "f67e11c2826a10af641cd0eaa5cc93f25a481a9f63c4ea7d3d8a4c11911a3866",
+      "args": [],
+      "script": "D:\\repos\\developer-os\\.scratch\\aios-v1-implementation\\windows-relay-headroom-synthetic-task-acceptance.mjs"
+    },
+    "online": {
+      "sha256": "df4aef21406627cb1f3557d0492aa27f38be9255c87401671bfff5770fe525c6",
+      "args": [],
+      "script": "D:\\repos\\developer-os\\.scratch\\aios-v1-implementation\\windows-relay-headroom-online-qualification-acceptance.mjs"
+    },
+    "report": {
+      "sha256": "6b31509cdeebad266d88fde7b0873937925f7947f8d2ed83313ee2e0844f2324",
+      "args": [
+        "--state-dir",
+        "C:\\Users\\mraar\\.developer-os\\ticket19-native\\state",
+        "--id",
+        "46f3cefb-57e3-48fa-be4f-24fae4b37505"
+      ],
+      "script": "D:\\repos\\developer-os\\scripts\\assert-windows-qualification.mjs"
+    }
+  },
+  "stateDirectory": "C:\\Users\\mraar\\.developer-os\\ticket19-native\\state",
+  "schema": 1
+}

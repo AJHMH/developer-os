@@ -351,6 +351,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 "codex-account-read",
                 "codex-start-task-budget",
                 "codex-resume-task-budget",
+                "codex-relay-task-budget",
                 "codex-explicit-resume",
                 "codex-resume-persistence",
                 "codex-persistence-read-error",

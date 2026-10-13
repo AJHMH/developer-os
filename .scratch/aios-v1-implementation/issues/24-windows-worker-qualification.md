@@ -206,3 +206,17 @@ Public headroom-stage reporting was corrected after review; full host suite pass
 203/204 with one platform skip. Independent VM census found zero running rootless
 or rootful containers. Windows remains blocked, this repair cycle is consumed and
 another owner extension is required. No current exact plan or macOS handoff is ready.
+
+The fifth owner-approved Windows repair cycle adds observed headroom before
+post-resume relay requests, preserving the 32-task ceiling and all denial/history/
+identity/cleanup gates. Native protocol and all six Windows controls passed on
+relay-headroom pins; control censuses found zero remaining processes. Separate
+Standards and Spec reviews found no corrective issues. Full synthetic suite:
+203 passed, zero failed, one platform skip. The owner-approved separate Windows
+sign-in completed and host eligibility passed. No inference or online allowance
+was consumed. Fresh exact-plan approval, capability/task/online validation remain
+before Windows completion or macOS handoff; production remains disabled.
+Final credential-free plan preparation also passed; exact run
+7012b784-d1e8-4b52-9190-f693e835849e is prepared but unapproved (expires Oct12
+9:46 PM Central). Independent VM census: zero rootless/rootful running containers.
+Await fresh exact-plan approval; no live request was sent.
