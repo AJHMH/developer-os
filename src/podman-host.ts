@@ -372,6 +372,10 @@ export class PodmanHostAdapter implements WorkerAdapter {
                 "codex-relay-denials",
                 "codex-relay-turn",
                 "codex-relay-revocation",
+                "codex-relay-revoke-event",
+                "codex-relay-revoke-denial",
+                "codex-relay-peer-response",
+                "codex-relay-peer-count",
                 "codex-relay-expiry",
               ].includes(observed.codex.blockedStage)
             ) {

@@ -510,4 +510,22 @@ test("public qualification records synthetic credential isolation, endpoint, del
     malformed.qualification.subscriptionMediation.workerProtocol,
     "not-run",
   );
+  for (const stage of [
+    "codex-relay-revoke-event",
+    "codex-relay-revoke-denial",
+    "codex-relay-peer-response",
+    "codex-relay-peer-count",
+  ]) {
+    codexFailure.blockedStage = stage;
+    const detailed = await delivery.qualify(request.id);
+    assert.equal(
+      detailed.qualification.subscriptionMediation.workerBlocker,
+      stage,
+    );
+    assert.equal(
+      detailed.qualification.subscriptionMediation.workerProtocol,
+      "not-run",
+    );
+    assert.equal(detailed.qualification.liveReady, false);
+  }
 });

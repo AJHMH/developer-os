@@ -159,3 +159,13 @@ review. The evidence covers the fixed request, generated credential/helper
 fixtures and deterministic site task. Parent 04, general feature delivery, signed
 publication, approval, merge and full pilot qualification remain separate gates.
 Production is disabled.
+
+### Current main Windows requalification
+
+The October 12 worker acceptance above is historical after main merge and source
+changes. Fresh Windows qualification on main `1b5b545` remains blocked by Codex
+saved-history persistence, with an earlier kill-command exit 255 also retained.
+The additional approved repair cycle fixed a reproduced Windows relay buffering
+race but final native revalidation still refused. See
+[current repair evidence and next boundary](../ticket24-windows-main-repair.md).
+No fresh inference plan or macOS handoff is ready; production remains disabled.

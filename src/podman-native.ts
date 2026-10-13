@@ -388,6 +388,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    def relay(worker,port,identity,token,budget,ttl=20):
     pid=str(inspect(worker)['State']['Pid'])
     p=subprocess.Popen(['podman','unshare','nsenter','--net=/proc/'+pid+'/ns/net','python3','-u','-c',endpointSource],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
+    # Windows readiness checks must observe every frame, including coalesced writes.
+    # Detach only stdout: stdin retains complete buffered writes and explicit flush.
+    if binding['platform']=='win32': p.stdout=p.stdout.detach()
     proxies.append(p)
     p.stdin.write((json.dumps(dict(port=port,deliveryId=identity,capability=token,budget=budget,ttl=ttl,gateway=identity==delivery))+'\n').encode());p.stdin.flush()
     def event():
@@ -490,7 +493,10 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        diagnostic['originalCodexProcesses']=len(previousCodex)
        record['pids'].update(previous);save(probePath,record)
        stage='codex-resume-kill'
-       pod('exec',name,'killall','-KILL','codex')
+       try: pod('exec',name,'killall','-KILL','codex')
+       except Exception:
+        if binding['platform']=='win32': diagnostic['remainingOriginalCodexProcesses']=sum(census(cg).get(pid)==start for pid,start in previousCodex.items())
+        raise
        stage='codex-resume-wait'
        child.stdin.close();child.wait(timeout=10)
        stage='codex-resume-status'
@@ -525,9 +531,13 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    event=gatewayAccepted[0]
    if event.get('accepted')!=1 or event.get('deliveryId')!=delivery or len(event.get('requestSha256',''))!=64: fail()
    proxy.stdin.write((json.dumps(dict(action='revoke',deliveryId=delivery))+'\n').encode());proxy.stdin.flush()
+   if binding['platform']=='win32': stage='codex-relay-revoke-event'
    if relayEvent()!=dict(revoked=True,deliveryId=delivery): fail()
+   if binding['platform']=='win32': stage='codex-relay-revoke-denial'
    denied(request(name,18081))
+   if binding['platform']=='win32': stage='codex-relay-peer-response'
    if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
+   if binding['platform']=='win32': stage='codex-relay-peer-count'
    if peerEvent().get('accepted')!=2: fail()
    stage='codex-relay-expiry'
    expiryId=str(uuid.uuid4());expiryCap=uuid.uuid4().hex+uuid.uuid4().hex
