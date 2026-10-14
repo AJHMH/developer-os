@@ -53,3 +53,23 @@ windows. No live GitHub writes, native production worker or provider inference
 were performed. Remote CI/Factory coverage has not been evaluated for this branch.
 Production delivery remains disabled pending host/repository qualification and
 live pilot authorization.
+
+## PR 30 follow-up
+
+The first hosted run passed Linux/macOS and CodeQL, but Factory branch coverage
+blocked publication (changed 86.6%, required 90%, with an overall decrease).
+Windows reached its ten-minute job deadline without an assertion failure; its
+publication file was interrupted. The Windows-only CI budget is now twenty minutes;
+production observation deadlines and test-file concurrency remain unchanged.
+
+Added public-controller coverage for split-port recovery of lost sign/push/PR
+acceptance, quiescent retry, existing PR reuse, unknown pre/post-write observations,
+independently changed signature/head evidence, mismatched repositories and pauses
+at each adapter dispatch boundary. Shared fixture extraction preserves existing
+behavior. No production code was changed.
+
+Local full-suite coverage run: 419 tests, 417 passed, two platform skips, zero
+failures (101.2 seconds). Three subsequently added dispatch-pause cases passed
+separately. Both independent reviews found no remaining actionable issues after
+correcting one public error-message assertion. Hosted coverage and Windows
+completion still require verification on the updated head.
