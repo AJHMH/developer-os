@@ -653,6 +653,46 @@ test("the pinned adapter refuses an independently measured executable mismatch b
 test("source admission recognizes equivalent native and Git worktree root spellings", async (t) => {
   const f = fixture(t);
   const { candidateSource } = await import("../dist/feature-candidate.js");
+  if (process.platform === "win32") {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key]) => !key.toUpperCase().startsWith("GIT_"),
+      ),
+    );
+    Object.assign(env, {
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: "NUL",
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_ATTR_NOSYSTEM: "1",
+      GIT_OPTIONAL_LOCKS: "0",
+    });
+    const top = spawnSync(
+      "git",
+      [
+        "-c",
+        "core.hooksPath=NUL",
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.untrackedCache=false",
+        "-c",
+        "core.attributesFile=NUL",
+        "-C",
+        f.repository + "/.",
+        "rev-parse",
+        "--show-toplevel",
+      ],
+      { env, encoding: "utf8" },
+    ).stdout.trim();
+    t.diagnostic(
+      JSON.stringify({
+        fixtureRoot: f.repository,
+        gitRoot: top,
+        canonicalGitRoot: realpathSync(top),
+        canonicalFixtureRoot: realpathSync(f.repository),
+      }),
+    );
+  }
   assert.equal(
     candidateSource(f.repository + "/.").revision,
     f.git("rev-parse", "HEAD"),
