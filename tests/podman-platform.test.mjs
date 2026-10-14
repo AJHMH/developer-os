@@ -869,17 +869,25 @@ print('bounded')
   assert.equal(r.stdout.trim(), "bounded");
 });
 
-test("native relay observes coalesced readiness and acceptance frames on both hosts", (t) => {
-  const f = hostFixture(t, "darwin");
-  f.setResult({ status: 0, stdout: "{}" });
-  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
-    "/candidate",
-  );
-  const r = nativeSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
-    [
-      "-c",
-      String.raw`
+test(
+  "native relay observes coalesced readiness and acceptance frames on both hosts",
+  {
+    skip:
+      process.platform === "win32"
+        ? "Executes Linux VM management code with POSIX pipes and shell on the host"
+        : false,
+  },
+  (t) => {
+    const f = hostFixture(t, "darwin");
+    f.setResult({ status: 0, stdout: "{}" });
+    new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+      "/candidate",
+    );
+    const r = nativeSpawnSync(
+      process.env.AIOS_TEST_PYTHON ?? "python",
+      [
+        "-c",
+        String.raw`
 import ast,sys,subprocess,json,select,time
 program=ast.parse(sys.stdin.read());relayNode=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='relay')
 rawPopen=subprocess.Popen;rawSelect=select.select
@@ -898,12 +906,13 @@ for platform in ['win32','darwin']:
   for p in proxies:p.kill();p.wait()
 print('coalesced frames observed')
 `,
-    ],
-    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
-  );
-  assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout.trim(), "coalesced frames observed");
-});
+      ],
+      { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), "coalesced frames observed");
+  },
+);
 
 test("Mac relay permits observed exec scheduling delay while retaining the network deadline", (t) => {
   const f = hostFixture(t, "darwin");
@@ -1177,17 +1186,25 @@ print('one bounded exec; transport failure refuses')
   assert.equal(r.stdout.trim(), "one bounded exec; transport failure refuses");
 });
 
-test("native credential denials are bounded and fail closed on transport errors", (t) => {
-  const f = hostFixture(t, "darwin");
-  f.setResult({ status: 0, stdout: "{}" });
-  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
-    "/candidate",
-  );
-  const r = nativeSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
-    [
-      "-c",
-      String.raw`
+test(
+  "native credential denials are bounded and fail closed on transport errors",
+  {
+    skip:
+      process.platform === "win32"
+        ? "Executes Linux VM management code with POSIX pipes and shell on the host"
+        : false,
+  },
+  (t) => {
+    const f = hostFixture(t, "darwin");
+    f.setResult({ status: 0, stdout: "{}" });
+    new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+      "/candidate",
+    );
+    const r = nativeSpawnSync(
+      process.env.AIOS_TEST_PYTHON ?? "python",
+      [
+        "-c",
+        String.raw`
 import ast,sys,subprocess,json,time,tempfile,pathlib,textwrap
 source=sys.stdin.read();program=ast.parse(source)
 nodes=[n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name in ['command','pod']]
@@ -1212,15 +1229,16 @@ with tempfile.TemporaryDirectory() as directory:
   except RuntimeError:assert readable or transport
 print('credential read and transport failure both refuse')
 `,
-    ],
-    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
-  );
-  assert.equal(r.status, 0, r.stderr);
-  assert.equal(
-    r.stdout.trim(),
-    "credential read and transport failure both refuse",
-  );
-});
+      ],
+      { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(
+      r.stdout.trim(),
+      "credential read and transport failure both refuse",
+    );
+  },
+);
 
 test("native stop cannot mistake a timed-out engine query for an absent container", (t) => {
   const f = hostFixture(t, "darwin");

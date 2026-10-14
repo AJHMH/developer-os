@@ -1,25 +1,97 @@
 {
-  "src/controller.ts": "60d2d9477d2d301c67c632672f54c9b8f4a18e06a250f4d4b5343b13bedb65f5",
-  "src/windows-qualification.ts": "565081f092c6865e7e68b1c3b1f0b1780aed92a9b9c5abca14ffe46a2a188c6e",
-  "src/windows-controls.ts": "019c182cabb564b71944e8b4217b2735605c448d59275362b55ee673553464b9",
-  "src/podman-native.ts": "c5fb4e2e76c8544c025de696af243a24eb0e963e1a5f9ad9c71b886b5855942c",
-  "src/podman-platform.ts": "667322c9727a11137090f6ca761ddfdebcbf5d4c7d534ab92596a6d2c91b70f7",
-  "src/host-canary.ts": "74d2d486cf00f69ab307f05df6a083e8c75b4b15d224aa7b5a45a3a23f76b983",
-  "src/cli.ts": "a591302743ea513c1e6d3e583590951015ae9c6950168a78dd107f4c8535b87a",
-  "scripts/assert-macos-qualification.mjs": "fb24c9ff034e250471db15ed73f896cce21e5b69bfc6e9084d1a7aa2a968a3ce",
-  ".scratch/aios-v1-implementation/ticket25-macos-gateway-inference.mjs": "a1e91d68286b75d25d90d361b49606046b81edd1df55caebf94d0ba6230c779f",
-  ".scratch/aios-v1-implementation/ticket25-macos-public-capability-acceptance.mjs": "b09e7d5bcd3fbe3590d5c477869bca2da1052a6c1584dbfc82453145bc018da8",
-  ".scratch/aios-v1-implementation/ticket25-macos-crash-handle-regression.mjs": "e4492f81bed9d44c5c2457b70a5d4ade08bdeeff2228fbdce9126d649bbb1a0b",
-  ".scratch/aios-v1-implementation/ticket25-macos-roundtrip-acceptance.mjs": "f4a34ecdda9d43415e2f45e62fe93acf423c4edd1ff273b553b903668c818f2a",
-  ".scratch/aios-v1-implementation/ticket25-macos-online-qualification-acceptance.mjs": "96a23c5850c25f575da1b78c7ad35d0da7b92c339b3f7f60510246402a14aeeb",
-  ".scratch/aios-v1-implementation/ticket25-macos-fencing-acceptance.mjs": "d10cb6e1b48aefb8b09653587a7034206945ecb158d7029586e79f9e07bbf330",
-  ".scratch/aios-v1-implementation/ticket25-macos-synthetic-task-acceptance.mjs": "4b21961dec1763b10ba23be942403f73d123cda51fa334790915087f9ce1d55e",
-  ".scratch/aios-v1-implementation/ticket25-macos-controls-acceptance.mjs": "e21b97d271951804f4d633d979a677a72b24eed799c106e96adcd50ba24406ba",
-  ".scratch/aios-v1-implementation/ticket25-macos-isolation-acceptance.mjs": "9ff9d042826e5e75a2b47733bfadc7d0a80edea6d4b7106c01f7ae826e89230d",
-  "src/codex-endpoint.ts": "e238317d8a680087a33e9ead25d648e2d8e54cdca7b4ff82c5c6e49c8a69ad29",
-  "tests/podman-platform.test.mjs": "034583c44a870325df0bab7b38c8e496e80e0dc7d6e0a4bbd24824f72056760a",
-  "tests/codex-endpoint.test.mjs": "56eaf12a38d2e714146b691ab21a5105d3d27d67e0350864f538546064e1352e",
-  "docs/macos-worker-qualification.md": "7d2143c32bc3eac9536d2bb0ed4958b9fdb8d1ae7845581a1b952f16cf1984fd",
-  "scripts/run-native-acceptance.mjs": "75d32420e5ef948895ec4e4760d97486026ed1a16bd7d7e208b90e5186a90512",
-  "tests/online-access.test.mjs": "7387dd515b8bb7eb4f681d6525170a73e1a88077565ee629fccfea363e1ea736"
+  "validatedCommit": "beda43ef73caec62fcc045baaf3abef9e0df99a7",
+  "files": [
+    {
+      "path": "src/controller.ts",
+      "sha256": "60d2d9477d2d301c67c632672f54c9b8f4a18e06a250f4d4b5343b13bedb65f5"
+    },
+    {
+      "path": "src/windows-qualification.ts",
+      "sha256": "565081f092c6865e7e68b1c3b1f0b1780aed92a9b9c5abca14ffe46a2a188c6e"
+    },
+    {
+      "path": "src/windows-controls.ts",
+      "sha256": "019c182cabb564b71944e8b4217b2735605c448d59275362b55ee673553464b9"
+    },
+    {
+      "path": "src/podman-native.ts",
+      "sha256": "c5fb4e2e76c8544c025de696af243a24eb0e963e1a5f9ad9c71b886b5855942c"
+    },
+    {
+      "path": "src/podman-platform.ts",
+      "sha256": "667322c9727a11137090f6ca761ddfdebcbf5d4c7d534ab92596a6d2c91b70f7"
+    },
+    {
+      "path": "src/host-canary.ts",
+      "sha256": "74d2d486cf00f69ab307f05df6a083e8c75b4b15d224aa7b5a45a3a23f76b983"
+    },
+    {
+      "path": "src/cli.ts",
+      "sha256": "a591302743ea513c1e6d3e583590951015ae9c6950168a78dd107f4c8535b87a"
+    },
+    {
+      "path": "scripts/assert-macos-qualification.mjs",
+      "sha256": "fb24c9ff034e250471db15ed73f896cce21e5b69bfc6e9084d1a7aa2a968a3ce"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-gateway-inference.mjs",
+      "sha256": "a1e91d68286b75d25d90d361b49606046b81edd1df55caebf94d0ba6230c779f"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-public-capability-acceptance.mjs",
+      "sha256": "b09e7d5bcd3fbe3590d5c477869bca2da1052a6c1584dbfc82453145bc018da8"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-crash-handle-regression.mjs",
+      "sha256": "e4492f81bed9d44c5c2457b70a5d4ade08bdeeff2228fbdce9126d649bbb1a0b"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-roundtrip-acceptance.mjs",
+      "sha256": "f4a34ecdda9d43415e2f45e62fe93acf423c4edd1ff273b553b903668c818f2a"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-online-qualification-acceptance.mjs",
+      "sha256": "96a23c5850c25f575da1b78c7ad35d0da7b92c339b3f7f60510246402a14aeeb"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-fencing-acceptance.mjs",
+      "sha256": "d10cb6e1b48aefb8b09653587a7034206945ecb158d7029586e79f9e07bbf330"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-synthetic-task-acceptance.mjs",
+      "sha256": "4b21961dec1763b10ba23be942403f73d123cda51fa334790915087f9ce1d55e"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-controls-acceptance.mjs",
+      "sha256": "e21b97d271951804f4d633d979a677a72b24eed799c106e96adcd50ba24406ba"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-isolation-acceptance.mjs",
+      "sha256": "9ff9d042826e5e75a2b47733bfadc7d0a80edea6d4b7106c01f7ae826e89230d"
+    },
+    {
+      "path": "src/codex-endpoint.ts",
+      "sha256": "e238317d8a680087a33e9ead25d648e2d8e54cdca7b4ff82c5c6e49c8a69ad29"
+    },
+    {
+      "path": "tests/podman-platform.test.mjs",
+      "sha256": "034583c44a870325df0bab7b38c8e496e80e0dc7d6e0a4bbd24824f72056760a"
+    },
+    {
+      "path": "tests/codex-endpoint.test.mjs",
+      "sha256": "56eaf12a38d2e714146b691ab21a5105d3d27d67e0350864f538546064e1352e"
+    },
+    {
+      "path": "docs/macos-worker-qualification.md",
+      "sha256": "7d2143c32bc3eac9536d2bb0ed4958b9fdb8d1ae7845581a1b952f16cf1984fd"
+    },
+    {
+      "path": "scripts/run-native-acceptance.mjs",
+      "sha256": "75d32420e5ef948895ec4e4760d97486026ed1a16bd7d7e208b90e5186a90512"
+    },
+    {
+      "path": "tests/online-access.test.mjs",
+      "sha256": "7387dd515b8bb7eb4f681d6525170a73e1a88077565ee629fccfea363e1ea736"
+    }
+  ]
 }

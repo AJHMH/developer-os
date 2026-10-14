@@ -20,6 +20,8 @@ export const isolationProbes = [
 ] as const;
 export type IsolationProbe = (typeof isolationProbes)[number];
 export interface WorkerQualification {
+  /** Intended host target is descriptive; it never grants admission. */
+  intendedPlatform?: "darwin" | "win32";
   adversarialBlocker?: string;
   adversarial?: {
     scope: "synthetic-windows-controls" | "synthetic-macos-controls";

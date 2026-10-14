@@ -9,14 +9,19 @@ test("synthetic expiry arms after slow client setup and interrupts a confirmed b
     [
       "-c",
       String.raw`
-import sys,subprocess,json,socket,select,time
-source=sys.stdin.read();identity='expiry-fixture';cap='synthetic'
+import sys,subprocess,json,socket,time,tempfile,threading,queue
+source='import time; time.sleep(3.2)\n'+sys.stdin.read();identity='expiry-fixture';cap='synthetic'
 reserve=socket.socket();reserve.bind(('127.0.0.1',0));port=reserve.getsockname()[1];reserve.close()
-p=subprocess.Popen([sys.executable,'-u','-c',source],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,bufsize=0)
-sockets=[]
-def event(timeout=3):
- assert select.select([p.stdout],[],[],timeout)[0], 'missing expiry event'
- return json.loads(p.stdout.readline(4097))
+errors=tempfile.TemporaryFile()
+p=subprocess.Popen([sys.executable,'-u','-c',source],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=errors,bufsize=0)
+sockets=[];events=queue.Queue()
+def read_events():
+ for line in iter(p.stdout.readline,b''):events.put(line)
+threading.Thread(target=read_events,daemon=True).start()
+def event(timeout=10):
+ try:return json.loads(events.get(timeout=timeout))
+ except queue.Empty:
+  errors.seek(0);raise AssertionError('missing expiry event; child stderr: '+errors.read().decode())
 def control(value):p.stdin.write((json.dumps(value)+'\n').encode());p.stdin.flush()
 body=json.dumps({'model':'gpt-6.1-sol','store':False,'stream':True,'input':[{'role':'user','content':'Say exactly: AIOS model-only inference complete'}]}).encode()
 header=('POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+cap+'\r\nX-AIOS-Delivery: '+identity+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(body))+'\r\nConnection: close\r\n\r\n').encode()
@@ -43,11 +48,11 @@ try:
 finally:
  for s in sockets:s.close()
  if p.poll() is None:p.kill()
- p.wait(timeout=3)
+ p.wait(timeout=3);errors.close()
 print('pending read interrupted without extending grant')
 `,
     ],
-    { input: codexEndpointFixture, encoding: "utf8", timeout: 10000 },
+    { input: codexEndpointFixture, encoding: "utf8", timeout: 20000 },
   );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(

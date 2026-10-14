@@ -926,6 +926,25 @@ async function nativeControlsScenario(t, refusal, macos = false) {
     const r = JSON.parse(options.input.split("\n")[1]);
     assert.equal(options.shell, false);
     assert.equal(options.windowsHide, true);
+    assert.equal(options.timeout, macos ? 90000 : 30000);
+    assert.equal(r.platform, macos ? "darwin" : "win32");
+    const deadlineProbe = originals.spawn(
+      process.env.AIOS_TEST_PYTHON ?? "python",
+      [
+        "-c",
+        "import ast,sys,subprocess,json;source=json.loads(sys.stdin.readline());r=json.loads(sys.stdin.readline());node=next(n for n in ast.walk(ast.parse(source)) if isinstance(n,ast.FunctionDef) and n.name=='pod');subprocess.run=lambda args,**kwargs: subprocess.CompletedProcess(args,0,b'ok') if kwargs['timeout']==(30 if r['platform']=='darwin' else 10) else (_ for _ in ()).throw(AssertionError('wrong guest deadline'));exec(compile(ast.fix_missing_locations(ast.Module(body=[node],type_ignores=[])),'actual-controls','exec'));assert pod('probe')==b'ok'",
+      ],
+      { stdio: ["pipe", "pipe", "pipe"] },
+    );
+    deadlineProbe.stdin.end(
+      JSON.stringify(
+        Buffer.from(options.input.split("\n")[0], "base64").toString(),
+      ) +
+        "\n" +
+        JSON.stringify(r) +
+        "\n",
+    );
+    guestDeadlineProbes.push(deadlineProbe);
     if (refusal === "allowed-stage" || refusal === "unknown-stage")
       return {
         status: 1,
@@ -941,6 +960,18 @@ async function nativeControlsScenario(t, refusal, macos = false) {
         privilegedDenial: refusal !== "denial",
       }),
     };
+  });
+  const guestDeadlineProbes = [];
+  t.after(async () => {
+    for (const probe of guestDeadlineProbes) {
+      let error = "";
+      probe.stderr.on("data", (chunk) => {
+        error += chunk;
+      });
+      if (probe.exitCode === null)
+        await new Promise((resolve) => probe.once("close", resolve));
+      assert.equal(probe.exitCode, 0, error);
+    }
   });
   let child;
   t.mock.method(cp, "spawn", (exe, _args, options) => {
@@ -1112,4 +1143,30 @@ test("Mac completion assertion rejects Windows evidence and active retained sess
       delivery,
     ),
   );
+});
+
+test("unavailable Mac qualification retains its intended target across controller restart", async (t) => {
+  const f = fixture(t);
+  const c = new DeliveryController(
+    f.state,
+    {},
+    {
+      worker: {
+        qualificationPlatform: "darwin",
+        probe: async () => {
+          throw Error("Podman unavailable");
+        },
+      },
+    },
+  );
+  await c.qualify(f.delivery.id);
+  const reopened = new DeliveryController(f.state, {}, {});
+  await reopened.qualify(f.delivery.id);
+  const report = reopened.qualificationReport(f.delivery.id);
+  assert.equal(report.target.platform, "darwin");
+  assert.equal(report.target.provider, "applehv");
+  assert.equal(report.outcome, "blocked");
+  assert.equal(report.source.evidenceMode, "unavailable");
+  assert.ok(report.blockers.length > 0);
+  assert.equal(report.productionEnabled, false);
 });

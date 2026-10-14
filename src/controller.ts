@@ -156,6 +156,7 @@ export interface WorkerReceipt extends WorkerSession {
  * sandbox files for an explicit session resume rather than deleting work.
  * Ticket 4 supplies a qualified implementation; the CLI has no worker adapter. */
 export interface WorkerAdapter {
+  readonly qualificationPlatform?: "darwin" | "win32" | undefined;
   probe?(
     delivery: Delivery,
     authorityDirectory: string,
@@ -378,11 +379,11 @@ export class DeliveryController {
     });
   }
 
-  /** Read a version-bound Windows qualification snapshot without running probes. */
+  /** Read a version-bound qualification snapshot without running probes. */
   qualificationReport(id: string): WindowsWorkerQualificationReport {
     const delivery = this.status(id);
-    return delivery.qualification?.offlineAdmission?.binding?.platform ===
-      "darwin"
+    return (delivery.qualification?.intendedPlatform ??
+      delivery.qualification?.offlineAdmission?.binding?.platform) === "darwin"
       ? macosWorkerQualificationReport(delivery)
       : windowsWorkerQualificationReport(delivery);
   }
@@ -1073,6 +1074,11 @@ export class DeliveryController {
           throw new DeliveryError(
             "Delivery authority changed during qualification.",
           );
+        const intendedPlatform =
+          this.coordination.worker?.qualificationPlatform ??
+          snapshot.qualification?.intendedPlatform;
+        if (intendedPlatform) qualification.intendedPlatform = intendedPlatform;
+        else delete qualification.intendedPlatform;
         delivery.qualification = qualification;
       }),
       this.stateDirectory,

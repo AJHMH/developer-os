@@ -2,8 +2,10 @@
 
 Status: VERIFIED. The public Mac assertion passes all nine live checks with
 `outcome: qualified`, no blockers and `productionEnabled: false`.
-Validated the local repaired source based on PR 13 merge
-`02c11ac49be5ea41be2ee9f6d1b8f36b7723c810`; this PR contains the repaired source.
+Native evidence was captured for the implementation committed as
+`beda43ef73caec62fcc045baaf3abef9e0df99a7`, based on PR 13 merge
+`02c11ac49be5ea41be2ee9f6d1b8f36b7723c810`. The source hashes identify that
+validated snapshot; subsequent PR review repairs are described below.
 Windows receipts were not inherited.
 
 ## Final results
@@ -61,3 +63,25 @@ this host and policy; they are not automatic CI jobs. A new provider run require
 a fresh exact-run approval. The final public assertion also checked the retained
 host ledger: all 46 sessions and 11 online runs were stopped. That full ledger is
 retained locally rather than published.
+
+## PR 14 review and CI follow-up
+
+The initial hosted CI run exposed Windows pipe/shell portability issues and a
+three-second Mac fixture startup window. The expiry test now drains events with
+a portable reader, deliberately delays child startup by 3.2 seconds, and retains
+the original lease-expiry assertions. Two tests that execute Linux guest code
+with POSIX pipes/shell directly on the host run on macOS and Linux. CLI admission
+coverage now exercises Mac controls, task and usage aliases. Source hashes use
+explicit `path`/`sha256` fields to avoid a generic API-key false positive.
+
+Review repairs preserve the intended Mac report target when infrastructure is
+unavailable, including requalification after restart. The intended target grants
+no admission. Supplemental controls use 30-second guest and 90-second management
+deadlines on Mac, retaining Windows' 10/30-second bounds. Tests execute the actual
+guest timeout function and verify both management deadlines.
+
+These follow-ups were verified by host tests; hosted CI remains a merge gate. the live receipts above are
+historical evidence for the identified validated snapshot. Source-bound control
+receipts must be refreshed before claiming qualification of a later revision.
+No further provider request or production enablement is authorized by these
+changes.
