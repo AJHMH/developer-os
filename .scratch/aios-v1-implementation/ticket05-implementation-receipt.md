@@ -23,3 +23,11 @@ Independent review found and verified fixes for worktree-config filters executin
 Independent review found and verified a fix for changed worker binding acknowledging shutdown of an older session. Regression coverage demonstrates refusal after binding drift. Final review reports 0 remaining actionable implementation findings. Actual native CLI compatibility remains an explicitly open acceptance requirement; controlled tests establish the adapter contract only.
 
 Final review: Standards 0 findings; Spec 0 actionable code findings, with native qualification still open.
+
+## PR 27 CI follow-up
+
+The initial Windows run refused ordinary source repositories because Git reports forward-slash worktree roots while Node uses native separators. Root comparison now resolves both paths before case normalization; an equivalent-path regression reproduced the refusal before the fix. Native Windows CI remains the authoritative cross-platform confirmation.
+
+Factory coverage also rejected the initial slice: changed branch coverage was 74.52%, and global coverage decreased. Added behavioral regressions for planner failure/authority drift, malformed and cross-session CLI events, unsupported controls, coding clocks, cancellation/recovery, and collection-time source/branch/policy drift. No thresholds or exclusions were weakened.
+
+After the fixes, the instrumented local full suite passes 322 tests with 2 Windows-specific skips and 0 failures. Local c8 totals: lines 95.08%, branches 89.31%; changed-source comparison reports 425/454 branches covered (93.61%). GitHub Factory evaluation remains authoritative. Typecheck and formatting are checked before publication. These results supersede the initial implementation test counts above; native qualification requirements are unchanged.

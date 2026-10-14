@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { redact } from "./redaction.js";
 
 export interface FeaturePlan {
@@ -270,8 +271,12 @@ export function candidateSource(repository: string, expected?: string) {
     .toString()
     .trim();
   if (
-    (process.platform === "win32" ? top.toLowerCase() : top) !==
-    (process.platform === "win32" ? repository.toLowerCase() : repository)
+    (process.platform === "win32"
+      ? resolve(top).toLowerCase()
+      : resolve(top)) !==
+    (process.platform === "win32"
+      ? resolve(repository).toLowerCase()
+      : resolve(repository))
   )
     throw Error("Changed Git worktree root");
   const revision = candidateGit(repository, ["rev-parse", "HEAD"])

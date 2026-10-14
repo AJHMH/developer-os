@@ -648,3 +648,361 @@ test("the pinned adapter refuses an independently measured executable mismatch b
   assert.equal(result.feature.candidate, undefined);
   assert.equal(result.feature.session.state, "stopped");
 });
+
+test("source admission recognizes equivalent native and Git worktree root spellings", async (t) => {
+  const f = fixture(t);
+  const { candidateSource } = await import("../dist/feature-candidate.js");
+  assert.equal(
+    candidateSource(f.repository + "/.").revision,
+    f.git("rev-parse", "HEAD"),
+  );
+});
+
+test("unsafe planner results and unavailable integrations never create feature authority", async (t) => {
+  const f = codingFixture(t);
+  for (const value of [
+    undefined,
+    {},
+    { criteria: [], verification: ["check"], ambiguity: null },
+    { criteria: ["safe"], verification: ["check"], ambiguity: "\n" },
+  ]) {
+    f.criteria.plan = async () => value;
+    await assert.rejects(f.controller.planFeature(f.delivery.id), /safely/);
+    assert.equal(f.controller.status(f.delivery.id).feature, undefined);
+  }
+  const absent = new DeliveryController(f.state, f.options);
+  await assert.rejects(absent.planFeature(f.delivery.id), /safely/);
+  await assert.rejects(
+    absent.clarifyFeature(f.delivery.id, "Answer"),
+    /Clarify/,
+  );
+  assert.throws(() => absent.extendCoding(f.delivery.id, 1), /exhausted/);
+  for (const minutes of [0, 1441, 1.5]) {
+    assert.throws(() => absent.extendCoding(f.delivery.id, minutes), /1440/);
+    assert.throws(
+      () =>
+        absent.start({
+          repository: f.repository,
+          request: "Request",
+          codingMinutes: minutes,
+        }),
+      /coding|minutes/i,
+    );
+  }
+});
+
+test("planning and clarification preserve owner controls across delayed responses", async (t) => {
+  const f = codingFixture(t);
+  const valid = await f.criteria.plan();
+  f.criteria.plan = async () => {
+    await f.controller.pause(f.delivery.id);
+    return valid;
+  };
+  await assert.rejects(f.controller.planFeature(f.delivery.id), /authority/);
+  await assert.rejects(f.controller.planFeature(f.delivery.id), /controls/);
+  await f.controller.resume(f.delivery.id);
+  f.criteria.plan = async () => ({ ...valid, ambiguity: "Choose a channel" });
+  await f.controller.planFeature(f.delivery.id);
+  for (const value of ["", "\n", "x".repeat(2001)])
+    await assert.rejects(
+      f.controller.clarifyFeature(f.delivery.id, value),
+      /Clarify/,
+    );
+  f.criteria.plan = async () => {
+    throw Error("unavailable");
+  };
+  await assert.rejects(
+    f.controller.clarifyFeature(f.delivery.id, "Email"),
+    /safely/,
+  );
+  const absent = new DeliveryController(f.state, f.options);
+  await assert.rejects(absent.clarifyFeature(f.delivery.id, "Email"), /safely/);
+  f.criteria.plan = async () => ({ ...valid, ambiguity: "Choose a channel" });
+  for (let i = 0; i < 32; i++)
+    await f.controller.clarifyFeature(f.delivery.id, "Email");
+  await assert.rejects(
+    f.controller.clarifyFeature(f.delivery.id, "Email"),
+    /Too many/,
+  );
+});
+
+test("changed policy, dirty source, and changed pins block further coding", async (t) => {
+  const f = codingFixture(t);
+  await f.controller.planFeature(f.delivery.id);
+  for (const codingMinutes of [0, 1441, 1.5])
+    await assert.rejects(
+      f.controller.codeFeature(f.delivery.id, { codingMinutes }),
+      /1440/,
+    );
+  writeFileSync(join(f.repository, "untracked.txt"), "preserve");
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /source/);
+  rmSync(join(f.repository, "untracked.txt"));
+  f.runtime.execute = async () => {
+    throw Error("transport failure");
+  };
+  await f.controller.codeFeature(f.delivery.id);
+  f.runtime.pins = { ...f.runtime.pins, cliSha256: "f".repeat(64) };
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /pins/);
+  writeFileSync(f.options.policyPath, "{}");
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /authority/);
+});
+
+for (const control of ["cancel", "recover"])
+  test(`coding ${control} verifies shutdown and preserves controls`, async (t) => {
+    const f = codingFixture(t);
+    f.runtime.execute = async (request) => {
+      assert.equal(
+        (await f.controller.stopFeature(f.delivery.id, "stale-operation"))
+          .feature.session.state,
+        "running",
+      );
+      if (control === "cancel") await f.controller.cancel(f.delivery.id);
+      else {
+        f.runtime.stop = async () => {
+          throw Error("unavailable");
+        };
+        await f.controller.stopFeature(f.delivery.id);
+        assert.throws(() => f.controller.resume(f.delivery.id), /shutdown/);
+        f.runtime.stop = async (req) => ({
+          operationId: req.operationId,
+          fence: req.fence,
+          stopped: true,
+          remainingProcesses: 0,
+        });
+        await f.controller.recover(f.delivery.id);
+      }
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        exitCode: 1,
+        events: [],
+      };
+    };
+    await f.controller.planFeature(f.delivery.id);
+    const result = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(result.feature.session.state, "stopped");
+    assert.equal(result.feature.candidate, undefined);
+    assert.equal(result.phase, control === "cancel" ? "cancelled" : "blocked");
+  });
+
+for (const clock of [NaN, -1])
+  test(`unavailable coding clock ${clock} prevents admission and consumes the allowance conservatively`, async (t) => {
+    const f = codingFixture(t);
+    f.runtime.execute = async (request) => {
+      f.now = clock;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        exitCode: 1,
+        events: [],
+      };
+    };
+    await f.controller.planFeature(f.delivery.id);
+    const result = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(result.feature.candidate, undefined);
+    assert.equal(result.feature.outcome, "exhausted");
+  });
+
+for (const drift of ["operation", "policy", "branch", "source", "pause"])
+  test(`collection ${drift} drift refuses candidate admission`, async (t) => {
+    const f = codingFixture(t),
+      collect = f.runtime.collect.bind(f.runtime);
+    f.runtime.collect = async (request) => {
+      const result = await collect(request);
+      if (drift === "operation") result.operationId = "wrong";
+      if (drift === "policy")
+        f.runtime.pins = { ...f.runtime.pins, policySha256: "f".repeat(64) };
+      if (drift === "branch")
+        f.git(
+          "update-ref",
+          "refs/heads/" + f.controller.status(f.delivery.id).feature.branch,
+          f.git(
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit-tree",
+            "HEAD^{tree}",
+            "-p",
+            "HEAD",
+            "-m",
+            "Different branch head",
+          ),
+        );
+      if (drift === "source")
+        writeFileSync(join(f.repository, "index.html"), "changed");
+      if (drift === "pause") await f.controller.pause(f.delivery.id);
+      return result;
+    };
+    await f.controller.planFeature(f.delivery.id);
+    const result = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(result.feature.candidate, undefined);
+  });
+
+const sessionEvent = {
+  type: "thread.started",
+  thread_id: "11111111-1111-4111-8111-111111111111",
+};
+const turnEvent = { type: "turn.started" };
+const doneEvent = { type: "turn.completed" };
+test("structured CLI events accept supported items and reject malformed or cross-session transcripts", async () => {
+  const { codingTurn } = await import("../dist/feature-candidate.js");
+  const result = (events) => ({
+    operationId: "operation",
+    fence: 1,
+    exitCode: 0,
+    events,
+  });
+  const items = [
+    "agent_message",
+    "reasoning",
+    "command_execution",
+    "file_change",
+    "todo_list",
+  ].map((type) => ({ type: "item.completed", item: { type } }));
+  assert.equal(
+    codingTurn(result([sessionEvent, turnEvent, ...items, doneEvent]))
+      .completed,
+    true,
+  );
+  assert.equal(
+    codingTurn({ ...result([sessionEvent, turnEvent, doneEvent]), exitCode: 1 })
+      .completed,
+    false,
+  );
+  for (const events of [
+    undefined,
+    Array(4097).fill(null),
+    [null],
+    [{ type: "unexpected" }],
+    [turnEvent],
+    [doneEvent],
+    [sessionEvent, sessionEvent],
+    [{ ...sessionEvent, thread_id: "wrong" }],
+    [sessionEvent, turnEvent, turnEvent],
+    [sessionEvent, turnEvent, doneEvent, doneEvent],
+    [sessionEvent, ...items],
+    [
+      sessionEvent,
+      turnEvent,
+      { type: "item.completed", item: { type: "mcp_tool_call" } },
+    ],
+    [sessionEvent, turnEvent, { type: "item.started" }],
+    [
+      sessionEvent,
+      turnEvent,
+      {
+        type: "item.updated",
+        item: { type: "agent_message", text: "x".repeat(66000) },
+      },
+    ],
+  ]) {
+    assert.throws(() => codingTurn(result(events)));
+  }
+  assert.throws(() =>
+    codingTurn(result([sessionEvent]), "22222222-2222-4222-8222-222222222222"),
+  );
+});
+
+test("CLI rejects invalid feature controls and preserves explicit initial budgets", async (t) => {
+  const f = fixture(t);
+  const cli = (args) =>
+    spawnSync(
+      process.execPath,
+      ["dist/cli.js", ...args, "--state-dir", f.state],
+      { encoding: "utf8" },
+    );
+  for (const args of [
+    [
+      "start",
+      "--repo",
+      f.repository,
+      "--request",
+      "Hint",
+      "--coding-minutes",
+      "0",
+    ],
+    ["status", "--coding-minutes", "1"],
+    ["status", "--minutes", "1"],
+    ["extend-coding", "--id", f.delivery.id, "--minutes", "0"],
+    ["status", "--clarification", "Answer"],
+    ["clarify-feature"],
+    ["extend-coding"],
+    ["clarify-feature", "--id", f.delivery.id, "--clarification", "Answer"],
+    ["extend-coding", "--id", f.delivery.id, "--minutes", "1"],
+    ["plan-feature", "--id", f.delivery.id],
+    ["code-feature", "--id", f.delivery.id],
+  ]) {
+    const result = cli(args);
+    assert.notEqual(result.status, 0, JSON.stringify(args));
+  }
+  const started = cli([
+    "start",
+    "--repo",
+    f.repository,
+    "--request",
+    "Another hint",
+    "--coding-minutes",
+    "30",
+  ]);
+  assert.equal(started.status, 0, started.stderr);
+  assert.equal(JSON.parse(started.stdout).initialCodingAllowanceMs, 1800000);
+});
+
+for (const failure of [
+  "frame",
+  "oversized",
+  "missing-session",
+  "terminal-order",
+  "result-pins",
+  "checkpoint",
+])
+  test(`pinned stream adapter refuses ${failure} before admission`, async (t) => {
+    const f = codingFixture(t);
+    const { PinnedCodingRuntime } = await import(
+      "../dist/feature-candidate.js"
+    );
+    const adapter = new PinnedCodingRuntime(f.runtime.pins, {
+      mode: "controlled",
+      inspect: async () => f.runtime.pins,
+      async run(request, output) {
+        if (failure === "checkpoint") f.now += request.allowanceMs;
+        const events =
+          failure === "missing-session"
+            ? [turnEvent]
+            : failure === "terminal-order"
+              ? [sessionEvent, turnEvent, doneEvent, doneEvent]
+              : [sessionEvent, turnEvent, doneEvent];
+        output(
+          Buffer.from(
+            failure === "frame"
+              ? "null\n"
+              : failure === "oversized"
+                ? "x".repeat(65537)
+                : events.map((e) => JSON.stringify(e)).join("\n"),
+          ),
+        );
+        return {
+          operationId: request.operationId,
+          fence: request.fence,
+          exitCode: 0,
+          pins:
+            failure === "result-pins"
+              ? { ...f.runtime.pins, cliSha256: "f".repeat(64) }
+              : f.runtime.pins,
+        };
+      },
+      stop: (request) => f.runtime.stop(request),
+      collect: (request) => f.runtime.collect(request),
+    });
+    f.controller = new DeliveryController(f.state, f.options, {
+      featurePlanner: f.criteria,
+      featureRuntime: adapter,
+      clock: () => f.now,
+    });
+    await f.controller.planFeature(f.delivery.id);
+    const result = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(result.feature.candidate, undefined);
+    assert.equal(result.feature.session.state, "stopped");
+  });
