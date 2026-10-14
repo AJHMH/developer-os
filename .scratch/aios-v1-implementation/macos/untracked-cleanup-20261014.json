@@ -1,0 +1,1292 @@
+{
+  "date": "2026-10-14",
+  "sourceHead": "d819ccc523ee90b878773e92c94d65c30e13117a",
+  "reviewedFiles": 183,
+  "preservedFiles": 169,
+  "archivedFiles": 14,
+  "archive": ".scratch/aios-v1-implementation/macos/retained-debug-harnesses-20261014.tar.gz",
+  "archiveSha256": "9f247240cdea580b7fe4cd77bd3762238c62a783d12dbd5106351b87b103e726",
+  "files": [
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-command-timings.json",
+      "bytes": 12596,
+      "sha256": "631dad3e028aba271e8148bf5b9dd702590a398785382c66d8c987cb6067d5ee",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-enrollment-timing.json",
+      "bytes": 254,
+      "sha256": "74f42bf9e4d9e962a549bbc2722ce4c4dcb24cf63e5f4efa61b9ce2c031267ce",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-exec-timing.json",
+      "bytes": 194,
+      "sha256": "911af537f0c42933e9c1b2d3cc5331162c4c83e8e449aa37c245490028c8563d",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-gateway-stage-diagnostic.json",
+      "bytes": 468,
+      "sha256": "173bf7d813bd9821be9f3c5ce9eeebbdffd24147bca3e15ca5668d4ee093f50e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-isolation-diagnostic.json",
+      "bytes": 152,
+      "sha256": "8a08e5481c8fc1d25f7ffc826910168b95b2be8ad183933b21d449933c9bc4ee",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-after.json",
+      "bytes": 27620,
+      "sha256": "02015832dafbee4c10554a888c8545914febccc8d450939430de64d8064d468f",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-auth-status.json",
+      "bytes": 187,
+      "sha256": "732d3356246138d4c7313cd8d11495ad96476f82e6f00dce160f0644a4d15c42",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-before.json",
+      "bytes": 24339,
+      "sha256": "2a152347fa5d79e34ecf5a1c21520e1c038c88dc9e19f7f6e2b9d21418f82af5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-enrollment.json",
+      "bytes": 555,
+      "sha256": "7f73472ba84b439dca6df33c73c1bde7a478d9729a6910f85508f51a2335adc2",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-host-python3-tests.log",
+      "bytes": 21307,
+      "sha256": "ec200f0629646586e0a1fa450228b6d5168e307142c07ea88e2b97dc74a9f53f",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-host-tests.log",
+      "bytes": 22394,
+      "sha256": "073a8ce93844de597749272457d57c0bbb63de26b1a93e38027729d7b5aa1c22",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-native-acceptance.log",
+      "bytes": 6198,
+      "sha256": "c70dc179dc1fb231b37fe79592dc39a812eec2ff2f944e8dbe48b713cfd49bfd",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-progress.json",
+      "bytes": 25034,
+      "sha256": "b213cb86f23881c840e9737e0ecd8a721fa141387003d9f5afce56586663ad53",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-stopped-census.json",
+      "bytes": 6,
+      "sha256": "20717f031de6ec6dbcab264373f5d3524bd5020f904cc0e17362b9618f3aa91c",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-tests.log",
+      "bytes": 28537,
+      "sha256": "67818ea2045338c2c8c412330fe09b018324d70e29244f6ad16c735982a5e55b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-diagnostic-after-observation.log",
+      "bytes": 1078,
+      "sha256": "42d3eea0376108e612c03ebc7bc81d0b894f4303fd13ea6d1de841431f80fe84",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-diagnostic.json",
+      "bytes": 1833,
+      "sha256": "2fec25949b2bae7fda4e225375f5cea7ca99356b504256a92591b905e9704300",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-diagnostic.log",
+      "bytes": 935,
+      "sha256": "3151f6fcbb08d7f93302940ca66c774ed5ef225bd690f541eec7babb146fb6a1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-transport-diagnostic.log",
+      "bytes": 1347,
+      "sha256": "646a5616178aa2e9f392b90bd6e3cf68d10ec9be8d4a0c665886d3de7802e698",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-sync-failure.json",
+      "bytes": 192,
+      "sha256": "f49e4b1ab37666767474179f0ed695b99790d6c129a9b539a44e2338d301700f",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-controls-diagnostic.mjs",
+      "bytes": 2568,
+      "sha256": "5d2c0a6e2689e342b5de338fd1cbc72f276e148ed71c736eb65106f22310cd21",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-exec-timing.py",
+      "bytes": 803,
+      "sha256": "eafb6701095e976c9dcd93681095108b0cf25bf355bc9b72eda3ee901ac1bdb0",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-final-native.mjs",
+      "bytes": 900,
+      "sha256": "ecb09346657c4cb9c2a96f55ee167cbe4af1a9d71aff1258fd9174ee436fd41e",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-finish-native.mjs",
+      "bytes": 954,
+      "sha256": "1cfb7adfd21f042999f42197bc0a0d937a23b220ccb0e590811f9b489ae81ac7",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-isolation-diagnostic.mjs",
+      "bytes": 2215,
+      "sha256": "72c662f6b8e30c552951f4557d9bd4b4b61d426c26b8c69ba863121c0881b307",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-native-supervisor.mjs",
+      "bytes": 1008,
+      "sha256": "49510e7857ef437fa14c04717f94c20bfb9d494c8c39bb6fe93ad7dab3479b6b",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-probe-diagnostic.mjs",
+      "bytes": 4262,
+      "sha256": "12144f36c523544952bde8dfaf7ef86652b7f53db670711581851b4042236ed2",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/current-resume-diagnostic.mjs",
+      "bytes": 1817,
+      "sha256": "dbf4e515eff83a681864ec8c21590e8eb0d9090b96b14dbd7fbd7236d672f248",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/kill-exec-reproduction.py",
+      "bytes": 914,
+      "sha256": "cc692546c4eec3e35247c8d8839221fbd3a1af768da037cd2957af01e29b07a0",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/steady-descendants.mjs",
+      "bytes": 2487,
+      "sha256": "dce5f60e5608539ab2d0e674b5ed66abe010df3c1299cf8bb9b86872cf70b8dd",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/ticket25-macos-admission-diagnostic.mjs",
+      "bytes": 1473,
+      "sha256": "8fbdab71879dfcf2c5967ed8e032eaac075fea6e3f02adc4babaf3dab9cfd01d",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/ticket25-macos-controls-diagnostic.mjs",
+      "bytes": 2561,
+      "sha256": "7b8e35cd3824140d1462afb639d70d8d9351905dcd8e6a680ea91656966c812c",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/ticket25-macos-isolation-timing-diagnostic.mjs",
+      "bytes": 2234,
+      "sha256": "21a36bae8079fdcc6832adfeb038e8737aa4528ebd94a1e14bf8fbb92e963562",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/debug/ticket25-macos-probe-diagnostic.mjs",
+      "bytes": 881,
+      "sha256": "40134013d2ff709c297cb0b25cacb6773af7befeff15522cb1ea342afbdebc53",
+      "action": "archived",
+      "reason": "Historical one-off diagnostic or serial validation harness; source retained recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/kill-exec-reproduction.json",
+      "bytes": 56,
+      "sha256": "ae130d9225646ad9a03d25c9c84128bb11522b987581e36ecc2a29cc75f393f2",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-admission-diagnostic.json",
+      "bytes": 253,
+      "sha256": "3a4c04cb0b6ac2e53cf0dc7853826f03193e4bc8ebf9639cc4ee0453d42a6890",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-approved-inference-execution.log",
+      "bytes": 94,
+      "sha256": "8598c31fc204942fdaec97cde6ea74e243a72f06362ba9a97cb09cb21265f654",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-approved-synthetic-online.log",
+      "bytes": 117,
+      "sha256": "f112e528302c303c57db5502ef6f07848e378de1a0fcd610c8569a7eb5572b52",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-awake-task-validation.log",
+      "bytes": 691,
+      "sha256": "1758aded6efee9092d0c5ab75c2063ab22e5df3bc9cd7de9d3f3fecf33f7ce51",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-before-clean-boot-gateway-diagnostic.json",
+      "bytes": 170,
+      "sha256": "4c394ef4da0692dcb5f0df35357dfcbb7a6916acac9dba36a0d8cac1d6317849",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-before-history-headroom-diagnostic.json",
+      "bytes": 509,
+      "sha256": "5062544a6aaa75aaea304334dd04a769e88d20ecdedd508bfde2a066e5bab166",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-before-resume-window-diagnostic.json",
+      "bytes": 99,
+      "sha256": "1ac777373b5b54274101cec64ec37bd9f99b2aaec8da41c3029b34f1761d768e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-before-resume-window-guest-diagnostic.json",
+      "bytes": 469,
+      "sha256": "d7227a506d7cccf73391f7ad2b7c2248211a4e333cf69aabec27851175c44db7",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-credential-stop-green.log",
+      "bytes": 301,
+      "sha256": "9fe4c71bef9c83fba1550cc74326d375c6b8566977cb0bd50b772889aa4a0c8f",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-credential-stop-red.log",
+      "bytes": 2458,
+      "sha256": "d5a799a876537dab3225d7c680ffa40a76e9d44ae4011af3e27b7f670015e7e5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-enrollment.json",
+      "bytes": 555,
+      "sha256": "acdfe0e1bc9363e52276c69934a31d90063a4f10548313def1c2cffe671069ce",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-full-tests.log",
+      "bytes": 22997,
+      "sha256": "e36c7c3af464f825264e53f99922cb54f5690c857345a86037631fde4d507fbe",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-green.log",
+      "bytes": 201,
+      "sha256": "9f51a76f7ad2dc1184160909b49ff7428b3001d4c9eb798e09cced06a805b928",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-native-acceptance.log",
+      "bytes": 561,
+      "sha256": "d7aee05f80a708a016ed36eb670d8522f43c5e935ce6358128554ecb5a70a15d",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-red.log",
+      "bytes": 1130,
+      "sha256": "660a0edaa357f0ebcdad814d420717e57c0988597e3ff96474375fe61b91053e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-roundtrip-refusal.json",
+      "bytes": 36626,
+      "sha256": "a33c939eed6424725e0276586adfd06a536ac8f2a39d8b44a13a862212145f9a",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-worker-enrollment.json",
+      "bytes": 555,
+      "sha256": "e3420b26f1dfaf1d2509302dd641e3a5e134d7ae7f166df35aaa3e9dae41da87",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-worker-full-tests.log",
+      "bytes": 23149,
+      "sha256": "de29c55d4d106d9dc5d78c526d554ff3a53a094ff1829192ef210817ec43bc7e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-worker-native-acceptance.log",
+      "bytes": 5744,
+      "sha256": "507c4f02bc599da17b373af76c8285f170e9ec038fc55a013f2deac0ef96db5c",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-worker-public-diagnostic.log",
+      "bytes": 1822,
+      "sha256": "6a12087489b70a39e684533b92e75aee8a3df4bfd546503f8599589c12008af8",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-clean-boot-enrollment.json",
+      "bytes": 633,
+      "sha256": "63437ba181def6f6b79423ec3f14fbf49858978475a9830c2c1385b0207afba5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-clean-boot-probe.log",
+      "bytes": 1347,
+      "sha256": "b1f0c4c1e9514481c30c66b3e7d266a4a6e2744c987da4b61e417deb05c0f5ba",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-timing-probe.log",
+      "bytes": 1478,
+      "sha256": "4f5779a138b2c4c55e1d1423e6355af0b1e461d408bb99c63c210d2485faf85c",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-enrollment.json",
+      "bytes": 555,
+      "sha256": "06ccb424cdabdc6914629c5eff43e3c645a6c9688cb50584c49dacddbdb04e1a",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-final-tests.log",
+      "bytes": 21920,
+      "sha256": "899bb194bcc5eacce8e6f4b36ea4d20f8e498412b70ba435071ee8395658d994",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-native-preparation.log",
+      "bytes": 358,
+      "sha256": "ac5bfdc7ab0ef1d7bd222c48a2ecc4efe1c6ee64b5e0cf14bdcb88ea50713d1b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-red.log",
+      "bytes": 2182,
+      "sha256": "2f550a5eacddad072310972e3976336c1b50af8af12e0036d487096c5bac0575",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-tests.log",
+      "bytes": 22857,
+      "sha256": "454e8a4ae128c106ad3d25fdcbbf505cae702c1cd07d7fb2306b421fc2b7667d",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-acceptance.log",
+      "bytes": 182,
+      "sha256": "f363221ddb83ae1eb613814c62b0fe62488e02221dbb9c014e6a4c88552eeffb",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-diagnostic.json",
+      "bytes": 190,
+      "sha256": "10874ebc0893f759ec1ab2ee2d120dcbed6d842cbeeb6c9ca782a60f57d0ea5f",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-diagnostic.log",
+      "bytes": 159,
+      "sha256": "94d3155fd2b5cd3e4f6066964028953862213f4933505fc4a6b6802eda1775d8",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-refusal-status.json",
+      "bytes": 29027,
+      "sha256": "cb6e45308cc8c23e8dcb4fcdfbb2861d63d1af7fc0094a0c580f143ec50f10a5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-crash-handle-regression.json",
+      "bytes": 182,
+      "sha256": "f2c058a0bea02ea91ac41291aa83971d0556488969df1da6b6c7c98d152c2a18",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-admission-diagnostic.json",
+      "bytes": 920,
+      "sha256": "5012504985a827caa9bf2ca66e83a3d9b160a96b1bcfffd20cfaaae6f1db981b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-controls-diagnostic.log",
+      "bytes": 21,
+      "sha256": "607c8790eeac87160228255cf133d6dcf20f8dc859f93ab438dc49f80f8c8207",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-controls-report-diagnostic.json",
+      "bytes": 2417,
+      "sha256": "f75dc752bbc201e1b03fe07341b21d3a426dd00b750cfba0f8ae1cb7b1bba9c7",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-plan-preparation.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-plan-status.json",
+      "bytes": 36261,
+      "sha256": "86058bc99bb3e62469bbb2efab47ec9f776229b15becafca4625d2bf7109699e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-public-probe.log",
+      "bytes": 1252,
+      "sha256": "5ecbc70b9c64c5505af92ab6dbbebbccc0902b61ab000f07654dc4ab112fb192",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-running-census.json",
+      "bytes": 6,
+      "sha256": "20717f031de6ec6dbcab264373f5d3524bd5020f904cc0e17362b9618f3aa91c",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-denial-stage-enrollment.json",
+      "bytes": 633,
+      "sha256": "688eba75aad6e7718e821113b3f01b1b052f6ef3126aeffde1c9f49deb13d651",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-denial-stage-probe.log",
+      "bytes": 1819,
+      "sha256": "bb232ee57be96ad5ab9d363ed7607bf1e20ca2448acaaa19f0dcf2323d880771",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-diagnostic-enrollment.json",
+      "bytes": 555,
+      "sha256": "06e446477db341c3f07faa6b6d80c6197bd2b6836af22673595b998684cffd47",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-diagnostic-qualification.json",
+      "bytes": 29015,
+      "sha256": "6ba490a21cde7981ac97713f339904042564be0ab85e64d0894c3f5977a9b37b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-diagnostic2-enrollment.json",
+      "bytes": 555,
+      "sha256": "f66be4e75aff9ff04c7c82404b3b285b9d027681924f148a0cd0be262d779138",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic.json",
+      "bytes": 246,
+      "sha256": "8f00cb2a0068aebb57de4127ce9ced207236a946664183861de32bc942c9edd5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic.log",
+      "bytes": 743,
+      "sha256": "a1ea16728fee199db16b2d3e1f51b4d222caef1f8460a37e5f3ec9b02a9e6612",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic2.json",
+      "bytes": 561,
+      "sha256": "12be915ce6a450d71721d2b5ac7d26da23ab2c82b4afeab12edb8dcbabdc16e4",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic2.log",
+      "bytes": 978,
+      "sha256": "1d9a809999a50e5b6bc9a857e14d1338c3412df55402f7be8bc7f0a649d2f412",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-direct-probe.log",
+      "bytes": 144,
+      "sha256": "9480b46b6e1c9c6bdbe76c45f2d6dcf7e7c8c79b2310a89dc5d859e8ed31a7df",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-enrollment.json",
+      "bytes": 633,
+      "sha256": "49541cefb569572ef1c23a6fa425d16192894ac2402a870e8f3fa8d69e1c686b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-final-tests.log",
+      "bytes": 296,
+      "sha256": "b7d00500990cb1d7dc3f6042d7a1d0fbbf037b21f6ec058785732ac4b6503c71",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-full-tests.log",
+      "bytes": 22514,
+      "sha256": "f4b6a9e09dd1d4e81bf270ee418fb451c5ef734e0da14390851b65d33f908e08",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-green.log",
+      "bytes": 219,
+      "sha256": "d026c1503a168139741896ec730a85146341ebc822d0c69f62652b37676039a7",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-native-preparation.log",
+      "bytes": 1175,
+      "sha256": "e4f4699890866ff7bf00b33838b447fc66fd425c304e540dc0eda6cf3132e3c8",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-red.log",
+      "bytes": 1103,
+      "sha256": "4b3229909bda5a64475f7a6e1b0afacbbc4a284567fe4c6e76658bea9dcec328",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-refusal-status.json",
+      "bytes": 34381,
+      "sha256": "20ab7bf49d6ea575a5e1f580996a99c42698a28a039de3f2c217f28b4a90ab9a",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-after-controls-task.log",
+      "bytes": 152,
+      "sha256": "9f1647424b2446bbd6a8a37387456717610c299908b2150ef75b3589cbc32cf2",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-assertion.log",
+      "bytes": 86,
+      "sha256": "3e9967c0b8e6b67bd264b78b152c36a6b49a6d86e743421a011ffaff70233af2",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-current-controls.log",
+      "bytes": 182,
+      "sha256": "f363221ddb83ae1eb613814c62b0fe62488e02221dbb9c014e6a4c88552eeffb",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-enrollment.json",
+      "bytes": 555,
+      "sha256": "7f73472ba84b439dca6df33c73c1bde7a478d9729a6910f85508f51a2335adc2",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-native-completion.log",
+      "bytes": 983,
+      "sha256": "7e55beea0cbad5845c399c3d0618c29ac693abe4bce03a9d2b56a6758335e2a4",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-qualification-report.json",
+      "bytes": 2541,
+      "sha256": "05f2547b33ba2c75f3c586371caadcfcb43575631aa49beca689aa6060534e14",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-qualified-status.json",
+      "bytes": 52235,
+      "sha256": "30bc9a3dbe7df3f135fb1d4a95de23840bb5eee0cf92a5a41d10c1ecf6f877f4",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-report-diagnostic.json",
+      "bytes": 2387,
+      "sha256": "fb84e68d36e9be6a170f5dc1287d192b2781581492a11dfdaa9492f92344c116",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-status.json",
+      "bytes": 35549,
+      "sha256": "6385f5552a843e2664207956843f933714b509b0db064a9d780990370cbe0f02",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-fixed-scope-native-task.log",
+      "bytes": 150,
+      "sha256": "9ebfc0d4eb8056dfeba80e27edb88a09476ee42f0e97c10e29e45654de55c902",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-enrollment.json",
+      "bytes": 633,
+      "sha256": "49541cefb569572ef1c23a6fa425d16192894ac2402a870e8f3fa8d69e1c686b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-full-tests.log",
+      "bytes": 22875,
+      "sha256": "2bbb06865f6b66468de39eb219cb49cfec7a06a43a5b812bff28e4c220e5011a",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-green.log",
+      "bytes": 629,
+      "sha256": "06bdb74234a7586e296d1aaa17b137b2b6e21d178fd3a1091ab12e8c279de601",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-native-preparation.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-red.log",
+      "bytes": 5492,
+      "sha256": "2c8a9ec4a67b64b8d341724162c82d2937b1d46ad3b9be585adfe021a956c9a0",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-status.json",
+      "bytes": 35549,
+      "sha256": "6c251bacebc0375c309b0cc74f341a7449a2e281c76b70ad51e299483f019cbb",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-admission-refusal.json",
+      "bytes": 28187,
+      "sha256": "77938be99b5e0ced2175c20356eef68a14b01fbe0f2a0fcd3fc2835d4fdfcc53",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-enrollment.json",
+      "bytes": 555,
+      "sha256": "dc0c740d9b1a4a40752533d2a37b539d827f6901bf65c51895066cf4b2aa4939",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-final-tests.log",
+      "bytes": 21658,
+      "sha256": "2dba1c138382cf8b8f4aae50d66aae81da6378ff2c1cc62eddd2acf6695a16d8",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-full-tests.log",
+      "bytes": 22632,
+      "sha256": "fafe611116b3c95b315e3278bc3b57fd96ebcf1ae858d403f23f1406d3cebe17",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-green.log",
+      "bytes": 220,
+      "sha256": "e0c299961a2b733b12ff289bc3d346ba4aaf6df3cbcfa92a4200f2f237bf70e6",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-native-preparation-after-admission.log",
+      "bytes": 358,
+      "sha256": "ac5bfdc7ab0ef1d7bd222c48a2ecc4efe1c6ee64b5e0cf14bdcb88ea50713d1b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-native-preparation.log",
+      "bytes": 1142,
+      "sha256": "32d4d02464cf5f75f06ccc860eba0f05957d1bde226a145bf5febfea9c231fae",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-progress.json",
+      "bytes": 29921,
+      "sha256": "deee18cc1642e56785056f7048eeddb548fa1265374259ba65708551e87cf315",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-red.log",
+      "bytes": 1052,
+      "sha256": "64df99c7aa1c9891a8c0e636bc42667fadece9d50cccbf16133159b0a8763027",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-history-headroom-enrollment.json",
+      "bytes": 633,
+      "sha256": "b0d9d3b13ad144b210699ff135f576a540e4f8771e7162e2b42542ce8b629056",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-history-headroom-green.log",
+      "bytes": 307,
+      "sha256": "e05e1e41d0bfa284067a26517ea0d84ef5c1d004414cd1273ebe8fb43995fdc3",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-history-headroom-native-probe.log",
+      "bytes": 78,
+      "sha256": "b01914991693f06ed9263fd23e216f4ba31bed7961190d2a9aaa169d464fc438",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-history-headroom-red.log",
+      "bytes": 1021,
+      "sha256": "9c76dff67ded5eeb4f5668e935a4ad11bfc67c3928e0b70b64a6166c33475474",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-implementation-final-tests.log",
+      "bytes": 21513,
+      "sha256": "4e9691d65dbe52be21b581b309630b3785594c38d7cdf460dd48b2e24efd69c6",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-implementation-tests.log",
+      "bytes": 21460,
+      "sha256": "f388ef6c30b86edd7c66bb386f612e1ac89e16fa34dfc7e230d8e457c7d53e8c",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-inference-preparation.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-correct-policy-diagnostic.json",
+      "bytes": 303,
+      "sha256": "373e9b6661ebfaef645d0a80664286f0231d0af19f330b4adbb0216c36da0ef7",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-current-diagnostic.json",
+      "bytes": 277,
+      "sha256": "4c807990ada5acd2bd20669770fcc89c6943aa7585f3a7760a1294ebc8aaa8be",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-timing-90s-diagnostic.json",
+      "bytes": 111,
+      "sha256": "70c7b7f01747a09648ad97dec2917f0c25a88000a712a543369faf3b9f3ad3c4",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-timing-diagnostic.json",
+      "bytes": 114,
+      "sha256": "0f82bd12c0c72337763214680deabe76dee98741dfdf23df7db8e9e44bc53cf1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-local-validation-history.md",
+      "bytes": 26881,
+      "sha256": "b7304942fbd8de6f1ec5cfd90d0412e7d91f1392520ed4df75b6bb3ba95411c5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-deadline-green.log",
+      "bytes": 340,
+      "sha256": "1666e9e358a5c5c8b5f7a43c60e23d9327b85d1c8ab941c565ca617a5380e9c8",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-deadline-red.log",
+      "bytes": 2651,
+      "sha256": "3b94e5c570dad9b2f3ca24f1b0d9657e48ca11e891adee70632f16aec2583e6d",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-window-enrollment.json",
+      "bytes": 555,
+      "sha256": "0dc7cc727ab34d71946b58f437b183301de8631c18bb9722b5b5872d4ead315b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-window-native-preparation.log",
+      "bytes": 1176,
+      "sha256": "1aaa3a7b1af1cc8ae258f901feba7060b668162977c0a9a4ba700ee0973389bc",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-window-tests.log",
+      "bytes": 21842,
+      "sha256": "8ca518980e3978e15b2f597e0c6487b519ebd88851e691008cc51198b3704be3",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-memory-3072-auth-status.json",
+      "bytes": 179,
+      "sha256": "e10f171302cc4b462d6c680e4fcb102a68e6b4eee40bacf139a821d5dbf8f76b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-memory-3072-enrollment.json",
+      "bytes": 555,
+      "sha256": "e73b888003ac421ae937eeaabc82a5a1efdfa48cb682f648ef8cb3bf7526b390",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-memory-3072-final-native.log",
+      "bytes": 6820,
+      "sha256": "831a7d04668e63b2a57c795ce3cb2d6316e2250446d9f6d47173e061537540c3",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-memory-3072-public-probe.log",
+      "bytes": 1478,
+      "sha256": "c4d19d18a4afdceeaee2757b7837530542e91cc9ce46f676ba755917c5c6032b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-pre-restart-census.log",
+      "bytes": 114,
+      "sha256": "f958aa81ca7927bdbb46796ea2dd4274ea05dca23127fbe6d4ae9096e012e6f5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preflight-command-diagnostic.log",
+      "bytes": 21,
+      "sha256": "607c8790eeac87160228255cf133d6dcf20f8dc859f93ab438dc49f80f8c8207",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preparation-after-timing-refusal.json",
+      "bytes": 29276,
+      "sha256": "fadf49fa67b2146f2593f176fa973f8262ae846d36dcea0c0cbf04cbddf378c4",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preparation-after-timing.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preparation-refusal-status.json",
+      "bytes": 29805,
+      "sha256": "e7f947d159c558ff245e219e1e5769d8dc6f5f974dc4ea65fa10b3f9b62db9e5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-progress.json",
+      "bytes": 27434,
+      "sha256": "55e9cac435eca9a014595786d1cef5c5ef93088c776b35381cb8c132df9cec9f",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-protocol-window-green.log",
+      "bytes": 614,
+      "sha256": "e840988775ba21a3624c612bd6ba20f8a8de069ab1cde547b2f1d5b6112c2abf",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-protocol-window-red.log",
+      "bytes": 1319,
+      "sha256": "b4ae4aa0997be11b27cab7ba3a99ff8fafd1800f4c8d67d1e43d99ea601b5da3",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-ready-for-inference-report.json",
+      "bytes": 2538,
+      "sha256": "b28afd5fd7a9cea91ca4e461651de9ad2bdd9f9886d26347c3f7882cb604d53c",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-ready-for-inference-status.json",
+      "bytes": 45668,
+      "sha256": "34d63aab85cc84f94140566887f1f75d6228bc34fa0ce196c25b873d7d46bbff",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-buffer-full-tests.log",
+      "bytes": 22023,
+      "sha256": "3739bce3a2c07376bf5c3f9f6e0a8053b176c4f80bf6897d48651e97fd86b07e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-buffer-green.log",
+      "bytes": 210,
+      "sha256": "14fb410eaeb992b0633cab0a1a529230265cf6e7072ea97aeb75b3f909149242",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-buffer-red.log",
+      "bytes": 1148,
+      "sha256": "43491ff24032cd023c148a875be9eb32bc31bb349479bf04dc68b41432f9fdb5",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-enrollment.json",
+      "bytes": 633,
+      "sha256": "e4ce7bb3d146624f44c5f4f7341e0bd690d1ee9c0bba7bbb7a55a09104251230",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-full-tests.log",
+      "bytes": 22158,
+      "sha256": "92b396300c4593cd8f00f7fc625b01809e2e76b8e4257f633baa9d696c529fab",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-green.log",
+      "bytes": 318,
+      "sha256": "fbadf5fe6e57dea238416966fd2cdcf113fc759e2253c6d1c2c65a63d31ca014",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-native-preparation.log",
+      "bytes": 1175,
+      "sha256": "2272ac3ae0866a5a7a7b9eb43889c90945ed7928d3b6ceca6cc3d35b435c84e3",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-red.log",
+      "bytes": 2198,
+      "sha256": "4bc8e3e485f40c2f8fef6ff7e4dfb6215a8c57da23e3d0a9e3247a88e1edef8e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-status.json",
+      "bytes": 31205,
+      "sha256": "92aac0fc35a2d993009d1560d5ab98df23d1111a391e4708b939f8cffd64acf0",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-report-final-tests.log",
+      "bytes": 2020,
+      "sha256": "e0be3d8ec0acb1ed38ad3db86dc506ea763df637371f86b366cc080b6703e7be",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-diagnostic-enrollment.json",
+      "bytes": 633,
+      "sha256": "c2bfee95b5c44a1a375dbc9939401fb5b8aa30079d5412f45065797902e5bf4e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-diagnostic.json",
+      "bytes": 184,
+      "sha256": "2873ec7faea0b505e4760cf42c989b9adeafc4ff5aa3deb3f1b0663f78ee5fce",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-diagnostic.log",
+      "bytes": 409,
+      "sha256": "f2c74eaadfe5f183f564eebc722934d53cc51c84d42ac9ca3e345379236b826e",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-guest-diagnostic.json",
+      "bytes": 162,
+      "sha256": "3e7b9e50117a9796d75540d16661789616a3cae128577d59f536701057facff6",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-enrollment.json",
+      "bytes": 633,
+      "sha256": "b531cd0796865f26dd441f19a9719bf291718ef6fe0ebdbac64d003d3029ace1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-full-tests.log",
+      "bytes": 22339,
+      "sha256": "8b0791190c0e7a0af4c875dadaca220cc58c6ce5f49135060c0914b91f553554",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-native-preparation.log",
+      "bytes": 358,
+      "sha256": "ac5bfdc7ab0ef1d7bd222c48a2ecc4efe1c6ee64b5e0cf14bdcb88ea50713d1b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-native-probe.log",
+      "bytes": 76,
+      "sha256": "c910ca0d575e65690688516a64afea8eebdfe9280d93159b43c2eb176d07d6ba",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-preparation-status.json",
+      "bytes": 34810,
+      "sha256": "75b131bc69b7bb2e7d201121654916641b315ae06a2ea51c7289109deea451bf",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-signed-in-auth-status.json",
+      "bytes": 179,
+      "sha256": "e10f171302cc4b462d6c680e4fcb102a68e6b4eee40bacf139a821d5dbf8f76b",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-steady-descendants.json",
+      "bytes": 55,
+      "sha256": "e7962a2f92f78c15862de6a1f9e05d6f5254e065792028a68ff87002c53055ce",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-task-before-retry-refusal.json",
+      "bytes": 6556,
+      "sha256": "6cb1c6077a7e45f369bb57668d8621c602ac4aac35d35d9cdd0408541f133155",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-task-retry-final-status.json",
+      "bytes": 44824,
+      "sha256": "f19c4e2d507b2180fad3afb9f5e49fab27509fc2cc61534f14c113162b2102c3",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-task-retry.log",
+      "bytes": 21539,
+      "sha256": "7128a3450a8c4ccfdd50e2967cbfda989d0d9b8e14eb2dac51e08ffe78632525",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-auth-status.json",
+      "bytes": 187,
+      "sha256": "732d3356246138d4c7313cd8d11495ad96476f82e6f00dce160f0644a4d15c42",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-restart-enrollment.json",
+      "bytes": 555,
+      "sha256": "d7869624c13236199299c549ddd86fc3a9e95dc10765dbfbf9e0f13a7f27f8cf",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-restart-plan.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-restart-probe.log",
+      "bytes": 1478,
+      "sha256": "6f15882be9ae2a04da1ff8d6999cee4d692ebeeec361dc7204db0ed6bfc58083",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-version-command-times.json",
+      "bytes": 955,
+      "sha256": "0e713fed3b3a2517aff80da3fb755682901b13ea753dab98de38e1a475239dcd",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-version-preflight-failure.json",
+      "bytes": 140,
+      "sha256": "69871b044e700b4eb882d9bd635ce40b64a30399c7ed96dc5da56db55f29b065",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-controls-observation-before-command-window.json",
+      "bytes": 5909,
+      "sha256": "8d7d6c4d59e2b9ffe729134e1d7e518570c2bf14928b0513037daa2ee66e0bb0",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-controls-observation-before-expiry-readiness.json",
+      "bytes": 6095,
+      "sha256": "83dfcb672d32cd456f145fcba6fe08bef97f6fd7eaa10e626339f6d7236deee1",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-controls-observation-before-headroom.json",
+      "bytes": 7332,
+      "sha256": "8d55014274f64c423ae0d2650bb7043b809558e3e9b2997a6c8938f1b02f3cfa",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-controls-observation-before-management-window.json",
+      "bytes": 6095,
+      "sha256": "053bf2dd49fb2d3bdeae3aacdbe14916d5fce0f74f52fa0ac622c927b4a50303",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/ticket25-macos-controls-observation-before-relay.json",
+      "bytes": 6095,
+      "sha256": "9f6a6ef0f80b4f8a6300c746fe7767d8cebec63f361be7eccd19ad947bd44724",
+      "action": "preserved-in-place",
+      "reason": "Unique validation observation, test/refusal log, or continuation history; retain evidence and uncertain work"
+    }
+  ]
+}
