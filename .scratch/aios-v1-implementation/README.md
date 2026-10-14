@@ -48,3 +48,10 @@ eight-process pause/fencing/crash recovery. Credential-free pinned Codex host
 protocol and relay also passed. See [macOS worker qualification](../../docs/macos-worker-qualification.md).
 Authentication/online/production blockers are unchanged; parent 04 and tickets
 25/16 remain incomplete. The prior no-Mac statement above is historical.
+
+
+14 October ticket 06 progress: the controlled baseline/candidate validation slice is
+ready for human review. [Implementation receipt](ticket06-implementation-receipt.md)
+records passing public-controller/full-suite validation and outstanding native and
+hosted qualification. The owner explicitly selected this controlled implementation
+while parent native qualification remains open; production delivery stays disabled.

@@ -1,6 +1,6 @@
 # Bounded feature candidates
 
-Ticket 05 adds a controller slice through the existing public command/observation boundary. It prepares criteria, records a feature branch from a clean admitted Git revision, drives a configured controlled coding adapter, and stores a candidate only after verified descendant shutdown. It does not validate, sign, publish or complete delivery.
+Ticket 05 adds a controller slice through the existing public command/observation boundary. It prepares criteria, records a feature branch from a clean admitted Git revision, drives a configured controlled coding adapter, and stores a candidate only after verified descendant shutdown. Ticket 06 adds local controlled validation; signing, publication and completion remain gated.
 
 The integration boundary is `DeliveryController`, with owner-supplied `featurePlanner` and `featureRuntime` adapters. They are trusted host integrations, never loaded from repository text or worker output. Only `mode: controlled` is currently accepted. The native CLI has no production feature planner or coding adapter; `plan-feature` and `code-feature` refuse without those integrations. Controlled tests do not establish native isolation, CLI compatibility or provider authorization. Ticket 04 and later native qualification gates remain open.
 
@@ -9,7 +9,7 @@ The integration boundary is `DeliveryController`, with owner-supplied `featurePl
 - `start({repository, request, codingMinutes?})` records an optional initial allowance. Default: 120 active minutes; supported initial values: 1–1440 minutes. The CLI accepts `start --coding-minutes N`.
 - `planFeature(id)` records observable criteria and relevant verification through the trusted planner. Material ambiguity produces `needs-info` and does not create a branch or dispatch coding.
 - `clarifyFeature(id, text)` retains an explicit owner clarification and re-plans without rewriting the original request. CLI: `clarify-feature --id ID --clarification TEXT`.
-- `codeFeature(id)` checks onboarding and owner policy, clean source, coding pins and stopped session state. It records operation intent before creating `codex/feature-ID`, leaves the host checkout untouched, and supplies plain admitted files rather than host Git metadata.
+- `codeFeature(id)` checks onboarding and owner policy, clean unchanged main, passing revision-bound baseline validation, coding pins and stopped session state. It records operation intent before creating `codex/feature-ID`, leaves the host checkout untouched, and supplies plain admitted files rather than host Git metadata.
 - `pause`, `cancel`, `recover` and `release` retain the existing ownership/fencing rules and also reconcile coding shutdown. An uncertain coding worker blocks import, resume and ownership release.
 - `extendCoding(id, minutes)` is an explicit owner control for stopped exhausted work. CLI: `extend-coding --id ID --minutes N`. It appends the changed allowance; worker output cannot request an extension.
 
@@ -25,4 +25,4 @@ Input admission disables Git hooks, system/global attributes and optional index 
 
 Output collection is possible only after matching shutdown evidence reports zero remaining processes. The management adapter must attest a complete ordinary-file inventory with independent before/after hashes. Traversal, Git metadata/hooks, linked/reparse output, duplicate paths, oversized or credential-like content and changed output refuse admission. Policy, source and branch are rechecked after collection before persisting a candidate.
 
-The admitted candidate records a SHA-256 of its complete manifest, original input identity, source revision, feature branch and policy/CLI/host pins in durable state. Its validation status is explicitly `not-run`. Ticket 06 must validate the exact candidate before signing or publication. Production delivery remains disabled.
+The admitted candidate records a SHA-256 of its complete manifest, original input identity, source revision, feature branch and policy/CLI/host pins in durable state. Its validation status is explicitly `not-run`. The [isolated validation slice](isolated-validation.md) must validate the exact candidate before signing or publication. Production delivery remains disabled.
