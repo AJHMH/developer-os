@@ -1,0 +1,66 @@
+name: Factory Approval Refresh
+on:
+  workflow_run:
+    workflows: [Factory Review Event]
+    types: [completed]
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+jobs:
+  resolve:
+    name: Resolve authorized consumer review
+    if: github.event.workflow_run.event == 'pull_request_review'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      pull_request: ${{ steps.resolve.outputs.pull_request }}
+      base_revision: ${{ steps.resolve.outputs.base_revision }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+      - name: Resolve using trusted default-branch code only
+        id: resolve
+        env:
+          FACTORY_GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TRIGGER_RUN: ${{ github.event.workflow_run.id }}
+          TRUSTED_REVISION: ${{ github.sha }}
+          APPROVED_FACTORY_REVISION: ${{ vars.FACTORY_DISTRIBUTION_REVISION }}
+        run: node scripts/refresh-factory-approvals.mjs --mode inspect --repository "$REPOSITORY" --trigger-run "$TRIGGER_RUN" --trusted-revision "$TRUSTED_REVISION" --approved-factory-revision "$APPROVED_FACTORY_REVISION"
+  refresh:
+    name: Refresh existing consumer approval jobs
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: write
+    concurrency:
+      group: factory-approval-refresh-${{ needs.resolve.outputs.pull_request }}
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.resolve.outputs.base_revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+      - name: Revalidate authority and rerun only the original approval jobs
+        env:
+          FACTORY_GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TRIGGER_RUN: ${{ github.event.workflow_run.id }}
+          TRUSTED_REVISION: ${{ needs.resolve.outputs.base_revision }}
+          APPROVED_FACTORY_REVISION: ${{ vars.FACTORY_DISTRIBUTION_REVISION }}
+        run: node scripts/refresh-factory-approvals.mjs --mode apply --repository "$REPOSITORY" --trigger-run "$TRIGGER_RUN" --trusted-revision "$TRUSTED_REVISION" --approved-factory-revision "$APPROVED_FACTORY_REVISION"
