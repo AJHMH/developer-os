@@ -1,0 +1,13 @@
+✔ Native Codex task-headroom gate waits for idle workers and refuses exhausted budgets (49.295167ms)
+✔ native relay observes coalesced readiness and acceptance frames on both hosts (81.966208ms)
+✔ Mac relay permits observed exec scheduling delay while retaining the network deadline (4172.46225ms)
+✔ Mac completed turn waits for headroom before opening persisted history (49.021667ms)
+✔ Mac resume may finish after headroom waits without extending the Windows protocol window (36.8415ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4432.550083

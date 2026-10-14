@@ -1,0 +1,10 @@
+✔ synthetic expiry arms after slow client setup and interrupts a confirmed body read (3580.791916ms)
+✔ expiry arming cannot extend a lease or alter a gateway grant (49.450166ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3667.2005

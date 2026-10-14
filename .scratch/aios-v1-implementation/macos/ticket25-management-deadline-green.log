@@ -1,0 +1,11 @@
+✔ native darwin management deadline remains bounded (1.722583ms)
+✔ native win32 management deadline remains bounded (0.427959ms)
+✔ host positive-control fixture refuses an unbounded lifetime before starting (0.332375ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45.542834

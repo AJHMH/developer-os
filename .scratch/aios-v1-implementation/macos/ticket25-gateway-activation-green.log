@@ -1,0 +1,13 @@
+✔ native inference starts its one-shot gateway lease only after bound isolation and always revokes it (59.441916ms)
+✔ gateway activation follows a bound request after slow VM preparation: valid (2.677292ms)
+✔ gateway activation follows a bound request after slow VM preparation: wrong-capability (0.853833ms)
+✔ gateway activation follows a bound request after slow VM preparation: wrong-delivery (0.516916ms)
+✔ gateway activation follows a bound request after slow VM preparation: duplicate (0.912666ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 114.464916

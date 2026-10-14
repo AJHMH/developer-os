@@ -1,0 +1,98 @@
+✖ native inference starts its one-shot gateway lease only after bound isolation and always revokes it (33.217375ms)
+✖ gateway activation follows a bound request after slow VM preparation: valid (11.467167ms)
+✖ gateway activation follows a bound request after slow VM preparation: wrong-capability (1.295417ms)
+(node:75032) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3)
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ gateway activation follows a bound request after slow VM preparation: wrong-delivery (11.054542ms)
+✖ gateway activation follows a bound request after slow VM preparation: duplicate (11.043208ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 113.23625
+
+✖ failing tests:
+
+test at tests/podman-platform.test.mjs:18:1
+✖ native inference starts its one-shot gateway lease only after bound isolation and always revokes it (33.217375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at native.gatewayInvocation (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:44:12)
+      at file:///Users/aaronhoward/Repos/developer-os/dist/podman-native.js:1058:42
+      at withHostCanary (file:///Users/aaronhoward/Repos/developer-os/dist/host-canary.js:89:30)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async NativePodmanDriver.inferThroughGateway (file:///Users/aaronhoward/Repos/developer-os/dist/podman-native.js:1052:27)
+      at async TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:59:3)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/podman-platform.test.mjs:1007:3
+✖ gateway activation follows a bound request after slow VM preparation: valid (11.467167ms)
+  TypeError: gateway.revoke is not a function
+      at NativePodmanDriver.gatewayInvocation (file:///Users/aaronhoward/Repos/developer-os/dist/podman-native.js:960:21)
+      at async TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:1045:39)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at tests/podman-platform.test.mjs:1007:3
+✖ gateway activation follows a bound request after slow VM preparation: wrong-capability (1.295417ms)
+  TypeError: gateway.revoke is not a function
+      at refuse (file:///Users/aaronhoward/Repos/developer-os/dist/podman-native.js:892:21)
+
+test at tests/podman-platform.test.mjs:1007:3
+✖ gateway activation follows a bound request after slow VM preparation: wrong-delivery (11.054542ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Gateway transport unavailable/. Input:
+  
+  'TypeError: gateway.revoke is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:1046:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: gateway.revoke is not a function
+        at NativePodmanDriver.gatewayInvocation (file:///Users/aaronhoward/Repos/developer-os/dist/podman-native.js:960:21)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:1046:10)
+        at async Test.run (node:internal/test_runner/test:1208:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:831:7),
+    expected: /Gateway transport unavailable/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/podman-platform.test.mjs:1007:3
+✖ gateway activation follows a bound request after slow VM preparation: duplicate (11.043208ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Gateway transport unavailable/. Input:
+  
+  'TypeError: gateway.revoke is not a function'
+  
+      at async TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:1046:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: gateway.revoke is not a function
+        at NativePodmanDriver.gatewayInvocation (file:///Users/aaronhoward/Repos/developer-os/dist/podman-native.js:960:21)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:1046:10)
+        at async Test.run (node:internal/test_runner/test:1208:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:831:7),
+    expected: /Gateway transport unavailable/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

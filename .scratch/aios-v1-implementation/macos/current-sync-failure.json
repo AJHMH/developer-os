@@ -1,0 +1,15 @@
+{
+  "status": 1,
+  "signal": null,
+  "stdoutBytes": 0,
+  "stderrBytes": 102,
+  "errorTypes": [
+    "SyntaxError"
+  ],
+  "traceLines": [
+    "10"
+  ],
+  "stderrCategories": [
+    "Error"
+  ]
+}

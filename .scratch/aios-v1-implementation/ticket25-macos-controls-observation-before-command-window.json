@@ -1,0 +1,178 @@
+{
+  "observedAt": "2026-10-14T02:17:42.588Z",
+  "controls": {
+    "version": "b8c2962c9e8826e20681aeaca4895e6ac0609596975178d02a3dd9e29be8417e",
+    "nativeVersion": "ae81c9442bdbc39b78ae92667cf5c3427ca196e1061c3a93c659d353b4eba835",
+    "mode": "live",
+    "operationId": "69f0812a-18ca-4cbe-8069-61fe41853bbc",
+    "outcome": "passed",
+    "bindingSha256": "8567a11c25dfca408abbe37d8fea39dbd1b6dc8de5109761b1bf29afce673994",
+    "policySha256": "a0c5254041729709e75b6f6091c3b155ea90e166206fcac31fa746a12846227e",
+    "checks": [
+      {
+        "name": "ssh-gpg",
+        "evidenceSha256": "0c79548150ab94e4ee623a01dbf47f389da6d91b9c48210e0b619b244112d17b"
+      },
+      {
+        "name": "github-binding",
+        "evidenceSha256": "8262c22dfa438fb03f2fc9cd72e42f7bfce3167553efd27424d64d9a0d31f80c"
+      },
+      {
+        "name": "effective-mounts",
+        "evidenceSha256": "4112df9fe774f5e985b2dab35435b5de7952d7dc0c109c99c9009276bf3f11b0"
+      },
+      {
+        "name": "repository-fencing",
+        "evidenceSha256": "5b7b9ec70eb1b69ede749d34c775f4b7ae5a4dcf9c805236dd34b1db63576082"
+      },
+      {
+        "name": "orphan-resume",
+        "evidenceSha256": "a55ed38aea515688e222e1622827eb702ac6521ee4cb402096b0d74781c71975"
+      },
+      {
+        "name": "descendant-stop",
+        "evidenceSha256": "e7be94e15f8e5c1dec9b104153715a5163c4b5929ae769c83226cf2f85a58f5c"
+      }
+    ],
+    "censuses": [
+      {
+        "observedProcesses": 8,
+        "remainingProcesses": 0,
+        "censusSha256": "c02ed41b321bcb07034ef3000c6c9f4e093ee5f39d16a2bad3e70f7479304c1e"
+      },
+      {
+        "observedProcesses": 8,
+        "remainingProcesses": 0,
+        "censusSha256": "c3fff0a0bb64cc90e35966816f2b8ecbb805daf1fbe3a360a257e3b4e8886775"
+      }
+    ],
+    "productionEnabled": false
+  },
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-14T02:16:11.522Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "not-run"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "not-run"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "not-run"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "not-run"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "not-run"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "not-run"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification.",
+      "Synthetic host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "not-run",
+      "workerProtocol": "not-run",
+      "codexCredentialIsolation": "not-run",
+      "scope": "host-capability-only",
+      "credentialIsolation": "not-run",
+      "credentialIsolationScope": "not-run",
+      "endpointEnforcement": "not-run",
+      "deliveryCapabilities": "not-run",
+      "hostGateway": "passed",
+      "gatewayIntegration": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "27.2.0",
+        "provider": "applehv",
+        "machine": "aios-macos-noshare",
+        "hostId": "29252fb2177c41b6b6e261b4b102008c7bd44a3a99d8837f11e97aedc692f19a",
+        "engineVersion": "6.1.3",
+        "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+        "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-31296aa35cc91ee2a16457665933880faaf90a0fd22f85702d092a8d59d0a172"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "a0c5254041729709e75b6f6091c3b155ea90e166206fcac31fa746a12846227e",
+    "bindingSha256": "8567a11c25dfca408abbe37d8fea39dbd1b6dc8de5109761b1bf29afce673994"
+  }
+}

@@ -1,0 +1,33 @@
+✖ Windows Codex task-headroom gate waits for idle workers and refuses exhausted budgets (171.148708ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 369.37075
+
+✖ failing tests:
+
+test at tests/podman-platform.test.mjs:626:1
+✖ Windows Codex task-headroom gate waits for idle workers and refuses exhausted budgets (171.148708ms)
+  AssertionError [ERR_ASSERTION]: Traceback (most recent call last):
+    File "<string>", line 21, in <module>
+  AssertionError
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:689:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

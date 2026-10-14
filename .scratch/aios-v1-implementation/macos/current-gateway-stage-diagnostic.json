@@ -1,0 +1,19 @@
+{
+  "blockedStage": "codex-relay-expiry",
+  "diagnostic": {
+    "failureKind": "timeout",
+    "commandElapsedMs": 10000,
+    "codexRuntimeTasks": 1,
+    "codexSqliteTasks": 13,
+    "codexAllocatorTasks": 0,
+    "codexOtherTasks": 7,
+    "processLimitHits": 0,
+    "workerTaskCount": 23,
+    "workerTaskLimit": 32,
+    "originalCodexTasks": 26,
+    "originalCodexProcesses": 1,
+    "remainingOriginalCodexProcesses": 0,
+    "failed": true,
+    "elapsedMs": 88244
+  }
+}

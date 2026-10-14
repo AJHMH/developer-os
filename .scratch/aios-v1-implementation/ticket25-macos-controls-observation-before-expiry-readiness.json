@@ -1,0 +1,179 @@
+{
+  "observedAt": "2026-10-14T03:26:29.527Z",
+  "scope": "Synthetic signing/publication exclusion, effective mounts, descendant stop, revoked repository fencing, killed controller and exact-session recovery; no provider inference",
+  "controls": {
+    "version": "b8c2962c9e8826e20681aeaca4895e6ac0609596975178d02a3dd9e29be8417e",
+    "nativeVersion": "613ab7e4dd120406f54c1f3846dde0bcb5efe356fe22948528279c46f84e5669",
+    "mode": "live",
+    "operationId": "cf2360d2-af61-446d-9103-549f1e26189b",
+    "outcome": "passed",
+    "bindingSha256": "a3fa38c28689fb6fddd3f7328a79c119aeeed61ab23f9585670689bdfbc8fa31",
+    "policySha256": "b1cb64e6915174c8601a1b51e6aaab93e2d0f540dfc15bba668f9a8adea8f13d",
+    "checks": [
+      {
+        "name": "ssh-gpg",
+        "evidenceSha256": "06c98b990fc29ebd4ff0e7ee0140ae0e7a1d3d2a5403d7459cc4298601153e63"
+      },
+      {
+        "name": "github-binding",
+        "evidenceSha256": "5993c381b5fb6c94cad13f85699c074d85c79ad012921589fce6f91f8331c4ba"
+      },
+      {
+        "name": "effective-mounts",
+        "evidenceSha256": "47a3d37c0206a2770743ad94a121b2357ae78c73c86cd4b118ebba10a9e44141"
+      },
+      {
+        "name": "repository-fencing",
+        "evidenceSha256": "fa13025db6767ad40a78d4fb6e6a1f8025a6e444b563ccb8e4a860e5ba9b8bb8"
+      },
+      {
+        "name": "orphan-resume",
+        "evidenceSha256": "a232d4b20e1032ee9d90b9191fd076ce9cc0176b519ee079c11b9b520d331b82"
+      },
+      {
+        "name": "descendant-stop",
+        "evidenceSha256": "2ce517b5a5c58b747633925f45ad0fe4fd43075891e4b8448e0db4c225899600"
+      }
+    ],
+    "censuses": [
+      {
+        "observedProcesses": 8,
+        "remainingProcesses": 0,
+        "censusSha256": "8a068a5cbca4d76de8164d990732893a4d42b9e7c82c9a36f80938b042328ded"
+      },
+      {
+        "observedProcesses": 8,
+        "remainingProcesses": 0,
+        "censusSha256": "09a6983a9ae86256907b377a8d92fc505d386c2375d827c6dd3c9cc702be91e5"
+      }
+    ],
+    "productionEnabled": false
+  },
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-14T03:24:24.127Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "not-run"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "not-run"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "not-run"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "not-run"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "not-run"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "not-run"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification.",
+      "Synthetic host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "not-run",
+      "workerProtocol": "not-run",
+      "codexCredentialIsolation": "not-run",
+      "scope": "host-capability-only",
+      "credentialIsolation": "not-run",
+      "credentialIsolationScope": "not-run",
+      "endpointEnforcement": "not-run",
+      "deliveryCapabilities": "not-run",
+      "hostGateway": "passed",
+      "gatewayIntegration": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "27.2.0",
+        "provider": "applehv",
+        "machine": "aios-macos-noshare",
+        "hostId": "9e071233ba93ae63bfc314acfc30f8e82ef347c913ec86786ce5e2510c5c8e66",
+        "engineVersion": "6.1.3",
+        "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+        "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-b7427865de4f4373654c214172d50016c76f1902ff715af26758ea9acd2c8449"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "b1cb64e6915174c8601a1b51e6aaab93e2d0f540dfc15bba668f9a8adea8f13d",
+    "bindingSha256": "a3fa38c28689fb6fddd3f7328a79c119aeeed61ab23f9585670689bdfbc8fa31"
+  }
+}

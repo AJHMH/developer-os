@@ -1,0 +1,43 @@
+✖ Mac relay permits observed exec scheduling delay while retaining the network deadline (4126.637667ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4204.103625
+
+✖ failing tests:
+
+test at tests/podman-platform.test.mjs:904:1
+✖ Mac relay permits observed exec scheduling delay while retaining the network deadline (4126.637667ms)
+  AssertionError [ERR_ASSERTION]: Traceback (most recent call last):
+    File "<string>", line 11, in <module>
+    File "actual-management", line 349, in request
+    File "<string>", line 8, in run
+    File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 507, in run
+      stdout, stderr = process.communicate(input, timeout=timeout)
+    File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1134, in communicate
+      stdout, stderr = self._communicate(input, endtime, timeout)
+    File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1980, in _communicate
+      self._check_timeout(endtime, orig_timeout, stdout, stderr)
+    File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1178, in _check_timeout
+      raise TimeoutExpired(
+  subprocess.TimeoutExpired: Command '['/Applications/Xcode.app/Contents/Developer/usr/bin/python3', '-c', "import time;time.sleep(4.1);print('HTTP/1.1 403 Forbidden\\r\\n\\r\\n',end='')"]' timed out after 4 seconds
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:921:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

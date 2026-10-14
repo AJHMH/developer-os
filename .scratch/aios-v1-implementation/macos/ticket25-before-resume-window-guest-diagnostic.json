@@ -1,0 +1,19 @@
+{
+  "blockedStage": "codex-protocol-deadline",
+  "diagnostic": {
+    "failureKind": "check",
+    "commandElapsedMs": 107,
+    "codexRuntimeTasks": 2,
+    "codexSqliteTasks": 9,
+    "codexAllocatorTasks": 0,
+    "codexOtherTasks": 7,
+    "processLimitHits": 0,
+    "workerTaskCount": 20,
+    "workerTaskLimit": 32,
+    "originalCodexTasks": 23,
+    "originalCodexProcesses": 1,
+    "remainingOriginalCodexProcesses": 0,
+    "failed": true,
+    "elapsedMs": 125741
+  }
+}
