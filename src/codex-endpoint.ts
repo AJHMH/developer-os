@@ -4,6 +4,7 @@
 export const codexEndpointFixture = String.raw`
 import json,sys,os,time,threading,hmac,hashlib,base64,queue
 from http.server import HTTPServer,BaseHTTPRequestHandler
+from socketserver import TCPServer
 C=json.loads(sys.stdin.readline()); revoked=threading.Event(); accepted=0; deadline=time.monotonic()+C['ttl']
 armed=False
 marker='AIOS model-only inference complete'
@@ -27,6 +28,8 @@ def expire():
  time.sleep(max(0,deadline-time.monotonic()));revoked.set();os._exit(0)
 threading.Thread(target=expire,daemon=True).start()
 class Server(HTTPServer):
+ def server_bind(self):
+  TCPServer.server_bind(self);self.server_name='127.0.0.1';self.server_port=self.server_address[1]
  def get_request(self):
   connection,address=super().get_request();connection.settimeout(2);return connection,address
 class Handler(BaseHTTPRequestHandler):

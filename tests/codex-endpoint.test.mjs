@@ -10,16 +10,20 @@ test("synthetic expiry arms after slow client setup and interrupts a confirmed b
       "-c",
       String.raw`
 import sys,subprocess,json,socket,time,tempfile,threading,queue
-source='import time; time.sleep(3.2)\n'+sys.stdin.read();identity='expiry-fixture';cap='synthetic'
+source="import time,socket; time.sleep(3.2)\ndef forbidden_dns(*args):raise RuntimeError('loopback fixture must not resolve hostnames')\nsocket.getfqdn=forbidden_dns\n"+sys.stdin.read();identity='expiry-fixture';cap='synthetic'
 reserve=socket.socket();reserve.bind(('127.0.0.1',0));port=reserve.getsockname()[1];reserve.close()
 errors=tempfile.TemporaryFile()
 p=subprocess.Popen([sys.executable,'-u','-c',source],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=errors,bufsize=0)
 sockets=[];events=queue.Queue()
 def read_events():
  for line in iter(p.stdout.readline,b''):events.put(line)
+ events.put(None)
 threading.Thread(target=read_events,daemon=True).start()
 def event(timeout=10):
- try:return json.loads(events.get(timeout=timeout))
+ try:
+  line=events.get(timeout=timeout)
+  if line is None:raise queue.Empty
+  return json.loads(line)
  except queue.Empty:
   errors.seek(0);raise AssertionError('missing expiry event; child stderr: '+errors.read().decode())
 def control(value):p.stdin.write((json.dumps(value)+'\n').encode());p.stdin.flush()

@@ -67,7 +67,9 @@ retained locally rather than published.
 ## PR 14 review and CI follow-up
 
 The initial hosted CI run exposed Windows pipe/shell portability issues and a
-three-second Mac fixture startup window. The expiry test now drains events with
+Mac fixture startup stall from HTTPServer's implicit loopback hostname lookup.
+The fixed-address server now binds without DNS; the socket regression rejects
+hostname lookups. The expiry test now drains events with
 a portable reader, deliberately delays child startup by 3.2 seconds, and retains
 the original lease-expiry assertions. Two tests that execute Linux guest code
 with POSIX pipes/shell directly on the host run on macOS and Linux. CLI admission
