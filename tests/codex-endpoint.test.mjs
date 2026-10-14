@@ -47,7 +47,9 @@ try:
  assert event()=={'expiryArmed':True,'deliveryId':identity}
  time.sleep(0.5);control({'action':'arm-expiry','deliveryId':identity}) # Cannot extend.
  p.wait(timeout=2.1)
- assert p.returncode==0 and slow.recv(4096)==b''
+ assert p.returncode==0
+ try:assert slow.recv(4096)==b''
+ except ConnectionResetError:pass # Windows reports abrupt process-exit closure as RST.
  assert 1.0<time.monotonic()-started<2.4
 finally:
  for s in sockets:s.close()
