@@ -272,11 +272,11 @@ export function candidateSource(repository: string, expected?: string) {
     .trim();
   if (
     (process.platform === "win32"
-      ? realpathSync(top).toLowerCase()
-      : realpathSync(top)) !==
+      ? realpathSync.native(top).toLowerCase()
+      : realpathSync.native(top)) !==
     (process.platform === "win32"
-      ? realpathSync(repository).toLowerCase()
-      : realpathSync(repository))
+      ? realpathSync.native(repository).toLowerCase()
+      : realpathSync.native(repository))
   )
     throw Error("Changed Git worktree root");
   const revision = candidateGit(repository, ["rev-parse", "HEAD"])
