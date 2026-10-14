@@ -6,7 +6,7 @@ import {
   gatewayRequest,
   subscriptionGatewayVersion,
 } from "./subscription-gateway.js";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   nativeProbeDiagnostic,
   persistenceErrorVocabulary,
@@ -50,7 +50,7 @@ test "$(stat -c %h /tmp/result.txt)" = 1
 sleep 600 &
 /bin/sh -c 'sleep 600 & wait' &
 setsid /bin/sh -c 'sleep 600 & wait' &
-setsid /bin/sh -c 'sleep 600 &'
+setsid /bin/sh -c 'sleep 600 & sleep 600 &'
 sleep 0.1
 cat /tmp/result.txt
 wait
@@ -91,7 +91,7 @@ def command(args):
  recording='diagnostic' in globals() and not diagnostic.get('failed')
  if recording: diagnostic.update(failureKind='check');diagnostic.pop('exitCode',None)
  try:
-  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=30 if R['hostBinding']['platform']=='darwin' else 15)
  except subprocess.TimeoutExpired:
   if recording: diagnostic.update(failureKind='timeout',commandElapsedMs=round((time.monotonic()-started)*1000),failed=True)
   raise
@@ -160,8 +160,9 @@ def effective(name):
  if any(x[x.index('-')+1] in ['9p','virtiofs','cifs','nfs','nfs4'] or
         x[4].startswith(('/var/home/core','/mnt/','/Users')) or
         x[4].endswith(('podman.sock','docker.sock')) for x in mounted): fail()
- for p in ['/run/podman/podman.sock',engineSocket,'/var/run/docker.sock','/mnt/c','/Users']:
-  if subprocess.run(['podman','exec',name,'test','-e',p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
+ # One bounded exec proves every forbidden path absent. A transport error
+ # must refuse the observation rather than masquerade as a missing path.
+ pod('exec',name,'/bin/sh','-c','for p do test ! -e "$p" || exit 1; done','--','/run/podman/podman.sock',engineSocket,'/var/run/docker.sock','/mnt/c','/Users')
  return dict(hypervisor=True,dedicated=True,mounts=[],managementExposed=False,rootful=False,network='none',readOnly=True,user='65534:65534',capabilities=[],noNewPrivileges=True)
 def create(name,script,labels,memory='64m'):
  profile=json.loads(pathlib.Path('/usr/share/containers/seccomp.json').read_text())
@@ -380,47 +381,47 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    stage='codex-version'
    if pod('exec',name,'/codex','--version').strip()!=b'codex-cli 0.161.0': fail()
    if pathlib.Path(private).read_text()!=secret: fail()
-   for path in [private,*R['challenge']['files']]:
-    if subprocess.run(['podman','exec',name,'cat',path],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
-    if subprocess.run(['podman','exec',name,'cat','/proc/1/root'+path],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0: fail()
+   stage='codex-host-credential-denials'
+   pod('exec',name,'/bin/sh','-c','for p do if cat "$p" >/dev/null 2>&1 || cat /proc/1/root"$p" >/dev/null 2>&1; then exit 1; fi; done','--',private,*R['challenge']['files'])
    stage='codex-credential-denials'
    pod('exec',name,'mkdir','-m','700','/tmp/empty-codex')
    cap=R['gatewayCapability']
    delivery=R['deliveryId']
    if str(uuid.UUID(delivery))!=delivery: fail()
    stage='codex-relay-start'
-   def relay(worker,port,identity,token,budget,ttl=20):
+   def relay(worker,port,identity,token,budget,ttl=20,armable=False):
     pid=str(inspect(worker)['State']['Pid'])
     p=subprocess.Popen(['podman','unshare','nsenter','--net=/proc/'+pid+'/ns/net','python3','-u','-c',endpointSource],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
-    # Windows readiness checks must observe every frame, including coalesced writes.
+    # Readiness checks must observe every frame, including coalesced writes.
     # Detach only stdout: stdin retains complete buffered writes and explicit flush.
-    if binding['platform']=='win32': p.stdout=p.stdout.detach()
+    p.stdout=p.stdout.detach()
     proxies.append(p)
-    p.stdin.write((json.dumps(dict(port=port,deliveryId=identity,capability=token,budget=budget,ttl=ttl,gateway=identity==delivery))+'\n').encode());p.stdin.flush()
-    def event():
-     if not __import__('select').select([p.stdout],[],[],3)[0]: fail()
+    p.stdin.write((json.dumps(dict(port=port,deliveryId=identity,capability=token,budget=budget,ttl=ttl,gateway=identity==delivery,armable=armable))+'\n').encode());p.stdin.flush()
+    def event(timeout=15 if binding['platform']=='darwin' else 3):
+     if not __import__('select').select([p.stdout],[],[],timeout)[0]: fail()
      line=p.stdout.readline(4097)
      if len(line)>4096 or not line.endswith(b'\n'): fail()
      return json.loads(line)
     if event()!=dict(ready=True,deliveryId=identity): fail()
     return p,event
-   proxy,relayEvent=relay(name,18081,delivery,cap,2,60)
+   relayTtl=120 if binding['platform']=='darwin' else 60
+   proxy,relayEvent=relay(name,18081,delivery,cap,2,relayTtl)
    peer='aios-relay-peer-'+str(uuid.uuid4());peerRecord=dict(name=peer,cgroup='',pids={},stopped=False)
    peerPath=root+'/probe-'+str(uuid.uuid4())+'.json'
    create(peer,'sleep 600',{'aios.authority':R['authority']})
    save(peerPath,peerRecord)
    pod('start',peer);peerRecord['cgroup']=cgroup(inspect(peer)['State']['Pid']);peerRecord['pids']=census(peerRecord['cgroup']);save(peerPath,peerRecord)
    peerId=str(uuid.uuid4());peerCap=uuid.uuid4().hex+uuid.uuid4().hex
-   peerProxy,peerEvent=relay(peer,18082,peerId,peerCap,3,60)
+   peerProxy,peerEvent=relay(peer,18082,peerId,peerCap,3,relayTtl)
    body=json.dumps(dict(model='gpt-6.1-sol',input=[dict(role='user',content='Say exactly: AIOS model-only inference complete')],store=False,stream=True)).encode()
    def request(worker,port,method='POST',path='/v1/responses',token=cap,identity=delivery,payload=body,extra=b''):
     global stage
-    if binding['platform']=='win32' and worker==name and child is not None:
+    if worker==name and child is not None:
      requestedStage=stage;stage='codex-relay-task-budget'
      awaitTaskBudget()
      stage=requestedStage
     header=(method+' '+path+' HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+token+'\r\nX-AIOS-Delivery: '+identity+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(payload))+'\r\nConnection: close\r\n').encode()+extra+b'\r\n'+payload
-    result=subprocess.run(['podman','exec','-i',worker,'nc','-w','2','127.0.0.1',str(port)],input=header,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=4)
+    result=subprocess.run(['podman','exec','-i',worker,'nc','-w','2','127.0.0.1',str(port)],input=header,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=10 if binding['platform']=='darwin' else 4)
     if binding['platform']=='win32':
      status=result.stdout.split(b'\r\n',1)[0].split(b' ')
      diagnostic.update(responseBytes=len(result.stdout),responseStatus=int(status[1]) if len(status)>1 and status[1].isdigit() and len(status[1])==3 else 0,requestExitCode=result.returncode)
@@ -429,15 +430,19 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    def denied(output):
     if not output.startswith(b'HTTP/1.1 403 ') or output.split(b'\r\n\r\n',1)[-1]!=b'': fail()
    stage='codex-relay-denials'
-   for method,path,token,identity,payload,extra in [('GET','/v1/responses',cap,delivery,body,b''),('POST','/v1/models',cap,delivery,body,b''),('POST','/v1/responses?other=1',cap,delivery,body,b''),('CONNECT','/v1/responses',cap,delivery,body,b''),('POST','/v1/responses',cap,delivery,body,b'Upgrade: websocket\r\n'),('POST','/v1/responses','0'*64,delivery,body,b''),('POST','/v1/responses',cap,peerId,body,b''),('POST','/v1/responses',peerCap,delivery,body,b''),('POST','/v1/responses',cap,delivery,b'{}',b'')]:
+   for denialIndex,(method,path,token,identity,payload,extra) in enumerate([('GET','/v1/responses',cap,delivery,body,b''),('POST','/v1/models',cap,delivery,body,b''),('POST','/v1/responses?other=1',cap,delivery,body,b''),('CONNECT','/v1/responses',cap,delivery,body,b''),('POST','/v1/responses',cap,delivery,body,b'Upgrade: websocket\r\n'),('POST','/v1/responses','0'*64,delivery,body,b''),('POST','/v1/responses',cap,peerId,body,b''),('POST','/v1/responses',peerCap,delivery,body,b''),('POST','/v1/responses',cap,delivery,b'{}',b'')]):
+    stage='codex-relay-denial-'+str(denialIndex)
     denied(request(name,18081,method,path,token,identity,payload,extra))
+   stage='codex-relay-peer-denial'
    denied(request(peer,18082,token=cap,identity=peerId))
+   stage='codex-relay-cross-namespace'
    if request(peer,18081)!=b'' or request(name,18082,token=peerCap,identity=peerId)!=b'': fail()
+   stage='codex-relay-peer-positive'
    if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
    if peerEvent().get('accepted')!=1: fail()
    args=['podman','exec','-i','--env','DELIVERY_CAPABILITY='+cap,'--env','CODEX_HOME=/tmp/empty-codex',name,'/codex','app-server','--listen','stdio://','-c','model_provider="qualification"','-c','model_providers.qualification.name="Synthetic only"','-c','model_providers.qualification.base_url="http://127.0.0.1:18081/v1"','-c','model_providers.qualification.env_key="DELIVERY_CAPABILITY"','-c','model_providers.qualification.wire_api="responses"','-c','model_providers.qualification.requires_openai_auth=false','-c','model_providers.qualification.supports_websockets=false','-c','model_providers.qualification.http_headers.X-AIOS-Delivery="'+delivery+'"']
    # Bound runtime parallelism within the unchanged 32-task worker budget.
-   runtimeEnv={b'TOKIO_WORKER_THREADS':b'1',b'RAYON_NUM_THREADS':b'1'} if binding['platform']=='win32' else {}
+   runtimeEnv={b'TOKIO_WORKER_THREADS':b'1',b'RAYON_NUM_THREADS':b'1'}
    for key,value in runtimeEnv.items(): args[3:3]=['--env',key.decode()+'='+value.decode()]
    stage='codex-initialize'
    child=subprocess.Popen(args,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -447,7 +452,6 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    selector.register(child.stdout,selectors.EVENT_READ,'stdout');selector.register(child.stderr,selectors.EVENT_READ,'stderr');selector.register(proxy.stdout,selectors.EVENT_READ,'gateway')
    gatewayAccepted=[];gatewayCompleted=False
    def observeTaskLimits():
-    if binding['platform']!='win32': return
     counts=dict(codexRuntimeTasks=0,codexSqliteTasks=0,codexAllocatorTasks=0,codexOtherTasks=0)
     for pid in census(cg):
      try:
@@ -464,7 +468,6 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
     for key,file in [('workerTaskCount','pids.current'),('workerTaskLimit','pids.max')]:
      if (taskRoot/file).exists() and (taskRoot/file).read_text().strip().isdigit(): diagnostic[key]=int((taskRoot/file).read_text().strip())
    def awaitTaskBudget():
-    if binding['platform']!='win32': return
     # Tokio's blocking pool expires idle threads after ten seconds. Reserve
     # six tasks for history connection/startup work rather than overlapping it
     # with the initial filesystem burst. Capacity is observed, never assumed.
@@ -475,7 +478,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
      if diagnostic.get('workerTaskCount',33)<=26 and diagnostic.get('codexRuntimeTasks',33)<=4: return
      if time.monotonic()>=by: fail()
      time.sleep(0.05)
-   deadline=time.monotonic()+35;total=0;initialized=False;verified=False;accountVerified=False;pending=b'';answer=''
+   deadline=time.monotonic()+(60 if binding['platform']=='darwin' else 35);total=0;initialized=False;verified=False;accountVerified=False;pending=b'';answer=''
    while time.monotonic()<deadline and not verified:
     for event,_ in selector.select(0.1):
      if event.data=='gateway':
@@ -499,7 +502,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
       line,pending=pending.split(b'\n',1)
       message=json.loads(line)
       if message.get('error'):
-       if message.get('id') in [5,6] and binding['platform']=='win32':
+       if message.get('id') in [5,6]:
         if message.get('id')==6: stage='codex-persistence-read-error'
         detail=json.dumps(message['error']).lower()
         observeTaskLimits()
@@ -536,6 +539,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
       elif message.get('method')=='turn/completed':
        if message.get('params',{}).get('turn',{}).get('status')!='completed' or answer!='AIOS model-only inference complete': fail()
        stage='codex-resume-persistence'
+       if binding['platform']=='darwin':
+        stage='codex-persistence-task-budget';awaitTaskBudget()
+        stage='codex-resume-persistence'
        persistenceBy=time.monotonic()+2
        send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)))
       elif message.get('id')==6:
@@ -546,21 +552,20 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
         time.sleep(0.05);send(dict(method='thread/read',id=6,params=dict(threadId=thread,includeTurns=True)));continue
        stage='codex-resume-exit'
        observeTaskLimits()
-       if binding['platform']=='win32': diagnostic['originalCodexTasks']=diagnostic['workerTaskCount']
+       diagnostic['originalCodexTasks']=diagnostic['workerTaskCount']
        previous=census(cg);previousCodex={pid:start for pid,start in previous.items() if b'/codex' in pathlib.Path('/proc/'+pid+'/cmdline').read_bytes()}
        if not previousCodex: fail()
        diagnostic['originalCodexProcesses']=len(previousCodex)
        record['pids'].update(previous);save(probePath,record)
        stage='codex-resume-kill'
        try:
-        if binding['platform']=='win32':
-         current=inspect(name)
-         if current['Config'].get('Labels',{}).get('aios.authority')!=R['authority'] or cgroup(current['State']['Pid'])!=cg: fail()
-         crashSource=base64.b64decode('${Buffer.from(windowsCodexCrashFixture).toString("base64")}').decode()
-         pod('unshare','python3','-c',crashSource,json.dumps(dict(cgroup=cg,pids=previousCodex)))
-        else: pod('exec',name,'killall','-KILL','codex')
+        current=inspect(name)
+        if current['Config'].get('Labels',{}).get('aios.authority')!=R['authority'] or cgroup(current['State']['Pid'])!=cg: fail()
+        crashSource=base64.b64decode('${Buffer.from(windowsCodexCrashFixture).toString("base64")}').decode()
+        pod('unshare','python3','-c',crashSource,json.dumps(dict(cgroup=cg,pids=previousCodex)))
        except Exception:
-        if binding['platform']=='win32': diagnostic['remainingOriginalCodexProcesses']=sum(census(cg).get(pid)==start for pid,start in previousCodex.items())
+        observeTaskLimits()
+        diagnostic['remainingOriginalCodexProcesses']=sum(census(cg).get(pid)==start for pid,start in previousCodex.items())
         raise
        stage='codex-resume-wait'
        child.stdin.close();child.wait(timeout=10)
@@ -596,6 +601,8 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        if resumed.get('id')!=thread or not resumed.get('turns') or 'AIOS model-only inference complete' not in json.dumps(resumed['turns']): fail()
        observeTaskLimits()
        verified=True;break
+   if not verified and time.monotonic()>=deadline:
+    stage='codex-protocol-deadline';fail()
    if not verified or not gatewayCompleted or len(gatewayAccepted)!=1: fail()
    stage='codex-relay-revocation'
    event=gatewayAccepted[0]
@@ -606,22 +613,29 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    if binding['platform']=='win32': stage='codex-relay-revoke-denial'
    denied(request(name,18081))
    if binding['platform']=='win32': stage='codex-relay-peer-response'
+   stage='codex-relay-peer-positive'
    if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
    if binding['platform']=='win32': stage='codex-relay-peer-count'
    if peerEvent().get('accepted')!=2: fail()
    stage='codex-relay-expiry'
    expiryId=str(uuid.uuid4());expiryCap=uuid.uuid4().hex+uuid.uuid4().hex
-   expiryProxy,expiryEvent=relay(peer,18083,expiryId,expiryCap,2,1.5)
+   armable=binding['platform']=='darwin'
+   expiryProxy,expiryEvent=relay(peer,18083,expiryId,expiryCap,2,60 if armable else 1.5,armable)
    if not request(peer,18083,token=expiryCap,identity=expiryId).startswith(b'HTTP/1.1 200 '): fail()
    if expiryEvent().get('accepted')!=1: fail()
    # Hold a valid request body incomplete: expiry must not wait for HTTP reads.
    slow=subprocess.Popen(['podman','exec','-i',peer,'nc','-w','3','127.0.0.1','18083'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
    header=('POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+expiryCap+'\r\nX-AIOS-Delivery: '+expiryId+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(body))+'\r\n\r\n').encode()
    slow.stdin.write(header+body[:-1]);slow.stdin.flush()
+   if armable:
+    if expiryEvent()!=dict(bodyReadPending=True,deliveryId=expiryId): fail()
+    expiryProxy.stdin.write((json.dumps(dict(action='arm-expiry',deliveryId=expiryId))+'\n').encode());expiryProxy.stdin.flush()
+    if expiryEvent()!=dict(expiryArmed=True,deliveryId=expiryId): fail()
    expiryProxy.wait(timeout=3)
    slow.stdin.close();slow.wait(timeout=4)
    if slow.stdout.read(65537)!=b'': fail()
    if expiryProxy.returncode!=0 or request(peer,18083,token=expiryCap,identity=expiryId)!=b'': fail()
+   stage='codex-relay-peer-positive'
    if not request(peer,18082,token=peerCap,identity=peerId).startswith(b'HTTP/1.1 200 '): fail()
    if peerEvent().get('accepted')!=3: fail()
    denied(request(peer,18082,token=peerCap,identity=peerId))
@@ -663,6 +677,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    print(json.dumps(dict(binding=binding,protocol='passed',explicitResume='passed',resumeInferenceRequests=0,credentialIsolation='passed',binarySha256=binaryHash,effective=e,observedCodexProcesses=len(codexPids),shutdown=dict(remainingProcesses=0),endpointEnforcement='passed',deliveryCapabilities='passed',relayDeliveryId=delivery,relayScope='synthetic-codex-relay',relayShutdownRemaining=0,gatewayIntegration='passed',gatewayVersion=R['gatewayVersion'],capabilityChecks=['cross-delivery','namespace','revocation','quota','expiry'],**({'taskLimits':{key:diagnostic[key] for key in ['processLimitHits','workerTaskCount','workerTaskLimit','codexRuntimeTasks','codexSqliteTasks','codexOtherTasks','codexAllocatorTasks','originalCodexTasks','postCrashTasks'] if key in diagnostic}} if binding['platform']=='win32' else {}))))
   except Exception as error:
    freeze_failure(error)
+   if 'observeTaskLimits' in locals():
+    try: observeTaskLimits()
+    except Exception: pass
    raise
 
   finally:
@@ -755,7 +772,9 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    authority['fences'][key]=s['fence']; save(registry,authority)
    if not record: record=dict(session=s,pins=pins,cgroup='',pids={})
    record.update(session=s,revoked=True); save(path,record)
-   exists=subprocess.run(['podman','container','exists',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
+   existence=subprocess.run(['podman','container','exists',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=30 if R['hostBinding']['platform']=='darwin' else 15)
+   if existence.returncode not in [0,1]: fail()
+   exists=existence.returncode==0
    if exists:
     c=inspect(name)
     if c['Config'].get('Labels',{}).get('aios.session')!=s['workerSessionId']: fail()
@@ -872,7 +891,7 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
         shell: false,
         windowsHide: true,
         encoding: "utf8",
-        timeout: 25000,
+        timeout: host.platform === "darwin" ? 90000 : 25000,
         maxBuffer: 1048576,
         input,
         env: host.env,
@@ -887,13 +906,16 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
   private async gatewayInvocation(
     payload: Record<string, unknown>,
     deliveryId: string,
-    approvedGateway?: HostSubscriptionGateway,
+    approvedGateway?: HostSubscriptionGateway | (() => HostSubscriptionGateway),
   ): Promise<any> {
-    const account = syntheticGatewayAccount();
+    const transportCapability = randomBytes(32).toString("hex");
+    let gateway =
+      typeof approvedGateway === "function" ? undefined : approvedGateway;
     let forwarded = 0;
-    const gateway =
-      approvedGateway ??
-      new HostSubscriptionGateway(
+    const activateGateway = () => {
+      if (typeof approvedGateway === "function") return approvedGateway();
+      const account = syntheticGatewayAccount();
+      return new HostSubscriptionGateway(
         syntheticGatewayApproval(deliveryId, account),
         () => account,
         async (token, body, signal) => {
@@ -907,11 +929,12 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
           return syntheticGatewayResponse();
         },
       );
+    };
     const { host, input, executableSha256 } = this.invocation(
       "codex-protocol",
       {
         ...payload,
-        gatewayCapability: gateway.capability,
+        gatewayCapability: transportCapability,
         gatewayVersion: subscriptionGatewayVersion,
       },
     );
@@ -941,11 +964,14 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     let processing = Promise.resolve();
     const refuse = () => {
       failure = true;
-      gateway.revoke();
+      gateway?.revoke();
       child.stdin.end();
       child.kill();
     };
-    const timer = setTimeout(refuse, 55000);
+    const timer = setTimeout(
+      refuse,
+      host.platform === "darwin" ? 180000 : 55000,
+    );
     child.stdin.on("error", refuse);
     child.stderr.on("data", (chunk: Buffer) => {
       bytes += chunk.length;
@@ -967,6 +993,13 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
               "capability,deliveryId,gatewayRequest"
             ) {
               if (
+                frame.deliveryId !== deliveryId ||
+                typeof frame.capability !== "string" ||
+                Buffer.byteLength(frame.capability) !== 64 ||
+                !timingSafeEqual(
+                  Buffer.from(frame.capability),
+                  Buffer.from(transportCapability),
+                ) ||
                 typeof frame.gatewayRequest !== "string" ||
                 frame.gatewayRequest.length > 87384
               )
@@ -974,9 +1007,10 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
               const raw = Buffer.from(frame.gatewayRequest, "base64");
               if (raw.toString("base64") !== frame.gatewayRequest)
                 throw Error();
+              gateway ??= activateGateway();
               const response = await gateway.respond(
-                frame.deliveryId,
-                frame.capability,
+                deliveryId,
+                gateway.capability,
                 raw.toString("utf8"),
               );
               child.stdin.write(
@@ -1019,7 +1053,7 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       return result;
     } finally {
       clearTimeout(timer);
-      gateway.revoke();
+      gateway?.revoke();
       if (child.exitCode === null) child.kill();
     }
   }
@@ -1078,37 +1112,40 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     deliveryId: string = randomUUID(),
   ): Promise<any> {
     const expected = this.policy(repository);
-    const evidence = await withHostCanary(async (challenge) => {
-      const observed = this.invoke("isolate", { expected, challenge });
-      if (observed.challengeId !== challenge.id)
-        throw Error("Unbound isolation evidence");
-      if (
-        observed.passed === true &&
-        codexWorkerSha256(expected.platform!, expected.arch!)
-      ) {
-        const codex = await this.gatewayInvocation(
-          { expected, challenge, deliveryId },
-          deliveryId,
-        );
-        if (codex.blockedStage) {
-          observed.codex = {
-            blockedStage: codex.blockedStage,
-            diagnostic: nativeProbeDiagnostic(codex.diagnostic),
-          };
-        } else if (
-          codex.protocol !== "passed" ||
-          codex.explicitResume !== "passed" ||
-          codex.resumeInferenceRequests !== 0 ||
-          codex.credentialIsolation !== "passed" ||
-          codex.shutdown?.remainingProcesses !== 0 ||
-          codex.observedCodexProcesses < 1 ||
-          JSON.stringify(codex.binding) !== JSON.stringify(expected)
-        )
-          throw Error("Unverified Codex worker");
-        if (!codex.blockedStage) observed.codex = codex;
-      }
-      return { ...observed, probeVersion: sha256(guest + hostCanaryVersion) };
-    });
+    const evidence = await withHostCanary(
+      async (challenge) => {
+        const observed = this.invoke("isolate", { expected, challenge });
+        if (observed.challengeId !== challenge.id)
+          throw Error("Unbound isolation evidence");
+        if (
+          observed.passed === true &&
+          codexWorkerSha256(expected.platform!, expected.arch!)
+        ) {
+          const codex = await this.gatewayInvocation(
+            { expected, challenge, deliveryId },
+            deliveryId,
+          );
+          if (codex.blockedStage) {
+            observed.codex = {
+              blockedStage: codex.blockedStage,
+              diagnostic: nativeProbeDiagnostic(codex.diagnostic),
+            };
+          } else if (
+            codex.protocol !== "passed" ||
+            codex.explicitResume !== "passed" ||
+            codex.resumeInferenceRequests !== 0 ||
+            codex.credentialIsolation !== "passed" ||
+            codex.shutdown?.remainingProcesses !== 0 ||
+            codex.observedCodexProcesses < 1 ||
+            JSON.stringify(codex.binding) !== JSON.stringify(expected)
+          )
+            throw Error("Unverified Codex worker");
+          if (!codex.blockedStage) observed.codex = codex;
+        }
+        return { ...observed, probeVersion: sha256(guest + hostCanaryVersion) };
+      },
+      expected.platform === "darwin" ? 120000 : 25000,
+    );
     if (evidence.passed === true) {
       const body = JSON.stringify({
         model: "gpt-6.1-sol",
@@ -1142,30 +1179,38 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       typeof approvedGateway === "function" ? undefined : approvedGateway;
     try {
       const expected = this.policy(repository);
-      const proof = await withHostCanary(async (challenge) => {
-        const isolation = this.invoke("isolate", { expected, challenge });
-        if (isolation.passed !== true || isolation.challengeId !== challenge.id)
-          throw Error("Unverified isolation");
-        gateway ??= (approvedGateway as () => HostSubscriptionGateway)();
-        const codex = await this.gatewayInvocation(
-          { expected, challenge, deliveryId },
-          deliveryId,
-          gateway,
-        );
-        if (
-          codex.protocol !== "passed" ||
-          codex.explicitResume !== "passed" ||
-          codex.resumeInferenceRequests !== 0 ||
-          codex.credentialIsolation !== "passed" ||
-          codex.gatewayIntegration !== "passed" ||
-          codex.relayDeliveryId !== deliveryId ||
-          codex.shutdown?.remainingProcesses !== 0 ||
-          codex.relayShutdownRemaining !== 0 ||
-          JSON.stringify(codex.binding) !== JSON.stringify(expected)
-        )
-          throw Error("Unverified inference bridge");
-        return codex;
-      });
+      const proof = await withHostCanary(
+        async (challenge) => {
+          const isolation = this.invoke("isolate", { expected, challenge });
+          if (
+            isolation.passed !== true ||
+            isolation.challengeId !== challenge.id
+          )
+            throw Error("Unverified isolation");
+          const codex = await this.gatewayInvocation(
+            { expected, challenge, deliveryId },
+            deliveryId,
+            () => {
+              gateway ??= (approvedGateway as () => HostSubscriptionGateway)();
+              return gateway;
+            },
+          );
+          if (
+            codex.protocol !== "passed" ||
+            codex.explicitResume !== "passed" ||
+            codex.resumeInferenceRequests !== 0 ||
+            codex.credentialIsolation !== "passed" ||
+            codex.gatewayIntegration !== "passed" ||
+            codex.relayDeliveryId !== deliveryId ||
+            codex.shutdown?.remainingProcesses !== 0 ||
+            codex.relayShutdownRemaining !== 0 ||
+            JSON.stringify(codex.binding) !== JSON.stringify(expected)
+          )
+            throw Error("Unverified inference bridge");
+          return codex;
+        },
+        expected.platform === "darwin" ? 120000 : 25000,
+      );
       return proof;
     } finally {
       gateway?.revoke();

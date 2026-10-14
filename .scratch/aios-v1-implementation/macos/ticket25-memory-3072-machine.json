@@ -1,0 +1,11 @@
+{
+  "name": "aios-macos-noshare",
+  "state": "running",
+  "resources": {
+    "CPUs": 2,
+    "DiskSize": 20,
+    "Memory": 3072,
+    "USBs": []
+  },
+  "rootful": false
+}

@@ -64,7 +64,7 @@ with open(root/'lock','r+') as lock:
  stage='session';assert j['session']==s and not j.get('revoked')
  stage='fence';assert a['fences'][hashlib.sha256(s['repositoryKey'].encode()).hexdigest()]==s['fence']
  name='aios-offline-'+s['sandboxId']
- def pod(*args):return subprocess.run(['podman',*args],check=True,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=10).stdout
+ def pod(*args):return subprocess.run(['podman',*args],check=True,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=30 if r['platform']=='darwin' else 10).stdout
  stage='frame';c=json.loads(pod('inspect',name))[0]
  stage='effective-frame';assert c['State']['Running'] and c['Config']['Labels']['aios.session']==s['workerSessionId'] and not c.get('Mounts') and c['HostConfig']['NetworkMode']=='none'
  stage='fixtures';directory=root/('boundary-'+r['challenge']);directory.mkdir(mode=0o700);private(directory,True)
@@ -177,6 +177,7 @@ export class NativeWindowsControls implements WindowsControlsRuntime {
               "\n" +
               JSON.stringify({
                 challenge,
+                platform: r.binding.platform,
                 session: r.session,
                 pins: {
                   bindingSha256: r.bindingSha256,
@@ -188,7 +189,7 @@ export class NativeWindowsControls implements WindowsControlsRuntime {
             cwd: host.cwd,
             shell: false,
             windowsHide: true,
-            timeout: 30000,
+            timeout: r.binding.platform === "darwin" ? 90000 : 30000,
             maxBuffer: 8192,
             encoding: "utf8",
           },
@@ -282,6 +283,9 @@ export class NativeWindowsControls implements WindowsControlsRuntime {
         windowsHide: true,
         stdio: ["pipe", "pipe", "ignore"],
         env: {
+          ...(process.platform === "darwin"
+            ? { HOME: podmanMachine(n.machine).env.HOME }
+            : {}),
           SystemRoot: process.env.SystemRoot,
           PATH: process.env.SystemRoot
             ? process.env.SystemRoot + "/System32"

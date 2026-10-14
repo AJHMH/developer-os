@@ -4,14 +4,21 @@
 export const codexEndpointFixture = String.raw`
 import json,sys,os,time,threading,hmac,hashlib,base64,queue
 from http.server import HTTPServer,BaseHTTPRequestHandler
+from socketserver import TCPServer
 C=json.loads(sys.stdin.readline()); revoked=threading.Event(); accepted=0; deadline=time.monotonic()+C['ttl']
+armed=False
 marker='AIOS model-only inference complete'
 responses=queue.Queue(maxsize=1)
 def emit(value): print(json.dumps(value),flush=True)
 def control():
+ global deadline,armed
  for line in sys.stdin:
   if json.loads(line)=={'action':'revoke','deliveryId':C['deliveryId']}:
    revoked.set();emit({'revoked':True,'deliveryId':C['deliveryId']})
+  elif C.get('armable') is True and not C.get('gateway') and not armed and accepted==1 and time.monotonic()<deadline and json.loads(line)=={'action':'arm-expiry','deliveryId':C['deliveryId']}:
+   deadline=min(deadline,time.monotonic()+1.5);armed=True
+   threading.Thread(target=expire,daemon=True).start()
+   emit({'expiryArmed':True,'deliveryId':C['deliveryId']})
   elif C.get('gateway'):
    value=json.loads(line)
    if set(value)=={'gatewayResponse','deliveryId'} and value['deliveryId']==C['deliveryId']: responses.put_nowait(value['gatewayResponse'])
@@ -21,6 +28,8 @@ def expire():
  time.sleep(max(0,deadline-time.monotonic()));revoked.set();os._exit(0)
 threading.Thread(target=expire,daemon=True).start()
 class Server(HTTPServer):
+ def server_bind(self):
+  TCPServer.server_bind(self);self.server_name='127.0.0.1';self.server_port=self.server_address[1]
  def get_request(self):
   connection,address=super().get_request();connection.settimeout(2);return connection,address
 class Handler(BaseHTTPRequestHandler):
@@ -41,6 +50,8 @@ class Handler(BaseHTTPRequestHandler):
    if self.headers.get_content_type()!='application/json' or len(self.headers.get_all('Content-Length',[]))!=1: return self.deny()
    size=int(self.headers['Content-Length'])
    if size<1 or size>65536: return self.deny()
+   if C.get('armable') is True and not C.get('gateway') and accepted==1:
+    emit({'bodyReadPending':True,'deliveryId':C['deliveryId']})
    body=self.rfile.read(size)
    if len(body)!=size: return self.deny()
    value=json.loads(body)

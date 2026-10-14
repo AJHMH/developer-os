@@ -1,0 +1,58 @@
+{
+  "observedAt": "2026-10-14T13:11:36.327Z",
+  "runId": "71c3b80f-9874-4c01-b86c-ef7bc9205091",
+  "scope": "One fixed actual Codex turn through host-only subscription gateway",
+  "subscriptionInference": "passed",
+  "gatewayRevoked": true,
+  "deliveryEnabled": false,
+  "proof": {
+    "binding": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "osVersion": "27.2.0",
+      "provider": "applehv",
+      "machine": "aios-macos-noshare",
+      "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+      "engineVersion": "6.1.3",
+      "hostId": "0fc4e523fcfea6fbd35bf7dacbeb27372b1a36ee50feedcf77ad9ef567ca7931",
+      "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+      "workerVersion": "1.1.0",
+      "policyVersion": "offline-native-v3-b73958d48683282dcf6854c5c0ffe554302c2173d8a1764348093634fc02a744"
+    },
+    "protocol": "passed",
+    "explicitResume": "passed",
+    "resumeInferenceRequests": 0,
+    "credentialIsolation": "passed",
+    "binarySha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "effective": {
+      "hypervisor": true,
+      "dedicated": true,
+      "mounts": [],
+      "managementExposed": false,
+      "rootful": false,
+      "network": "none",
+      "readOnly": true,
+      "user": "65534:65534",
+      "capabilities": [],
+      "noNewPrivileges": true
+    },
+    "observedCodexProcesses": 1,
+    "shutdown": {
+      "remainingProcesses": 0
+    },
+    "endpointEnforcement": "passed",
+    "deliveryCapabilities": "passed",
+    "relayDeliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+    "relayScope": "synthetic-codex-relay",
+    "relayShutdownRemaining": 0,
+    "gatewayIntegration": "passed",
+    "gatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+    "capabilityChecks": [
+      "cross-delivery",
+      "namespace",
+      "revocation",
+      "quota",
+      "expiry"
+    ]
+  }
+}

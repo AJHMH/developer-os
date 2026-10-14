@@ -14,7 +14,7 @@ const server=http.createServer((req,res)=>{
 });
 server.on('connect',(_r,s)=>s.destroy());server.on('upgrade',(_r,s)=>s.destroy());
 server.listen(0,'127.0.0.1',()=>console.log(JSON.stringify({port:server.address().port})));
-setTimeout(()=>{server.closeAllConnections();server.close(()=>process.exit(0));},25000);
+setTimeout(()=>{server.closeAllConnections();server.close(()=>process.exit(0));},Number(process.argv[2]));
 `;
 export const hostCanaryVersion = createHash("sha256")
   .update(readFileSync(new URL(import.meta.url)))
@@ -29,7 +29,10 @@ export async function withHostCanary<T>(
     port: number;
     files: string[];
   }) => T | Promise<T>,
+  lifetimeMs: 25000 | 120000 = 25000,
 ): Promise<T> {
+  if (![25000, 120000].includes(lifetimeMs))
+    throw Error("Invalid canary lifetime");
   const root = mkdtempSync(join(tmpdir(), "aios-host-positive-"));
   const id = randomUUID();
   const files = [
@@ -40,21 +43,25 @@ export async function withHostCanary<T>(
   const content = `Synthetic private credential ${randomBytes(32).toString("hex")}\n`;
   for (const file of files)
     writeFileSync(file, content, { flag: "wx", mode: 0o600 });
-  const child = spawn(process.execPath, ["-e", service, id], {
-    cwd: root,
-    shell: false,
-    windowsHide: true,
-    stdio: ["ignore", "pipe", "ignore"],
-    env: {
-      SystemRoot: process.env.SystemRoot,
-      PATH:
-        process.platform === "win32"
-          ? `${process.env.SystemRoot}\\System32`
-          : "/usr/bin:/bin",
-      TEMP: root,
-      TMP: root,
+  const child = spawn(
+    process.execPath,
+    ["-e", service, id, String(lifetimeMs)],
+    {
+      cwd: root,
+      shell: false,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"],
+      env: {
+        SystemRoot: process.env.SystemRoot,
+        PATH:
+          process.platform === "win32"
+            ? `${process.env.SystemRoot}\\System32`
+            : "/usr/bin:/bin",
+        TEMP: root,
+        TMP: root,
+      },
     },
-  });
+  );
   const closed = new Promise<void>((resolve) =>
     child.once("close", () => resolve()),
   );

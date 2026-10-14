@@ -108,6 +108,10 @@ function observeHost(machine: string): PodmanObservation {
 
 /** Offline prerequisite admission is deliberately distinct from production qualification. */
 export class PodmanHostAdapter implements WorkerAdapter {
+  get qualificationPlatform(): "darwin" | "win32" | undefined {
+    if (this.options.mode === "controlled") return undefined;
+    return process.platform === "darwin" ? "darwin" : "win32";
+  }
   constructor(private readonly options: Options) {
     if (
       options.native &&

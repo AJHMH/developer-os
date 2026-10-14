@@ -211,3 +211,45 @@ test("authorization schemes do not leave their credential in request evidence", 
     assert.equal(output.includes(credential), false);
   assert.match(delivery.request, /Add a contact hint/);
 });
+
+test("qualification, task and usage CLI aliases dispatch to their controller operations", (t) => {
+  const f = fixture(t);
+  const started = invoke(
+    f.state,
+    "start",
+    "--repo",
+    f.repository,
+    "--request",
+    "Exercise command admission.",
+  );
+  assert.equal(started.status, 0, started.stderr);
+  const { id } = JSON.parse(started.stdout);
+  for (const command of [
+    "qualify-macos-controls",
+    "synthetic-task",
+    "check-usage",
+    "poll-usage",
+  ]) {
+    const result = invoke(f.state, command, "--id", id);
+    if (command === "check-usage" || command === "poll-usage") {
+      assert.equal(result.status, 0, result.stderr);
+      const delivery = JSON.parse(result.stdout);
+      assert.equal(delivery.id, id);
+      assert.equal(delivery.usage.decision, "approval-required");
+      assert.equal(delivery.phase, "blocked");
+      continue;
+    }
+    assert.equal(result.status, 1, command);
+    const { error } = JSON.parse(result.stderr);
+    assert.doesNotMatch(error, /Usage:|Unable to access/i, command);
+    assert.match(
+      error,
+      /qualif|admission|usage|subscription|worker|auth|scope|runtime/i,
+      command,
+    );
+  }
+  assert.equal(
+    JSON.parse(invoke(f.state, "status", "--id", id).stdout).phase,
+    "blocked",
+  );
+});

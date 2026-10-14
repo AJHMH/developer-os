@@ -1,0 +1,199 @@
+{
+  "observedAt": "2026-10-14T13:02:10.099Z",
+  "machine": "aios-macos-noshare",
+  "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+  "checks": [
+    "changed VM-image pins refused before worker launch",
+    "Git metadata input refused through native admission path",
+    "hard-linked native input refused",
+    "credential-like native input refused",
+    "unknown shutdown blocks collection/release; new controller reconciles exact native session",
+    "fresh actual offline worker completes input transfer, verified shutdown and artifact collection"
+  ],
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-14T13:02:00.550Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "not-run"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "not-run"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "not-run"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "not-run"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "not-run"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "not-run"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "not-run"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "not-run",
+      "workerProtocol": "not-run",
+      "codexCredentialIsolation": "not-run",
+      "scope": "host-capability-only",
+      "credentialIsolation": "not-run",
+      "credentialIsolationScope": "not-run",
+      "endpointEnforcement": "not-run",
+      "deliveryCapabilities": "not-run",
+      "hostGateway": "passed",
+      "gatewayIntegration": "not-run",
+      "subscriptionInference": "not-run",
+      "nextAction": "Run separate authorize-auth setup with owner browser consent and host-only storage, then qualify a trusted model-only relay, endpoint enforcement and VM credential isolation before online inference; do not copy owner authentication files or use paid API fallback.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "27.2.0",
+        "provider": "applehv",
+        "machine": "aios-macos-noshare",
+        "hostId": "0fc4e523fcfea6fbd35bf7dacbeb27372b1a36ee50feedcf77ad9ef567ca7931",
+        "engineVersion": "6.1.3",
+        "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+        "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-b73958d48683282dcf6854c5c0ffe554302c2173d8a1764348093634fc02a744"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "3c3ae076d0b141abfac6dd998b2d3e077023dd5c9c4d2d489316e9fa12ea74ff",
+    "bindingSha256": "8459b25fd383e338488625620f12a17f4bf22a50bfdb96b495f93bba789673dc"
+  },
+  "canary": {
+    "bindingSha256": "8459b25fd383e338488625620f12a17f4bf22a50bfdb96b495f93bba789673dc",
+    "policySha256": "3c3ae076d0b141abfac6dd998b2d3e077023dd5c9c4d2d489316e9fa12ea74ff",
+    "mode": "live",
+    "outcome": "completed",
+    "session": {
+      "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+      "intent": "start",
+      "repositoryKey": "path:/Users/aaronhoward/.developer-os/ticket4-macos/input",
+      "operationId": "7d608e4d-97ce-4a73-8736-a344d1c61e49",
+      "sandboxId": "c4345cb7-862b-42d6-93e4-bc049c5b125f",
+      "workerSessionId": "18f6e9d8-a0ad-4388-8db7-50578d77f2f2",
+      "runnerId": "fb45a3ad-0a7f-4d24-b942-b31fb52d351a",
+      "fence": 96,
+      "state": "stopped"
+    },
+    "inputSha256": "f8ff6dc081d618c0d7583057aa11907c7bb0f9d192173329de1fd1600fc90ed5",
+    "message": "Synthetic offline round trip completed; production delivery remains disabled.",
+    "shutdownProof": {
+      "observedProcesses": 9,
+      "remainingProcesses": 0,
+      "censusSha256": "36718b33292886e47b38e116bf58b224d59412aeae8198a6d8166194f2491247"
+    },
+    "outputSha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5"
+  },
+  "artifact": {
+    "bindingSha256": "8459b25fd383e338488625620f12a17f4bf22a50bfdb96b495f93bba789673dc",
+    "policySha256": "3c3ae076d0b141abfac6dd998b2d3e077023dd5c9c4d2d489316e9fa12ea74ff",
+    "mode": "live",
+    "outcome": "completed",
+    "session": {
+      "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+      "intent": "start",
+      "repositoryKey": "path:/Users/aaronhoward/.developer-os/ticket4-macos/input",
+      "operationId": "7d608e4d-97ce-4a73-8736-a344d1c61e49",
+      "sandboxId": "c4345cb7-862b-42d6-93e4-bc049c5b125f",
+      "workerSessionId": "18f6e9d8-a0ad-4388-8db7-50578d77f2f2",
+      "runnerId": "fb45a3ad-0a7f-4d24-b942-b31fb52d351a",
+      "fence": 96,
+      "state": "stopped"
+    },
+    "inputSha256": "f8ff6dc081d618c0d7583057aa11907c7bb0f9d192173329de1fd1600fc90ed5",
+    "message": "Synthetic offline round trip completed; production delivery remains disabled.",
+    "shutdownProof": {
+      "observedProcesses": 9,
+      "remainingProcesses": 0,
+      "censusSha256": "36718b33292886e47b38e116bf58b224d59412aeae8198a6d8166194f2491247"
+    },
+    "outputSha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5",
+    "output": {
+      "content": "AIOS offline canary complete\n",
+      "sha256": "8c7c900981cc61b52bb01e7bcd601dc8454f8e9b0565a0c082d7ae13a76234e5"
+    }
+  },
+  "nativeShutdown": {
+    "observedProcesses": 9,
+    "remainingProcesses": 0,
+    "censusSha256": "36718b33292886e47b38e116bf58b224d59412aeae8198a6d8166194f2491247"
+  },
+  "scope": "Fixed synthetic macOS AppleHV ARM64 round trip only; no inference, repository scripts, owner credential imports or production qualification."
+}
