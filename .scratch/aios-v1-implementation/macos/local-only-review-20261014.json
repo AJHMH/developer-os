@@ -1,0 +1,1131 @@
+{
+  "reviewedAt": "2026-10-14",
+  "mainRevision": "27189aa2ae8c52483ff4ee6f09fef1f38aac7fb0",
+  "reviewedFiles": 112,
+  "preservedInPlace": 21,
+  "archivedFiles": 91,
+  "archive": ".scratch/aios-v1-implementation/macos/local-diagnostic-history-20261014.tar.gz",
+  "archiveSha256": "6219b391fd37ee39312b51542bf0544a997de556b778cef18589fa8fb5d6b149",
+  "files": [
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-command-timings.json",
+      "bytes": 12596,
+      "sha256": "631dad3e028aba271e8148bf5b9dd702590a398785382c66d8c987cb6067d5ee",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-enrollment-timing.json",
+      "bytes": 254,
+      "sha256": "74f42bf9e4d9e962a549bbc2722ce4c4dcb24cf63e5f4efa61b9ce2c031267ce",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-isolation-diagnostic.json",
+      "bytes": 152,
+      "sha256": "8a08e5481c8fc1d25f7ffc826910168b95b2be8ad183933b21d449933c9bc4ee",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-after.json",
+      "bytes": 27620,
+      "sha256": "02015832dafbee4c10554a888c8545914febccc8d450939430de64d8064d468f",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-auth-status.json",
+      "bytes": 187,
+      "sha256": "732d3356246138d4c7313cd8d11495ad96476f82e6f00dce160f0644a4d15c42",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-before.json",
+      "bytes": 24339,
+      "sha256": "2a152347fa5d79e34ecf5a1c21520e1c038c88dc9e19f7f6e2b9d21418f82af5",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-enrollment.json",
+      "bytes": 555,
+      "sha256": "7f73472ba84b439dca6df33c73c1bde7a478d9729a6910f85508f51a2335adc2",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-host-tests.log",
+      "bytes": 22394,
+      "sha256": "073a8ce93844de597749272457d57c0bbb63de26b1a93e38027729d7b5aa1c22",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-native-acceptance.log",
+      "bytes": 6198,
+      "sha256": "c70dc179dc1fb231b37fe79592dc39a812eec2ff2f944e8dbe48b713cfd49bfd",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-progress.json",
+      "bytes": 25034,
+      "sha256": "b213cb86f23881c840e9737e0ecd8a721fa141387003d9f5afce56586663ad53",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-stopped-census.json",
+      "bytes": 6,
+      "sha256": "20717f031de6ec6dbcab264373f5d3524bd5020f904cc0e17362b9618f3aa91c",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-main-tests.log",
+      "bytes": 28537,
+      "sha256": "67818ea2045338c2c8c412330fe09b018324d70e29244f6ad16c735982a5e55b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-diagnostic-after-observation.log",
+      "bytes": 1078,
+      "sha256": "42d3eea0376108e612c03ebc7bc81d0b894f4303fd13ea6d1de841431f80fe84",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-diagnostic.json",
+      "bytes": 1833,
+      "sha256": "2fec25949b2bae7fda4e225375f5cea7ca99356b504256a92591b905e9704300",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-diagnostic.log",
+      "bytes": 935,
+      "sha256": "3151f6fcbb08d7f93302940ca66c774ed5ef225bd690f541eec7babb146fb6a1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/current-probe-transport-diagnostic.log",
+      "bytes": 1347,
+      "sha256": "646a5616178aa2e9f392b90bd6e3cf68d10ec9be8d4a0c665886d3de7802e698",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-admission-diagnostic.json",
+      "bytes": 253,
+      "sha256": "3a4c04cb0b6ac2e53cf0dc7853826f03193e4bc8ebf9639cc4ee0453d42a6890",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-before-resume-window-diagnostic.json",
+      "bytes": 99,
+      "sha256": "1ac777373b5b54274101cec64ec37bd9f99b2aaec8da41c3029b34f1761d768e",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-enrollment.json",
+      "bytes": 555,
+      "sha256": "acdfe0e1bc9363e52276c69934a31d90063a4f10548313def1c2cffe671069ce",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-full-tests.log",
+      "bytes": 22997,
+      "sha256": "e36c7c3af464f825264e53f99922cb54f5690c857345a86037631fde4d507fbe",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-native-acceptance.log",
+      "bytes": 561,
+      "sha256": "d7aee05f80a708a016ed36eb670d8522f43c5e935ce6358128554ecb5a70a15d",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-effective-roundtrip-refusal.json",
+      "bytes": 36626,
+      "sha256": "a33c939eed6424725e0276586adfd06a536ac8f2a39d8b44a13a862212145f9a",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-worker-enrollment.json",
+      "bytes": 555,
+      "sha256": "e3420b26f1dfaf1d2509302dd641e3a5e134d7ae7f166df35aaa3e9dae41da87",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-worker-native-acceptance.log",
+      "bytes": 5744,
+      "sha256": "507c4f02bc599da17b373af76c8285f170e9ec038fc55a013f2deac0ef96db5c",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-bounded-worker-public-diagnostic.log",
+      "bytes": 1822,
+      "sha256": "6a12087489b70a39e684533b92e75aee8a3df4bfd546503f8599589c12008af8",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-clean-boot-enrollment.json",
+      "bytes": 633,
+      "sha256": "63437ba181def6f6b79423ec3f14fbf49858978475a9830c2c1385b0207afba5",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-clean-boot-probe.log",
+      "bytes": 1347,
+      "sha256": "b1f0c4c1e9514481c30c66b3e7d266a4a6e2744c987da4b61e417deb05c0f5ba",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-timing-probe.log",
+      "bytes": 1478,
+      "sha256": "4f5779a138b2c4c55e1d1423e6355af0b1e461d408bb99c63c210d2485faf85c",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-enrollment.json",
+      "bytes": 555,
+      "sha256": "06ccb424cdabdc6914629c5eff43e3c645a6c9688cb50584c49dacddbdb04e1a",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-native-preparation.log",
+      "bytes": 358,
+      "sha256": "ac5bfdc7ab0ef1d7bd222c48a2ecc4efe1c6ee64b5e0cf14bdcb88ea50713d1b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-command-window-tests.log",
+      "bytes": 22857,
+      "sha256": "454e8a4ae128c106ad3d25fdcbbf505cae702c1cd07d7fb2306b421fc2b7667d",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-acceptance.log",
+      "bytes": 182,
+      "sha256": "f363221ddb83ae1eb613814c62b0fe62488e02221dbb9c014e6a4c88552eeffb",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-diagnostic.json",
+      "bytes": 190,
+      "sha256": "10874ebc0893f759ec1ab2ee2d120dcbed6d842cbeeb6c9ca782a60f57d0ea5f",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-diagnostic.log",
+      "bytes": 159,
+      "sha256": "94d3155fd2b5cd3e4f6066964028953862213f4933505fc4a6b6802eda1775d8",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-controls-refusal-status.json",
+      "bytes": 29027,
+      "sha256": "cb6e45308cc8c23e8dcb4fcdfbb2861d63d1af7fc0094a0c580f143ec50f10a5",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-admission-diagnostic.json",
+      "bytes": 920,
+      "sha256": "5012504985a827caa9bf2ca66e83a3d9b160a96b1bcfffd20cfaaae6f1db981b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-controls-diagnostic.log",
+      "bytes": 21,
+      "sha256": "607c8790eeac87160228255cf133d6dcf20f8dc859f93ab438dc49f80f8c8207",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-plan-preparation.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-plan-status.json",
+      "bytes": 36261,
+      "sha256": "86058bc99bb3e62469bbb2efab47ec9f776229b15becafca4625d2bf7109699e",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-public-probe.log",
+      "bytes": 1252,
+      "sha256": "5ecbc70b9c64c5505af92ab6dbbebbccc0902b61ab000f07654dc4ab112fb192",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-current-running-census.json",
+      "bytes": 6,
+      "sha256": "20717f031de6ec6dbcab264373f5d3524bd5020f904cc0e17362b9618f3aa91c",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-denial-stage-enrollment.json",
+      "bytes": 633,
+      "sha256": "688eba75aad6e7718e821113b3f01b1b052f6ef3126aeffde1c9f49deb13d651",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-denial-stage-probe.log",
+      "bytes": 1819,
+      "sha256": "bb232ee57be96ad5ab9d363ed7607bf1e20ca2448acaaa19f0dcf2323d880771",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-diagnostic-enrollment.json",
+      "bytes": 555,
+      "sha256": "06e446477db341c3f07faa6b6d80c6197bd2b6836af22673595b998684cffd47",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-diagnostic-qualification.json",
+      "bytes": 29015,
+      "sha256": "6ba490a21cde7981ac97713f339904042564be0ab85e64d0894c3f5977a9b37b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-diagnostic2-enrollment.json",
+      "bytes": 555,
+      "sha256": "f66be4e75aff9ff04c7c82404b3b285b9d027681924f148a0cd0be262d779138",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic.json",
+      "bytes": 246,
+      "sha256": "8f00cb2a0068aebb57de4127ce9ced207236a946664183861de32bc942c9edd5",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic.log",
+      "bytes": 743,
+      "sha256": "a1ea16728fee199db16b2d3e1f51b4d222caef1f8460a37e5f3ec9b02a9e6612",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic2.json",
+      "bytes": 561,
+      "sha256": "12be915ce6a450d71721d2b5ac7d26da23ab2c82b4afeab12edb8dcbabdc16e4",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-direct-diagnostic2.log",
+      "bytes": 978,
+      "sha256": "1d9a809999a50e5b6bc9a857e14d1338c3412df55402f7be8bc7f0a649d2f412",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-direct-probe.log",
+      "bytes": 144,
+      "sha256": "9480b46b6e1c9c6bdbe76c45f2d6dcf7e7c8c79b2310a89dc5d859e8ed31a7df",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-enrollment.json",
+      "bytes": 633,
+      "sha256": "49541cefb569572ef1c23a6fa425d16192894ac2402a870e8f3fa8d69e1c686b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-full-tests.log",
+      "bytes": 22514,
+      "sha256": "f4b6a9e09dd1d4e81bf270ee418fb451c5ef734e0da14390851b65d33f908e08",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-native-preparation.log",
+      "bytes": 1175,
+      "sha256": "e4f4699890866ff7bf00b33838b447fc66fd425c304e540dc0eda6cf3132e3c8",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-expiry-readiness-refusal-status.json",
+      "bytes": 34381,
+      "sha256": "20ab7bf49d6ea575a5e1f580996a99c42698a28a039de3f2c217f28b4a90ab9a",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-enrollment.json",
+      "bytes": 555,
+      "sha256": "7f73472ba84b439dca6df33c73c1bde7a478d9729a6910f85508f51a2335adc2",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-qualified-status.json",
+      "bytes": 52235,
+      "sha256": "30bc9a3dbe7df3f135fb1d4a95de23840bb5eee0cf92a5a41d10c1ecf6f877f4",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-final-status.json",
+      "bytes": 35549,
+      "sha256": "6385f5552a843e2664207956843f933714b509b0db064a9d780990370cbe0f02",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-enrollment.json",
+      "bytes": 633,
+      "sha256": "49541cefb569572ef1c23a6fa425d16192894ac2402a870e8f3fa8d69e1c686b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-full-tests.log",
+      "bytes": 22875,
+      "sha256": "2bbb06865f6b66468de39eb219cb49cfec7a06a43a5b812bff28e4c220e5011a",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-native-preparation.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-gateway-activation-status.json",
+      "bytes": 35549,
+      "sha256": "6c251bacebc0375c309b0cc74f341a7449a2e281c76b70ad51e299483f019cbb",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-admission-refusal.json",
+      "bytes": 28187,
+      "sha256": "77938be99b5e0ced2175c20356eef68a14b01fbe0f2a0fcd3fc2835d4fdfcc53",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-enrollment.json",
+      "bytes": 555,
+      "sha256": "dc0c740d9b1a4a40752533d2a37b539d827f6901bf65c51895066cf4b2aa4939",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-full-tests.log",
+      "bytes": 22632,
+      "sha256": "fafe611116b3c95b315e3278bc3b57fd96ebcf1ae858d403f23f1406d3cebe17",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-native-preparation-after-admission.log",
+      "bytes": 358,
+      "sha256": "ac5bfdc7ab0ef1d7bd222c48a2ecc4efe1c6ee64b5e0cf14bdcb88ea50713d1b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-native-preparation.log",
+      "bytes": 1142,
+      "sha256": "32d4d02464cf5f75f06ccc860eba0f05957d1bde226a145bf5febfea9c231fae",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-headroom-progress.json",
+      "bytes": 29921,
+      "sha256": "deee18cc1642e56785056f7048eeddb548fa1265374259ba65708551e87cf315",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-history-headroom-enrollment.json",
+      "bytes": 633,
+      "sha256": "b0d9d3b13ad144b210699ff135f576a540e4f8771e7162e2b42542ce8b629056",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-history-headroom-native-probe.log",
+      "bytes": 78,
+      "sha256": "b01914991693f06ed9263fd23e216f4ba31bed7961190d2a9aaa169d464fc438",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-implementation-final-tests.log",
+      "bytes": 21513,
+      "sha256": "4e9691d65dbe52be21b581b309630b3785594c38d7cdf460dd48b2e24efd69c6",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-implementation-tests.log",
+      "bytes": 21460,
+      "sha256": "f388ef6c30b86edd7c66bb386f612e1ac89e16fa34dfc7e230d8e457c7d53e8c",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-inference-preparation.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-correct-policy-diagnostic.json",
+      "bytes": 303,
+      "sha256": "373e9b6661ebfaef645d0a80664286f0231d0af19f330b4adbb0216c36da0ef7",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-current-diagnostic.json",
+      "bytes": 277,
+      "sha256": "4c807990ada5acd2bd20669770fcc89c6943aa7585f3a7760a1294ebc8aaa8be",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-timing-90s-diagnostic.json",
+      "bytes": 111,
+      "sha256": "70c7b7f01747a09648ad97dec2917f0c25a88000a712a543369faf3b9f3ad3c4",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-isolation-timing-diagnostic.json",
+      "bytes": 114,
+      "sha256": "0f82bd12c0c72337763214680deabe76dee98741dfdf23df7db8e9e44bc53cf1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-window-enrollment.json",
+      "bytes": 555,
+      "sha256": "0dc7cc727ab34d71946b58f437b183301de8631c18bb9722b5b5872d4ead315b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-window-native-preparation.log",
+      "bytes": 1176,
+      "sha256": "1aaa3a7b1af1cc8ae258f901feba7060b668162977c0a9a4ba700ee0973389bc",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-management-window-tests.log",
+      "bytes": 21842,
+      "sha256": "8ca518980e3978e15b2f597e0c6487b519ebd88851e691008cc51198b3704be3",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-memory-3072-auth-status.json",
+      "bytes": 179,
+      "sha256": "e10f171302cc4b462d6c680e4fcb102a68e6b4eee40bacf139a821d5dbf8f76b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-pre-restart-census.log",
+      "bytes": 114,
+      "sha256": "f958aa81ca7927bdbb46796ea2dd4274ea05dca23127fbe6d4ae9096e012e6f5",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preflight-command-diagnostic.log",
+      "bytes": 21,
+      "sha256": "607c8790eeac87160228255cf133d6dcf20f8dc859f93ab438dc49f80f8c8207",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preparation-after-timing-refusal.json",
+      "bytes": 29276,
+      "sha256": "fadf49fa67b2146f2593f176fa973f8262ae846d36dcea0c0cbf04cbddf378c4",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preparation-after-timing.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-preparation-refusal-status.json",
+      "bytes": 29805,
+      "sha256": "e7f947d159c558ff245e219e1e5769d8dc6f5f974dc4ea65fa10b3f9b62db9e5",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-progress.json",
+      "bytes": 27434,
+      "sha256": "55e9cac435eca9a014595786d1cef5c5ef93088c776b35381cb8c132df9cec9f",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-ready-for-inference-report.json",
+      "bytes": 2538,
+      "sha256": "b28afd5fd7a9cea91ca4e461651de9ad2bdd9f9886d26347c3f7882cb604d53c",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-ready-for-inference-status.json",
+      "bytes": 45668,
+      "sha256": "34d63aab85cc84f94140566887f1f75d6228bc34fa0ce196c25b873d7d46bbff",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-buffer-full-tests.log",
+      "bytes": 22023,
+      "sha256": "3739bce3a2c07376bf5c3f9f6e0a8053b176c4f80bf6897d48651e97fd86b07e",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-enrollment.json",
+      "bytes": 633,
+      "sha256": "e4ce7bb3d146624f44c5f4f7341e0bd690d1ee9c0bba7bbb7a55a09104251230",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-full-tests.log",
+      "bytes": 22158,
+      "sha256": "92b396300c4593cd8f00f7fc625b01809e2e76b8e4257f633baa9d696c529fab",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-native-preparation.log",
+      "bytes": 1175,
+      "sha256": "2272ac3ae0866a5a7a7b9eb43889c90945ed7928d3b6ceca6cc3d35b435c84e3",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-relay-scheduling-status.json",
+      "bytes": 31205,
+      "sha256": "92aac0fc35a2d993009d1560d5ab98df23d1111a391e4708b939f8cffd64acf0",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-diagnostic-enrollment.json",
+      "bytes": 633,
+      "sha256": "c2bfee95b5c44a1a375dbc9939401fb5b8aa30079d5412f45065797902e5bf4e",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-diagnostic.json",
+      "bytes": 184,
+      "sha256": "2873ec7faea0b505e4760cf42c989b9adeafc4ff5aa3deb3f1b0663f78ee5fce",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-diagnostic.log",
+      "bytes": 409,
+      "sha256": "f2c74eaadfe5f183f564eebc722934d53cc51c84d42ac9ca3e345379236b826e",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-guest-diagnostic.json",
+      "bytes": 162,
+      "sha256": "3e7b9e50117a9796d75540d16661789616a3cae128577d59f536701057facff6",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-enrollment.json",
+      "bytes": 633,
+      "sha256": "b531cd0796865f26dd441f19a9719bf291718ef6fe0ebdbac64d003d3029ace1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-full-tests.log",
+      "bytes": 22339,
+      "sha256": "8b0791190c0e7a0af4c875dadaca220cc58c6ce5f49135060c0914b91f553554",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-native-preparation.log",
+      "bytes": 358,
+      "sha256": "ac5bfdc7ab0ef1d7bd222c48a2ecc4efe1c6ee64b5e0cf14bdcb88ea50713d1b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-native-probe.log",
+      "bytes": 76,
+      "sha256": "c910ca0d575e65690688516a64afea8eebdfe9280d93159b43c2eb176d07d6ba",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-resume-window-preparation-status.json",
+      "bytes": 34810,
+      "sha256": "75b131bc69b7bb2e7d201121654916641b315ae06a2ea51c7289109deea451bf",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-signed-in-auth-status.json",
+      "bytes": 179,
+      "sha256": "e10f171302cc4b462d6c680e4fcb102a68e6b4eee40bacf139a821d5dbf8f76b",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-task-retry-final-status.json",
+      "bytes": 44824,
+      "sha256": "f19c4e2d507b2180fad3afb9f5e49fab27509fc2cc61534f14c113162b2102c3",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "preserve-in-place",
+      "reviewReason": "Private full host/controller snapshot or readiness report; retained for possible follow-up, not live authority"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-task-retry.log",
+      "bytes": 21539,
+      "sha256": "7128a3450a8c4ccfdd50e2967cbfda989d0d9b8e14eb2dac51e08ffe78632525",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-auth-status.json",
+      "bytes": 187,
+      "sha256": "732d3356246138d4c7313cd8d11495ad96476f82e6f00dce160f0644a4d15c42",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-restart-enrollment.json",
+      "bytes": 555,
+      "sha256": "d7869624c13236199299c549ddd86fc3a9e95dc10765dbfbf9e0f13a7f27f8cf",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-restart-plan.log",
+      "bytes": 176,
+      "sha256": "7fe9b07d4142e171827968827a10fe73c3400a645f667bae4f9c09caadace7c1",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-timeout-restart-probe.log",
+      "bytes": 1478,
+      "sha256": "6f15882be9ae2a04da1ff8d6999cee4d692ebeeec361dc7204db0ed6bfc58083",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-version-command-times.json",
+      "bytes": 955,
+      "sha256": "0e713fed3b3a2517aff80da3fb755682901b13ea753dab98de38e1a475239dcd",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    },
+    {
+      "path": ".scratch/aios-v1-implementation/macos/ticket25-version-preflight-failure.json",
+      "bytes": 140,
+      "sha256": "69871b044e700b4eb882d9bd635ce40b64a30399c7ed96dc5da56db55f29b065",
+      "disposition": "keep-local",
+      "category": "local-only",
+      "reason": "Full host-state snapshot or intermediate diagnostic/preparation output; preserved unchanged for investigation or unfinished work",
+      "reviewAction": "archive-historical-output",
+      "reviewReason": "Superseded intermediate capture or historical log; preserve original bytes recoverably"
+    }
+  ]
+}
