@@ -351,7 +351,7 @@ async function refresh(options) {
     }
     if (planned.length === 0) await revalidate();
     const minimumAttempts = new Map(),
-      dispatchDeadline = Date.now() + 180000;
+      dispatchDeadline = Date.now() + 360000;
     for (const request of planned) {
       // Rerunning one reusable job advances the shared run attempt and recreates
       // sibling job IDs. Wait for that attempt, then resolve the current ID.

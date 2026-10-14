@@ -598,3 +598,18 @@ test("job inventory missing throughout the new-attempt wait blocks the second re
     "/repos/AJHMH/developer-os/actions/jobs/501/rerun",
   ]);
 });
+
+for (const [polls, expectedWrites, expectedStatus] of [
+  [40, 2, 0],
+  [100, 1, 1],
+]) {
+  test(`serial refresh bounds a slow prerequisite at ${polls * 5} seconds`, (t) => {
+    const f = fixture(t);
+    f.state.serialReruns = true;
+    f.state.virtualClock = true;
+    f.state.busyPollsAfterRerun = polls;
+    const r = f.runCli();
+    assert.equal(r.status, expectedStatus, r.stdout);
+    assert.equal(r.rest.writes.length, expectedWrites);
+  });
+}

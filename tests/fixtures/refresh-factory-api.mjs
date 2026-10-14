@@ -44,7 +44,7 @@ globalThis.fetch = async (input, options = {}) => {
         job.run_attempt = state.runs[0].run_attempt;
       });
       if (state.serialReruns) {
-        busyPolls = 2;
+        busyPolls = state.busyPollsAfterRerun ?? 2;
         rootLag = state.rootLagAfterRerun ?? 0;
         jobGap = state.jobGapAfterRerun ?? 0;
         state.jobs = state.jobs.map((job) => ({ ...job, id: job.id + 100 }));

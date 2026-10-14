@@ -54,3 +54,21 @@ verification and completion are later slices. No live GitHub writes, provider
 inference or native production worker runs were performed. Hosted CI and Factory
 coverage have not been evaluated for this branch. Production delivery remains
 disabled pending host/repository qualification and live pilot authorization.
+
+## PR 31 follow-up
+
+All three native CI hosts, dedicated Factory coverage and security checks passed
+on 3106fef. The initial trusted-human job failed during its coverage prerequisite
+with instrumentation failure/timeout evidence. The automatic review refresh
+successfully reran the first human gate, but exhausted its three-minute shared
+dispatch wait before requesting the second gate (run 38655686493).
+
+A deterministic fake-clock regression reproduced the stop with a valid 200-second
+prerequisite. The dispatch wait now allows six minutes; the outer workflow allows
+twelve minutes including the unchanged three-minute initial settlement budget and
+API overhead. A 500-second stall still blocks the second request. No authority
+checks, approval rules, request retries or test-command deadlines were weakened.
+All 55 refresh regressions, typechecking, formatting and diff checks pass.
+The full implementation suite above remains the baseline; this follow-up changes
+only refresh timing, its fixture/tests and documentation. The trusted worker runs
+from main, so this repair cannot govern its own pre-merge approval refresh.
