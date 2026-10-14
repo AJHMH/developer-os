@@ -279,7 +279,7 @@ async function refresh(options) {
     requireEvidence(runs.length > 0 && runs.length <= 10);
     const planned = [],
       eventTime = time(trigger.created_at);
-    const readJobs = async (runId) => {
+    const readJobs = async (runId, allowMissing) => {
       const data = await api(
         `${prefix}/actions/runs/${runId}/jobs?filter=latest&per_page=100`,
       );
@@ -288,7 +288,10 @@ async function refresh(options) {
       );
       const jobs = jobNames.map((name) => {
         const entries = data.jobs.filter((job) => job.name === name);
-        requireEvidence(entries.length === 1);
+        requireEvidence(
+          entries.length === 1 || (allowMissing && entries.length === 0),
+        );
+        if (entries.length === 0) return undefined;
         const job = entries[0];
         requireEvidence(
           numericId(job.id) &&
@@ -299,7 +302,8 @@ async function refresh(options) {
         return job;
       });
       requireEvidence(
-        new Set(jobs.map((job) => job.id)).size === jobNames.length,
+        new Set(jobs.filter(Boolean).map((job) => job.id)).size ===
+          jobs.filter(Boolean).length,
       );
       return jobs;
     };
@@ -308,12 +312,16 @@ async function refresh(options) {
         const live = await api(`${prefix}/actions/runs/${runId}`);
         checkRun(live, workflow, expected, "pull_request", title);
         requireEvidence(numericId(live.run_attempt));
-        const jobs = await readJobs(runId);
+        // GitHub can briefly return an empty or partial inventory while
+        // recreating jobs after our successful rerun request. Never dispatch
+        // until both exact jobs exist in the completed new attempt.
+        const jobs = await readJobs(runId, minimumAttempt > 1);
         if (
           live.status === "completed" &&
           live.run_attempt >= minimumAttempt &&
           jobs.every(
             (job) =>
+              job !== undefined &&
               job.status === "completed" &&
               job.run_attempt === live.run_attempt,
           )

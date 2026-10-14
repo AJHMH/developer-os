@@ -7,6 +7,7 @@ let prReads = 0,
   jobReads = 0,
   busyPolls = 0,
   rootLag = 0,
+  jobGap = 0,
   initialRootPolls = state.initialRootPolls ?? 0;
 if (state.virtualClock) {
   state.clockNow = Date.now();
@@ -45,6 +46,7 @@ globalThis.fetch = async (input, options = {}) => {
       if (state.serialReruns) {
         busyPolls = 2;
         rootLag = state.rootLagAfterRerun ?? 0;
+        jobGap = state.jobGapAfterRerun ?? 0;
         state.jobs = state.jobs.map((job) => ({ ...job, id: job.id + 100 }));
       }
     }
@@ -101,6 +103,11 @@ globalThis.fetch = async (input, options = {}) => {
       total_count: state.jobCount ?? state.jobs.length,
       jobs: structuredClone(state.jobs),
     };
+    if (jobGap > 0) {
+      body.jobs = [];
+      body.total_count = 0;
+      jobGap--;
+    }
     if (jobReads <= (state.pendingPolls ?? 0))
       body.jobs[0].status = "in_progress";
   } else throw Error("Unexpected fixture route");
