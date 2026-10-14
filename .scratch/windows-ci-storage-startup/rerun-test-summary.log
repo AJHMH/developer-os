@@ -1,0 +1,6 @@
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:19:30.3618956Z ✔ separate darwin authorization completes a local callback with a verified synthetic account and stores only through its host adapter (8331.6297ms)
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:19:45.7433971Z ✔ separate authentication preparation preserves a stable host registration without credentials or delivery authority (8487.6483ms)
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:21:33.5168457Z ℹ tests 280
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:21:33.5168857Z ℹ pass 277
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:21:33.5169040Z ℹ fail 0
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:21:33.5169457Z ℹ skipped 3
