@@ -23,3 +23,8 @@ limits. Refer to the official GitHub concurrency contract in the runbook.
 This review does not prove hosted event delivery. Bootstrap and hosted evidence
 remain required. Changes were implemented under the user's request and are
 presented for review in the Factory App PR.
+
+The shared-run repair received both focused review axes with zero findings.
+It preserves the privileged token boundary, waits for completed current attempts,
+resolves recreated sibling IDs and retains permission/review/PR revalidation
+before each write. Hosted success remains to be demonstrated after repair merge.

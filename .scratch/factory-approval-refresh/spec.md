@@ -20,7 +20,10 @@ missing approved distribution and unavailable APIs. Never execute candidate
 content, observer artifacts or review bodies with Actions write. Serialize
 refreshes per PR without cancelling prior requests within GitHub's bounded
 100-job pending queue; overflow requires inspection/manual recovery. Recheck current review
-metadata and permission before every request; bound job settling waits. Replays
+metadata and permission before every request; bound job settling waits.
+Wait for the complete shared run, and after dispatch wait for the new attempt
+before resolving latest sibling job IDs. Bind jobs to the exact run/head/name
+and current attempt; never reuse a stale attempt ID for a later request. Replays
 skip jobs that began after the event; timestamp ties request fresh evaluation.
 Preserve partial request evidence on failures. Redact tokens/review bodies.
 
