@@ -62,6 +62,7 @@ function fixture(t) {
     head_sha: head,
     head_branch: branch,
     status: "completed",
+    run_attempt: 1,
     repository: { full_name: repository },
     display_title: `factory-consumer-review:7:${head}:${base}`,
     created_at: timestamp(30),
@@ -105,6 +106,7 @@ function fixture(t) {
     jobs: ["human approval", "trusted human approval"].map((name, i) => ({
       id: 501 + i,
       run_id: 100,
+      run_attempt: 1,
       head_sha: head,
       name: "validation / Enforce Factory " + name,
       status: "completed",
@@ -523,4 +525,51 @@ test("permission revoked between requests blocks further dispatch", (t) => {
   assert.deepEqual(r.rest.writes, [
     "/repos/AJHMH/developer-os/actions/jobs/501/rerun",
   ]);
+});
+
+test("shared consumer run settles and uses new attempt job IDs before the second rerun", (t) => {
+  const f = fixture(t);
+  f.state.serialReruns = true;
+  f.state.virtualClock = true;
+  const r = f.runCli();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(r.rest.writes, [
+    "/repos/AJHMH/developer-os/actions/jobs/501/rerun",
+    "/repos/AJHMH/developer-os/actions/jobs/602/rerun",
+  ]);
+});
+
+test("dispatch waits for unrelated original jobs even when approval jobs are already completed", (t) => {
+  const f = fixture(t);
+  f.state.serialReruns = true;
+  f.state.virtualClock = true;
+  f.state.initialRootPolls = 2;
+  const r = f.runCli();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(r.rest.writes, [
+    "/repos/AJHMH/developer-os/actions/jobs/501/rerun",
+    "/repos/AJHMH/developer-os/actions/jobs/602/rerun",
+  ]);
+});
+
+test("old completed run metadata cannot release the next rerun before its new attempt is visible", (t) => {
+  const f = fixture(t);
+  f.state.serialReruns = true;
+  f.state.virtualClock = true;
+  f.state.rootLagAfterRerun = 2;
+  const r = f.runCli();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(r.rest.writes, [
+    "/repos/AJHMH/developer-os/actions/jobs/501/rerun",
+    "/repos/AJHMH/developer-os/actions/jobs/602/rerun",
+  ]);
+});
+
+test("an original workflow that never completes blocks every rerun within the wait budget", (t) => {
+  const f = fixture(t);
+  f.state.virtualClock = true;
+  f.state.initialRootPolls = 100;
+  const r = f.runCli();
+  assert.equal(r.status, 1);
+  assert.deepEqual(r.rest.writes ?? [], []);
 });

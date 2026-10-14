@@ -41,8 +41,12 @@ select a privileged rerun target. Fork refresh is unsupported and fails closed.
 
 Before every write, the adapter rechecks PR head/base/branch, normalized review
 metadata and owner repository permissions. It preflights both allowlisted jobs,
-refuses incomplete or ambiguous inventories, bounds API calls and waits at most
-three minutes for existing jobs to settle. Refresh workers serialize per PR
+refuses incomplete or ambiguous inventories and bounds API calls. It waits at
+most three minutes for the original shared workflow to finish and a separate
+three-minute budget for sequential reruns. GitHub recreates sibling job IDs on
+each run attempt; the worker waits for the new attempt and resolves fresh IDs
+before another request. Job head, run ID, name and attempt must agree. The
+eight-minute workflow limit bounds the complete privileged operation. Refresh workers serialize per PR
 without replacing earlier pending requests, using `queue: max`. GitHub permits
 100 pending refresh jobs per group; queue overflow cancels additional jobs and
 requires inspection/manual recovery. [GitHub concurrency contract](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).

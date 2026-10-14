@@ -279,60 +279,104 @@ async function refresh(options) {
     requireEvidence(runs.length > 0 && runs.length <= 10);
     const planned = [],
       eventTime = time(trigger.created_at);
-    const deadline = Date.now() + 180000;
-    for (const run of runs) {
-      checkRun(run, workflow, expected, "pull_request", title);
-      let jobs;
+    const readJobs = async (runId) => {
+      const data = await api(
+        `${prefix}/actions/runs/${runId}/jobs?filter=latest&per_page=100`,
+      );
+      requireEvidence(
+        Array.isArray(data.jobs) && data.total_count === data.jobs.length,
+      );
+      const jobs = jobNames.map((name) => {
+        const entries = data.jobs.filter((job) => job.name === name);
+        requireEvidence(entries.length === 1);
+        const job = entries[0];
+        requireEvidence(
+          numericId(job.id) &&
+            job.run_id === runId &&
+            job.head_sha === expected.head &&
+            numericId(job.run_attempt),
+        );
+        return job;
+      });
+      requireEvidence(
+        new Set(jobs.map((job) => job.id)).size === jobNames.length,
+      );
+      return jobs;
+    };
+    const settledRun = async (runId, minimumAttempt, deadline) => {
       while (true) {
-        const data = await api(
-          `${prefix}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`,
-        );
-        requireEvidence(
-          Array.isArray(data.jobs) && data.total_count === data.jobs.length,
-        );
-        jobs = jobNames.map((name) => {
-          const entries = data.jobs.filter((job) => job.name === name);
-          requireEvidence(entries.length === 1);
-          const job = entries[0];
-          requireEvidence(
-            numericId(job.id) &&
-              job.run_id === run.id &&
-              job.head_sha === expected.head,
-          );
-          return job;
-        });
-        requireEvidence(
-          new Set(jobs.map((job) => job.id)).size === jobNames.length,
-        );
-        if (jobs.every((job) => job.status === "completed")) break;
+        const live = await api(`${prefix}/actions/runs/${runId}`);
+        checkRun(live, workflow, expected, "pull_request", title);
+        requireEvidence(numericId(live.run_attempt));
+        const jobs = await readJobs(runId);
+        if (
+          live.status === "completed" &&
+          live.run_attempt >= minimumAttempt &&
+          jobs.every(
+            (job) =>
+              job.status === "completed" &&
+              job.run_attempt === live.run_attempt,
+          )
+        )
+          return { live, jobs };
         requireEvidence(Date.now() < deadline);
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
+    };
+    const isCurrent = (job) =>
+      ["success", "failure"].includes(job.conclusion) &&
+      job.started_at !== null &&
+      time(job.started_at) > eventTime;
+    const deadline = Date.now() + 180000;
+    for (const run of runs) {
+      checkRun(run, workflow, expected, "pull_request", title);
+      const { jobs } = await settledRun(run.id, 1, deadline);
       for (const job of jobs) {
-        if (
-          ["success", "failure"].includes(job.conclusion) &&
-          job.started_at !== null &&
-          time(job.started_at) > eventTime
-        )
+        if (isCurrent(job))
           requests.push({
             runId: run.id,
             jobId: job.id,
             status: "already-current",
           });
-        else planned.push({ runId: run.id, jobId: job.id });
+        else planned.push({ runId: run.id, name: job.name });
       }
     }
     if (planned.length === 0) await revalidate();
+    const minimumAttempts = new Map(),
+      dispatchDeadline = Date.now() + 180000;
     for (const request of planned) {
+      // Rerunning one reusable job advances the shared run attempt and recreates
+      // sibling job IDs. Wait for that attempt, then resolve the current ID.
+      const { live, jobs } = await settledRun(
+        request.runId,
+        minimumAttempts.get(request.runId) ?? 1,
+        dispatchDeadline,
+      );
+      const current = jobs.find((job) => job.name === request.name);
       await revalidate();
-      const dispatched = { ...request, status: "unconfirmed" };
+      if (isCurrent(current)) {
+        requests.push({
+          runId: request.runId,
+          jobId: current.id,
+          status: "already-current",
+        });
+        continue;
+      }
+      const dispatched = {
+        runId: request.runId,
+        jobId: current.id,
+        status: "unconfirmed",
+      };
       requests.push(dispatched);
-      await api(`${prefix}/actions/jobs/${request.jobId}/rerun`, "POST");
+      await api(`${prefix}/actions/jobs/${current.id}/rerun`, "POST");
       dispatched.status = "requested";
+      minimumAttempts.set(request.runId, live.run_attempt + 1);
     }
     return {
       operation: "refresh-approvals",
-      outcome: planned.length ? "requested" : "not-required",
+      outcome: requests.some((request) => request.status === "requested")
+        ? "requested"
+        : "not-required",
       ...expected,
       reviewDigest: digest,
       requests,
