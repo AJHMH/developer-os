@@ -1,3 +1,4 @@
+import { repairBudget, repairFindings, type RepairEvidence } from "./repair.js";
 import {
   validationOutcome,
   validationCandidate,
@@ -216,6 +217,7 @@ export interface Delivery {
   validation?: ValidationEvidence;
   initialCodingAllowanceMs?: number;
   feature?: FeatureEvidence;
+  repair?: RepairEvidence;
   id: string;
   phase:
     | "blocked"
@@ -846,16 +848,23 @@ export class DeliveryController {
   }
 
   async validateCandidate(id: string): Promise<Delivery> {
+    if (this.status(id).repair)
+      throw new DeliveryError(
+        "Local revalidation belongs to the persisted repair cycle.",
+      );
     return this.validateFeatureTree(id, "candidate");
   }
 
   private async validateFeatureTree(
     id: string,
     stage: ValidationStage,
+    repairId?: string,
   ): Promise<Delivery> {
     const snapshot = this.status(id),
       runtime = this.coordination.validationRuntime;
     if (
+      (snapshot.repair?.attempts.some((a) => a.state !== "stopped") &&
+        snapshot.repair.attempts.at(-1)?.id !== repairId) ||
       !runtime ||
       runtime.mode !== "controlled" ||
       !/^[a-f0-9]{64}$/.test(runtime.bindingSha256) ||
@@ -959,6 +968,7 @@ export class DeliveryController {
       if (
         d.ownership.fence !== snapshot.ownership.fence ||
         d.phase !== snapshot.phase ||
+        (repairId && !this.repairActive(d, repairId)) ||
         d.validation?.attempts.some((a) => a.state !== "stopped")
       )
         throw new DeliveryError(
@@ -970,12 +980,21 @@ export class DeliveryController {
       )
         throw new DeliveryError("Validation criteria changed before dispatch.");
       (d.validation ??= { attempts: [] }).attempts.push(attempt);
+      if (repairId)
+        d.repair!.attempts.at(-1)!.validationOperationId = attempt.operationId;
       if (stage === "candidate" && d.feature.candidate)
         d.feature.candidate.validation = "not-run";
+      if (repairId)
+        d.repair!.checkpoint = {
+          at: (this.coordination.clock ?? Date.now)(),
+          runnerId: this.runnerId,
+        };
       d.phase = "validating";
     });
     const mayDispatch = () => {
-      const d = this.status(id);
+      const d = repairId
+        ? this.change(id, (d) => this.chargeRepair(d))
+        : this.status(id);
       try {
         validationContract(
           this.onboardingOptions.policyPath,
@@ -990,6 +1009,10 @@ export class DeliveryController {
         d.ownership.held &&
         d.ownership.fence === attempt.fence &&
         d.phase === "validating" &&
+        (!repairId ||
+          (d.repair!.attempts.at(-1)?.id === repairId &&
+            d.repair!.attempts.at(-1)?.state === "running" &&
+            d.repair!.activeMs < d.repair!.allowanceMs)) &&
         d.validation?.attempts.at(-1)?.operationId === attempt.operationId &&
         d.validation.attempts.at(-1)?.state === "running"
       );
@@ -1004,7 +1027,24 @@ export class DeliveryController {
         let observed: ValidationResult | "timeout" | "interrupted";
         try {
           const stop = new Promise<"timeout" | "interrupted">((resolve) => {
-            timer = setTimeout(() => resolve("timeout"), check.timeoutMs);
+            const remaining = repairId
+              ? this.status(id).repair!.allowanceMs -
+                this.status(id).repair!.activeMs
+              : Infinity;
+            timer = setTimeout(
+              () => {
+                if (repairId && remaining <= check.timeoutMs)
+                  this.change(id, (d) => {
+                    if (this.repairActive(d, repairId))
+                      d.repair!.activeMs = Math.max(
+                        d.repair!.activeMs,
+                        d.repair!.allowanceMs,
+                      );
+                  });
+                resolve("timeout");
+              },
+              Math.min(check.timeoutMs, remaining),
+            );
             heartbeat = setInterval(() => {
               try {
                 if (!mayDispatch()) resolve("interrupted");
@@ -1108,9 +1148,12 @@ export class DeliveryController {
         !a ||
         a.state !== "stopped" ||
         d.phase !== "blocked" ||
-        d.ownership.fence !== attempt.fence
+        d.ownership.fence !== attempt.fence ||
+        (repairId && !this.repairActive(d, repairId))
       )
         return;
+      if (repairId && d.repair!.activeMs >= d.repair!.allowanceMs)
+        a.outcome = "incomplete";
       if (a.outcome === "pending")
         a.outcome =
           current &&
@@ -1152,6 +1195,8 @@ export class DeliveryController {
         (a) => a.operationId === attempt.operationId,
       );
       if (!a || a.state === "stopped") return;
+      this.chargeRepair(d);
+      if (d.repair) delete d.repair.checkpoint;
       const verified =
         same() &&
         stopped?.operationId === a.operationId &&
@@ -1283,7 +1328,239 @@ export class DeliveryController {
     });
   }
 
+  private repairActive(d: Delivery, id: string): boolean {
+    const a = d.repair?.attempts.at(-1);
+    return (
+      a?.id === id &&
+      a.state === "running" &&
+      a.runnerId === this.runnerId &&
+      a.fence === d.ownership.fence
+    );
+  }
+
+  private featureBudget(delivery: Delivery) {
+    return delivery.repair?.attempts.at(-1)?.state === "running"
+      ? delivery.repair
+      : delivery.feature!;
+  }
+
+  private chargeRepair(delivery: Delivery): void {
+    const r = delivery.repair,
+      now = (this.coordination.clock ?? Date.now)();
+    if (
+      !r?.checkpoint ||
+      r.checkpoint.runnerId !== this.runnerId ||
+      r.attempts.at(-1)?.state !== "running" ||
+      !["implementing", "validating"].includes(delivery.phase)
+    )
+      return;
+    if (!Number.isSafeInteger(now) || now < r.checkpoint.at) {
+      r.activeMs = r.allowanceMs;
+      delete r.checkpoint;
+      return;
+    }
+    r.activeMs = Math.min(
+      Number.MAX_SAFE_INTEGER,
+      r.activeMs + now - r.checkpoint.at,
+    );
+    r.checkpoint.at = now;
+  }
+
+  private finishRepair(id: string, repairId: string, passed = false): Delivery {
+    return this.change(id, (d) => {
+      const r = d.repair,
+        a = r?.attempts.at(-1);
+      if (!r || !a || a.id !== repairId || a.state === "stopped") return;
+      this.chargeRepair(d);
+      delete r.checkpoint;
+      const stopped =
+        (!d.feature?.session || d.feature.session.state === "stopped") &&
+        !d.validation?.attempts.some((v) => v.state !== "stopped");
+      a.state = stopped ? "stopped" : "uncertain";
+      if (d.feature?.session)
+        a.codingSession = structuredClone(d.feature.session);
+      a.activeMs = r.activeMs - a.startActiveMs;
+      a.remainingMs = Math.max(0, r.allowanceMs - r.activeMs);
+      a.remainingCycles = Math.max(0, r.allowanceCycles - r.attempts.length);
+      a.outcome =
+        r.activeMs >= r.allowanceMs
+          ? "exhausted"
+          : d.ownership.fence !== a.fence ||
+              ["paused", "cancelled"].includes(d.phase)
+            ? "interrupted"
+            : passed && stopped
+              ? "passed"
+              : "failed";
+      const verification = d.validation?.attempts.find(
+        (v) => v.operationId === a.validationOperationId,
+      );
+      if (
+        verification?.state === "stopped" &&
+        verification.outcome === "pending"
+      )
+        verification.outcome = "incomplete";
+      if (a.outcome !== "passed" && d.feature?.candidate)
+        d.feature.candidate.validation = "not-run";
+      if (stopped) a.finishedAt = new Date().toISOString();
+      if (
+        a.outcome !== "passed" &&
+        stopped &&
+        (r.activeMs >= r.allowanceMs || r.attempts.length >= r.allowanceCycles)
+      )
+        d.blocker.nextAction =
+          "Repair allowance exhausted; preserve work and record an explicit owner extension.";
+    });
+  }
+
+  async repairFeature(
+    id: string,
+    reviewFindings: string[] = [],
+  ): Promise<Delivery> {
+    const snapshot = this.status(id),
+      feature = snapshot.feature,
+      validation = snapshot.validation?.attempts.at(-1);
+    if (
+      !snapshot.ownership.held ||
+      !["blocked", "preparing"].includes(snapshot.phase) ||
+      !feature?.candidate ||
+      feature.session?.state !== "stopped" ||
+      snapshot.repair?.attempts.some((a) => a.state !== "stopped") ||
+      snapshot.validation?.attempts.some((a) => a.state !== "stopped") ||
+      (snapshot.execution && snapshot.execution.state !== "stopped") ||
+      (snapshot.onlineAccess && snapshot.onlineAccess.state !== "stopped") ||
+      !validation ||
+      validation.stage !== "candidate" ||
+      validation.state !== "stopped" ||
+      validation.treeSha256 !== feature.candidate.sha256 ||
+      !["failed", "passed", "incomplete", "timeout", "flaky"].includes(
+        validation.outcome,
+      )
+    )
+      throw new DeliveryError(
+        "Repair requires stopped candidate validation; baseline or uncertain work cannot be repaired.",
+      );
+    const findings = repairFindings([
+      ...(validation.outcome === "passed"
+        ? []
+        : [
+            "Candidate validation: " + validation.outcome,
+            ...validation.results
+              .filter((r) => r.status !== "success")
+              .map((r) => "Candidate check " + r.checkId + ": " + r.status),
+          ]),
+      ...(Array.isArray(reviewFindings) && reviewFindings.length === 0
+        ? []
+        : repairFindings(reviewFindings)),
+    ]);
+    const input = validationCandidate(feature, this.stateDirectory);
+    const attemptId = randomUUID();
+    const prepared = this.change(id, (d) => {
+      if (
+        d.phase !== snapshot.phase ||
+        d.ownership.fence !== snapshot.ownership.fence ||
+        d.feature?.candidate?.sha256 !== input.digest ||
+        d.repair?.attempts.some((a) => a.state !== "stopped")
+      )
+        throw new DeliveryError("Repair authority changed.");
+      const r = (d.repair ??= repairBudget());
+      if (
+        r.activeMs >= r.allowanceMs ||
+        r.attempts.length >= r.allowanceCycles
+      ) {
+        d.blocker.nextAction =
+          "Repair allowance exhausted; record an explicit owner extension.";
+        return;
+      }
+      r.attempts.push({
+        id: attemptId,
+        fence: d.ownership.fence,
+        runnerId: this.runnerId,
+        findings,
+        inputSha256: input.digest,
+        state: "running",
+        outcome: "pending",
+        startedAt: new Date().toISOString(),
+        startActiveMs: r.activeMs,
+        activeMs: 0,
+        remainingMs: r.allowanceMs - r.activeMs,
+        remainingCycles: r.allowanceCycles - r.attempts.length - 1,
+      });
+      d.feature!.candidate!.validation = "not-run";
+    });
+    if (prepared.repair!.attempts.at(-1)?.id !== attemptId) return prepared;
+    let passed = false;
+    try {
+      const coded = await this.executeFeature(id, {}, attemptId);
+      if (
+        coded.feature?.outcome === "admitted" &&
+        coded.feature.session?.state === "stopped" &&
+        coded.phase === "blocked" &&
+        coded.ownership.fence === snapshot.ownership.fence &&
+        coded.repair!.activeMs < coded.repair!.allowanceMs
+      ) {
+        const checked = await this.validateFeatureTree(
+          id,
+          "candidate",
+          attemptId,
+        );
+        const check = checked.validation!.attempts.at(-1)!;
+        passed =
+          check.outcome === "passed" &&
+          checked.feature?.candidate?.validation === "passed";
+      }
+    } catch {
+      // Detailed worker/errors are untrusted; retain only bounded findings and evidence.
+    }
+    return this.finishRepair(id, attemptId, passed);
+  }
+
+  extendRepair(
+    id: string,
+    addedCycles: number,
+    addedMinutes: number,
+  ): Delivery {
+    if (
+      !Number.isSafeInteger(addedCycles) ||
+      addedCycles < 0 ||
+      addedCycles > 100 ||
+      !Number.isSafeInteger(addedMinutes) ||
+      addedMinutes < 0 ||
+      addedMinutes > 1440 ||
+      addedCycles + addedMinutes === 0
+    )
+      throw new DeliveryError(
+        "Extend repair by 0–100 cycles and 0–1440 minutes, with a positive extension.",
+      );
+    return this.change(id, (d) => {
+      const r = d.repair;
+      if (
+        !r ||
+        !d.ownership.held ||
+        d.phase !== "blocked" ||
+        r.attempts.some((a) => a.state !== "stopped") ||
+        (d.feature?.session && d.feature.session.state !== "stopped") ||
+        d.validation?.attempts.some((a) => a.state !== "stopped") ||
+        (r.activeMs < r.allowanceMs && r.attempts.length < r.allowanceCycles)
+      )
+        throw new DeliveryError(
+          "Only stopped exhausted repairs may receive an owner extension.",
+        );
+      r.allowanceCycles += addedCycles;
+      r.allowanceMs += addedMinutes * 60000;
+      r.extensions.push({
+        addedCycles,
+        addedMs: addedMinutes * 60000,
+        at: new Date().toISOString(),
+      });
+      d.blocker = this.disabledBlocker();
+    });
+  }
+
   private chargeCoding(delivery: Delivery): void {
+    if (delivery.repair?.attempts.at(-1)?.state === "running") {
+      this.chargeRepair(delivery);
+      return;
+    }
     const f = delivery.feature,
       now = (this.coordination.clock ?? Date.now)();
     if (
@@ -1308,6 +1585,18 @@ export class DeliveryController {
     id: string,
     options: { codingMinutes?: number } = {},
   ): Promise<Delivery> {
+    if (this.status(id).repair)
+      throw new DeliveryError(
+        "Use the persisted repair allowance after repair has begun.",
+      );
+    return this.executeFeature(id, options);
+  }
+
+  private async executeFeature(
+    id: string,
+    options: { codingMinutes?: number } = {},
+    repairId?: string,
+  ): Promise<Delivery> {
     const runtime = this.coordination.featureRuntime,
       snapshot = this.status(id),
       feature = snapshot.feature;
@@ -1322,7 +1611,9 @@ export class DeliveryController {
       feature.ambiguity ||
       !snapshot.ownership.held ||
       !["blocked", "preparing"].includes(snapshot.phase) ||
-      feature.outcome === "admitted" ||
+      (feature.outcome === "admitted" && !repairId) ||
+      (snapshot.repair?.attempts.some((a) => a.state !== "stopped") &&
+        snapshot.repair.attempts.at(-1)?.id !== repairId) ||
       (feature.session && feature.session.state !== "stopped")
     )
       throw new DeliveryError(
@@ -1395,6 +1686,9 @@ export class DeliveryController {
       this.onboardingOptions.policyPath,
       snapshot.authorityPolicySha256 ?? undefined,
     );
+    const input = repairId
+      ? validationCandidate(feature, this.stateDirectory)
+      : source;
     const minutes = options.codingMinutes;
     if (
       minutes !== undefined &&
@@ -1417,6 +1711,7 @@ export class DeliveryController {
       if (
         delivery.ownership.fence !== snapshot.ownership.fence ||
         delivery.phase !== snapshot.phase ||
+        (repairId && !this.repairActive(delivery, repairId)) ||
         delivery.feature?.session?.state === "running" ||
         delivery.validation?.attempts.some((a) => a.state !== "stopped") ||
         !passedBaseline(
@@ -1430,8 +1725,9 @@ export class DeliveryController {
       )
         throw new DeliveryError("Feature coding authority changed.");
       const f = delivery.feature!;
+      const budget = repairId ? delivery.repair! : f;
       if (minutes !== undefined) f.allowanceMs = minutes * 60000;
-      if (f.activeMs >= f.allowanceMs) {
+      if (budget.activeMs >= budget.allowanceMs) {
         f.outcome = "exhausted";
         delivery.blocker.nextAction =
           "Record an owner coding allowance extension before continuing.";
@@ -1444,13 +1740,20 @@ export class DeliveryController {
         operationId: randomUUID(),
         fence: delivery.ownership.fence,
         state: "running",
-        intent: f.session?.threadId ? "resume" : "start",
-        ...(f.session?.threadId ? { threadId: f.session.threadId } : {}),
+        intent: !repairId && f.session?.threadId ? "resume" : "start",
+        ...(!repairId && f.session?.threadId
+          ? { threadId: f.session.threadId }
+          : {}),
       };
       f.activeCheckpoint = {
         at: (this.coordination.clock ?? Date.now)(),
         runnerId: this.runnerId,
       };
+      if (repairId)
+        delivery.repair!.checkpoint = {
+          at: (this.coordination.clock ?? Date.now)(),
+          runnerId: this.runnerId,
+        };
       f.outcome = "coding";
       delivery.phase = "implementing";
     });
@@ -1470,10 +1773,11 @@ export class DeliveryController {
       return (
         runtime.mode === "controlled" &&
         d.phase === "implementing" &&
+        (!repairId || this.repairActive(d, repairId)) &&
         d.ownership.held &&
         d.ownership.fence === session.fence &&
         d.feature?.session?.operationId === session.operationId &&
-        d.feature.activeMs < d.feature.allowanceMs &&
+        this.featureBudget(d).activeMs < this.featureBudget(d).allowanceMs &&
         JSON.stringify(runtime.pins) === pins
       );
     };
@@ -1492,6 +1796,9 @@ export class DeliveryController {
         criteria: feature.criteria,
         verification: feature.verification,
         clarifications: feature.clarifications ?? [],
+        ...(repairId
+          ? { repairFindings: snapshot.repair!.attempts.at(-1)!.findings }
+          : {}),
       }),
     );
     let interrupt: (value: undefined) => void;
@@ -1505,19 +1812,23 @@ export class DeliveryController {
         interrupt(undefined);
       }
     }, 250);
-    const deadline = setTimeout(() => {
-      this.change(id, (delivery) => {
-        if (
-          delivery.feature?.session?.operationId === session.operationId &&
-          delivery.phase === "implementing"
-        )
-          delivery.feature.activeMs = Math.max(
-            delivery.feature.activeMs,
-            delivery.feature.allowanceMs,
-          );
-      });
-      interrupt(undefined);
-    }, prepared.feature!.allowanceMs - prepared.feature!.activeMs);
+    const deadline = setTimeout(
+      () => {
+        this.change(id, (delivery) => {
+          if (
+            delivery.feature?.session?.operationId === session.operationId &&
+            delivery.phase === "implementing"
+          )
+            this.featureBudget(delivery).activeMs = Math.max(
+              this.featureBudget(delivery).activeMs,
+              this.featureBudget(delivery).allowanceMs,
+            );
+        });
+        interrupt(undefined);
+      },
+      this.featureBudget(prepared).allowanceMs -
+        this.featureBudget(prepared).activeMs,
+    );
     try {
       featureBranch(
         snapshot.repository,
@@ -1530,7 +1841,7 @@ export class DeliveryController {
           ...session,
           branch: prepared.feature!.branch!,
           sourceRevision: source.revision,
-          inputSha256: source.digest,
+          inputSha256: input.digest,
           onEvent: (event) => {
             if (!checkpoint() || !event || typeof event !== "object")
               return false;
@@ -1566,10 +1877,11 @@ export class DeliveryController {
             );
           },
           argv,
-          files: source.files,
+          files: input.files,
           pins: structuredClone(runtime.pins),
           allowanceMs:
-            prepared.feature!.allowanceMs - prepared.feature!.activeMs,
+            this.featureBudget(prepared).allowanceMs -
+            this.featureBudget(prepared).activeMs,
           mayDispatch: checkpoint,
           checkpoint,
         }),
@@ -1603,7 +1915,8 @@ export class DeliveryController {
       stopped.phase === "paused" ||
       stopped.phase === "cancelled" ||
       stopped.ownership.fence !== session.fence ||
-      stopped.feature.activeMs >= stopped.feature.allowanceMs
+      this.featureBudget(stopped).activeMs >=
+        this.featureBudget(stopped).allowanceMs
     )
       return stopped;
     try {
@@ -1648,6 +1961,19 @@ export class DeliveryController {
         prepared.feature!.branch!,
         source.revision,
       );
+      if (repairId)
+        protectValidationInputs(
+          validationContract(
+            this.onboardingOptions.policyPath,
+            snapshot.authorityPolicySha256 ?? undefined,
+          ),
+          source.files,
+          output.files.map((f) => ({
+            path: f.path,
+            bytes: f.bytes,
+            executable: f.executable ?? false,
+          })),
+        );
       const payload = candidateOutput(output),
         path = join(
           this.stateDirectory,
@@ -1660,15 +1986,21 @@ export class DeliveryController {
           delivery.ownership.fence !== session.fence ||
           delivery.phase !== "blocked" ||
           delivery.feature?.session?.operationId !== session.operationId ||
-          delivery.feature.session.state !== "stopped"
+          delivery.feature.session.state !== "stopped" ||
+          (repairId &&
+            (delivery.repair?.attempts.at(-1)?.id !== repairId ||
+              delivery.repair.attempts.at(-1)?.state !== "running"))
         )
           throw Error();
         delivery.feature.candidate = {
           path,
           sha256: candidateDigest(payload),
-          inputSha256: source.digest,
+          inputSha256: input.digest,
           validation: "not-run",
         };
+        if (repairId)
+          delivery.repair!.attempts.at(-1)!.candidateSha256 =
+            delivery.feature.candidate.sha256;
         delivery.feature.outcome = "admitted";
         delivery.blocker.nextAction =
           "Validate the exact isolated candidate before signing or publication; production remains disabled.";
@@ -1701,13 +2033,18 @@ export class DeliveryController {
         response = await this.observe(runtime!.stop(structuredClone(session)));
     } catch {}
     return this.change(id, (delivery) => {
-      if (delivery.feature?.session?.operationId !== session.operationId)
+      if (
+        delivery.feature?.session?.operationId !== session.operationId ||
+        delivery.feature.session.state === "stopped"
+      )
         return;
       try {
         this.chargeCoding(delivery);
       } catch {
-        delivery.feature.activeMs = delivery.feature.allowanceMs;
+        this.featureBudget(delivery).activeMs =
+          this.featureBudget(delivery).allowanceMs;
       }
+      if (delivery.repair) delete delivery.repair.checkpoint;
       const stopped =
         sameBinding() &&
         response?.operationId === session.operationId &&
@@ -1716,7 +2053,8 @@ export class DeliveryController {
         response.remainingProcesses === 0;
       delivery.feature.session!.state = stopped ? "stopped" : "uncertain";
       delivery.feature.outcome = stopped
-        ? delivery.feature.activeMs >= delivery.feature.allowanceMs
+        ? this.featureBudget(delivery).activeMs >=
+          this.featureBudget(delivery).allowanceMs
           ? "exhausted"
           : "failed"
         : "uncertain";
@@ -2632,6 +2970,8 @@ export class DeliveryController {
       await this.stopFeature(id);
     if (paused.onlineAccess && paused.onlineAccess.state !== "stopped")
       await this.recoverOnline(id);
+    const repair = this.status(id).repair?.attempts.at(-1);
+    if (repair && repair.state !== "stopped") this.finishRepair(id, repair.id);
     return paused.execution && paused.execution.state !== "stopped"
       ? this.stopSession(id)
       : this.status(id);
@@ -2639,6 +2979,8 @@ export class DeliveryController {
 
   resume(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (delivery.repair?.attempts.some((a) => a.state !== "stopped"))
+        throw new DeliveryError("Recover the repair cycle before resuming.");
       if (delivery.validation?.attempts.some((a) => a.state !== "stopped"))
         throw new DeliveryError(
           "Recover validation descendant shutdown before this control.",
@@ -2718,12 +3060,25 @@ export class DeliveryController {
       await this.stopFeature(id);
     if (cancelled.onlineAccess && cancelled.onlineAccess.state !== "stopped")
       await this.recoverOnline(id);
+    const repair = this.status(id).repair?.attempts.at(-1);
+    if (repair && repair.state !== "stopped") this.finishRepair(id, repair.id);
     return cancelled.execution && cancelled.execution.state !== "stopped"
       ? this.stopSession(id)
       : this.status(id);
   }
 
   async recover(id: string): Promise<Delivery> {
+    const repair = this.status(id).repair?.attempts.at(-1);
+    if (repair && repair.state !== "stopped") {
+      if (
+        this.status(id).validation?.attempts.some((a) => a.state !== "stopped")
+      )
+        await this.stopValidation(id);
+      const session = this.status(id).feature?.session;
+      if (session && session.state !== "stopped")
+        await this.stopFeature(id, session.operationId);
+      return this.finishRepair(id, repair.id);
+    }
     if (this.status(id).validation?.attempts.some((a) => a.state !== "stopped"))
       return this.stopValidation(id);
     const coding = this.status(id).feature?.session;
@@ -2808,6 +3163,10 @@ export class DeliveryController {
 
   release(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (delivery.repair?.attempts.some((a) => a.state !== "stopped"))
+        throw new DeliveryError(
+          "Recover the repair cycle before releasing ownership.",
+        );
       if (delivery.validation?.attempts.some((a) => a.state !== "stopped"))
         throw new DeliveryError(
           "Recover validation descendant shutdown before this control.",
