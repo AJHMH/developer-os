@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
 import { redact } from "./redaction.js";
 
 export interface FeaturePlan {
@@ -272,11 +272,11 @@ export function candidateSource(repository: string, expected?: string) {
     .trim();
   if (
     (process.platform === "win32"
-      ? resolve(top).toLowerCase()
-      : resolve(top)) !==
+      ? realpathSync(top).toLowerCase()
+      : realpathSync(top)) !==
     (process.platform === "win32"
-      ? resolve(repository).toLowerCase()
-      : resolve(repository))
+      ? realpathSync(repository).toLowerCase()
+      : realpathSync(repository))
   )
     throw Error("Changed Git worktree root");
   const revision = candidateGit(repository, ["rev-parse", "HEAD"])

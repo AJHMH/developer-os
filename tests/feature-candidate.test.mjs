@@ -5,6 +5,7 @@ import {
   mkdirSync,
   writeFileSync,
   rmSync,
+  symlinkSync,
   realpathSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -1006,3 +1007,15 @@ for (const failure of [
     assert.equal(result.feature.candidate, undefined);
     assert.equal(result.feature.session.state, "stopped");
   });
+
+test("source admission resolves root identity but still refuses a linked workspace", async (t) => {
+  const f = fixture(t);
+  const { candidateSource } = await import("../dist/feature-candidate.js");
+  const alias = join(f.root, "alias");
+  symlinkSync(
+    f.repository,
+    alias,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  assert.throws(() => candidateSource(alias), /ordinary/);
+});
