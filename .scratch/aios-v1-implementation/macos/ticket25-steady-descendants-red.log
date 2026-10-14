@@ -1,0 +1,6 @@
+{"steadyCensuses": [7, 7, 7], "remainingProcesses": 0}
+
+Traceback (most recent call last):
+  File "<stdin>", line 19, in <module>
+AssertionError: persistent descendant census below eight
+

@@ -1,5 +1,61 @@
 # macOS isolated worker qualification
 
+## Current Ticket 25 continuation
+
+On 14 October 2026 the current local implementation passed the public Mac
+assertion: all nine live worker checks, owner-approved one-shot inference,
+usage/network gates, fixed task and isolated validation. All retained sessions
+and runs are stopped. See the [completion receipt](../.scratch/aios-v1-implementation/ticket25-macos-validation-20261013.md)
+and [version-bound report](../.scratch/aios-v1-implementation/macos/ticket25-final-qualified-report.json).
+Production remains disabled; full-controller/pilot qualification is a separate gate.
+
+The 13 October continuation adds a Mac target to the public
+`qualification-report`, `qualify-macos-controls --adversarial` for the six
+supplemental boundary/lifecycle controls, and the fixed `synthetic-task` after
+independent `macos-fixed-codex-subscription` authentication evidence. These use
+the same fixed runtime/control implementation as Windows, with independent
+AppleHV bindings, synthetic Mac isolation scope and protected Mac receipts.
+The internal `windowsControls` ledger field is retained for compatibility; its
+evidence must match the independently observed Mac binding and policy.
+
+Use `node scripts/assert-macos-qualification.mjs --state-dir <external-state>
+--id <delivery-id>` to require all nine live report checks and every retained
+offline/online session stopped. Controlled reports cannot establish completion.
+Production remains disabled even when fixed-worker qualification passes.
+
+Retained operator scripts are `ticket25-macos-*-acceptance.mjs` and
+`ticket25-macos-gateway-inference.mjs` under `.scratch/aios-v1-implementation`.
+They have fixed host paths and must run serially through the shared native
+acceptance lock. Preparation sends no inference. Execution requires fresh
+protected account eligibility and owner approval of the exact unconsumed run;
+the synthetic online stage requires its own one-run usage allowance. Historical
+Mac/Windows approvals are not reusable. No automatic refresh or paid fallback
+is allowed. The current local receipt is
+`ticket25-macos-validation-20261013.md`; the older observations below remain
+historical.
+
+On this Mac, run the host suite with `AIOS_TEST_PYTHON=/usr/bin/python3 npm test`.
+The installed interpreter is Python 3; the `python` command is unavailable.
+
+The current Mac repair uses one-thread Codex runtime settings, the existing
+bounded observed task-headroom gate and exact process-handle crash helper. The
+worker ceiling stays 32 tasks. Trusted Mac management commands have a fixed
+90-second deadline and disposable positive-control listeners have a fixed
+120-second lifetime. Mac version preflight and individual guest commands have
+30-second deadlines (Windows: 10 and 15 seconds); the Windows management
+command deadline remains 25 seconds. The Mac proof/crash-resume has a 60-second deadline (Windows: 35 seconds), with
+a 180-second gateway transport deadline including preparation and cleanup
+(Windows: 55 seconds). Synthetic namespace fixture grants expire after 120
+seconds (Windows: 60), independently of the provider lease. The Mac post-turn
+history read also waits for observed task headroom before its persistence
+window begins. The synthetic relay exec permits ten seconds of VM scheduling (Windows: four) while
+its network timeout remains two seconds. Relay stdout is unbuffered so readiness
+checks observe coalesced frames on either host. The provider request retains its
+separate 30-second lease, one-request limit and no-retry rule. The Mac expiry fixture admits one positive request and confirms
+an incomplete body read before a one-time management signal shortens its
+synthetic nongateway lease to 1.5 seconds. It cannot extend, revive or arm a
+gateway grant. Longer fixture scheduling does not admit a failed control.
+
 ## Scope and outcome
 
 Ticket 04 now has an independently observed **synthetic offline** macOS path.
@@ -135,3 +191,32 @@ workers and stopped `aios-macos-noshare`. The retained
 VM explicitly before repeating probes; boot/image/runtime drift still requires
 fresh matching observations. All state, stopped synthetic containers and revoked
 worker records are preserved.
+
+
+The approved provider gateway is activated only after the first transport frame
+passes its delivery and capability binding checks. This gives its existing
+thirty-second, one-request lease to the provider exchange; VM preparation does
+not consume that lease. The host provider capability stays outside the VM.
+
+
+Native forbidden-path and credential-read probes each use a single bounded
+management exec. Paths remain quoted arguments, and management transport errors
+refuse qualification. Container-existence queries have the same bounded command
+window and accept only explicit exists/absent exit codes; errors cannot establish
+shutdown. The offline fixture has eight persistent processes, including two
+orphan sleeps, so its minimum descendant census does not rely on transient
+startup commands. The worker's 32-task ceiling remains unchanged.
+
+
+The current native validation configuration uses 2 CPUs, 3 GiB guest memory and
+20 GiB disk. The earlier 2 GiB guest exhibited severe memory and I/O stalls
+during the Codex proof. Qualification evidence is for the explicitly recorded
+3 GiB configuration; the Codex worker remains capped at 512 MiB and 32 tasks.
+
+
+Explicit native acceptance uses a Mac keep-awake assertion bound to the runner
+PID and releases it during cleanup. Keep the lid open during validation; sleep
+interruptions are failing observations, not reusable qualification evidence.
+Fixed-task admission and dispatch both require the subscription scope derived
+from the originally admitted host binding; unsupported scopes and authority
+drift refuse execution.

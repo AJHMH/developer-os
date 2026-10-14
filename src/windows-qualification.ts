@@ -22,7 +22,9 @@ export interface QualificationCheck {
 }
 export interface WindowsWorkerQualificationReport {
   schema: 1;
-  target: { platform: "win32"; arch: "x64"; provider: "hyperv" };
+  target:
+    | { platform: "win32"; arch: "x64"; provider: "hyperv" }
+    | { platform: "darwin"; arch: "arm64"; provider: "applehv" };
   deliveryId: string;
   outcome: "qualified" | "blocked";
   source: {
@@ -58,16 +60,23 @@ export interface WindowsWorkerQualificationReport {
 
 const sha256 = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-const sameBinding = (delivery: Delivery) => {
+const sameBinding = (delivery: Delivery, macos: boolean) => {
   const q = delivery.qualification,
     binding = q?.offlineAdmission?.binding;
   return Boolean(
     q?.offlineAdmission?.allowed &&
-      binding?.platform === "win32" &&
-      binding.arch === "x64" &&
-      binding.provider === "hyperv" &&
-      /^10\.0\.\d+$/.test(binding.osVersion ?? "") &&
-      Number(binding.osVersion?.split(".")[2]) >= 22000 &&
+      binding &&
+      (macos
+        ? binding?.platform === "darwin" &&
+          binding.arch === "arm64" &&
+          binding.provider === "applehv" &&
+          /^\d+\.\d+\.\d+$/.test(binding.osVersion ?? "") &&
+          Number(binding.osVersion?.split(".")[0]) >= 23
+        : binding?.platform === "win32" &&
+          binding.arch === "x64" &&
+          binding.provider === "hyperv" &&
+          /^10\.0\.\d+$/.test(binding.osVersion ?? "") &&
+          Number(binding.osVersion?.split(".")[2]) >= 22000) &&
       /^aios-[a-z0-9-]+$/.test(binding.machine ?? "") &&
       sha256(binding.hostId) &&
       sha256(binding.vmImageSha256) &&
@@ -106,12 +115,25 @@ const check = (
 export function windowsWorkerQualificationReport(
   delivery: Delivery,
 ): WindowsWorkerQualificationReport {
+  return workerQualificationReport(delivery, false);
+}
+
+export function macosWorkerQualificationReport(
+  delivery: Delivery,
+): WindowsWorkerQualificationReport {
+  return workerQualificationReport(delivery, true);
+}
+
+function workerQualificationReport(
+  delivery: Delivery,
+  macos: boolean,
+): WindowsWorkerQualificationReport {
   const q = delivery.qualification,
     admission = q?.offlineAdmission,
     binding = admission?.binding,
     evidenceMode = q?.mode ?? "unavailable",
     noQualification = !q,
-    matchingBinding = sameBinding(delivery);
+    matchingBinding = sameBinding(delivery, macos);
   const hostBinding = check(
     noQualification ? "not-run" : matchingBinding ? "passed" : "failed",
     evidenceMode,
@@ -166,7 +188,8 @@ export function windowsWorkerQualificationReport(
   const adversarial = q?.adversarial;
   const adversarialPassed = Boolean(
     matchingBinding &&
-      adversarial?.scope === "synthetic-windows-controls" &&
+      adversarial?.scope ===
+        (macos ? "synthetic-macos-controls" : "synthetic-windows-controls") &&
       /^[a-f0-9-]{36}$/.test(adversarial.challengeId) &&
       sha256(adversarial.probeVersion) &&
       adversarial.escapeAttempts.length === 4 &&
@@ -224,7 +247,6 @@ export function windowsWorkerQualificationReport(
   const authentication = check(
     matchingBinding &&
       decision?.qualified === true &&
-      decision.scope === "windows-fixed-codex-subscription" &&
       decision.scope === subscriptionDecisionScope(binding) &&
       decision.bindingSha256 === q?.bindingSha256 &&
       decision.inferenceAuthorized === false
@@ -276,7 +298,8 @@ export function windowsWorkerQualificationReport(
     authentication.result === "passed" &&
     q?.subscriptionMediation?.explicitResume === "passed" &&
     adversarial &&
-    adversarial.scope === "synthetic-windows-controls" &&
+    adversarial.scope ===
+      (macos ? "synthetic-macos-controls" : "synthetic-windows-controls") &&
     /^[a-f0-9-]{36}$/.test(adversarial.challengeId) &&
     sha256(adversarial.probeVersion) &&
     adversarial.escapeAttempts.length === 4 &&
@@ -432,7 +455,9 @@ export function windowsWorkerQualificationReport(
       : "blocked";
   return {
     schema: 1,
-    target: { platform: "win32", arch: "x64", provider: "hyperv" },
+    target: macos
+      ? { platform: "darwin", arch: "arm64", provider: "applehv" }
+      : { platform: "win32", arch: "x64", provider: "hyperv" },
     deliveryId: delivery.id,
     outcome: status,
     source: {
@@ -460,7 +485,13 @@ export function windowsWorkerQualificationReport(
         : {}),
     },
     checks,
-    blockers,
+    blockers: macos
+      ? blockers.map((message) =>
+          message
+            .replaceAll("Windows Hyper-V", "macOS AppleHV")
+            .replaceAll("Windows", "macOS"),
+        )
+      : blockers,
     productionEnabled: false,
   };
 }

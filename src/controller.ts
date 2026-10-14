@@ -77,6 +77,7 @@ import {
 } from "./onboarding.js";
 import {
   windowsWorkerQualificationReport,
+  macosWorkerQualificationReport,
   type WindowsWorkerQualificationReport,
 } from "./windows-qualification.js";
 
@@ -379,7 +380,11 @@ export class DeliveryController {
 
   /** Read a version-bound Windows qualification snapshot without running probes. */
   qualificationReport(id: string): WindowsWorkerQualificationReport {
-    return windowsWorkerQualificationReport(this.status(id));
+    const delivery = this.status(id);
+    return delivery.qualification?.offlineAdmission?.binding?.platform ===
+      "darwin"
+      ? macosWorkerQualificationReport(delivery)
+      : windowsWorkerQualificationReport(delivery);
   }
 
   list(): { deliveries: Delivery[] } {
@@ -1075,6 +1080,17 @@ export class DeliveryController {
   }
 
   async qualifyWindowsControls(id: string): Promise<Delivery> {
+    return this.qualifyControls(id, "win32");
+  }
+
+  async qualifyMacosControls(id: string): Promise<Delivery> {
+    return this.qualifyControls(id, "darwin");
+  }
+
+  private async qualifyControls(
+    id: string,
+    platform: "win32" | "darwin",
+  ): Promise<Delivery> {
     const runtime = this.coordination.windowsControls;
     if (!runtime || runtime.version !== windowsControlsVersion)
       throw new DeliveryError(
@@ -1084,12 +1100,12 @@ export class DeliveryController {
     if (
       !before.ownership.held ||
       before.phase !== "blocked" ||
-      before.qualification?.offlineAdmission?.binding?.platform !== "win32" ||
+      before.qualification?.offlineAdmission?.binding?.platform !== platform ||
       !before.qualification.offlineAdmission.allowed ||
       before.qualification.mode !== runtime.mode
     )
       throw new DeliveryError(
-        "Windows controls require an owned stopped admitted Windows binding.",
+        "Controls require an owned stopped admitted platform binding.",
       );
     const evidence = await runtime.qualify(before);
     const after = await this.qualify(id);
@@ -1144,6 +1160,7 @@ export class DeliveryController {
   ): Promise<Delivery> {
     const qualified = await this.qualify(id);
     const admission = qualified.qualification?.offlineAdmission;
+    const syntheticScope = subscriptionDecisionScope(admission?.binding);
     const runtime = this.coordination.offline;
     const pins = {
       bindingSha256: qualified.qualification?.bindingSha256 ?? "",
@@ -1171,8 +1188,9 @@ export class DeliveryController {
       !runtime ||
       runtime.mode !== qualified.qualification?.mode ||
       (runtime === this.coordination.synthetic &&
-        qualified.qualification?.subscriptionMediation?.mechanismDecision
-          ?.scope !== "windows-fixed-codex-subscription")
+        (!syntheticScope ||
+          qualified.qualification?.subscriptionMediation?.mechanismDecision
+            ?.scope !== syntheticScope))
     )
       return refuse(
         "Offline canary refused: matching admitted VM bindings and a trusted offline management driver are required.",
@@ -1253,8 +1271,9 @@ export class DeliveryController {
               current.execution?.operationId === session.operationId &&
               current.execution.state === "dispatched" &&
               (runtime !== this.coordination.synthetic ||
-                current.qualification?.subscriptionMediation?.mechanismDecision
-                  ?.scope === "windows-fixed-codex-subscription")
+                (Boolean(syntheticScope) &&
+                  current.qualification?.subscriptionMediation
+                    ?.mechanismDecision?.scope === syntheticScope))
             );
           },
         }),
@@ -1407,10 +1426,13 @@ export class DeliveryController {
       runtime !== this.coordination.offline ||
       runtime.version !== syntheticTaskVersion ||
       !decision?.qualified ||
-      decision.scope !== "windows-fixed-codex-subscription"
+      decision.scope !==
+        subscriptionDecisionScope(
+          qualified.qualification?.offlineAdmission?.binding,
+        )
     )
       throw new DeliveryError(
-        "Synthetic Windows work requires a trusted fixed task runtime and independent positive authentication; no inference is authorized.",
+        "Synthetic work requires a trusted fixed task runtime and independent positive authentication; no inference is authorized.",
       );
     const files = admitFiles(
       {

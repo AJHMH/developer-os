@@ -103,7 +103,7 @@ export function podmanCommand(
     cwd: host.cwd,
     env: host.env,
     encoding: "utf8",
-    timeout: 10000,
+    timeout: host.platform === "darwin" ? 30000 : 10000,
     maxBuffer: 65536,
     shell: false,
     windowsHide: true,

@@ -398,7 +398,7 @@ test("a positively admitted macOS binding cannot satisfy the Windows report", as
   const qualified = await f.controller.qualify(f.delivery.id);
   assert.equal(qualified.qualification.offlineAdmission.allowed, true);
 
-  const report = f.controller.qualificationReport(f.delivery.id);
+  const report = windowsWorkerQualificationReport(qualified);
   assert.equal(report.target.platform, "win32");
   assert.equal(report.checks.hostBinding.result, "failed");
   assert.equal(report.outcome, "blocked");
@@ -806,7 +806,7 @@ test("Windows report binds task validation evidence and refuses altered output o
   );
 });
 
-async function nativeControlsScenario(t, refusal) {
+async function nativeControlsScenario(t, refusal, macos = false) {
   const { NativeWindowsControls, windowsControlNames } = await import(
     "../dist/windows-controls.js"
   );
@@ -814,7 +814,18 @@ async function nativeControlsScenario(t, refusal) {
   const cp = (await import("node:child_process")).default;
   const os = (await import("node:os")).default;
   const { syncBuiltinESMExports } = await import("node:module");
-  const f = fixture(t);
+  const f = fixture(
+    t,
+    {},
+    macos
+      ? {
+          platform: "darwin",
+          arch: "arm64",
+          provider: "applehv",
+          osVersion: "27.2.0",
+        }
+      : {},
+  );
   writeFileSync(
     join(f.repository, "canary.txt"),
     "AIOS offline canary input\n",
@@ -980,3 +991,125 @@ test("native Windows controls coordinate synthetic boundary denial, revoked send
 for (const refusal of ["allowed-stage", "unknown-stage", "challenge", "denial"])
   test(`native Windows controls refuse ${refusal} boundary evidence and still stop the worker`, (t) =>
     nativeControlsScenario(t, refusal));
+
+test("public Mac report requires independent AppleHV evidence and cannot inherit Windows admission", async (t) => {
+  const { macosWorkerQualificationReport } = await import(
+    "../dist/windows-qualification.js"
+  );
+  const win = fixture(t);
+  const wd = await win.controller.qualify(win.delivery.id);
+  assert.equal(
+    macosWorkerQualificationReport(wd).checks.hostBinding.result,
+    "failed",
+  );
+  const mac = fixture(
+    t,
+    {},
+    {
+      platform: "darwin",
+      arch: "arm64",
+      osVersion: "27.2.0",
+      provider: "applehv",
+    },
+  );
+  await mac.controller.qualify(mac.delivery.id);
+  const report = mac.controller.qualificationReport(mac.delivery.id);
+  assert.deepEqual(report.target, {
+    platform: "darwin",
+    arch: "arm64",
+    provider: "applehv",
+  });
+  assert.equal(report.checks.hostBinding.result, "passed");
+  assert.equal(report.outcome, "blocked");
+  assert.equal(report.productionEnabled, false);
+  assert.equal(report.checks.authentication.result, "not-run");
+  const wrong = fixture(
+    t,
+    {},
+    {
+      platform: "darwin",
+      arch: "arm64",
+      osVersion: "27.2.0",
+      provider: "hyperv",
+    },
+  );
+  const d = await wrong.controller.qualify(wrong.delivery.id);
+  assert.equal(
+    macosWorkerQualificationReport(d).checks.hostBinding.result,
+    "failed",
+  );
+  await assert.rejects(
+    () => mac.controller.qualifyMacosControls(mac.delivery.id),
+    /trusted Windows controls runtime/,
+  );
+});
+
+test("Mac controls exercise boundary denial and exact orphan shutdown through AppleHV", (t) =>
+  nativeControlsScenario(t, undefined, true));
+
+test("Mac completion assertion rejects Windows evidence and active retained sessions", async () => {
+  const { assertMacosAcceptance } = await import(
+    "../scripts/assert-macos-qualification.mjs"
+  );
+  const names = [
+    "hostBinding",
+    "offlineTransfer",
+    "adversarialIsolation",
+    "onlinePolicy",
+    "authentication",
+    "usageGate",
+    "fencingRecovery",
+    "syntheticTask",
+    "isolatedValidation",
+  ];
+  const report = {
+    outcome: "qualified",
+    productionEnabled: false,
+    deliveryId: "mac",
+    target: { platform: "darwin", arch: "arm64", provider: "applehv" },
+    checks: Object.fromEntries(
+      names.map((n) => [n, { result: "passed", evidenceMode: "live" }]),
+    ),
+  };
+  const delivery = {
+    id: "mac",
+    execution: { state: "stopped" },
+    onlineAccess: { state: "stopped" },
+    sessions: [],
+    onlineRuns: [],
+  };
+  assert.doesNotThrow(() => assertMacosAcceptance(report, delivery));
+  assert.throws(() =>
+    assertMacosAcceptance(
+      {
+        ...report,
+        target: { platform: "win32", arch: "x64", provider: "hyperv" },
+      },
+      delivery,
+    ),
+  );
+  assert.throws(() =>
+    assertMacosAcceptance(report, {
+      ...delivery,
+      sessions: [{ state: "dispatched" }],
+    }),
+  );
+  assert.throws(() =>
+    assertMacosAcceptance(report, {
+      ...delivery,
+      onlineRuns: [{ state: "uncertain" }],
+    }),
+  );
+  assert.throws(() =>
+    assertMacosAcceptance(
+      {
+        ...report,
+        checks: {
+          ...report.checks,
+          authentication: { result: "not-run", evidenceMode: "live" },
+        },
+      },
+      delivery,
+    ),
+  );
+});

@@ -282,6 +282,9 @@ export class NativeWindowsControls implements WindowsControlsRuntime {
         windowsHide: true,
         stdio: ["pipe", "pipe", "ignore"],
         env: {
+          ...(process.platform === "darwin"
+            ? { HOME: podmanMachine(n.machine).env.HOME }
+            : {}),
           SystemRoot: process.env.SystemRoot,
           PATH: process.env.SystemRoot
             ? process.env.SystemRoot + "/System32"

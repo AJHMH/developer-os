@@ -13,6 +13,7 @@ import {
   podmanCommand,
 } from "../dist/podman-platform.js";
 import { NativePodmanDriver } from "../dist/podman-native.js";
+const nativeSpawnSync = childProcess.spawnSync;
 
 test("native inference starts its one-shot gateway lease only after bound isolation and always revokes it", async () => {
   const native = new NativePodmanDriver(
@@ -40,8 +41,9 @@ test("native inference starts its one-shot gateway lease only after bound isolat
     return { passed: !refused, challengeId: payload.challenge.id };
   };
   native.gatewayInvocation = async (payload, deliveryId, supplied) => {
-    assert.equal(created, 1);
-    assert.equal(supplied, gateway);
+    assert.equal(created, 0);
+    assert.equal(typeof supplied, "function");
+    assert.equal(supplied(), gateway);
     return {
       protocol: "passed",
       explicitResume: "passed",
@@ -77,6 +79,9 @@ test("native inference starts its one-shot gateway lease only after bound isolat
   assert.equal(revoked, 1);
 });
 import {
+  HostSubscriptionGateway,
+  syntheticGatewayAccount,
+  syntheticGatewayApproval,
   gatewayRequest,
   subscriptionGatewayVersion,
   syntheticGatewayResponse,
@@ -113,6 +118,8 @@ function hostFixture(
   let version = "6.1.1";
   const requests = [];
   const programs = [];
+  const timeouts = [];
+  const versionTimeouts = [];
   const nativeReadFile = fs.readFileSync;
   t.mock.method(os, "platform", () => platform);
   t.mock.method(os, "arch", () => arch);
@@ -146,13 +153,16 @@ function hostFixture(
     return Buffer.from(executable);
   });
   t.mock.method(childProcess, "spawnSync", (path, args, options) => {
-    if (args.includes("version"))
+    if (args.includes("version")) {
+      versionTimeouts.push(options.timeout);
       return {
         status: 0,
         stdout: JSON.stringify({ Client: { Version: version } }),
       };
+    }
     if (args.includes("python3")) {
       programs.push(options.input);
+      timeouts.push(options.timeout);
       const encoded = options.input.match(/base64.b64decode\('([^']+)'\)/)[1];
       const request = JSON.parse(Buffer.from(encoded, "base64"));
       requests.push(request);
@@ -169,6 +179,8 @@ function hostFixture(
     config,
     requests,
     programs,
+    timeouts,
+    versionTimeouts,
     setConfig: (value) => {
       config = value;
     },
@@ -542,6 +554,7 @@ test("generated native management freezes direct wait failures before successful
       String.raw`
 import ast,json,sys,subprocess,time
 program=ast.parse(sys.stdin.read())
+R={'hostBinding':{'platform':'win32'}}
 functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command','freeze_failure']]
 # Exercise the actual emitted exception handler, replacing VM work and cleanup
 # with fixed synthetic subprocess outcomes; no management authority is opened.
@@ -568,7 +581,7 @@ print('preserved')
   assert.equal(result.stdout.trim(), "preserved");
 });
 
-test("Windows native Codex launch constrains thread pools and audits the exact environment", (t) => {
+test("Native Codex launch constrains thread pools and audits the exact environment", (t) => {
   const runPython = childProcess.spawnSync;
   const python = process.env.AIOS_TEST_PYTHON ?? "python";
   const available = runPython(python, ["--version"], {
@@ -600,7 +613,7 @@ base={b'PATH':b'/usr/bin:/bin',b'HOME':b'/',b'HOSTNAME':b'aios-offline',b'DELIVE
 for platform in ['win32','darwin']:
  binding={'platform':platform};cap='synthetic';args=['podman','exec','-i','worker','/codex']
  exec(compile(ast.fix_missing_locations(ast.Module(body=[assignment,insertion],type_ignores=[])),'launch','exec'))
- expected={b'TOKIO_WORKER_THREADS':b'1',b'RAYON_NUM_THREADS':b'1'} if platform=='win32' else {}
+ expected={b'TOKIO_WORKER_THREADS':b'1',b'RAYON_NUM_THREADS':b'1'}
  assert runtimeEnv==expected
  assert args[-2:]==['worker','/codex']
  assert len(args)==5+2*len(expected)
@@ -623,7 +636,7 @@ print('bounded')
   assert.equal(result.stdout.trim(), "bounded");
 });
 
-test("Windows Codex task-headroom gate waits for idle workers and refuses exhausted budgets", (t) => {
+test("Native Codex task-headroom gate waits for idle workers and refuses exhausted budgets", (t) => {
   const runPython = childProcess.spawnSync;
   const python = process.env.AIOS_TEST_PYTHON ?? "python";
   const f = hostFixture(t, "win32");
@@ -637,7 +650,7 @@ test("Windows Codex task-headroom gate waits for idle workers and refuses exhaus
       "-c",
       String.raw`
 import ast,sys
-program=ast.parse(sys.stdin.read())
+source=sys.stdin.read();program=ast.parse(source)
 gate=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='awaitTaskBudget')
 class Clock:
  def __init__(self): self.now=0
@@ -655,9 +668,12 @@ for samples,allowed in [([(32,12),(28,6),(26,4)],True), ([(32,12)],False), ([(26
  except RuntimeError: assert not allowed
  else: assert allowed
  assert time.now<=12.1
-binding={'platform':'darwin'};observations=0;awaitTaskBudget();assert observations==0
+binding={'platform':'darwin'};observations=0;awaitTaskBudget();assert observations==1
+assignment=next(n for n in ast.walk(program) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='runtimeEnv' for t in n.targets))
+assert isinstance(assignment.value,ast.Dict)
+assert 'killall' not in source
 calls=[n for n in ast.walk(program) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='awaitTaskBudget']
-assert len(calls)==3
+assert len(calls)==4
 requestNode=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='request')
 cap='synthetic';delivery='synthetic';body=b'{}';name='worker';diagnostic={}
 class Process:
@@ -667,7 +683,7 @@ class Process:
   return type('Result',(),{'stdout':b'HTTP/1.1 403 Forbidden\r\n\r\n','returncode':0})()
 subprocess=Process()
 exec(compile(ast.fix_missing_locations(ast.Module(body=[requestNode],type_ignores=[])),'request','exec'))
-for platform,worker,running,expected in [('win32','worker',True,['gate','request']),('win32','worker',False,['request']),('win32','peer',True,['request']),('darwin','worker',True,['request'])]:
+for platform,worker,running,expected in [('win32','worker',True,['gate','request']),('win32','worker',False,['request']),('win32','peer',True,['request']),('darwin','worker',True,['gate','request'])]:
  binding={'platform':platform};child=object() if running else None;stage='revoked';events=[]
  def awaitTaskBudget(): events.append('gate')
  assert request(worker,18081).startswith(b'HTTP/1.1 403 ')
@@ -797,5 +813,450 @@ test("native fixed task enforces staging, dispatch authority and exact stopped c
   await assert.rejects(
     task.collectTask(session, pins),
     /verified native collection/,
+  );
+});
+
+for (const [platform, deadline] of [
+  ["darwin", 90000],
+  ["win32", 25000],
+]) {
+  test(`native ${platform} management deadline remains bounded`, (t) => {
+    const f = hostFixture(t, platform);
+    f.setResult({ status: 0, stdout: "{}" });
+    new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+      "/candidate",
+    );
+    assert.deepEqual(f.timeouts, [deadline]);
+    assert.deepEqual(f.versionTimeouts, [
+      platform === "darwin" ? 30000 : 10000,
+    ]);
+  });
+}
+test("host positive-control fixture refuses an unbounded lifetime before starting", async () => {
+  const { withHostCanary } = await import("../dist/host-canary.js");
+  await assert.rejects(
+    () => withHostCanary(() => assert.fail("must not start"), Infinity),
+    /lifetime/,
+  );
+});
+
+test("guest command budgets keep Mac scheduling bounded and Windows unchanged", (t) => {
+  const py = nativeSpawnSync,
+    f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = py(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys,subprocess,time
+program=ast.parse(sys.stdin.read());functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command']]
+for platform,expected in [('darwin',30),('win32',15)]:
+ R={'hostBinding':{'platform':platform}};deadlines=[]
+ def run(args,**kw): deadlines.append(kw['timeout']);return subprocess.CompletedProcess(args,0,b'ok',b'')
+ subprocess.run=run
+ exec(compile(ast.fix_missing_locations(ast.Module(body=functions,type_ignores=[])),'actual-management','exec'))
+ assert command(['synthetic'])==b'ok' and deadlines==[expected]
+print('bounded')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "bounded");
+});
+
+test("native relay observes coalesced readiness and acceptance frames on both hosts", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = nativeSpawnSync(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys,subprocess,json,select,time
+program=ast.parse(sys.stdin.read());relayNode=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='relay')
+rawPopen=subprocess.Popen;rawSelect=select.select
+endpointSource="import sys,json,time; c=json.loads(sys.stdin.readline()); print(json.dumps(dict(ready=True,deliveryId=c['deliveryId']))+'\\n'+json.dumps(dict(accepted=1)),flush=True);time.sleep(2)"
+select.select=lambda r,w,x,timeout:rawSelect(r,w,x,min(timeout,0.15))
+def inspect(worker):return {'State':{'Pid':123}}
+def fail():raise RuntimeError('lost buffered relay frame')
+for platform in ['win32','darwin']:
+ binding={'platform':platform};proxies=[];delivery='fixture'
+ subprocess.Popen=lambda args,**kwargs:rawPopen([sys.executable,'-u','-c',endpointSource],**kwargs)
+ exec(compile(ast.fix_missing_locations(ast.Module(body=[relayNode],type_ignores=[])),'actual-management','exec'))
+ try:
+  p,event=relay('fixture',1,delivery,'synthetic',2)
+  assert event()=={'accepted':1},platform
+ finally:
+  for p in proxies:p.kill();p.wait()
+print('coalesced frames observed')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "coalesced frames observed");
+});
+
+test("Mac relay permits observed exec scheduling delay while retaining the network deadline", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = nativeSpawnSync(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys,subprocess,json
+program=ast.parse(sys.stdin.read());requestNode=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='request')
+rawRun=subprocess.run;binding={'platform':'darwin'};cap='synthetic';delivery='fixture';body=b'{}';name='fixture';child=None;stage='denial';diagnostic={}
+def fail():raise RuntimeError('refused')
+def run(args,**kwargs):
+ assert args[:4]==['podman','exec','-i',name] and args[4:6]==['nc','-w'] and args[6]=='2'
+ return rawRun([sys.executable,'-c',"import time;time.sleep(4.1);print('HTTP/1.1 403 Forbidden\\r\\n\\r\\n',end='')"],**kwargs)
+subprocess.run=run
+exec(compile(ast.fix_missing_locations(ast.Module(body=[requestNode],type_ignores=[])),'actual-management','exec'))
+assert request(name,18081).startswith(b'HTTP/1.1 403 ')
+print('scheduled denial observed')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 12000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "scheduled denial observed");
+});
+
+test("Mac completed turn waits for headroom before opening persisted history", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = nativeSpawnSync(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys
+program=ast.parse(sys.stdin.read());branch=next(n for n in ast.walk(program) if isinstance(n,ast.If) and "message.get('method') == 'turn/completed'"==ast.unparse(n.test))
+message={'params':{'turn':{'status':'completed'}}};answer='AIOS model-only inference complete';thread='fixture'
+class Clock:
+ def monotonic(self):return 0
+time=Clock()
+def fail():raise RuntimeError('refused')
+for platform,allowed in [('darwin',True),('darwin',False),('win32',True)]:
+ binding={'platform':platform};events=[];stage='completed'
+ def awaitTaskBudget():
+  events.append('gate')
+  if not allowed:raise RuntimeError('headroom refused')
+ def send(value):events.append('history');assert value['method']=='thread/read'
+ try:exec(compile(ast.fix_missing_locations(ast.Module(body=branch.body,type_ignores=[])),'actual-completed-turn','exec'))
+ except RuntimeError:assert not allowed and events==['gate'] and stage=='codex-persistence-task-budget'
+ else:assert allowed and events==(['gate','history'] if platform=='darwin' else ['history'])
+print('history headroom enforced')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "history headroom enforced");
+});
+
+test("Mac resume may finish after headroom waits without extending the Windows protocol window", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = nativeSpawnSync(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys
+program=ast.parse(sys.stdin.read());assignment=next(n for n in ast.walk(program) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='deadline' for t in n.targets));guard=next(n for n in ast.walk(program) if isinstance(n,ast.If) and "not verified and time.monotonic() >= deadline"==ast.unparse(n.test))
+class Clock:
+ now=0
+ def monotonic(self):return self.now
+def fail():raise RuntimeError('expired')
+for platform,elapsed,expired in [('darwin',36,False),('darwin',61,True),('win32',36,True)]:
+ binding={'platform':platform};time=Clock();verified=False;stage='codex-explicit-resume'
+ exec(compile(ast.fix_missing_locations(ast.Module(body=[assignment],type_ignores=[])),'actual-deadline','exec'));time.now=elapsed
+ try:exec(compile(ast.fix_missing_locations(ast.Module(body=[guard],type_ignores=[])),'actual-expiry','exec'))
+ except RuntimeError:assert expired and stage=='codex-protocol-deadline'
+ else:assert not expired
+print('resume windows bounded')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "resume windows bounded");
+});
+
+for (const mode of [
+  "valid",
+  "wrong-capability",
+  "wrong-delivery",
+  "duplicate",
+]) {
+  test(`gateway activation follows a bound request after slow VM preparation: ${mode}`, async (t) => {
+    hostFixture(t, "darwin");
+    let clock = 0,
+      created = 0,
+      credentials = 0,
+      upstream = 0;
+    t.mock.method(Date, "now", () => clock);
+    const deliveryId = "00000000-0000-4000-8000-000000000020";
+    t.mock.method(childProcess, "spawn", (_exe, args) => {
+      assert.ok(args.includes("python3"));
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.exitCode = null;
+      let request,
+        replies = 0;
+      const frame = () => ({
+        deliveryId: mode === "wrong-delivery" ? "different" : deliveryId,
+        capability:
+          mode === "wrong-capability"
+            ? "0".repeat(64)
+            : request.gatewayCapability,
+        gatewayRequest: Buffer.from(gatewayRequest).toString("base64"),
+      });
+      child.kill = () => {
+        if (child.exitCode === null) {
+          child.exitCode = 1;
+          queueMicrotask(() => child.emit("close", 1));
+        }
+      };
+      child.stdin = new Writable({
+        write(chunk, _encoding, done) {
+          if (!request) {
+            assert.equal(created, 0, "no provider lease during VM preparation");
+            const code = Buffer.from(
+              chunk.toString().trim(),
+              "base64",
+            ).toString();
+            request = JSON.parse(
+              Buffer.from(
+                code.match(/base64.b64decode\('([^']+)'\)/)[1],
+                "base64",
+              ),
+            );
+            clock = 40000;
+            queueMicrotask(() =>
+              child.stdout.emit(
+                "data",
+                Buffer.from(JSON.stringify(frame()) + "\n"),
+              ),
+            );
+            setTimeout(() => {
+              if (child.exitCode === null && replies === 0) {
+                child.exitCode = 0;
+                child.emit("close", 0);
+              }
+            }, 10);
+          } else {
+            replies++;
+            if (mode === "duplicate" && replies === 1)
+              queueMicrotask(() =>
+                child.stdout.emit(
+                  "data",
+                  Buffer.from(JSON.stringify(frame()) + "\n"),
+                ),
+              );
+            else
+              queueMicrotask(() => {
+                child.stdout.emit(
+                  "data",
+                  Buffer.from(
+                    JSON.stringify({
+                      gatewayIntegration: "passed",
+                      gatewayVersion: subscriptionGatewayVersion,
+                    }) + "\n",
+                  ),
+                );
+                child.exitCode = 0;
+                child.emit("close", 0);
+              });
+          }
+          done();
+        },
+      });
+      return child;
+    });
+    syncBuiltinESMExports();
+    const native = new NativePodmanDriver(
+      "aios-test",
+      "/authority",
+      "/pins.json",
+    );
+    const factory = () => {
+      created++;
+      const account = syntheticGatewayAccount();
+      const approval = syntheticGatewayApproval(deliveryId, account);
+      assert.equal(approval.expiresAt - clock, 30000);
+      return new HostSubscriptionGateway(
+        approval,
+        () => {
+          credentials++;
+          return account;
+        },
+        async () => {
+          upstream++;
+          return syntheticGatewayResponse();
+        },
+      );
+    };
+    const run = () => native.gatewayInvocation({}, deliveryId, factory);
+    if (mode === "valid")
+      assert.equal((await run()).gatewayIntegration, "passed");
+    else await assert.rejects(run, /Gateway transport unavailable/);
+    const accepted = mode === "valid" || mode === "duplicate";
+    assert.equal(created, accepted ? 1 : 0);
+    assert.equal(credentials, accepted ? 1 : 0);
+    assert.equal(upstream, accepted ? 1 : 0);
+  });
+}
+
+test("effective isolation checks bound exec and refuse transport failures", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = nativeSpawnSync(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys,subprocess,json
+program=ast.parse(sys.stdin.read())
+nodes=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['command','pod','effective']]
+# The generated management source is wrapped by the host for some actions.
+if not nodes:nodes=[n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name in ['command','pod','effective']]
+R={'hostBinding':{'platform':'darwin'}};engineSocket='/run/user/1000/podman/podman.sock'
+class Path:
+ def __init__(self,p):pass
+ def read_text(self):return 'NoNewPrivs: 1\nSeccomp: 2\nCapEff: 00000000\n'
+class Paths:Path=Path
+pathlib=Paths()
+import time
+def fail():raise RuntimeError('refused')
+def inspect(name):return {'HostConfig':{'PidMode':'private','NetworkMode':'none','ReadonlyRootfs':True,'SecurityOpt':['no-new-privileges']},'Config':{'Env':['PATH=/usr/bin:/bin','HOME=/','HOSTNAME=aios-offline'],'User':'65534:65534'},'State':{'Pid':123}}
+exec(compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-effective','exec'))
+for exitCode in [0,125]:
+ calls=[]
+ def run(args,**kwargs):
+  assert kwargs.get('timeout')==30, 'unbounded native exec'
+  if args[3:] == ['cat','/proc/self/mountinfo']:return subprocess.CompletedProcess(args,0,b'1 0 0:1 / / ro - overlay overlay ro\n',b'')
+  calls.append(args)
+  assert args[:3]==['podman','exec','fixture']
+  assert args[-5:]==['/run/podman/podman.sock',engineSocket,'/var/run/docker.sock','/mnt/c','/Users']
+  return subprocess.CompletedProcess(args,exitCode,b'',b'')
+ subprocess.run=run
+ try:effective('fixture');assert exitCode==0
+ except RuntimeError:assert exitCode==125
+ assert len(calls)==1, 'paths must share one bounded exec'
+print('one bounded exec; transport failure refuses')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "one bounded exec; transport failure refuses");
+});
+
+test("native credential denials are bounded and fail closed on transport errors", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = nativeSpawnSync(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys,subprocess,json,time,tempfile,pathlib,textwrap
+source=sys.stdin.read();program=ast.parse(source)
+nodes=[n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name in ['command','pod']]
+start=source.index("if pathlib.Path(private).read_text()!=secret: fail()")
+start=source.index('\n',start)+1;end=source.index("stage='codex-credential-denials'",start)
+block=textwrap.dedent(source[start:end].rstrip())
+def fail():raise RuntimeError('refused')
+exec(compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-management','exec'))
+rawRun=subprocess.run
+with tempfile.TemporaryDirectory() as directory:
+ private=directory+'/credential';name='fixture';R={'hostBinding':{'platform':'darwin'},'challenge':{'files':[directory+'/a',directory+'/b',directory+'/c']}}
+ for readable,transport in [(False,False),(True,False),(False,True)]:
+  if readable:pathlib.Path(private).write_text('synthetic')
+  elif pathlib.Path(private).exists():pathlib.Path(private).unlink()
+  def run(args,**kwargs):
+   assert kwargs.get('timeout')==30,'unbounded credential exec'
+   if transport:return subprocess.CompletedProcess(args,125,b'',b'')
+   assert args[:3]==['podman','exec',name]
+   return rawRun(args[3:],**kwargs)
+  subprocess.run=run
+  try:exec(block);assert not readable and not transport
+  except RuntimeError:assert readable or transport
+print('credential read and transport failure both refuse')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(
+    r.stdout.trim(),
+    "credential read and transport failure both refuse",
+  );
+});
+
+test("native stop cannot mistake a timed-out engine query for an absent container", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = nativeSpawnSync(
+    process.env.AIOS_TEST_PYTHON ?? "python",
+    [
+      "-c",
+      String.raw`
+import ast,sys,subprocess
+program=ast.parse(sys.stdin.read());branch=next(n for n in ast.walk(program) if isinstance(n,ast.If) and ast.unparse(n.test)=="R['action'] == 'stop'")
+nodes=[n for n in branch.body if (isinstance(n,ast.Assign) and any(isinstance(x,ast.Name) and x.id in ['existence','exists'] for x in n.targets)) or (isinstance(n,ast.If) and ast.unparse(n.test).startswith('existence.returncode'))]
+code=compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-stop-existence','exec');name='fixture'
+def fail():raise RuntimeError('refused')
+for platform,budget in [('darwin',30),('win32',15)]:
+ R={'hostBinding':{'platform':platform}}
+ for result in [0,1,125,'timeout']:
+  def run(args,**kwargs):
+   assert kwargs.get('timeout')==budget,'unbounded engine query'
+   assert args==['podman','container','exists',name]
+   if result=='timeout':raise subprocess.TimeoutExpired(args,budget)
+   return subprocess.CompletedProcess(args,result)
+  subprocess.run=run
+  try:exec(code);assert result in [0,1] and exists==(result==0)
+  except (RuntimeError,subprocess.TimeoutExpired):assert result in [125,'timeout']
+print('only explicit absence is absent; failures refuse')
+`,
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(
+    r.stdout.trim(),
+    "only explicit absence is absent; failures refuse",
   );
 });

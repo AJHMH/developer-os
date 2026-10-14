@@ -1,0 +1,195 @@
+{
+  "observedAt": "2026-10-14T14:04:15.118Z",
+  "scope": "Public CLI fixed synthetic HTML edit, isolated repository-script and loopback HTTP validation; no new inference or production execution",
+  "task": {
+    "bindingSha256": "8459b25fd383e338488625620f12a17f4bf22a50bfdb96b495f93bba789673dc",
+    "policySha256": "3c3ae076d0b141abfac6dd998b2d3e077023dd5c9c4d2d489316e9fa12ea74ff",
+    "version": "425080559f742977782fe088f27d12fc335e63915a494a490ccdf34c0859149b",
+    "mode": "live",
+    "outcome": "completed",
+    "session": {
+      "deliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+      "intent": "start",
+      "repositoryKey": "path:/Users/aaronhoward/.developer-os/ticket4-macos/input",
+      "operationId": "fc6c3abe-f213-44ac-b581-06f16da73bee",
+      "sandboxId": "7943c150-e95e-49ad-a9c8-f0b8a48929c0",
+      "workerSessionId": "b9409826-e1ba-4377-9052-28aa62fa3024",
+      "runnerId": "2f2d34f0-1e49-4d70-8194-27b4dedf195e",
+      "fence": 118,
+      "state": "stopped"
+    },
+    "result": {
+      "operationId": "fc6c3abe-f213-44ac-b581-06f16da73bee",
+      "version": "425080559f742977782fe088f27d12fc335e63915a494a490ccdf34c0859149b",
+      "inputSha256": "0f8a67d9f6ff265872bf482e3afd5a9827dc3e2c5f5294c5b6b7331409ac770a",
+      "outputSha256": "b421dc9a8c5b831176604202f1b51c5d8079ccbb05f6b9a52d1ee4b438f8ed1f",
+      "output": "<!doctype html><title>Developer OS fixture</title><h1>Ready</h1>\n",
+      "validation": "passed",
+      "negativeValidation": "passed",
+      "httpValidation": "passed",
+      "collectionSha256": "7714e4f134bb8302bb0c6f0cb146d11309465be7e446474f2bc0105b20c41b75"
+    },
+    "shutdownProof": {
+      "observedProcesses": 9,
+      "remainingProcesses": 0,
+      "censusSha256": "fb286f08ff9ab9fb5284d9ec10557adc746308b89086b03dcec5c530dd1b8ecc"
+    },
+    "productionEnabled": false
+  },
+  "qualification": {
+    "ready": false,
+    "liveReady": false,
+    "mode": "live",
+    "checkedAt": "2026-10-14T14:02:53.125Z",
+    "probes": [
+      {
+        "name": "host-files",
+        "outcome": "passed",
+        "evidenceSha256": "4f809cf69297abc5833e89f2596610404a1f2c83f1583cf6d3b71c83a351cff6"
+      },
+      {
+        "name": "controller-ledger",
+        "outcome": "passed",
+        "evidenceSha256": "4f809cf69297abc5833e89f2596610404a1f2c83f1583cf6d3b71c83a351cff6"
+      },
+      {
+        "name": "owner-credentials",
+        "outcome": "passed",
+        "evidenceSha256": "4f809cf69297abc5833e89f2596610404a1f2c83f1583cf6d3b71c83a351cff6"
+      },
+      {
+        "name": "ssh-gpg",
+        "outcome": "not-run"
+      },
+      {
+        "name": "host-docker",
+        "outcome": "passed",
+        "evidenceSha256": "4f809cf69297abc5833e89f2596610404a1f2c83f1583cf6d3b71c83a351cff6"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed",
+        "evidenceSha256": "4f809cf69297abc5833e89f2596610404a1f2c83f1583cf6d3b71c83a351cff6"
+      },
+      {
+        "name": "github-binding",
+        "outcome": "not-run"
+      },
+      {
+        "name": "effective-mounts",
+        "outcome": "not-run"
+      },
+      {
+        "name": "model-only-auth",
+        "outcome": "not-run"
+      },
+      {
+        "name": "spending-control",
+        "outcome": "not-run"
+      },
+      {
+        "name": "network-bypass",
+        "outcome": "passed",
+        "evidenceSha256": "4f809cf69297abc5833e89f2596610404a1f2c83f1583cf6d3b71c83a351cff6"
+      },
+      {
+        "name": "dependency-egress",
+        "outcome": "not-run"
+      },
+      {
+        "name": "cross-delivery",
+        "outcome": "passed",
+        "evidenceSha256": "4f809cf69297abc5833e89f2596610404a1f2c83f1583cf6d3b71c83a351cff6"
+      },
+      {
+        "name": "descendant-stop",
+        "outcome": "not-run"
+      },
+      {
+        "name": "orphan-resume",
+        "outcome": "not-run"
+      },
+      {
+        "name": "repository-fencing",
+        "outcome": "not-run"
+      }
+    ],
+    "blockers": [
+      "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification."
+    ],
+    "subscriptionMediation": {
+      "qualified": false,
+      "protocol": "not-run",
+      "syntheticRelay": "passed",
+      "relayRevocation": "passed",
+      "modelFrameTransport": "passed",
+      "workerProtocol": "passed",
+      "codexCredentialIsolation": "passed",
+      "scope": "host-capability-only",
+      "credentialIsolation": "passed",
+      "credentialIsolationScope": "synthetic-restricted-alpine",
+      "endpointEnforcement": "passed",
+      "deliveryCapabilities": "passed",
+      "hostGateway": "passed",
+      "gatewayIntegration": "passed",
+      "subscriptionInference": "not-run",
+      "nextAction": "Prepare a fresh owner-approved one-shot inference through the qualified synthetic host gateway/Codex bridge; live subscription integration remains not-run and production delivery remains disabled.",
+      "hostGatewayVersion": "fbbf6628af45f091d141eb1a7ae7bff46df0aa25e0d72df719e23b5c8fa7fa5d",
+      "relayVersion": "c979737b6b4141a0fda934322662c564d103ea4d212d8eaeceb3bc9bc7e143f6",
+      "explicitResume": "passed",
+      "workerExecutableSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+      "deliveryCapabilityChecks": [
+        "cross-delivery",
+        "namespace",
+        "revocation",
+        "quota",
+        "expiry"
+      ],
+      "endpointScope": "synthetic-codex-relay",
+      "relayDeliveryId": "29727630-9a13-4050-a217-7a554b04448e",
+      "gatewayScope": "synthetic-host-subscription"
+    },
+    "offlineAdmission": {
+      "allowed": true,
+      "scope": "offline-probe-only",
+      "binding": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "osVersion": "27.2.0",
+        "provider": "applehv",
+        "machine": "aios-macos-noshare",
+        "hostId": "0fc4e523fcfea6fbd35bf7dacbeb27372b1a36ee50feedcf77ad9ef567ca7931",
+        "engineVersion": "6.1.3",
+        "vmImageSha256": "8d2892dee8f58cd35304ecd79c5830efe6471e2a5be991eeca07499dea55db02",
+        "template": "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
+        "workerVersion": "1.1.0",
+        "policyVersion": "offline-native-v3-b73958d48683282dcf6854c5c0ffe554302c2173d8a1764348093634fc02a744"
+      },
+      "effective": {
+        "hypervisor": true,
+        "dedicated": true,
+        "mounts": [],
+        "managementExposed": false,
+        "rootful": false,
+        "network": "none",
+        "readOnly": true,
+        "user": "65534:65534",
+        "capabilities": [],
+        "noNewPrivileges": true
+      }
+    },
+    "policySha256": "3c3ae076d0b141abfac6dd998b2d3e077023dd5c9c4d2d489316e9fa12ea74ff",
+    "bindingSha256": "8459b25fd383e338488625620f12a17f4bf22a50bfdb96b495f93bba789673dc",
+    "adversarial": {
+      "scope": "synthetic-macos-controls",
+      "challengeId": "ab758795-a3d4-4814-ad18-3b8c4554aea1",
+      "probeVersion": "65ba9b7a7ccc929369c72327e1095835fefe08ac9a1832c1c2ee51953c03b41b",
+      "escapeAttempts": [
+        "passed-escape-unshare",
+        "passed-escape-chroot",
+        "passed-escape-cgroup",
+        "passed-escape-proc"
+      ]
+    }
+  }
+}

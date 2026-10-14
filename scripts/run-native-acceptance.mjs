@@ -31,7 +31,22 @@ const interrupt = (signal) => {
 };
 process.on("SIGINT", interrupt);
 process.on("SIGTERM", interrupt);
+let awake;
+let awakeClosed;
 try {
+  if (process.platform === "darwin") {
+    // Keep only this explicit native run awake. The PID binding also releases
+    // the assertion if the runner is killed before reaching its finally block.
+    awake = spawn("/usr/bin/caffeinate", ["-is", "-w", String(process.pid)], {
+      stdio: "ignore",
+      shell: false,
+    });
+    awakeClosed = new Promise((resolve) => awake.once("close", resolve));
+    await new Promise((resolve, reject) => {
+      awake.once("spawn", resolve);
+      awake.once("error", reject);
+    });
+  }
   for (const script of scripts) {
     if (interrupted) break;
     const code = await new Promise((resolve, reject) => {
@@ -51,6 +66,8 @@ try {
     }
   }
 } finally {
+  awake?.kill();
+  if (awakeClosed) await awakeClosed;
   process.off("SIGINT", interrupt);
   process.off("SIGTERM", interrupt);
   if (interrupted) {

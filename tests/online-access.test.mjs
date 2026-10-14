@@ -671,122 +671,123 @@ test("Windows positive mediation permits only synthetic online controls and keep
   assert.equal(count, 1);
 });
 
-test("synthetic Windows site task validates only inside its worker and imports after verified shutdown", async (t) => {
-  const {
-    syntheticSiteInput,
-    syntheticSiteOutput,
-    syntheticSiteValidator,
-    syntheticTaskVersion,
-  } = await import("../dist/synthetic-task.js");
-  const { canaryOutput, sha256 } = await import("../dist/offline-canary.js");
-  const f = fixture(t, undefined, "windows");
-  const repo = f.d.repository;
-  writeFileSync(join(repo, "canary.txt"), "AIOS offline canary input\n");
-  writeFileSync(join(repo, "index.html"), syntheticSiteInput);
-  writeFileSync(join(repo, "validate.sh"), syntheticSiteValidator);
-  f.q.offlineAdmission.effective = {};
-  let request,
-    stopped = false,
-    valid = true,
-    collected = 0;
-  const runtime = {
-    mode: "controlled",
-    version: syntheticTaskVersion,
-    stage(files) {
-      assert.equal(files[0].bytes.toString(), syntheticSiteInput);
-    },
-    async execute(r) {
-      assert.equal(r.mayDispatch(), true);
-      request = r;
-      stopped = false;
-      return {
-        ...r.session,
-        bindingSha256: r.bindingSha256,
-        policySha256: r.policySha256,
-        status: "running",
-        fresh: true,
-        binding: r.binding,
-        effective: r.effective,
-      };
-    },
-    async stop(session, pins) {
-      stopped = true;
-      return {
-        ...session,
-        ...pins,
-        status: "stopped",
-        revoked: true,
-        descendantsStopped: true,
-        evidence: {
-          observedProcesses: 2,
-          remainingProcesses: 0,
-          censusSha256: "d".repeat(64),
-        },
-      };
-    },
-    async collect(session, pins) {
-      assert.equal(stopped, true);
-      return {
-        ...session,
-        ...pins,
-        status: "stopped",
-        files: [
-          {
-            path: "result.txt",
-            bytes: Buffer.from(canaryOutput),
-            ordinary: true,
-            links: 1,
-            beforeSha256: sha256(canaryOutput),
-            afterSha256: sha256(canaryOutput),
+for (const target of ["windows", "macos"])
+  test(`synthetic ${target} site task validates only inside its worker and imports after verified shutdown`, async (t) => {
+    const {
+      syntheticSiteInput,
+      syntheticSiteOutput,
+      syntheticSiteValidator,
+      syntheticTaskVersion,
+    } = await import("../dist/synthetic-task.js");
+    const { canaryOutput, sha256 } = await import("../dist/offline-canary.js");
+    const f = fixture(t, undefined, target);
+    const repo = f.d.repository;
+    writeFileSync(join(repo, "canary.txt"), "AIOS offline canary input\n");
+    writeFileSync(join(repo, "index.html"), syntheticSiteInput);
+    writeFileSync(join(repo, "validate.sh"), syntheticSiteValidator);
+    f.q.offlineAdmission.effective = {};
+    let request,
+      stopped = false,
+      valid = true,
+      collected = 0;
+    const runtime = {
+      mode: "controlled",
+      version: syntheticTaskVersion,
+      stage(files) {
+        assert.equal(files[0].bytes.toString(), syntheticSiteInput);
+      },
+      async execute(r) {
+        assert.equal(r.mayDispatch(), true);
+        request = r;
+        stopped = false;
+        return {
+          ...r.session,
+          bindingSha256: r.bindingSha256,
+          policySha256: r.policySha256,
+          status: "running",
+          fresh: true,
+          binding: r.binding,
+          effective: r.effective,
+        };
+      },
+      async stop(session, pins) {
+        stopped = true;
+        return {
+          ...session,
+          ...pins,
+          status: "stopped",
+          revoked: true,
+          descendantsStopped: true,
+          evidence: {
+            observedProcesses: 2,
+            remainingProcesses: 0,
+            censusSha256: "d".repeat(64),
           },
-        ],
-      };
-    },
-    async collectTask(session) {
-      assert.equal(stopped, true);
-      collected++;
-      return {
-        operationId: session.operationId,
-        version: syntheticTaskVersion,
-        inputSha256: sha256(syntheticSiteInput),
-        outputSha256: sha256(syntheticSiteOutput),
-        output: syntheticSiteOutput,
-        validation: valid ? "passed" : "failed",
-        negativeValidation: "passed",
-        httpValidation: "passed",
-        collectionSha256: "e".repeat(64),
-      };
-    },
-  };
-  const c = new DeliveryController(
-    f.state,
-    {},
-    { ...f.options, offline: runtime, synthetic: runtime },
-  );
-  const result = await c.syntheticTask(f.d.id);
-  assert.equal(result.syntheticTask.outcome, "completed");
-  assert.equal(result.syntheticTask.result.output, syntheticSiteOutput);
-  assert.equal(result.syntheticTask.productionEnabled, false);
-  assert.equal(
-    readFileSync(join(repo, "index.html"), "utf8"),
-    syntheticSiteInput,
-  );
-  assert.equal(collected, 1);
-  valid = false;
-  const rejected = await c.syntheticTask(f.d.id);
-  assert.equal(rejected.syntheticTask.outcome, "refused");
-  assert.equal(rejected.syntheticTask.result, undefined);
-  let probes = 0,
-    dispatches = 0;
-  const originalExecute = runtime.execute;
-  runtime.execute = async (...args) => {
-    dispatches++;
-    return originalExecute(...args);
-  };
-  f.options.worker.probe = async () => {
-    if (++probes === 2) unlinkSync(f.recordPath);
-    return structuredClone(f.q);
-  };
-  await c.syntheticTask(f.d.id);
-  assert.equal(dispatches, 0, "authentication drift must prevent dispatch");
-});
+        };
+      },
+      async collect(session, pins) {
+        assert.equal(stopped, true);
+        return {
+          ...session,
+          ...pins,
+          status: "stopped",
+          files: [
+            {
+              path: "result.txt",
+              bytes: Buffer.from(canaryOutput),
+              ordinary: true,
+              links: 1,
+              beforeSha256: sha256(canaryOutput),
+              afterSha256: sha256(canaryOutput),
+            },
+          ],
+        };
+      },
+      async collectTask(session) {
+        assert.equal(stopped, true);
+        collected++;
+        return {
+          operationId: session.operationId,
+          version: syntheticTaskVersion,
+          inputSha256: sha256(syntheticSiteInput),
+          outputSha256: sha256(syntheticSiteOutput),
+          output: syntheticSiteOutput,
+          validation: valid ? "passed" : "failed",
+          negativeValidation: "passed",
+          httpValidation: "passed",
+          collectionSha256: "e".repeat(64),
+        };
+      },
+    };
+    const c = new DeliveryController(
+      f.state,
+      {},
+      { ...f.options, offline: runtime, synthetic: runtime },
+    );
+    const result = await c.syntheticTask(f.d.id);
+    assert.equal(result.syntheticTask.outcome, "completed");
+    assert.equal(result.syntheticTask.result.output, syntheticSiteOutput);
+    assert.equal(result.syntheticTask.productionEnabled, false);
+    assert.equal(
+      readFileSync(join(repo, "index.html"), "utf8"),
+      syntheticSiteInput,
+    );
+    assert.equal(collected, 1);
+    valid = false;
+    const rejected = await c.syntheticTask(f.d.id);
+    assert.equal(rejected.syntheticTask.outcome, "refused");
+    assert.equal(rejected.syntheticTask.result, undefined);
+    let probes = 0,
+      dispatches = 0;
+    const originalExecute = runtime.execute;
+    runtime.execute = async (...args) => {
+      dispatches++;
+      return originalExecute(...args);
+    };
+    f.options.worker.probe = async () => {
+      if (++probes === 2) unlinkSync(f.recordPath);
+      return structuredClone(f.q);
+    };
+    await c.syntheticTask(f.d.id);
+    assert.equal(dispatches, 0, "authentication drift must prevent dispatch");
+  });

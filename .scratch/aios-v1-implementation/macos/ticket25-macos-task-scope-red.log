@@ -1,0 +1,23 @@
+✖ synthetic macos site task validates only inside its worker and imports after verified shutdown (75.294875ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 162.611
+
+✖ failing tests:
+
+test at tests/online-access.test.mjs:675:3
+✖ synthetic macos site task validates only inside its worker and imports after verified shutdown (75.294875ms)
+  Error: Synthetic task authority changed; no output imported.
+      at file:///Users/aaronhoward/Repos/developer-os/dist/controller.js:1011:23
+      at file:///Users/aaronhoward/Repos/developer-os/dist/controller.js:1305:13
+      at DeliveryController.withDatabase (file:///Users/aaronhoward/Repos/developer-os/dist/controller.js:1354:20)
+      at DeliveryController.change (file:///Users/aaronhoward/Repos/developer-os/dist/controller.js:1297:21)
+      at DeliveryController.syntheticTask (file:///Users/aaronhoward/Repos/developer-os/dist/controller.js:1004:21)
+      at async TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/online-access.test.mjs:767:18)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
