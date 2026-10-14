@@ -45,7 +45,7 @@ refuses incomplete or ambiguous inventories and bounds API calls. It waits at
 most three minutes for the original shared workflow to finish and a separate
 three-minute budget for sequential reruns. GitHub recreates sibling job IDs on
 each run attempt; the worker waits for the new attempt and resolves fresh IDs
-before another request. Job head, run ID, name and attempt must agree. The
+before another request. GitHub may briefly omit jobs while recreating them; only after its own successful request does the worker tolerate that gap within the existing wait budget. Both exact jobs must exist in the completed new attempt before another dispatch. Job head, run ID, name and attempt must agree. The
 eight-minute workflow limit bounds the complete privileged operation. Refresh workers serialize per PR
 without replacing earlier pending requests, using `queue: max`. GitHub permits
 100 pending refresh jobs per group; queue overflow cancels additional jobs and

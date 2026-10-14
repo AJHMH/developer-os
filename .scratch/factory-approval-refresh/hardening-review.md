@@ -28,3 +28,7 @@ The shared-run repair received both focused review axes with zero findings.
 It preserves the privileged token boundary, waits for completed current attempts,
 resolves recreated sibling IDs and retains permission/review/PR revalidation
 before each write. Hosted success remains to be demonstrated after repair merge.
+
+## Job-transition repair review
+
+Compared with main 18a251ca830b6cc85c6e2c37f531c6d87ae9a49f. Independent Standards and Spec reviewers found no actionable issues. Only after this worker's successful POST may a missing exact-job entry wait within the existing deadline. Present metadata, duplicates, completed current-attempt requirements, and authority revalidation remain enforced. Hosted proof remains pending.

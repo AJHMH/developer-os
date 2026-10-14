@@ -573,3 +573,28 @@ test("an original workflow that never completes blocks every rerun within the wa
   assert.equal(r.status, 1);
   assert.deepEqual(r.rest.writes ?? [], []);
 });
+
+test("temporary empty job inventory during attempt creation waits before sibling refresh", (t) => {
+  const f = fixture(t);
+  f.state.serialReruns = true;
+  f.state.virtualClock = true;
+  f.state.jobGapAfterRerun = 2;
+  const r = f.runCli();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.deepEqual(r.rest.writes, [
+    "/repos/AJHMH/developer-os/actions/jobs/501/rerun",
+    "/repos/AJHMH/developer-os/actions/jobs/602/rerun",
+  ]);
+});
+
+test("job inventory missing throughout the new-attempt wait blocks the second request", (t) => {
+  const f = fixture(t);
+  f.state.serialReruns = true;
+  f.state.virtualClock = true;
+  f.state.jobGapAfterRerun = 100;
+  const r = f.runCli();
+  assert.equal(r.status, 1);
+  assert.deepEqual(r.rest.writes, [
+    "/repos/AJHMH/developer-os/actions/jobs/501/rerun",
+  ]);
+});
