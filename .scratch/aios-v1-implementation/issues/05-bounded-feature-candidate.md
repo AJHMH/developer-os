@@ -4,7 +4,7 @@
 
 **Blocked by:** 04: [Launch an isolated worker with a fail-closed qualification gate](04-isolated-worker-gate.md).
 
-**Status:** ready-for-agent
+**Status:** needs-info — controller slice implemented; native qualification dependency 04 remains open
 
 ## Source and governing contract
 
@@ -14,11 +14,16 @@ This is an implementation slice, separate from resolved wayfinder decisions. Uni
 
 ## Acceptance criteria
 
-- [ ] Ordinary requests produce criteria and relevant verification without redundant approval; materially ambiguous requirements preserve a blocker for the owner.
-- [ ] A feature branch derives from the admitted revision; main is never the worker editing target, and no credential-bearing Git metadata is shared.
+- [x] Ordinary requests produce criteria and relevant verification without redundant approval; materially ambiguous requirements preserve a blocker for the owner.
+- [x] A feature branch derives from the admitted revision; main is never the worker editing target, and no credential-bearing Git metadata is shared.
 - [ ] The pinned CLI adapter handles noninteractive structured events, exit/failure outcomes and explicit session resume without assuming current help proves compatibility.
-- [ ] Default initial coding allowance is 120 active minutes, configurable and persisted across restart; exhaustion blocks and continuation requires recorded owner extension.
-- [ ] Before output import the worker is stopped; traversal, symlink/hardlink/reparse escape, unsafe Git metadata/hooks and concurrent output are rejected.
-- [ ] Admitted changes retain an exact tested-tree/candidate identity and policy provenance; no repository-supplied scripts execute on the trusted host.
-- [ ] Public tests cover criteria, worker failure/resume, deadline/extension and malicious output. Until baseline/candidate validation is integrated, live delivery is explicitly disabled.
+- [x] Default initial coding allowance is 120 active minutes, configurable and persisted across restart; exhaustion blocks and continuation requires recorded owner extension.
+- [x] Before output import the worker is stopped; traversal, symlink/hardlink/reparse escape, unsafe Git metadata/hooks and concurrent output are rejected.
+- [x] Admitted changes retain an exact tested-tree/candidate identity and policy provenance; no repository-supplied scripts execute on the trusted host.
+- [x] Public tests cover criteria, worker failure/resume, deadline/extension and malicious output. Until baseline/candidate validation is integrated, live delivery is explicitly disabled.
 
+## Implementation and qualification boundary
+
+Implemented the public controller slice, pinned structured-event adapter, explicit session resume, durable active allowance and owner extension, verified shutdown and stopped candidate admission. Controlled temporary-repository tests cover these behaviors. The pinned adapter acceptance item remains open for actual native CLI compatibility and isolated transport qualification; help output and controlled observations do not establish that proof. Dependency 04 and full native controller qualification must be resolved before enabling live delivery. Candidate validation is explicitly `not-run`; ticket 06 owns verification of the exact candidate.
+
+Validation and independent review: [ticket 05 implementation receipt](../ticket05-implementation-receipt.md).

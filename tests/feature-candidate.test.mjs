@@ -1,0 +1,650 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  realpathSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { DeliveryController } from "../dist/controller.js";
+
+function fixture(t) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-candidate-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const repository = join(root, "repository"),
+    state = join(root, "state");
+  mkdirSync(repository);
+  const git = (...args) => {
+    const r = spawnSync("git", ["-C", repository, ...args], {
+      encoding: "utf8",
+    });
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  git("init", "-b", "main");
+  writeFileSync(join(repository, "index.html"), "<h1>Contact</h1>\n");
+  git("add", "index.html");
+  git(
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "core.hooksPath=/nonexistent",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-m",
+    "base",
+  );
+  const criteria = {
+    async plan() {
+      return {
+        criteria: ["Contact page displays a visible hint."],
+        verification: ["Check the visible hint in the isolated page."],
+        ambiguity: null,
+      };
+    },
+  };
+  const controller = new DeliveryController(
+    state,
+    {},
+    { featurePlanner: criteria },
+  );
+  const delivery = controller.start({
+    repository,
+    request: "Add a visible contact hint.",
+  });
+  return { root, repository, state, git, criteria, controller, delivery };
+}
+
+test("ordinary requests retain observable criteria and verification across restart without approval", async (t) => {
+  const f = fixture(t);
+  const planned = await f.controller.planFeature(f.delivery.id);
+  assert.deepEqual(planned.feature.criteria, [
+    "Contact page displays a visible hint.",
+  ]);
+  assert.deepEqual(planned.feature.verification, [
+    "Check the visible hint in the isolated page.",
+  ]);
+  const reopened = new DeliveryController(f.state).status(f.delivery.id);
+  assert.deepEqual(reopened.feature, planned.feature);
+  assert.equal(reopened.blocker.code, "DELIVERY_NOT_ENABLED");
+  assert.equal(f.git("branch", "--show-current"), "main");
+});
+
+function codingFixture(t) {
+  const f = fixture(t),
+    revision = f.git("rev-parse", "HEAD");
+  const policyPath = join(f.root, "owner-policy.json");
+  const facts = {
+    repository: "AJHMH/profile-page",
+    defaultBranch: "main",
+    factoryCommit: "a".repeat(40),
+    approver: "aaron-howard",
+    appLogin: "factory[bot]",
+    publicationLogin: "aaron-howard",
+    requiredChecks: ["lint"],
+    validation: ["isolated-node"],
+  };
+  writeFileSync(policyPath, JSON.stringify(facts));
+  f.options = {
+    policyPath,
+    inspect: () => ({
+      ...facts,
+      localRepository: facts.repository,
+      localDefaultBranch: "main",
+      appRepositoryAccess: true,
+      eligibleApprovers: [facts.approver],
+      protectionsEnforced: true,
+      trustedCheckPublishers: true,
+      publicationAccess: true,
+      localSignature: { commit: revision, valid: true, login: facts.approver },
+      githubSignature: { commit: revision, valid: true, login: facts.approver },
+    }),
+  };
+  f.now = 1000;
+  f.runtime = {
+    mode: "controlled",
+    pins: {
+      cliSha256: "c".repeat(64),
+      cliVersion: "0.161.0",
+      policySha256: "d".repeat(64),
+      bindingSha256: "e".repeat(64),
+    },
+    async execute(request) {
+      this.request = request;
+      f.now += 50;
+      request.checkpoint();
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        exitCode: 0,
+        events: [
+          {
+            type: "thread.started",
+            thread_id: "11111111-1111-4111-8111-111111111111",
+          },
+          { type: "turn.started" },
+          {
+            type: "turn.completed",
+            usage: { input_tokens: 1, output_tokens: 1 },
+          },
+        ],
+      };
+    },
+    async stop(request) {
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        stopped: true,
+        remainingProcesses: 0,
+      };
+    },
+    async collect(request) {
+      const { createHash } = await import("node:crypto");
+      const bytes = Buffer.from("<h1>Contact</h1><p>Say hello</p>\n"),
+        hash = createHash("sha256").update(bytes).digest("hex");
+      return {
+        complete: true,
+        operationId: request.operationId,
+        fence: request.fence,
+        files: [
+          {
+            path: "index.html",
+            bytes,
+            ordinary: true,
+            links: 1,
+            beforeSha256: hash,
+            afterSha256: hash,
+          },
+        ],
+      };
+    },
+  };
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: f.runtime,
+    clock: () => f.now,
+  });
+  f.delivery = f.controller.start({
+    repository: f.repository,
+    request: "Add a visible contact hint.",
+  });
+  return f;
+}
+
+test("a stopped isolated coding result becomes a source-bound candidate without editing main or enabling delivery", async (t) => {
+  const f = codingFixture(t),
+    revision = f.git("rev-parse", "HEAD");
+  await f.controller.planFeature(f.delivery.id);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.outcome, "admitted");
+  assert.equal(f.git("rev-parse", result.feature.branch), revision);
+  assert.equal(f.git("branch", "--show-current"), "main");
+  assert.equal(result.feature.sourceRevision, revision);
+  assert.equal(result.feature.activeMs, 50);
+  assert.equal(result.feature.allowanceMs, 7200000);
+  assert.equal(result.feature.session.state, "stopped");
+  assert.equal(result.blocker.code, "DELIVERY_NOT_ENABLED");
+  assert.equal(
+    new DeliveryController(f.state).status(f.delivery.id).feature.candidate
+      .sha256,
+    result.feature.candidate.sha256,
+  );
+});
+
+test("owner policy drift while collecting output cannot admit a candidate", async (t) => {
+  const f = codingFixture(t),
+    collect = f.runtime.collect.bind(f.runtime);
+  f.runtime.collect = async (request) => {
+    const output = await collect(request);
+    writeFileSync(f.options.policyPath, "{}\n");
+    return output;
+  };
+  await f.controller.planFeature(f.delivery.id);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.candidate, undefined);
+  assert.equal(result.feature.outcome, "failed");
+});
+
+test("pause charges only active coding time and verifies shutdown before acknowledging the control", async (t) => {
+  const f = codingFixture(t);
+  let paused;
+  f.runtime.execute = async (request) => {
+    f.now += 100;
+    paused = await f.controller.pause(f.delivery.id);
+    f.now += 10000;
+    return {
+      operationId: request.operationId,
+      fence: request.fence,
+      exitCode: 1,
+      events: [],
+    };
+  };
+  await f.controller.planFeature(f.delivery.id);
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(paused.feature.session.state, "stopped");
+  assert.equal(paused.feature.activeMs, 100);
+  assert.equal(f.controller.status(f.delivery.id).phase, "paused");
+  assert.equal(f.controller.status(f.delivery.id).feature.candidate, undefined);
+});
+
+test("exhaustion persists across restart and only an explicit owner extension permits the same session to resume", async (t) => {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime);
+  f.runtime.execute = async (request) => {
+    f.now += 60000;
+    request.checkpoint();
+    return {
+      operationId: request.operationId,
+      fence: request.fence,
+      exitCode: 1,
+      events: [
+        {
+          type: "thread.started",
+          thread_id: "11111111-1111-4111-8111-111111111111",
+        },
+        { type: "turn.started" },
+        { type: "turn.failed", error: { message: "synthetic failure" } },
+      ],
+    };
+  };
+  await f.controller.planFeature(f.delivery.id);
+  const exhausted = await f.controller.codeFeature(f.delivery.id, {
+    codingMinutes: 1,
+  });
+  assert.equal(exhausted.feature.outcome, "exhausted");
+  assert.equal(exhausted.feature.activeMs, 60000);
+  f.controller = new DeliveryController(f.state, f.options, {
+    featureRuntime: f.runtime,
+    clock: () => f.now,
+  });
+  assert.equal(
+    (await f.controller.codeFeature(f.delivery.id)).feature.outcome,
+    "exhausted",
+  );
+  f.controller.extendCoding(f.delivery.id, 1);
+  f.runtime.execute = normal;
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(resumed.feature.outcome, "admitted");
+  assert.equal(resumed.feature.session.intent, "resume");
+  assert.equal(resumed.feature.activeMs, 60050);
+  assert.deepEqual(
+    resumed.feature.extensions.map((e) => e.addedMs),
+    [60000],
+  );
+  assert.equal(f.runtime.request.argv[1], "resume");
+  assert.ok(
+    f.runtime.request.argv.includes("11111111-1111-4111-8111-111111111111"),
+  );
+  assert.ok(!f.runtime.request.argv.includes("--last"));
+});
+
+test("material ambiguity blocks coding without creating a branch", async (t) => {
+  const f = codingFixture(t);
+  f.criteria.plan = async () => ({
+    criteria: ["Use the owner-selected contact channel."],
+    verification: ["Observe that channel on the page."],
+    ambiguity: "Choose email or telephone.",
+  });
+  const planned = await f.controller.planFeature(f.delivery.id);
+  assert.equal(planned.feature.outcome, "needs-info");
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /criteria/);
+  assert.equal(
+    f.git("for-each-ref", "--format=%(refname)", "refs/heads/codex/"),
+    "",
+  );
+});
+
+for (const [label, mutate] of [
+  [
+    "traversal",
+    (file) => {
+      file.path = "../outside";
+    },
+  ],
+  [
+    "Git hooks",
+    (file) => {
+      file.path = ".git/hooks/post-checkout";
+    },
+  ],
+  [
+    "links",
+    (file) => {
+      file.links = 2;
+    },
+  ],
+  [
+    "reparse or symbolic output",
+    (file) => {
+      file.ordinary = false;
+    },
+  ],
+  [
+    "concurrent output",
+    (file) => {
+      file.afterSha256 = "0".repeat(64);
+    },
+  ],
+])
+  test(`unsafe ${label} output stays refused after verified shutdown`, async (t) => {
+    const f = codingFixture(t),
+      collect = f.runtime.collect.bind(f.runtime);
+    f.runtime.collect = async (request) => {
+      const output = await collect(request);
+      mutate(output.files[0]);
+      return output;
+    };
+    await f.controller.planFeature(f.delivery.id);
+    const result = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(result.feature.candidate, undefined);
+    assert.equal(result.feature.session.state, "stopped");
+    assert.equal(result.feature.outcome, "failed");
+  });
+
+test("coding uses its persisted allowance rather than the short observation deadline", async (t) => {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime);
+  f.runtime.execute = async (request) => {
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    return normal(request);
+  };
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: f.runtime,
+    clock: () => f.now,
+    observationTimeoutMs: 5,
+  });
+  await f.controller.planFeature(f.delivery.id);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.outcome, "admitted");
+});
+
+test("partial output inventory cannot stand in for an exact candidate tree", async (t) => {
+  const f = codingFixture(t),
+    collect = f.runtime.collect.bind(f.runtime);
+  f.runtime.collect = async (request) => ({
+    ...(await collect(request)),
+    complete: false,
+  });
+  await f.controller.planFeature(f.delivery.id);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.candidate, undefined);
+});
+
+test("repository clean filters never execute on the trusted host during source admission", async (t) => {
+  const f = codingFixture(t),
+    marker = join(f.root, "filter-ran.txt"),
+    script = join(f.root, "filter.mjs");
+  writeFileSync(
+    join(f.repository, ".gitattributes"),
+    "index.html filter=untrusted\n",
+  );
+  f.git("add", ".gitattributes");
+  f.git(
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-m",
+    "attributes",
+  );
+  writeFileSync(
+    script,
+    `import {writeFileSync,readFileSync} from 'node:fs';writeFileSync(${JSON.stringify(marker)},'ran');process.stdout.write(readFileSync(0));`,
+  );
+  f.git(
+    "config",
+    "filter.untrusted.clean",
+    `"${process.execPath.replaceAll("\\", "/")}" "${script.replaceAll("\\", "/")}"`,
+  );
+  writeFileSync(join(f.repository, "index.html"), "<h1>Contact</h1>\n");
+  await f.controller.planFeature(f.delivery.id);
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /source/);
+  const { existsSync } = await import("node:fs");
+  assert.equal(existsSync(marker), false);
+});
+
+test("the initial coding allowance is declared at request submission and retained by planning", async (t) => {
+  const f = fixture(t);
+  const d = f.controller.start({
+    repository: f.repository,
+    request: "Add a visible contact hint.",
+    codingMinutes: 30,
+  });
+  f.controller.release(f.delivery.id);
+  const planned = await f.controller.planFeature(d.id);
+  assert.equal(planned.feature.allowanceMs, 1800000);
+});
+
+test("the explicit Codex session survives a worker failure before a terminal result", async (t) => {
+  const f = codingFixture(t);
+  f.runtime.execute = async (request) => {
+    request.onEvent({
+      type: "thread.started",
+      thread_id: "11111111-1111-4111-8111-111111111111",
+    });
+    throw Error("synthetic transport failure");
+  };
+  await f.controller.planFeature(f.delivery.id);
+  const failed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(failed.feature.session.state, "stopped");
+  assert.equal(
+    failed.feature.session.threadId,
+    "11111111-1111-4111-8111-111111111111",
+  );
+  assert.equal(
+    new DeliveryController(f.state).status(f.delivery.id).feature.session
+      .threadId,
+    failed.feature.session.threadId,
+  );
+});
+
+test("an explicit owner clarification resolves a material planning blocker without resetting the request", async (t) => {
+  const f = codingFixture(t);
+  f.criteria.plan = async () => ({
+    criteria: ["Use the selected channel."],
+    verification: ["Observe that channel."],
+    ambiguity: "Choose email or telephone.",
+  });
+  await f.controller.planFeature(f.delivery.id);
+  f.criteria.plan = async (request) => {
+    assert.match(request, /Use email/);
+    return {
+      criteria: ["An email hint is visible."],
+      verification: ["Check the email hint in isolation."],
+      ambiguity: null,
+    };
+  };
+  const clarified = await f.controller.clarifyFeature(
+    f.delivery.id,
+    "Use email",
+  );
+  assert.equal(clarified.request, "Add a visible contact hint.");
+  assert.equal(clarified.feature.outcome, "planned");
+  assert.deepEqual(clarified.feature.clarifications, ["Use email"]);
+});
+
+test("worktree-scoped clean filters cannot execute on the trusted host", async (t) => {
+  const f = codingFixture(t),
+    marker = join(f.root, "worktree-filter-ran.txt"),
+    script = join(f.root, "worktree-filter.mjs");
+  writeFileSync(
+    join(f.repository, ".gitattributes"),
+    "index.html filter=untrusted\n",
+  );
+  f.git("add", ".gitattributes");
+  f.git(
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-m",
+    "attributes",
+  );
+  writeFileSync(
+    script,
+    `import {writeFileSync,readFileSync} from 'node:fs';writeFileSync(${JSON.stringify(marker)},'ran');process.stdout.write(readFileSync(0));`,
+  );
+  f.git("config", "extensions.worktreeConfig", "true");
+  f.git(
+    "config",
+    "--worktree",
+    "filter.untrusted.clean",
+    `"${process.execPath.replaceAll("\\", "/")}" "${script.replaceAll("\\", "/")}"`,
+  );
+  writeFileSync(join(f.repository, "index.html"), "<h1>Contact</h1>\n");
+  await f.controller.planFeature(f.delivery.id);
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /source/);
+  const { existsSync } = await import("node:fs");
+  assert.equal(existsSync(marker), false);
+});
+
+test("restart with a changed coding binding cannot acknowledge the old worker's shutdown", async (t) => {
+  const f = codingFixture(t);
+  f.runtime.stop = async (request) => ({
+    operationId: request.operationId,
+    fence: request.fence,
+    stopped: false,
+    remainingProcesses: 1,
+  });
+  await f.controller.planFeature(f.delivery.id);
+  assert.equal(
+    (await f.controller.codeFeature(f.delivery.id)).feature.outcome,
+    "uncertain",
+  );
+  const changed = {
+    ...f.runtime,
+    pins: { ...f.runtime.pins, bindingSha256: "f".repeat(64) },
+    async stop(request) {
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        stopped: true,
+        remainingProcesses: 0,
+      };
+    },
+  };
+  const reopened = new DeliveryController(f.state, f.options, {
+    featureRuntime: changed,
+  });
+  const recovered = await reopened.recover(f.delivery.id);
+  assert.equal(recovered.feature.session.state, "uncertain");
+  assert.throws(() => reopened.release(f.delivery.id), /shutdown/);
+});
+
+test("concurrent material clarifications cannot replace an already retained owner answer", async (t) => {
+  const f = codingFixture(t),
+    ambiguous = {
+      criteria: ["Use the selected channel."],
+      verification: ["Observe that channel."],
+      ambiguity: "Choose a channel.",
+    };
+  f.criteria.plan = async () => ambiguous;
+  await f.controller.planFeature(f.delivery.id);
+  const releases = [];
+  f.criteria.plan = () => new Promise((resolve) => releases.push(resolve));
+  const a = f.controller.clarifyFeature(f.delivery.id, "Use email"),
+    b = f.controller.clarifyFeature(f.delivery.id, "Use telephone");
+  releases[0](ambiguous);
+  await a;
+  releases[1](ambiguous);
+  await assert.rejects(b, /changed/);
+  assert.deepEqual(f.controller.status(f.delivery.id).feature.clarifications, [
+    "Use email",
+  ]);
+});
+
+test("the pinned coding adapter consumes coalesced CLI JSON and preserves the explicit session", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const transport = {
+    mode: "controlled",
+    async inspect() {
+      return { ...f.runtime.pins };
+    },
+    async run(request, output) {
+      const result = await f.runtime.execute(request);
+      const bytes = Buffer.from(
+        result.events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+      );
+      output(bytes.subarray(0, 13));
+      output(bytes.subarray(13));
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        exitCode: result.exitCode,
+        pins: { ...f.runtime.pins },
+      };
+    },
+    stop: (request) => f.runtime.stop(request),
+    collect: (request) => f.runtime.collect(request),
+  };
+  const adapter = new PinnedCodingRuntime(f.runtime.pins, transport);
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: adapter,
+    clock: () => f.now,
+  });
+  await f.controller.planFeature(f.delivery.id);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.outcome, "admitted");
+  assert.equal(
+    result.feature.session.threadId,
+    "11111111-1111-4111-8111-111111111111",
+  );
+});
+
+test("output cannot claim both a file and its descendant as ordinary files", async (t) => {
+  const f = codingFixture(t),
+    collect = f.runtime.collect.bind(f.runtime);
+  f.runtime.collect = async (request) => {
+    const result = await collect(request);
+    result.files.push({ ...result.files[0], path: "index.html/child.txt" });
+    return result;
+  };
+  await f.controller.planFeature(f.delivery.id);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.candidate, undefined);
+  assert.equal(result.feature.outcome, "failed");
+});
+
+test("the pinned adapter refuses an independently measured executable mismatch before dispatch", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  let dispatched = false;
+  const adapter = new PinnedCodingRuntime(f.runtime.pins, {
+    mode: "controlled",
+    async inspect() {
+      return { ...f.runtime.pins, cliSha256: "f".repeat(64) };
+    },
+    async run() {
+      dispatched = true;
+      throw Error("Unexpected dispatch");
+    },
+    stop: (request) => f.runtime.stop(request),
+    collect: (request) => f.runtime.collect(request),
+  });
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: adapter,
+    clock: () => f.now,
+  });
+  await f.controller.planFeature(f.delivery.id);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched, false);
+  assert.equal(result.feature.candidate, undefined);
+  assert.equal(result.feature.session.state, "stopped");
+});
