@@ -1,4 +1,19 @@
 import {
+  validationOutcome,
+  validationCandidate,
+  protectValidationInputs,
+  validationCriteria,
+  passedBaseline,
+  validationContract,
+  validationDigest,
+  validationResult,
+  type ValidationRuntime,
+  type ValidationEvidence,
+  type ValidationAttempt,
+  type ValidationStage,
+  type ValidationResult,
+} from "./isolated-validation.js";
+import {
   gatewayRequest,
   subscriptionGatewayVersion,
 } from "./subscription-gateway.js";
@@ -55,6 +70,7 @@ import { redact } from "./redaction.js";
 import {
   featurePlan,
   candidateSource,
+  candidateMainSource,
   featureBranch,
   candidateOutput,
   candidateDigest,
@@ -183,6 +199,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  validationRuntime?: ValidationRuntime;
   featurePlanner?: FeaturePlanner;
   featureRuntime?: FeatureRuntime;
   clock?: () => number;
@@ -196,6 +213,7 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  validation?: ValidationEvidence;
   initialCodingAllowanceMs?: number;
   feature?: FeatureEvidence;
   id: string;
@@ -205,7 +223,8 @@ export interface Delivery {
     | "paused"
     | "cancelled"
     | "preparing"
-    | "implementing";
+    | "implementing"
+    | "validating";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -822,6 +841,353 @@ export class DeliveryController {
     });
   }
 
+  async validateBaseline(id: string): Promise<Delivery> {
+    return this.validateFeatureTree(id, "baseline");
+  }
+
+  async validateCandidate(id: string): Promise<Delivery> {
+    return this.validateFeatureTree(id, "candidate");
+  }
+
+  private async validateFeatureTree(
+    id: string,
+    stage: ValidationStage,
+  ): Promise<Delivery> {
+    const snapshot = this.status(id),
+      runtime = this.coordination.validationRuntime;
+    if (
+      !runtime ||
+      runtime.mode !== "controlled" ||
+      !/^[a-f0-9]{64}$/.test(runtime.bindingSha256) ||
+      !snapshot.ownership.held ||
+      !["blocked", "preparing"].includes(snapshot.phase) ||
+      !snapshot.feature ||
+      snapshot.feature.ambiguity ||
+      (snapshot.feature.session &&
+        snapshot.feature.session.state !== "stopped") ||
+      (snapshot.execution && snapshot.execution.state !== "stopped") ||
+      (snapshot.onlineAccess && snapshot.onlineAccess.state !== "stopped") ||
+      snapshot.validation?.attempts.some((a) => a.state !== "stopped")
+    )
+      throw new DeliveryError(
+        "Validation requires planned criteria, stopped workers and a controlled isolated runtime.",
+      );
+    const onboarding = inspectOnboarding(
+      snapshot.repository,
+      this.onboardingOptions,
+    );
+    if (
+      !onboarding.ready ||
+      onboarding.policy?.sha256 !== snapshot.authorityPolicySha256 ||
+      this.repositoryKey(snapshot.repository, onboarding) !==
+        snapshot.ownership.key
+    )
+      throw new DeliveryError("Validation owner authority changed.");
+    const contract = validationContract(
+      this.onboardingOptions.policyPath,
+      snapshot.authorityPolicySha256,
+    );
+    if (
+      snapshot.feature.requires?.some(
+        (resource) => !contract.environment[resource],
+      )
+    )
+      throw new DeliveryError(
+        "Declared synthetic E2E infrastructure is missing for this feature.",
+      );
+    const source = candidateMainSource(
+      snapshot.repository,
+      onboarding.canonicalRepository!.defaultBranch,
+    );
+    if (stage === "baseline" && snapshot.feature.session)
+      throw new DeliveryError("Baseline must precede coding.");
+    if (
+      stage === "candidate" &&
+      !passedBaseline(
+        snapshot.validation,
+        source.digest,
+        source.revision,
+        snapshot.authorityPolicySha256,
+        validationCriteria(snapshot.feature),
+        runtime.bindingSha256,
+      )
+    )
+      throw new DeliveryError(
+        "Validate unchanged main before candidate checks.",
+      );
+    const input =
+      stage === "baseline"
+        ? source
+        : validationCandidate(snapshot.feature, this.stateDirectory);
+    if (stage === "candidate")
+      protectValidationInputs(contract, source.files, input.files);
+    const observed = await this.observe(runtime.inspect());
+    if (
+      !observed ||
+      observed.mode !== "controlled" ||
+      observed.bindingSha256 !== runtime.bindingSha256 ||
+      validationDigest(observed.environment) !==
+        validationDigest(contract.environment)
+    )
+      throw new DeliveryError("Validation environment is unqualified.");
+    const attempt: ValidationAttempt = {
+      operationId: randomUUID(),
+      fence: snapshot.ownership.fence,
+      stage,
+      sourceRevision: source.revision,
+      treeSha256: input.digest,
+      policySha256: snapshot.authorityPolicySha256!,
+      contractSha256: validationDigest(contract),
+      criteriaSha256: validationCriteria(snapshot.feature),
+      environmentSha256: validationDigest(contract.environment),
+      bindingSha256: runtime.bindingSha256,
+      state: "running",
+      outcome: "pending",
+      startedAt: new Date().toISOString(),
+      results: [],
+      contract,
+    };
+    const previous =
+      snapshot.validation?.attempts.filter(
+        (a) => a.stage === stage && a.treeSha256 === attempt.treeSha256,
+      ) ?? [];
+    if (previous.length >= 2)
+      throw new DeliveryError(
+        "One diagnostic rerun on unchanged code is permitted; retain evidence and resolve policy or scope.",
+      );
+    this.change(id, (d) => {
+      if (
+        d.ownership.fence !== snapshot.ownership.fence ||
+        d.phase !== snapshot.phase ||
+        d.validation?.attempts.some((a) => a.state !== "stopped")
+      )
+        throw new DeliveryError(
+          "Validation authority changed before dispatch.",
+        );
+      if (
+        !d.feature ||
+        validationCriteria(d.feature) !== attempt.criteriaSha256
+      )
+        throw new DeliveryError("Validation criteria changed before dispatch.");
+      (d.validation ??= { attempts: [] }).attempts.push(attempt);
+      if (stage === "candidate" && d.feature.candidate)
+        d.feature.candidate.validation = "not-run";
+      d.phase = "validating";
+    });
+    const mayDispatch = () => {
+      const d = this.status(id);
+      try {
+        validationContract(
+          this.onboardingOptions.policyPath,
+          attempt.policySha256,
+        );
+      } catch {
+        return false;
+      }
+      return (
+        runtime.mode === "controlled" &&
+        runtime.bindingSha256 === attempt.bindingSha256 &&
+        d.ownership.held &&
+        d.ownership.fence === attempt.fence &&
+        d.phase === "validating" &&
+        d.validation?.attempts.at(-1)?.operationId === attempt.operationId &&
+        d.validation.attempts.at(-1)?.state === "running"
+      );
+    };
+    try {
+      for (const check of contract.checks.filter(
+        (c) => c.scope === "local" && c.stages.includes(stage),
+      )) {
+        if (!mayDispatch()) break;
+        let timer: ReturnType<typeof setTimeout> | undefined,
+          heartbeat: ReturnType<typeof setInterval> | undefined;
+        let observed: ValidationResult | "timeout" | "interrupted";
+        try {
+          const stop = new Promise<"timeout" | "interrupted">((resolve) => {
+            timer = setTimeout(() => resolve("timeout"), check.timeoutMs);
+            heartbeat = setInterval(() => {
+              try {
+                if (!mayDispatch()) resolve("interrupted");
+              } catch {
+                resolve("interrupted");
+              }
+            }, 25);
+          });
+          observed = await Promise.race([
+            runtime.execute({
+              ...structuredClone(attempt),
+              check: structuredClone(check),
+              files: input.files,
+              mayDispatch,
+            }),
+            stop,
+          ]);
+        } finally {
+          clearTimeout(timer);
+          clearInterval(heartbeat);
+        }
+        if (observed === "timeout" || observed === "interrupted") {
+          this.change(id, (d) => {
+            const a = d.validation?.attempts.find(
+              (a) => a.operationId === attempt.operationId,
+            );
+            if (a) {
+              a.outcome = observed === "timeout" ? "timeout" : "incomplete";
+              a.results.push({
+                checkId: check.id,
+                status: observed === "timeout" ? "timeout" : "cancelled",
+                publisher: check.publisher,
+                treeSha256: attempt.treeSha256,
+                environmentSha256: attempt.environmentSha256,
+                artifacts: [],
+              });
+            }
+          });
+          break;
+        }
+        const result = validationResult(observed, check, attempt);
+        this.change(id, (d) => {
+          const a = d.validation?.attempts.find(
+            (a) => a.operationId === attempt.operationId,
+          );
+          if (
+            a?.state === "running" &&
+            d.phase === "validating" &&
+            d.ownership.fence === attempt.fence
+          )
+            a.results.push(result);
+        });
+      }
+    } catch {
+      this.change(id, (d) => {
+        const a = d.validation?.attempts.find(
+          (a) => a.operationId === attempt.operationId,
+        );
+        if (a) a.outcome = "incomplete";
+      });
+    }
+    await this.stopValidation(id, attempt.operationId);
+    let current = false;
+    try {
+      const fresh = inspectOnboarding(
+          snapshot.repository,
+          this.onboardingOptions,
+        ),
+        measured = await this.observe(runtime.inspect());
+      const tree = candidateMainSource(
+        snapshot.repository,
+        onboarding.canonicalRepository!.defaultBranch,
+      );
+      current =
+        !!fresh.ready &&
+        fresh.policy?.sha256 === attempt.policySha256 &&
+        this.repositoryKey(snapshot.repository, fresh) ===
+          snapshot.ownership.key &&
+        validationDigest(
+          validationContract(
+            this.onboardingOptions.policyPath,
+            attempt.policySha256,
+          ),
+        ) === attempt.contractSha256 &&
+        tree.revision === source.revision &&
+        tree.digest === source.digest &&
+        runtime.mode === "controlled" &&
+        runtime.bindingSha256 === attempt.bindingSha256 &&
+        measured?.mode === "controlled" &&
+        measured.bindingSha256 === attempt.bindingSha256 &&
+        validationDigest(measured.environment) === attempt.environmentSha256 &&
+        (stage === "baseline" ||
+          validationCandidate(this.status(id).feature!, this.stateDirectory)
+            .digest === attempt.treeSha256);
+    } catch {}
+    return this.change(id, (d) => {
+      const a = d.validation?.attempts.find(
+        (a) => a.operationId === attempt.operationId,
+      );
+      if (
+        !a ||
+        a.state !== "stopped" ||
+        d.phase !== "blocked" ||
+        d.ownership.fence !== attempt.fence
+      )
+        return;
+      if (a.outcome === "pending")
+        a.outcome =
+          current &&
+          d.feature &&
+          validationCriteria(d.feature) === attempt.criteriaSha256
+            ? validationOutcome(a, previous)
+            : "stale";
+      if (stage === "candidate" && d.feature?.candidate)
+        d.feature.candidate.validation =
+          a.outcome === "passed" ? "passed" : "not-run";
+      d.blocker.nextAction =
+        a.outcome === "passed"
+          ? stage === "baseline"
+            ? "Baseline passed; candidate validation and later delivery gates remain required."
+            : "Candidate validation passed; hosted checks and later delivery gates remain required."
+          : "Validation blocked; preserve evidence and resolve the declared checks without unrelated repairs.";
+    });
+  }
+
+  async stopValidation(id: string, operationId?: string): Promise<Delivery> {
+    const snapshot = this.status(id),
+      attempt = snapshot.validation?.attempts.find(
+        (a) =>
+          a.state !== "stopped" &&
+          (!operationId || a.operationId === operationId),
+      );
+    if (!attempt) return snapshot;
+    const runtime = this.coordination.validationRuntime;
+    const same = () =>
+      runtime?.mode === "controlled" &&
+      runtime.bindingSha256 === attempt.bindingSha256;
+    let stopped: Awaited<ReturnType<ValidationRuntime["stop"]>> | undefined;
+    try {
+      if (same())
+        stopped = await this.observe(runtime!.stop(structuredClone(attempt)));
+    } catch {}
+    return this.change(id, (d) => {
+      const a = d.validation?.attempts.find(
+        (a) => a.operationId === attempt.operationId,
+      );
+      if (!a || a.state === "stopped") return;
+      const verified =
+        same() &&
+        stopped?.operationId === a.operationId &&
+        stopped.fence === a.fence &&
+        stopped.stopped === true &&
+        stopped.remainingProcesses === 0;
+      a.state = verified ? "stopped" : "uncertain";
+      if (
+        d.ownership.fence !== a.fence ||
+        ["paused", "cancelled"].includes(d.phase)
+      )
+        a.outcome = "incomplete";
+      if (
+        (!verified || stopped?.treeSha256 !== a.treeSha256) &&
+        a.outcome !== "timeout"
+      )
+        a.outcome = "incomplete";
+      if (
+        verified &&
+        d.blocker.code === "UNCERTAIN_SESSION" &&
+        (!d.feature?.session || d.feature.session.state === "stopped") &&
+        (!d.execution || d.execution.state === "stopped") &&
+        (!d.onlineAccess || d.onlineAccess.state === "stopped")
+      )
+        d.blocker = this.disabledBlocker();
+      if (!["paused", "cancelled"].includes(d.phase)) d.phase = "blocked";
+      if (!verified)
+        d.blocker = {
+          code: "UNCERTAIN_SESSION",
+          message: "Validation descendants are not verified stopped.",
+          nextAction:
+            "Recover the exact validation operation with the same isolated binding.",
+        };
+    });
+  }
+
   async planFeature(id: string): Promise<Delivery> {
     const snapshot = this.status(id);
     if (
@@ -983,6 +1349,52 @@ export class DeliveryController {
         "Feature source is changed or unsafe; preserve repository work.",
       );
     }
+    if (
+      !passedBaseline(
+        snapshot.validation,
+        source.digest,
+        source.revision,
+        snapshot.authorityPolicySha256,
+        validationCriteria(feature),
+        this.coordination.validationRuntime?.bindingSha256,
+      )
+    )
+      throw new DeliveryError(
+        "Validate unchanged main before coding; passing baseline evidence is required.",
+      );
+    const validationRuntime = this.coordination.validationRuntime;
+    const baseline = snapshot
+      .validation!.attempts.filter((a) => a.stage === "baseline")
+      .at(-1)!;
+    const validationEnvironment = await this.observe(
+      validationRuntime!.inspect(),
+    );
+    if (
+      validationRuntime?.mode !== "controlled" ||
+      !validationEnvironment ||
+      validationEnvironment.mode !== "controlled" ||
+      validationEnvironment.bindingSha256 !== baseline.bindingSha256 ||
+      validationDigest(validationEnvironment.environment) !==
+        baseline.environmentSha256
+    )
+      throw new DeliveryError(
+        "Baseline validation environment changed before coding.",
+      );
+    const currentMain = candidateMainSource(
+      snapshot.repository,
+      onboarding.canonicalRepository!.defaultBranch,
+    );
+    if (
+      currentMain.revision !== source.revision ||
+      currentMain.digest !== source.digest
+    )
+      throw new DeliveryError(
+        "Main changed before coding dispatch; validate the new baseline.",
+      );
+    validationContract(
+      this.onboardingOptions.policyPath,
+      snapshot.authorityPolicySha256 ?? undefined,
+    );
     const minutes = options.codingMinutes;
     if (
       minutes !== undefined &&
@@ -1005,7 +1417,16 @@ export class DeliveryController {
       if (
         delivery.ownership.fence !== snapshot.ownership.fence ||
         delivery.phase !== snapshot.phase ||
-        delivery.feature?.session?.state === "running"
+        delivery.feature?.session?.state === "running" ||
+        delivery.validation?.attempts.some((a) => a.state !== "stopped") ||
+        !passedBaseline(
+          delivery.validation,
+          source.digest,
+          source.revision,
+          delivery.authorityPolicySha256,
+          validationCriteria(delivery.feature!),
+          validationRuntime?.bindingSha256,
+        )
       )
         throw new DeliveryError("Feature coding authority changed.");
       const f = delivery.feature!;
@@ -2205,6 +2626,8 @@ export class DeliveryController {
         if (delivery.ownership.held) this.advanceFence(delivery, db);
       }
     });
+    if (paused.validation?.attempts.some((a) => a.state !== "stopped"))
+      await this.stopValidation(id);
     if (paused.feature?.session && paused.feature.session.state !== "stopped")
       await this.stopFeature(id);
     if (paused.onlineAccess && paused.onlineAccess.state !== "stopped")
@@ -2216,6 +2639,10 @@ export class DeliveryController {
 
   resume(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (delivery.validation?.attempts.some((a) => a.state !== "stopped"))
+        throw new DeliveryError(
+          "Recover validation descendant shutdown before this control.",
+        );
       if (
         delivery.feature?.session &&
         delivery.feature.session.state !== "stopped"
@@ -2243,7 +2670,11 @@ export class DeliveryController {
           throw new DeliveryError("Reconcile worker shutdown before resuming.");
         delivery.phase = delivery.priorPhase ?? "blocked";
         if (!delivery.ownership.held) delivery.phase = "queued";
-        if (delivery.phase === "implementing" || delivery.phase === "preparing")
+        if (
+          delivery.phase === "implementing" ||
+          delivery.phase === "preparing" ||
+          delivery.phase === "validating"
+        )
           delivery.phase = "preparing";
         if (delivery.blocker.code === "UNCERTAIN_SESSION")
           delivery.blocker = this.disabledBlocker();
@@ -2278,6 +2709,8 @@ export class DeliveryController {
         if (delivery.ownership.held) this.advanceFence(delivery, db);
       }
     });
+    if (cancelled.validation?.attempts.some((a) => a.state !== "stopped"))
+      await this.stopValidation(id);
     if (
       cancelled.feature?.session &&
       cancelled.feature.session.state !== "stopped"
@@ -2291,6 +2724,8 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (this.status(id).validation?.attempts.some((a) => a.state !== "stopped"))
+      return this.stopValidation(id);
     const coding = this.status(id).feature?.session;
     if (coding && coding.state !== "stopped")
       return this.stopFeature(id, coding.operationId);
@@ -2373,6 +2808,10 @@ export class DeliveryController {
 
   release(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (delivery.validation?.attempts.some((a) => a.state !== "stopped"))
+        throw new DeliveryError(
+          "Recover validation descendant shutdown before this control.",
+        );
       if (
         delivery.feature?.session &&
         delivery.feature.session.state !== "stopped"

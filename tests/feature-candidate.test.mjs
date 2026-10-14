@@ -1,3 +1,4 @@
+import { planAndValidate } from "./helpers/validation-fixture.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -13,59 +14,11 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { DeliveryController } from "../dist/controller.js";
 
-function fixture(t) {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-candidate-")));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const repository = join(root, "repository"),
-    state = join(root, "state");
-  mkdirSync(repository);
-  const git = (...args) => {
-    const r = spawnSync("git", ["-C", repository, ...args], {
-      encoding: "utf8",
-    });
-    assert.equal(r.status, 0, r.stderr);
-    return r.stdout.trim();
-  };
-  git("init", "-b", "main");
-  writeFileSync(join(repository, "index.html"), "<h1>Contact</h1>\n");
-  git("add", "index.html");
-  git(
-    "-c",
-    "commit.gpgsign=false",
-    "-c",
-    "core.hooksPath=/nonexistent",
-    "-c",
-    "user.name=Fixture",
-    "-c",
-    "user.email=fixture@example.invalid",
-    "commit",
-    "-m",
-    "base",
-  );
-  const criteria = {
-    async plan() {
-      return {
-        criteria: ["Contact page displays a visible hint."],
-        verification: ["Check the visible hint in the isolated page."],
-        ambiguity: null,
-      };
-    },
-  };
-  const controller = new DeliveryController(
-    state,
-    {},
-    { featurePlanner: criteria },
-  );
-  const delivery = controller.start({
-    repository,
-    request: "Add a visible contact hint.",
-  });
-  return { root, repository, state, git, criteria, controller, delivery };
-}
+import { fixture, codingFixture } from "./helpers/feature-fixture.mjs";
 
 test("ordinary requests retain observable criteria and verification across restart without approval", async (t) => {
   const f = fixture(t);
-  const planned = await f.controller.planFeature(f.delivery.id);
+  const planned = await planAndValidate(f);
   assert.deepEqual(planned.feature.criteria, [
     "Contact page displays a visible hint.",
   ]);
@@ -78,111 +31,10 @@ test("ordinary requests retain observable criteria and verification across resta
   assert.equal(f.git("branch", "--show-current"), "main");
 });
 
-function codingFixture(t) {
-  const f = fixture(t),
-    revision = f.git("rev-parse", "HEAD");
-  const policyPath = join(f.root, "owner-policy.json");
-  const facts = {
-    repository: "AJHMH/profile-page",
-    defaultBranch: "main",
-    factoryCommit: "a".repeat(40),
-    approver: "aaron-howard",
-    appLogin: "factory[bot]",
-    publicationLogin: "aaron-howard",
-    requiredChecks: ["lint"],
-    validation: ["isolated-node"],
-  };
-  writeFileSync(policyPath, JSON.stringify(facts));
-  f.options = {
-    policyPath,
-    inspect: () => ({
-      ...facts,
-      localRepository: facts.repository,
-      localDefaultBranch: "main",
-      appRepositoryAccess: true,
-      eligibleApprovers: [facts.approver],
-      protectionsEnforced: true,
-      trustedCheckPublishers: true,
-      publicationAccess: true,
-      localSignature: { commit: revision, valid: true, login: facts.approver },
-      githubSignature: { commit: revision, valid: true, login: facts.approver },
-    }),
-  };
-  f.now = 1000;
-  f.runtime = {
-    mode: "controlled",
-    pins: {
-      cliSha256: "c".repeat(64),
-      cliVersion: "0.161.0",
-      policySha256: "d".repeat(64),
-      bindingSha256: "e".repeat(64),
-    },
-    async execute(request) {
-      this.request = request;
-      f.now += 50;
-      request.checkpoint();
-      return {
-        operationId: request.operationId,
-        fence: request.fence,
-        exitCode: 0,
-        events: [
-          {
-            type: "thread.started",
-            thread_id: "11111111-1111-4111-8111-111111111111",
-          },
-          { type: "turn.started" },
-          {
-            type: "turn.completed",
-            usage: { input_tokens: 1, output_tokens: 1 },
-          },
-        ],
-      };
-    },
-    async stop(request) {
-      return {
-        operationId: request.operationId,
-        fence: request.fence,
-        stopped: true,
-        remainingProcesses: 0,
-      };
-    },
-    async collect(request) {
-      const { createHash } = await import("node:crypto");
-      const bytes = Buffer.from("<h1>Contact</h1><p>Say hello</p>\n"),
-        hash = createHash("sha256").update(bytes).digest("hex");
-      return {
-        complete: true,
-        operationId: request.operationId,
-        fence: request.fence,
-        files: [
-          {
-            path: "index.html",
-            bytes,
-            ordinary: true,
-            links: 1,
-            beforeSha256: hash,
-            afterSha256: hash,
-          },
-        ],
-      };
-    },
-  };
-  f.controller = new DeliveryController(f.state, f.options, {
-    featurePlanner: f.criteria,
-    featureRuntime: f.runtime,
-    clock: () => f.now,
-  });
-  f.delivery = f.controller.start({
-    repository: f.repository,
-    request: "Add a visible contact hint.",
-  });
-  return f;
-}
-
 test("a stopped isolated coding result becomes a source-bound candidate without editing main or enabling delivery", async (t) => {
   const f = codingFixture(t),
     revision = f.git("rev-parse", "HEAD");
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(result.feature.outcome, "admitted");
   assert.equal(f.git("rev-parse", result.feature.branch), revision);
@@ -207,7 +59,7 @@ test("owner policy drift while collecting output cannot admit a candidate", asyn
     writeFileSync(f.options.policyPath, "{}\n");
     return output;
   };
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(result.feature.candidate, undefined);
   assert.equal(result.feature.outcome, "failed");
@@ -227,7 +79,7 @@ test("pause charges only active coding time and verifies shutdown before acknowl
       events: [],
     };
   };
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   await f.controller.codeFeature(f.delivery.id);
   assert.equal(paused.feature.session.state, "stopped");
   assert.equal(paused.feature.activeMs, 100);
@@ -255,13 +107,14 @@ test("exhaustion persists across restart and only an explicit owner extension pe
       ],
     };
   };
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const exhausted = await f.controller.codeFeature(f.delivery.id, {
     codingMinutes: 1,
   });
   assert.equal(exhausted.feature.outcome, "exhausted");
   assert.equal(exhausted.feature.activeMs, 60000);
   f.controller = new DeliveryController(f.state, f.options, {
+    validationRuntime: f.validation,
     featureRuntime: f.runtime,
     clock: () => f.now,
   });
@@ -293,7 +146,7 @@ test("material ambiguity blocks coding without creating a branch", async (t) => 
     verification: ["Observe that channel on the page."],
     ambiguity: "Choose email or telephone.",
   });
-  const planned = await f.controller.planFeature(f.delivery.id);
+  const planned = await planAndValidate(f);
   assert.equal(planned.feature.outcome, "needs-info");
   await assert.rejects(f.controller.codeFeature(f.delivery.id), /criteria/);
   assert.equal(
@@ -342,7 +195,7 @@ for (const [label, mutate] of [
       mutate(output.files[0]);
       return output;
     };
-    await f.controller.planFeature(f.delivery.id);
+    await planAndValidate(f);
     const result = await f.controller.codeFeature(f.delivery.id);
     assert.equal(result.feature.candidate, undefined);
     assert.equal(result.feature.session.state, "stopped");
@@ -358,11 +211,12 @@ test("coding uses its persisted allowance rather than the short observation dead
   };
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
+    validationRuntime: f.validation,
     featureRuntime: f.runtime,
     clock: () => f.now,
     observationTimeoutMs: 5,
   });
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(result.feature.outcome, "admitted");
 });
@@ -374,7 +228,7 @@ test("partial output inventory cannot stand in for an exact candidate tree", asy
     ...(await collect(request)),
     complete: false,
   });
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(result.feature.candidate, undefined);
 });
@@ -410,6 +264,7 @@ test("repository clean filters never execute on the trusted host during source a
   );
   writeFileSync(join(f.repository, "index.html"), "<h1>Contact</h1>\n");
   await f.controller.planFeature(f.delivery.id);
+  await assert.rejects(f.controller.validateBaseline(f.delivery.id), /helpers/);
   await assert.rejects(f.controller.codeFeature(f.delivery.id), /source/);
   const { existsSync } = await import("node:fs");
   assert.equal(existsSync(marker), false);
@@ -436,7 +291,7 @@ test("the explicit Codex session survives a worker failure before a terminal res
     });
     throw Error("synthetic transport failure");
   };
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const failed = await f.controller.codeFeature(f.delivery.id);
   assert.equal(failed.feature.session.state, "stopped");
   assert.equal(
@@ -457,7 +312,7 @@ test("an explicit owner clarification resolves a material planning blocker witho
     verification: ["Observe that channel."],
     ambiguity: "Choose email or telephone.",
   });
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   f.criteria.plan = async (request) => {
     assert.match(request, /Use email/);
     return {
@@ -508,6 +363,7 @@ test("worktree-scoped clean filters cannot execute on the trusted host", async (
   );
   writeFileSync(join(f.repository, "index.html"), "<h1>Contact</h1>\n");
   await f.controller.planFeature(f.delivery.id);
+  await assert.rejects(f.controller.validateBaseline(f.delivery.id), /helpers/);
   await assert.rejects(f.controller.codeFeature(f.delivery.id), /source/);
   const { existsSync } = await import("node:fs");
   assert.equal(existsSync(marker), false);
@@ -521,7 +377,7 @@ test("restart with a changed coding binding cannot acknowledge the old worker's 
     stopped: false,
     remainingProcesses: 1,
   });
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   assert.equal(
     (await f.controller.codeFeature(f.delivery.id)).feature.outcome,
     "uncertain",
@@ -539,6 +395,7 @@ test("restart with a changed coding binding cannot acknowledge the old worker's 
     },
   };
   const reopened = new DeliveryController(f.state, f.options, {
+    validationRuntime: f.validation,
     featureRuntime: changed,
   });
   const recovered = await reopened.recover(f.delivery.id);
@@ -554,7 +411,7 @@ test("concurrent material clarifications cannot replace an already retained owne
       ambiguity: "Choose a channel.",
     };
   f.criteria.plan = async () => ambiguous;
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const releases = [];
   f.criteria.plan = () => new Promise((resolve) => releases.push(resolve));
   const a = f.controller.clarifyFeature(f.delivery.id, "Use email"),
@@ -596,10 +453,11 @@ test("the pinned coding adapter consumes coalesced CLI JSON and preserves the ex
   const adapter = new PinnedCodingRuntime(f.runtime.pins, transport);
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
+    validationRuntime: f.validation,
     featureRuntime: adapter,
     clock: () => f.now,
   });
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(result.feature.outcome, "admitted");
   assert.equal(
@@ -616,7 +474,7 @@ test("output cannot claim both a file and its descendant as ordinary files", asy
     result.files.push({ ...result.files[0], path: "index.html/child.txt" });
     return result;
   };
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(result.feature.candidate, undefined);
   assert.equal(result.feature.outcome, "failed");
@@ -640,10 +498,11 @@ test("the pinned adapter refuses an independently measured executable mismatch b
   });
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
+    validationRuntime: f.validation,
     featureRuntime: adapter,
     clock: () => f.now,
   });
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(dispatched, false);
   assert.equal(result.feature.candidate, undefined);
@@ -703,7 +562,7 @@ test("planning and clarification preserve owner controls across delayed response
   await assert.rejects(f.controller.planFeature(f.delivery.id), /controls/);
   await f.controller.resume(f.delivery.id);
   f.criteria.plan = async () => ({ ...valid, ambiguity: "Choose a channel" });
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   for (const value of ["", "\n", "x".repeat(2001)])
     await assert.rejects(
       f.controller.clarifyFeature(f.delivery.id, value),
@@ -729,7 +588,7 @@ test("planning and clarification preserve owner controls across delayed response
 
 test("changed policy, dirty source, and changed pins block further coding", async (t) => {
   const f = codingFixture(t);
-  await f.controller.planFeature(f.delivery.id);
+  await planAndValidate(f);
   for (const codingMinutes of [0, 1441, 1.5])
     await assert.rejects(
       f.controller.codeFeature(f.delivery.id, { codingMinutes }),
@@ -779,7 +638,7 @@ for (const control of ["cancel", "recover"])
         events: [],
       };
     };
-    await f.controller.planFeature(f.delivery.id);
+    await planAndValidate(f);
     const result = await f.controller.codeFeature(f.delivery.id);
     assert.equal(result.feature.session.state, "stopped");
     assert.equal(result.feature.candidate, undefined);
@@ -799,7 +658,7 @@ for (const clock of [NaN, -1])
         events: [],
       };
     };
-    await f.controller.planFeature(f.delivery.id);
+    await planAndValidate(f);
     const result = await f.controller.codeFeature(f.delivery.id);
     assert.equal(result.feature.candidate, undefined);
     assert.equal(result.feature.outcome, "exhausted");
@@ -836,7 +695,7 @@ for (const drift of ["operation", "policy", "branch", "source", "pause"])
       if (drift === "pause") await f.controller.pause(f.delivery.id);
       return result;
     };
-    await f.controller.planFeature(f.delivery.id);
+    await planAndValidate(f);
     const result = await f.controller.codeFeature(f.delivery.id);
     assert.equal(result.feature.candidate, undefined);
   });
@@ -999,10 +858,11 @@ for (const failure of [
     });
     f.controller = new DeliveryController(f.state, f.options, {
       featurePlanner: f.criteria,
+      validationRuntime: f.validation,
       featureRuntime: adapter,
       clock: () => f.now,
     });
-    await f.controller.planFeature(f.delivery.id);
+    await planAndValidate(f);
     const result = await f.controller.codeFeature(f.delivery.id);
     assert.equal(result.feature.candidate, undefined);
     assert.equal(result.feature.session.state, "stopped");

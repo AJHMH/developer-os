@@ -2,6 +2,7 @@ import { realpathSync } from "node:fs";
 import { redact } from "./redaction.js";
 
 export interface FeaturePlan {
+  requires?: ("browser" | "database")[];
   criteria: string[];
   verification: string[];
   ambiguity: string | null;
@@ -28,7 +29,7 @@ export interface FeatureEvidence extends FeaturePlan {
     path: string;
     sha256: string;
     inputSha256: string;
-    validation: "not-run";
+    validation: "not-run" | "passed";
   };
   extensions?: { addedMs: number; at: string }[];
   clarifications?: string[];
@@ -51,12 +52,17 @@ export function featurePlan(plan: FeaturePlan | undefined): FeatureEvidence {
     );
   if (
     !plan ||
+    (plan.requires !== undefined &&
+      (!Array.isArray(plan.requires) ||
+        plan.requires.length > 2 ||
+        !plan.requires.every((r) => r === "browser" || r === "database"))) ||
     !texts(plan.criteria) ||
     !texts(plan.verification) ||
     (plan.ambiguity !== null && !texts([plan.ambiguity]))
   )
     throw Error("Feature criteria could not be established safely.");
   return {
+    ...(plan.requires ? { requires: [...plan.requires] } : {}),
     mode: "controlled",
     criteria: [...plan.criteria],
     verification: [...plan.verification],
@@ -490,4 +496,17 @@ export class PinnedCodingRuntime implements FeatureRuntime {
   collect(session: CodingSession) {
     return this.transport.collect(session);
   }
+}
+
+export function candidateMainSource(repository: string, defaultBranch: string) {
+  const source = candidateSource(repository);
+  const main = candidateGit(repository, [
+    "rev-parse",
+    "--verify",
+    "refs/heads/" + defaultBranch,
+  ])
+    .toString()
+    .trim();
+  if (main !== source.revision) throw Error("Baseline must be unchanged main");
+  return source;
 }
