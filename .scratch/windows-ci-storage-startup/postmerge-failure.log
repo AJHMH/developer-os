@@ -1,5 +1,5 @@
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4603751Z ✖ failing tests:
-Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4603846Z 
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4603846Z
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4603977Z test at tests\auth-host.test.mjs:25:3
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4604639Z ✖ separate darwin authorization completes a local callback with a verified synthetic account and stores only through its host adapter (15443.0532ms)
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4605578Z   Error: Authentication setup requires ordinary external storage separate from the candidate and controller ledger; preserve existing registration material and check paths before retrying.
@@ -10,14 +10,14 @@ Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4609075Z   
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4609368Z       at Test.run (node:internal/test_runner/test:1402:25)
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4609670Z       at Test.start (node:internal/test_runner/test:1262:17)
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4610027Z       at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
-Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4610266Z 
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4610266Z
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4610377Z test at tests\auth-setup.test.mjs:41:1
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4611158Z ✖ separate authentication preparation preserves a stable host registration without credentials or delivery authority (15431.6418ms)
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4612148Z   AssertionError [ERR_ASSERTION]: {"error":"Authentication setup requires ordinary external storage separate from the candidate and controller ledger; preserve existing registration material and check paths before retrying."}
-Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4612863Z   
-Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4613005Z   
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4612863Z
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4613005Z
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4613148Z   1 !== 0
-Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4613306Z   
+Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4613306Z
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4613642Z       at TestContext.<anonymous> (file:///D:/a/developer-os/developer-os/tests/auth-setup.test.mjs:44:10)
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4614053Z       at Test.runInAsyncScope (node:async_hooks:227:14)
 Validate Developer OS CLI (Windows)	Run npm test	2026-10-14T17:15:08.4614350Z       at Test.run (node:internal/test_runner/test:1402:25)

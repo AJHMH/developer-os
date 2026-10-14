@@ -8,7 +8,7 @@ Validation evidence under .scratch/aios-v1-implementation remains unchanged.
 
 ## Evidence and completion
 
-- [Failed attempt: two storage-fixture refusals](postmerge-failure.log).
+- [Failed attempt: two storage-fixture refusals](postmerge-failure.log), with trailing whitespace normalized in the retained excerpt.
 - [Successful unchanged-source rerun](rerun-test-summary.log): 280 Windows tests, 277 passed, zero failed, three platform skips. Both previously failing fixtures passed in about 8.3–8.5 seconds.
 - [Hosted CI run, successful attempt 2](https://github.com/AJHMH/developer-os/actions/runs/38604629647/attempts/2). Linux and macOS jobs also succeeded. Factory Adoption run 38604630328 and CodeQL run 38604629503 succeeded on the same main commit.
 
