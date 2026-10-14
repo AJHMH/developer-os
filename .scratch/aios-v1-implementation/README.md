@@ -61,3 +61,9 @@ while parent native qualification remains open; production delivery stays disabl
 review, with durable cycle/time allowances, explicit extensions and fenced
 revalidation. See [receipt](ticket07-implementation-receipt.md). Native repair
 and complete delivery qualification remain open.
+
+
+14 October ticket 08 progress: controlled signed-publication and App PR orchestration
+is ready for review. See [receipt](ticket08-implementation-receipt.md). Native
+credential-bearing ports and live Windows/macOS/GitHub qualification remain open;
+the CLI still refuses publication without trusted controlled integrations.

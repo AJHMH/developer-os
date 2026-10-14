@@ -4,7 +4,7 @@
 
 **Blocked by:** 07: [Repair validation findings within persisted allowances](07-bounded-validation-repair.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 ## Source and governing contract
 
@@ -18,7 +18,20 @@ This is an implementation slice, separate from resolved wayfinder decisions. Uni
 - [ ] Local signing and GitHub verified-signature evidence are checked; unavailable signing or repository authority blocks instead of publishing unsigned code.
 - [ ] Git/GitHub identity performs the signed push; App installation credentials author the PR and retain the approved scope. The PEM is never used as a commit-signing key.
 - [ ] A trusted cross-platform App adapter works without assuming a Windows helper/key path on macOS; credentials remain outside workers and reports.
-- [ ] Persist operation intent before push/PR dispatch and outcome afterward; reconcile an existing branch/PR after uncertain acceptance rather than blindly duplicate it.
-- [ ] No identity submits human APPROVED reviews; the expected App author and sole approver remain verifiable.
-- [ ] Public fixture/temporary-repository tests cover partial failures, permission denial, wrong PR author, signatures and crash windows. Live pilot writes stay disabled until host and repository readiness pass.
+- [x] Persist operation intent before push/PR dispatch and outcome afterward; reconcile an existing branch/PR after uncertain acceptance rather than blindly duplicate it.
+- [x] No identity submits human APPROVED reviews; the expected App author and sole approver remain verifiable.
+- [x] Public fixture/temporary-repository tests cover partial failures, permission denial, wrong PR author, signatures and crash windows. Live pilot writes stay disabled until host and repository readiness pass.
 
+## Controlled implementation — 2026-10-14
+
+The public controller and split Git/App adapter implement candidate/tree/signature
+admission, separate identities, bounded projected evidence and durable effect
+reconciliation. A real temporary SSH-signed Git object and conditional local push
+are exercised alongside controlled GitHub/App observations.
+
+See [signed publication](../../../docs/signed-publication.md) and
+[validation receipt](../ticket08-implementation-receipt.md). Checked criteria describe
+the controlled slice. Native credential-bearing ports, live GitHub verified
+signatures, cross-platform credential/configuration isolation and pilot writes
+remain unimplemented or unqualified, so related acceptance criteria remain open.
+No production delivery or live write authority is enabled.
