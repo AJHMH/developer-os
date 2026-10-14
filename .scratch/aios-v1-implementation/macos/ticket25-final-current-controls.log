@@ -1,0 +1,1 @@
+{"outcome":"passed","checks":["ssh-gpg","github-binding","effective-mounts","repository-fencing","orphan-resume","descendant-stop"],"remainingProcesses":0,"productionEnabled":false}

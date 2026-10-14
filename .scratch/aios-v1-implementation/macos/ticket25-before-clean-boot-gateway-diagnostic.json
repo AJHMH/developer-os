@@ -1,0 +1,9 @@
+{
+  "blockedStage": "codex-relay-denials",
+  "diagnostic": {
+    "failureKind": "timeout",
+    "commandElapsedMs": 4000,
+    "failed": true,
+    "elapsedMs": 48615
+  }
+}

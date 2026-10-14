@@ -45,8 +45,9 @@ Repairs include bounded batched denial probes, fail-closed engine queries,
 stable persistent descendant fixtures, host sleep prevention for explicit native
 acceptance, sufficient measured VM capacity, and Mac-specific task scope checks.
 Relay, persistence and gateway scheduling repairs have regression coverage.
-Historical refusals were not converted into passing evidence. The complete
-diagnostic history remains local in `macos/ticket25-local-validation-history.md`.
+Historical refusals were not converted into passing evidence. The [historical continuation log](macos/ticket25-local-validation-history.md)
+and [selected historical evidence](macos/retained-evidence-20261014.md) are
+retained separately from the final qualification receipts.
 
 ## Retained evidence
 

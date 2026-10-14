@@ -1,0 +1,35 @@
+✖ effective isolation checks bound exec and refuse transport failures (164.768708ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 329.704083
+
+✖ failing tests:
+
+test at tests/podman-platform.test.mjs:1132:1
+✖ effective isolation checks bound exec and refuse transport failures (164.768708ms)
+  AssertionError [ERR_ASSERTION]: Traceback (most recent call last):
+    File "<string>", line 27, in <module>
+    File "actual-effective", line 90, in effective
+    File "<string>", line 20, in run
+  AssertionError: unbounded native exec
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/aaronhoward/Repos/developer-os/tests/podman-platform.test.mjs:1167:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,10 @@
+✔ native relay observes coalesced readiness and acceptance frames on both hosts (83.478375ms)
+✔ Mac relay permits observed exec scheduling delay while retaining the network deadline (4174.476584ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4302.682208

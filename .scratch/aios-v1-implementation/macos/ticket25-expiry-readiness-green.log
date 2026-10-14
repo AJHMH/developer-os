@@ -1,0 +1,9 @@
+✔ synthetic expiry arms after slow client setup and interrupts a confirmed body read (3450.053833ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3492.352333

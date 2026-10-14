@@ -1,0 +1,20 @@
+{
+  "elapsedMs": 22002,
+  "blockedStage": "codex-persistence-read-error",
+  "diagnostic": {
+    "failureKind": "check",
+    "commandElapsedMs": 56,
+    "codexRuntimeTasks": 11,
+    "codexSqliteTasks": 11,
+    "codexAllocatorTasks": 0,
+    "codexOtherTasks": 8,
+    "processLimitHits": 87,
+    "workerTaskCount": 32,
+    "workerTaskLimit": 32,
+    "persistenceErrorFlags": 101134848,
+    "persistenceErrorReason": "history",
+    "persistenceErrorCode": -32603,
+    "failed": true,
+    "elapsedMs": 21507
+  }
+}
