@@ -17,7 +17,7 @@ import { prepareSubscriptionAuth } from "./subscription-auth.js";
 import { inspectSubscriptionAuth } from "./auth-status.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify-windows-controls or qualify-macos-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use auth-status with the same repo/state/auth-directory and a required --auth-account to inspect host-only eligibility before requesting inference approval; it performs no refresh and grants no inference authority. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows or Mac worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent host authentication qualification. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify-windows-controls or qualify-macos-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use auth-status with the same repo/state/auth-directory and a required --auth-account to inspect host-only eligibility before requesting inference approval; it performs no refresh and grants no inference authority. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows or Mac worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent host authentication qualification. Use --coding-minutes <1..1440> on start for the initial coding allowance (default 120). plan-feature/code-feature address an explicit --id; the CLI currently has no trusted feature planner or production coding adapter and refuses those dispatches. clarify-feature --id <id> --clarification <text> retains an explicit owner answer to material planning ambiguity. extend-coding --id <id> --minutes <1..1440> records an owner extension for stopped exhausted work. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -38,6 +38,9 @@ function argumentsForCommand() {
         repo: { type: "string" },
         request: { type: "string" },
         issue: { type: "string" },
+        "coding-minutes": { type: "string" },
+        minutes: { type: "string" },
+        clarification: { type: "string" },
         id: { type: "string" },
       },
     });
@@ -74,6 +77,25 @@ try {
       !values["dependency-policy"] ||
       !values["podman-machine"] ||
       !values["worker-policy"])
+  )
+    throw new DeliveryError(usage);
+  if (
+    values["coding-minutes"] !== undefined &&
+    (positionals[0] !== "start" ||
+      !/^[1-9][0-9]{0,3}$/.test(values["coding-minutes"]) ||
+      Number(values["coding-minutes"]) > 1440)
+  )
+    throw new DeliveryError(usage);
+  if (
+    values.minutes !== undefined &&
+    (positionals[0] !== "extend-coding" ||
+      !/^[1-9][0-9]{0,3}$/.test(values.minutes) ||
+      Number(values.minutes) > 1440)
+  )
+    throw new DeliveryError(usage);
+  if (
+    values.clarification !== undefined &&
+    positionals[0] !== "clarify-feature"
   )
     throw new DeliveryError(usage);
   const names = tokens
@@ -245,6 +267,9 @@ try {
         repository: values.repo,
         request: values.request,
         ...(values.issue === undefined ? {} : { issue: values.issue }),
+        ...(values["coding-minutes"] === undefined
+          ? {}
+          : { codingMinutes: Number(values["coding-minutes"]) }),
       });
     } else if (
       positionals[0] === "status" &&
@@ -258,24 +283,59 @@ try {
           ? controller.list()
           : controller.status(values.id);
     } else {
+      if (positionals[0] === "clarify-feature") {
+        if (
+          !values.id ||
+          !values.clarification ||
+          values.repo !== undefined ||
+          values.request !== undefined ||
+          values.issue !== undefined ||
+          values["owner-policy"] !== undefined
+        )
+          throw new DeliveryError(usage);
+        result = await controller.clarifyFeature(
+          values.id,
+          values.clarification,
+        );
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+        process.exit(0);
+      }
+      if (positionals[0] === "extend-coding") {
+        if (
+          !values.id ||
+          !values.minutes ||
+          values.repo !== undefined ||
+          values.request !== undefined ||
+          values.issue !== undefined ||
+          values["owner-policy"] !== undefined
+        )
+          throw new DeliveryError(usage);
+        result = controller.extendCoding(values.id, Number(values.minutes));
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+        process.exit(0);
+      }
       const command =
-        positionals[0] === "qualify-windows-controls"
-          ? "qualifyWindowsControls"
-          : positionals[0] === "qualify-macos-controls"
-            ? "qualifyMacosControls"
-            : positionals[0] === "synthetic-task"
-              ? "syntheticTask"
-              : positionals[0] === "check-usage"
-                ? "checkUsage"
-                : positionals[0] === "poll-usage"
-                  ? "pollUsage"
-                  : positionals[0] === "offline-canary"
-                    ? "offlineCanary"
-                    : positionals[0] === "online-canary"
-                      ? "onlineCanary"
-                      : positionals[0] === "qualification-report"
-                        ? "qualificationReport"
-                        : positionals[0];
+        positionals[0] === "plan-feature"
+          ? "planFeature"
+          : positionals[0] === "code-feature"
+            ? "codeFeature"
+            : positionals[0] === "qualify-windows-controls"
+              ? "qualifyWindowsControls"
+              : positionals[0] === "qualify-macos-controls"
+                ? "qualifyMacosControls"
+                : positionals[0] === "synthetic-task"
+                  ? "syntheticTask"
+                  : positionals[0] === "check-usage"
+                    ? "checkUsage"
+                    : positionals[0] === "poll-usage"
+                      ? "pollUsage"
+                      : positionals[0] === "offline-canary"
+                        ? "offlineCanary"
+                        : positionals[0] === "online-canary"
+                          ? "onlineCanary"
+                          : positionals[0] === "qualification-report"
+                            ? "qualificationReport"
+                            : positionals[0];
       if (
         command === "approve-usage" &&
         values.id &&
@@ -292,7 +352,9 @@ try {
         values.request === undefined &&
         values.issue === undefined &&
         values["owner-policy"] === undefined &&
-        (command === "checkUsage" ||
+        (command === "planFeature" ||
+          command === "codeFeature" ||
+          command === "checkUsage" ||
           command === "qualificationReport" ||
           command === "pollUsage" ||
           command === "qualify" ||

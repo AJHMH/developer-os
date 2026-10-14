@@ -52,6 +52,19 @@ import {
 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { redact } from "./redaction.js";
+import {
+  featurePlan,
+  candidateSource,
+  featureBranch,
+  candidateOutput,
+  candidateDigest,
+  codingTurn,
+  validCodingPins,
+  type FeatureRuntime,
+  type CodingResult,
+  type FeaturePlanner,
+  type FeatureEvidence,
+} from "./feature-candidate.js";
 import { admitFiles } from "./workspace.js";
 import {
   canaryInput,
@@ -124,6 +137,7 @@ function contains(parent: string, child: string): boolean {
 }
 
 export interface FeatureRequest {
+  codingMinutes?: number;
   repository: string;
   request: string;
   issue?: string;
@@ -169,6 +183,9 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  featurePlanner?: FeaturePlanner;
+  featureRuntime?: FeatureRuntime;
+  clock?: () => number;
   windowsControls?: WindowsControlsRuntime;
   synthetic?: SyntheticTaskRuntime;
   offline?: OfflineCanaryRuntime;
@@ -179,6 +196,8 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  initialCodingAllowanceMs?: number;
+  feature?: FeatureEvidence;
   id: string;
   phase:
     | "blocked"
@@ -251,6 +270,13 @@ export class DeliveryController {
 
   start(input: FeatureRequest): Delivery {
     if (
+      input.codingMinutes !== undefined &&
+      (!Number.isSafeInteger(input.codingMinutes) ||
+        input.codingMinutes < 1 ||
+        input.codingMinutes > 1440)
+    )
+      throw new DeliveryError("Declare 1 to 1440 initial coding minutes.");
+    if (
       typeof input.repository !== "string" ||
       !isAbsolute(input.repository) ||
       !existsSync(input.repository) ||
@@ -301,6 +327,9 @@ export class DeliveryController {
       repository,
       request: redact(input.request.trim()),
       issue: input.issue === undefined ? null : redact(input.issue.trim()),
+      ...(input.codingMinutes !== undefined
+        ? { initialCodingAllowanceMs: input.codingMinutes * 60000 }
+        : {}),
       createdAt: new Date().toISOString(),
       onboarding,
       authorityPolicySha256: onboarding.policy?.sha256 ?? null,
@@ -790,6 +819,532 @@ export class DeliveryController {
             "Recover with the same trusted online runtime; production remains disabled.",
         };
       }
+    });
+  }
+
+  async planFeature(id: string): Promise<Delivery> {
+    const snapshot = this.status(id);
+    if (
+      !snapshot.ownership.held ||
+      !["blocked", "preparing"].includes(snapshot.phase) ||
+      snapshot.feature
+    )
+      throw new DeliveryError("Resolve controls before planning this feature.");
+    let planned: FeatureEvidence;
+    try {
+      planned = featurePlan(
+        await this.observe(
+          this.coordination.featurePlanner?.plan(snapshot.request) ??
+            Promise.resolve(undefined),
+        ),
+      );
+    } catch {
+      throw new DeliveryError(
+        "Feature criteria could not be established safely.",
+      );
+    }
+    return this.change(id, (delivery) => {
+      if (
+        delivery.ownership.fence !== snapshot.ownership.fence ||
+        delivery.phase !== snapshot.phase ||
+        delivery.feature
+      )
+        throw new DeliveryError("Feature planning authority changed.");
+      planned.allowanceMs =
+        snapshot.initialCodingAllowanceMs ?? planned.allowanceMs;
+      delivery.feature = planned;
+      if (planned.outcome === "needs-info")
+        delivery.blocker.nextAction =
+          "Clarify the material requirement before coding.";
+    });
+  }
+
+  async clarifyFeature(id: string, clarification: string): Promise<Delivery> {
+    const snapshot = this.status(id),
+      previous = snapshot.feature;
+    if (
+      !previous ||
+      previous.outcome !== "needs-info" ||
+      previous.session ||
+      !snapshot.ownership.held ||
+      !["blocked", "preparing"].includes(snapshot.phase) ||
+      typeof clarification !== "string" ||
+      !clarification.trim() ||
+      clarification.length > 2000 ||
+      /[\u0000-\u001f\u007f]/.test(clarification) ||
+      redact(clarification) !== clarification
+    )
+      throw new DeliveryError(
+        "Clarify only the owner's stopped material planning blocker with safe request text.",
+      );
+    let plan: FeatureEvidence;
+    const clarifications = [
+      ...(previous.clarifications ?? []),
+      clarification.trim(),
+    ];
+    if (clarifications.length > 32)
+      throw new DeliveryError(
+        "Too many clarification attempts; retain this request and resubmit explicitly.",
+      );
+    try {
+      plan = featurePlan(
+        await this.observe(
+          this.coordination.featurePlanner?.plan(
+            JSON.stringify({ request: snapshot.request, clarifications }),
+          ) ?? Promise.resolve(undefined),
+        ),
+      );
+    } catch {
+      throw new DeliveryError(
+        "Feature criteria could not be established safely.",
+      );
+    }
+    return this.change(id, (delivery) => {
+      if (
+        delivery.ownership.fence !== snapshot.ownership.fence ||
+        delivery.phase !== snapshot.phase ||
+        delivery.feature?.outcome !== "needs-info" ||
+        JSON.stringify(delivery.feature) !== JSON.stringify(previous)
+      )
+        throw new DeliveryError("Feature clarification authority changed.");
+      plan.allowanceMs = previous.allowanceMs;
+      plan.clarifications = clarifications;
+      delivery.feature = plan;
+      delivery.blocker = this.disabledBlocker();
+      if (plan.outcome === "needs-info")
+        delivery.blocker.nextAction =
+          "Clarify the material requirement before coding.";
+    });
+  }
+
+  private chargeCoding(delivery: Delivery): void {
+    const f = delivery.feature,
+      now = (this.coordination.clock ?? Date.now)();
+    if (
+      !f?.activeCheckpoint ||
+      f.activeCheckpoint.runnerId !== this.runnerId ||
+      f.session?.state !== "running" ||
+      delivery.phase !== "implementing"
+    )
+      return;
+    if (!Number.isSafeInteger(now) || now < f.activeCheckpoint.at)
+      throw new DeliveryError(
+        "Coding clock is unavailable; stop and reconcile the session.",
+      );
+    f.activeMs = Math.min(
+      Number.MAX_SAFE_INTEGER,
+      f.activeMs + now - f.activeCheckpoint.at,
+    );
+    f.activeCheckpoint.at = now;
+  }
+
+  async codeFeature(
+    id: string,
+    options: { codingMinutes?: number } = {},
+  ): Promise<Delivery> {
+    const runtime = this.coordination.featureRuntime,
+      snapshot = this.status(id),
+      feature = snapshot.feature;
+    if (
+      (snapshot.execution && snapshot.execution.state !== "stopped") ||
+      (snapshot.onlineAccess && snapshot.onlineAccess.state !== "stopped") ||
+      snapshot.blocker.code === "UNCERTAIN_SESSION" ||
+      !runtime ||
+      runtime.mode !== "controlled" ||
+      !validCodingPins(runtime.pins) ||
+      !feature ||
+      feature.ambiguity ||
+      !snapshot.ownership.held ||
+      !["blocked", "preparing"].includes(snapshot.phase) ||
+      feature.outcome === "admitted" ||
+      (feature.session && feature.session.state !== "stopped")
+    )
+      throw new DeliveryError(
+        "Resolve feature criteria, ownership and stopped controlled coding runtime before coding; production remains disabled.",
+      );
+    const onboarding = inspectOnboarding(
+      snapshot.repository,
+      this.onboardingOptions,
+    );
+    if (
+      !onboarding.ready ||
+      onboarding.policy?.sha256 !== snapshot.authorityPolicySha256 ||
+      this.repositoryKey(snapshot.repository, onboarding) !==
+        snapshot.ownership.key
+    )
+      throw new DeliveryError(
+        "Feature onboarding authority is unavailable or changed.",
+      );
+    let source: ReturnType<typeof candidateSource>;
+    try {
+      source = candidateSource(snapshot.repository, feature.sourceRevision);
+    } catch {
+      throw new DeliveryError(
+        "Feature source is changed or unsafe; preserve repository work.",
+      );
+    }
+    const minutes = options.codingMinutes;
+    if (
+      minutes !== undefined &&
+      (feature.session ||
+        !Number.isSafeInteger(minutes) ||
+        minutes < 1 ||
+        minutes > 1440)
+    )
+      throw new DeliveryError(
+        "Declare 1 to 1440 initial coding minutes before the first coding session.",
+      );
+    if (
+      feature.pins &&
+      JSON.stringify(feature.pins) !== JSON.stringify(runtime.pins)
+    )
+      throw new DeliveryError(
+        "Coding pins changed; requalification is required.",
+      );
+    const prepared = this.change(id, (delivery) => {
+      if (
+        delivery.ownership.fence !== snapshot.ownership.fence ||
+        delivery.phase !== snapshot.phase ||
+        delivery.feature?.session?.state === "running"
+      )
+        throw new DeliveryError("Feature coding authority changed.");
+      const f = delivery.feature!;
+      if (minutes !== undefined) f.allowanceMs = minutes * 60000;
+      if (f.activeMs >= f.allowanceMs) {
+        f.outcome = "exhausted";
+        delivery.blocker.nextAction =
+          "Record an owner coding allowance extension before continuing.";
+        return;
+      }
+      f.sourceRevision = source.revision;
+      f.branch = `codex/feature-${id}`;
+      f.pins = structuredClone(runtime.pins);
+      f.session = {
+        operationId: randomUUID(),
+        fence: delivery.ownership.fence,
+        state: "running",
+        intent: f.session?.threadId ? "resume" : "start",
+        ...(f.session?.threadId ? { threadId: f.session.threadId } : {}),
+      };
+      f.activeCheckpoint = {
+        at: (this.coordination.clock ?? Date.now)(),
+        runnerId: this.runnerId,
+      };
+      f.outcome = "coding";
+      delivery.phase = "implementing";
+    });
+    if (prepared.feature!.outcome === "exhausted") return prepared;
+    const session = structuredClone(prepared.feature!.session!),
+      pins = JSON.stringify(runtime.pins),
+      clock = this.coordination.clock ?? Date.now;
+    let result: CodingResult | undefined,
+      completed = false;
+    const checkpoint = () => {
+      const now = clock();
+      if (!Number.isSafeInteger(now)) return false;
+      const d = this.change(id, (delivery) => {
+        if (delivery.feature?.session?.operationId === session.operationId)
+          this.chargeCoding(delivery);
+      });
+      return (
+        runtime.mode === "controlled" &&
+        d.phase === "implementing" &&
+        d.ownership.held &&
+        d.ownership.fence === session.fence &&
+        d.feature?.session?.operationId === session.operationId &&
+        d.feature.activeMs < d.feature.allowanceMs &&
+        JSON.stringify(runtime.pins) === pins
+      );
+    };
+    const argv = session.threadId
+      ? ["exec", "resume", "--json", "--skip-git-repo-check", session.threadId]
+      : [
+          "exec",
+          "--json",
+          "--skip-git-repo-check",
+          "--sandbox",
+          "workspace-write",
+        ];
+    argv.push(
+      JSON.stringify({
+        request: snapshot.request,
+        criteria: feature.criteria,
+        verification: feature.verification,
+        clarifications: feature.clarifications ?? [],
+      }),
+    );
+    let interrupt: (value: undefined) => void;
+    const interrupted = new Promise<undefined>((resolve) => {
+      interrupt = resolve;
+    });
+    const heartbeat = setInterval(() => {
+      try {
+        if (!checkpoint()) interrupt(undefined);
+      } catch {
+        interrupt(undefined);
+      }
+    }, 250);
+    const deadline = setTimeout(() => {
+      this.change(id, (delivery) => {
+        if (
+          delivery.feature?.session?.operationId === session.operationId &&
+          delivery.phase === "implementing"
+        )
+          delivery.feature.activeMs = Math.max(
+            delivery.feature.activeMs,
+            delivery.feature.allowanceMs,
+          );
+      });
+      interrupt(undefined);
+    }, prepared.feature!.allowanceMs - prepared.feature!.activeMs);
+    try {
+      featureBranch(
+        snapshot.repository,
+        prepared.feature!.branch!,
+        source.revision,
+      );
+      if (!checkpoint()) throw Error();
+      result = await Promise.race([
+        runtime.execute({
+          ...session,
+          branch: prepared.feature!.branch!,
+          sourceRevision: source.revision,
+          inputSha256: source.digest,
+          onEvent: (event) => {
+            if (!checkpoint() || !event || typeof event !== "object")
+              return false;
+            const item = event as Record<string, unknown>;
+            if (
+              item.type !== "thread.started" ||
+              typeof item.thread_id !== "string" ||
+              !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+                item.thread_id,
+              )
+            )
+              return false;
+            const threadId = item.thread_id;
+            if (session.threadId && session.threadId !== threadId) return false;
+            const updated = this.change(id, (delivery) => {
+              if (
+                delivery.feature?.session?.operationId ===
+                  session.operationId &&
+                delivery.feature.session.state === "running" &&
+                delivery.ownership.fence === session.fence
+              ) {
+                if (
+                  delivery.feature.session.threadId &&
+                  delivery.feature.session.threadId !== threadId
+                )
+                  throw new DeliveryError("Coding session identity changed.");
+                delivery.feature.session.threadId = threadId;
+              }
+            });
+            return (
+              updated.feature?.session?.operationId === session.operationId &&
+              updated.feature.session.threadId === threadId
+            );
+          },
+          argv,
+          files: source.files,
+          pins: structuredClone(runtime.pins),
+          allowanceMs:
+            prepared.feature!.allowanceMs - prepared.feature!.activeMs,
+          mayDispatch: checkpoint,
+          checkpoint,
+        }),
+        interrupted,
+      ]);
+      if (
+        result?.operationId !== session.operationId ||
+        result.fence !== session.fence
+      )
+        throw Error();
+      const turn = codingTurn(
+        result,
+        this.status(id).feature?.session?.threadId ?? session.threadId,
+      );
+      completed = turn.completed;
+      this.change(id, (delivery) => {
+        if (delivery.feature?.session?.operationId === session.operationId)
+          delivery.feature.session.threadId = turn.threadId;
+      });
+      checkpoint();
+    } catch {
+      /* Only fixed safe status crosses the controller boundary. */
+    } finally {
+      clearTimeout(deadline);
+      clearInterval(heartbeat);
+    }
+    const stopped = await this.stopFeature(id, session.operationId);
+    if (
+      !completed ||
+      stopped.feature?.session?.state !== "stopped" ||
+      stopped.phase === "paused" ||
+      stopped.phase === "cancelled" ||
+      stopped.ownership.fence !== session.fence ||
+      stopped.feature.activeMs >= stopped.feature.allowanceMs
+    )
+      return stopped;
+    try {
+      const fresh = inspectOnboarding(
+        snapshot.repository,
+        this.onboardingOptions,
+      );
+      if (
+        !fresh.ready ||
+        fresh.policy?.sha256 !== snapshot.authorityPolicySha256 ||
+        JSON.stringify(runtime.pins) !== pins
+      )
+        throw Error();
+      candidateSource(snapshot.repository, source.revision);
+      featureBranch(
+        snapshot.repository,
+        prepared.feature!.branch!,
+        source.revision,
+      );
+      const output = await this.observe(runtime.collect(session));
+      if (
+        !output ||
+        output.operationId !== session.operationId ||
+        output.fence !== session.fence
+      )
+        throw Error();
+      const finalAuthority = inspectOnboarding(
+        snapshot.repository,
+        this.onboardingOptions,
+      );
+      if (
+        !finalAuthority.ready ||
+        finalAuthority.policy?.sha256 !== snapshot.authorityPolicySha256 ||
+        this.repositoryKey(snapshot.repository, finalAuthority) !==
+          snapshot.ownership.key ||
+        JSON.stringify(runtime.pins) !== pins
+      )
+        throw Error();
+      candidateSource(snapshot.repository, source.revision);
+      featureBranch(
+        snapshot.repository,
+        prepared.feature!.branch!,
+        source.revision,
+      );
+      const payload = candidateOutput(output),
+        path = join(
+          this.stateDirectory,
+          "artifacts",
+          `candidate-${session.operationId}.json`,
+        );
+      writeFileSync(path, payload, { flag: "wx", mode: 0o600, flush: true });
+      return this.change(id, (delivery) => {
+        if (
+          delivery.ownership.fence !== session.fence ||
+          delivery.phase !== "blocked" ||
+          delivery.feature?.session?.operationId !== session.operationId ||
+          delivery.feature.session.state !== "stopped"
+        )
+          throw Error();
+        delivery.feature.candidate = {
+          path,
+          sha256: candidateDigest(payload),
+          inputSha256: source.digest,
+          validation: "not-run",
+        };
+        delivery.feature.outcome = "admitted";
+        delivery.blocker.nextAction =
+          "Validate the exact isolated candidate before signing or publication; production remains disabled.";
+      });
+    } catch {
+      return this.status(id);
+    }
+  }
+
+  async stopFeature(
+    id: string,
+    expectedOperationId?: string,
+  ): Promise<Delivery> {
+    const snapshot = this.status(id),
+      session = snapshot.feature?.session;
+    if (
+      !session ||
+      session.state === "stopped" ||
+      (expectedOperationId && session.operationId !== expectedOperationId)
+    )
+      return snapshot;
+    const runtime = this.coordination.featureRuntime,
+      expectedPins = JSON.stringify(snapshot.feature?.pins);
+    const sameBinding = () =>
+      runtime?.mode === "controlled" &&
+      JSON.stringify(runtime.pins) === expectedPins;
+    let response: Awaited<ReturnType<FeatureRuntime["stop"]>> | undefined;
+    try {
+      if (sameBinding())
+        response = await this.observe(runtime!.stop(structuredClone(session)));
+    } catch {}
+    return this.change(id, (delivery) => {
+      if (delivery.feature?.session?.operationId !== session.operationId)
+        return;
+      try {
+        this.chargeCoding(delivery);
+      } catch {
+        delivery.feature.activeMs = delivery.feature.allowanceMs;
+      }
+      const stopped =
+        sameBinding() &&
+        response?.operationId === session.operationId &&
+        response.fence === session.fence &&
+        response.stopped === true &&
+        response.remainingProcesses === 0;
+      delivery.feature.session!.state = stopped ? "stopped" : "uncertain";
+      delivery.feature.outcome = stopped
+        ? delivery.feature.activeMs >= delivery.feature.allowanceMs
+          ? "exhausted"
+          : "failed"
+        : "uncertain";
+      if (!["paused", "cancelled"].includes(delivery.phase))
+        delivery.phase = "blocked";
+      if (
+        stopped &&
+        delivery.blocker.code === "UNCERTAIN_SESSION" &&
+        (!delivery.execution || delivery.execution.state === "stopped") &&
+        (!delivery.onlineAccess || delivery.onlineAccess.state === "stopped")
+      )
+        delivery.blocker = this.disabledBlocker();
+      if (!stopped)
+        delivery.blocker = {
+          code: "UNCERTAIN_SESSION",
+          message:
+            "Coding worker shutdown is unverified; output import is forbidden.",
+          nextAction:
+            "Recover the exact coding session with the same trusted runtime.",
+        };
+    });
+  }
+
+  extendCoding(id: string, addedMinutes: number): Delivery {
+    if (
+      !Number.isSafeInteger(addedMinutes) ||
+      addedMinutes < 1 ||
+      addedMinutes > 1440
+    )
+      throw new DeliveryError("Extend coding by 1 to 1440 minutes.");
+    return this.change(id, (delivery) => {
+      const feature = delivery.feature;
+      if (
+        !delivery.ownership.held ||
+        !feature ||
+        feature.outcome !== "exhausted" ||
+        feature.session?.state !== "stopped" ||
+        delivery.phase !== "blocked"
+      )
+        throw new DeliveryError(
+          "Only stopped exhausted coding work may receive an owner extension.",
+        );
+      feature.allowanceMs += addedMinutes * 60000;
+      (feature.extensions ??= []).push({
+        addedMs: addedMinutes * 60000,
+        at: new Date().toISOString(),
+      });
+      feature.outcome = "failed";
+      delivery.blocker = this.disabledBlocker();
     });
   }
 
@@ -1640,6 +2195,7 @@ export class DeliveryController {
 
   async pause(id: string): Promise<Delivery> {
     const paused = this.change(id, (delivery, db) => {
+      this.chargeCoding(delivery);
       if (delivery.phase === "cancelled")
         throw new DeliveryError("A cancelled delivery cannot be paused.");
       if (delivery.phase !== "paused") {
@@ -1649,6 +2205,8 @@ export class DeliveryController {
         if (delivery.ownership.held) this.advanceFence(delivery, db);
       }
     });
+    if (paused.feature?.session && paused.feature.session.state !== "stopped")
+      await this.stopFeature(id);
     if (paused.onlineAccess && paused.onlineAccess.state !== "stopped")
       await this.recoverOnline(id);
     return paused.execution && paused.execution.state !== "stopped"
@@ -1658,6 +2216,13 @@ export class DeliveryController {
 
   resume(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (
+        delivery.feature?.session &&
+        delivery.feature.session.state !== "stopped"
+      )
+        throw new DeliveryError(
+          "Recover coding worker shutdown before this control.",
+        );
       if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
         throw new DeliveryError(
           "Recover online canary shutdown before resuming.",
@@ -1705,6 +2270,7 @@ export class DeliveryController {
 
   async cancel(id: string): Promise<Delivery> {
     const cancelled = this.change(id, (delivery, db) => {
+      this.chargeCoding(delivery);
       if (delivery.phase !== "cancelled") {
         delivery.priorPhase = delivery.phase;
         delivery.phase = "cancelled";
@@ -1712,6 +2278,11 @@ export class DeliveryController {
         if (delivery.ownership.held) this.advanceFence(delivery, db);
       }
     });
+    if (
+      cancelled.feature?.session &&
+      cancelled.feature.session.state !== "stopped"
+    )
+      await this.stopFeature(id);
     if (cancelled.onlineAccess && cancelled.onlineAccess.state !== "stopped")
       await this.recoverOnline(id);
     return cancelled.execution && cancelled.execution.state !== "stopped"
@@ -1720,6 +2291,9 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    const coding = this.status(id).feature?.session;
+    if (coding && coding.state !== "stopped")
+      return this.stopFeature(id, coding.operationId);
     let delivery = this.status(id);
     if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
       delivery = await this.recoverOnline(id);
@@ -1799,6 +2373,13 @@ export class DeliveryController {
 
   release(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (
+        delivery.feature?.session &&
+        delivery.feature.session.state !== "stopped"
+      )
+        throw new DeliveryError(
+          "Recover coding worker shutdown before this control.",
+        );
       if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
         throw new DeliveryError(
           "Recover online canary shutdown before releasing ownership.",

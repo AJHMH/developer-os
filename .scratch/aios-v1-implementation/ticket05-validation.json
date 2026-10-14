@@ -1,0 +1,28 @@
+{
+  "baseRevision": "94b713f420c7d52eccce6ae4d3d43922b1124fae",
+  "platform": "macOS arm64",
+  "scope": "controlled controller and pinned CLI adapter; no native compatibility or provider calls",
+  "focused": {
+    "tests": 23,
+    "passed": 23,
+    "failed": 0
+  },
+  "full": {
+    "tests": 303,
+    "passed": 301,
+    "failed": 0,
+    "skipped": 2
+  },
+  "checks": ["npm run typecheck", "npm run format:check", "git diff --check"],
+  "preservedSnapshots": 21,
+  "logs": [
+    {
+      "name": "ticket05-focused-final.log",
+      "sha256": "8a39aed9bd6a34aa683380059edc5d1a5a41970761589953471520dfae3250f2"
+    },
+    {
+      "name": "ticket05-full-suite.log",
+      "sha256": "cded9b1fbecba735f6599bc08666a8da78c706b427d613b1fe9e9c8454623fcd"
+    }
+  ]
+}
