@@ -55,3 +55,9 @@ ready for human review. [Implementation receipt](ticket06-implementation-receipt
 records passing public-controller/full-suite validation and outstanding native and
 hosted qualification. The owner explicitly selected this controlled implementation
 while parent native qualification remains open; production delivery stays disabled.
+
+
+14 October ticket 07 progress: controlled candidate repair is ready for human
+review, with durable cycle/time allowances, explicit extensions and fenced
+revalidation. See [receipt](ticket07-implementation-receipt.md). Native repair
+and complete delivery qualification remain open.

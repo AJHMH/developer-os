@@ -48,3 +48,8 @@ real dependency and script isolation, bounded process-tree shutdown, registry/ca
 enforcement, browser/database disposal, formatting reconciliation, pinned CLI
 compatibility, and real pilot baseline/acceptance evidence. No provider requests or
 native worker execution are authorized by this controlled test receipt.
+
+
+[Bounded repair](bounded-repair.md) now handles failed candidate batches. Once
+repair begins, local revalidation runs through the repair cycle so it cannot bypass
+the persisted allowance. Native and hosted qualification requirements remain open.

@@ -4,7 +4,7 @@
 
 **Blocked by:** 06: [Validate baseline and candidate behavior inside isolation](06-isolated-validation.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 ## Source and governing contract
 
@@ -14,10 +14,22 @@ This is an implementation slice, separate from resolved wayfinder decisions. Uni
 
 ## Acceptance criteria
 
-- [ ] A repair cycle is one attempt to fix a batch followed by relevant verification; default allowance is three cycles or 60 active repair minutes, whichever is exhausted first.
-- [ ] Diagnosis, edits and local revalidation count; initial coding, CI/approval waits, pauses and downtime are excluded.
-- [ ] Usage survives restart, new comments and failed repairs; exhaustion prevents further repair until an explicit owner extension is durably recorded.
-- [ ] The repair worker cannot lower thresholds, skip gates, edit trusted policy, acquire publication credentials or expand scope to unrelated baseline repairs.
-- [ ] Each attempt records findings, changed tree, verification results and remaining allowance; verified success invalidates stale evidence and advances only the appropriate phase.
-- [ ] Public tests cover exact allowance boundaries, interruption, extension, batch accounting and attempted policy weakening; real execution remains subject to qualification.
+- [x] A repair cycle is one attempt to fix a batch followed by relevant verification; default allowance is three cycles or 60 active repair minutes, whichever is exhausted first.
+- [x] Diagnosis, edits and local revalidation count; initial coding, CI/approval waits, pauses and downtime are excluded.
+- [x] Usage survives restart, new comments and failed repairs; exhaustion prevents further repair until an explicit owner extension is durably recorded.
+- [x] The repair worker cannot lower thresholds, skip gates, edit trusted policy, acquire publication credentials or expand scope to unrelated baseline repairs.
+- [x] Each attempt records findings, changed tree, verification results and remaining allowance; verified success invalidates stale evidence and advances only the appropriate phase.
+- [x] Public tests cover exact allowance boundaries, interruption, extension, batch accounting and attempted policy weakening; real execution remains subject to qualification.
 
+
+
+## Implementation receipt — 2026-10-14
+
+The controlled slice implements the criteria above through the public controller
+and controlled coding/validation boundaries. Checked items describe that tested
+scope; native execution remains unqualified. See [bounded repair](../../../docs/bounded-repair.md)
+and [validation results](../ticket07-implementation-receipt.md).
+
+Independent review corrected unchanged-tree verification and fenced evidence
+association across interrupted final inspection. Parent native qualification,
+hosted integration and complete pilot delivery remain open.
