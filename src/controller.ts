@@ -1,3 +1,9 @@
+import {
+  PublicationCoordinator,
+  type PublicationRuntime,
+  type PublicationEvidence,
+  type PublicationInput,
+} from "./publication.js";
 import { repairBudget, repairFindings, type RepairEvidence } from "./repair.js";
 import {
   validationOutcome,
@@ -200,6 +206,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  publicationRuntime?: PublicationRuntime;
   validationRuntime?: ValidationRuntime;
   featurePlanner?: FeaturePlanner;
   featureRuntime?: FeatureRuntime;
@@ -214,6 +221,7 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  publication?: PublicationEvidence;
   validation?: ValidationEvidence;
   initialCodingAllowanceMs?: number;
   feature?: FeatureEvidence;
@@ -226,7 +234,8 @@ export interface Delivery {
     | "cancelled"
     | "preparing"
     | "implementing"
-    | "validating";
+    | "validating"
+    | "publishing";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -843,11 +852,134 @@ export class DeliveryController {
     });
   }
 
+  private publicationInput(id: string, observed?: Delivery): PublicationInput {
+    const d = observed ?? this.status(id),
+      f = d.feature,
+      v = d.validation?.attempts.at(-1);
+    if (
+      !f?.candidate ||
+      f.candidate.validation !== "passed" ||
+      f.session?.state !== "stopped" ||
+      d.repair?.attempts.some((a) => a.state !== "stopped") ||
+      (d.repair && d.repair.attempts.at(-1)?.outcome !== "passed") ||
+      d.validation?.attempts.some((a) => a.state !== "stopped") ||
+      (d.execution && d.execution.state !== "stopped") ||
+      (d.onlineAccess && d.onlineAccess.state !== "stopped") ||
+      !v ||
+      v.stage !== "candidate" ||
+      v.outcome !== "passed" ||
+      v.treeSha256 !== f.candidate.sha256 ||
+      v.policySha256 !== d.authorityPolicySha256 ||
+      v.criteriaSha256 !== validationCriteria(f) ||
+      this.coordination.validationRuntime?.mode !== "controlled" ||
+      this.coordination.validationRuntime.bindingSha256 !== v.bindingSha256
+    )
+      throw new DeliveryError(
+        "Publication requires exact passing candidate evidence and stopped workers.",
+      );
+    const onboarding = inspectOnboarding(d.repository, this.onboardingOptions);
+    if (
+      !onboarding.ready ||
+      onboarding.policy?.sha256 !== d.authorityPolicySha256 ||
+      this.repositoryKey(d.repository, onboarding) !== d.ownership.key
+    )
+      throw new DeliveryError("Publication onboarding authority changed.");
+    const policyBytes = readFileSync(onboarding.policy!.source);
+    if (candidateDigest(policyBytes) !== d.authorityPolicySha256)
+      throw new DeliveryError("Publication policy changed.");
+    const policy = JSON.parse(policyBytes.toString());
+    const source = candidateMainSource(
+      d.repository,
+      onboarding.canonicalRepository!.defaultBranch,
+    );
+    if (
+      source.revision !== v.sourceRevision ||
+      source.revision !== f.sourceRevision ||
+      !f.branch ||
+      !/^codex\/feature-[a-f0-9-]+$/.test(f.branch) ||
+      validationDigest(
+        validationContract(
+          this.onboardingOptions.policyPath,
+          d.authorityPolicySha256!,
+        ),
+      ) !== v.contractSha256
+    )
+      throw new DeliveryError("Publication source or check contract changed.");
+    const candidate = validationCandidate(f, this.stateDirectory);
+    protectValidationInputs(v.contract, source.files, candidate.files);
+    return {
+      repository: policy.repository,
+      defaultBranch: policy.defaultBranch,
+      branch: f.branch,
+      sourceRevision: source.revision,
+      candidateSha256: candidate.digest,
+      policySha256: d.authorityPolicySha256!,
+      validationOperationId: v.operationId,
+      publicationLogin: policy.publicationLogin,
+      appLogin: policy.appLogin,
+      approver: policy.approver,
+      files: candidate.files,
+    };
+  }
+
+  private publicationCoordinator(id: string): PublicationCoordinator {
+    return new PublicationCoordinator(
+      {
+        status: () => this.status(id),
+        change: (update) => this.change(id, update),
+        input: (observed) => this.publicationInput(id, observed),
+        qualified: async () => {
+          const before = this.publicationInput(id);
+          const v = this.status(id).validation!.attempts.at(-1)!;
+          const runtime = this.coordination.validationRuntime!;
+          const observation = await this.observe(runtime.inspect());
+          const after = this.publicationInput(id);
+          return (
+            before.validationOperationId === after.validationOperationId &&
+            observation?.mode === "controlled" &&
+            observation.bindingSha256 === v.bindingSha256 &&
+            validationDigest(observation.environment) === v.environmentSha256
+          );
+        },
+        observe: (promise) => this.observe(promise),
+      },
+      this.coordination.publicationRuntime,
+    );
+  }
+
+  async publishFeature(id: string): Promise<Delivery> {
+    try {
+      return await this.publicationCoordinator(id).publish();
+    } catch {
+      throw new DeliveryError(
+        "Publication blocked: verify candidate, signatures, authority, controls and unresolved effects; native writes remain disabled.",
+      );
+    }
+  }
+
+  async reconcilePublication(id: string): Promise<Delivery> {
+    try {
+      return await this.publicationCoordinator(id).reconcile();
+    } catch {
+      throw new DeliveryError(
+        "Publication reconciliation requires the same trusted binding and retained operation.",
+      );
+    }
+  }
+
   async validateBaseline(id: string): Promise<Delivery> {
+    if (this.status(id).publication)
+      throw new DeliveryError(
+        "Preserve the published candidate and its validation evidence.",
+      );
     return this.validateFeatureTree(id, "baseline");
   }
 
   async validateCandidate(id: string): Promise<Delivery> {
+    if (this.status(id).publication)
+      throw new DeliveryError(
+        "Preserve publication evidence before changing validation.",
+      );
     if (this.status(id).repair)
       throw new DeliveryError(
         "Local revalidation belongs to the persisted repair cycle.",
@@ -1416,6 +1548,10 @@ export class DeliveryController {
     id: string,
     reviewFindings: string[] = [],
   ): Promise<Delivery> {
+    if (this.status(id).publication)
+      throw new DeliveryError(
+        "Published candidate updates require a new validated publication protocol.",
+      );
     const snapshot = this.status(id),
       feature = snapshot.feature,
       validation = snapshot.validation?.attempts.at(-1);
@@ -1585,6 +1721,10 @@ export class DeliveryController {
     id: string,
     options: { codingMinutes?: number } = {},
   ): Promise<Delivery> {
+    if (this.status(id).publication)
+      throw new DeliveryError(
+        "Preserve publication evidence before further coding.",
+      );
     if (this.status(id).repair)
       throw new DeliveryError(
         "Use the persisted repair allowance after repair has begun.",
@@ -2979,6 +3119,12 @@ export class DeliveryController {
 
   resume(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (
+        delivery.publication?.effects.some(
+          (e) => e.state === "dispatched" || e.state === "uncertain",
+        )
+      )
+        throw new DeliveryError("Reconcile publication before this control.");
       if (delivery.repair?.attempts.some((a) => a.state !== "stopped"))
         throw new DeliveryError("Recover the repair cycle before resuming.");
       if (delivery.validation?.attempts.some((a) => a.state !== "stopped"))
@@ -3015,7 +3161,8 @@ export class DeliveryController {
         if (
           delivery.phase === "implementing" ||
           delivery.phase === "preparing" ||
-          delivery.phase === "validating"
+          delivery.phase === "validating" ||
+          delivery.phase === "publishing"
         )
           delivery.phase = "preparing";
         if (delivery.blocker.code === "UNCERTAIN_SESSION")
@@ -3068,6 +3215,12 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (
+      this.status(id).publication?.effects.some(
+        (e) => e.state === "dispatched" || e.state === "uncertain",
+      )
+    )
+      return this.reconcilePublication(id);
     const repair = this.status(id).repair?.attempts.at(-1);
     if (repair && repair.state !== "stopped") {
       if (
@@ -3163,6 +3316,12 @@ export class DeliveryController {
 
   release(id: string): Delivery {
     return this.change(id, (delivery, db) => {
+      if (
+        delivery.publication?.effects.some(
+          (e) => e.state === "dispatched" || e.state === "uncertain",
+        )
+      )
+        throw new DeliveryError("Reconcile publication before this control.");
       if (delivery.repair?.attempts.some((a) => a.state !== "stopped"))
         throw new DeliveryError(
           "Recover the repair cycle before releasing ownership.",
