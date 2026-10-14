@@ -1,0 +1,20 @@
+[
+  {
+    "completed_at": "2026-10-14T16:31:31Z",
+    "conclusion": "success",
+    "id": 115971661705,
+    "name": "validation / Enforce Factory trusted human approval",
+    "run_attempt": 3,
+    "started_at": "2026-10-14T16:30:10Z",
+    "status": "completed"
+  },
+  {
+    "completed_at": "2026-10-14T16:29:57Z",
+    "conclusion": "success",
+    "id": 115971666405,
+    "name": "validation / Enforce Factory human approval",
+    "run_attempt": 3,
+    "started_at": "2026-10-14T16:28:52Z",
+    "status": "completed"
+  }
+]
