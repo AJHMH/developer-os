@@ -30,6 +30,7 @@ export function ownerValidationContract() {
           stages: ["candidate"],
           command: ["workflow", "ci"],
           publisher: "trusted-ci",
+          workflow: ".github/workflows/ci.yml@trusted",
           timeoutMs: 120000,
         },
         {
@@ -39,6 +40,7 @@ export function ownerValidationContract() {
           stages: ["candidate"],
           command: ["workflow", "e2e"],
           publisher: "trusted-ci",
+          workflow: ".github/workflows/ci.yml@trusted",
           timeoutMs: 120000,
         },
       ]),

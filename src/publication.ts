@@ -42,6 +42,7 @@ export interface PublicationEffect {
   reason?: "unverified" | "unknown" | "not-applied";
 }
 export interface PublicationEvidence {
+  previous?: { commit: string; number: number };
   id: string;
   activeRun?: string;
   mode: "controlled";
@@ -105,6 +106,7 @@ export interface PublicationRuntime {
   >;
 }
 export interface PublicationInput {
+  previous?: { commit: string; number: number };
   repository: string;
   defaultBranch: string;
   branch: string;
@@ -228,6 +230,7 @@ function matched(input: PublicationInput, p: PublicationEvidence) {
         "approver",
       ] as const
     ).every((k) => input[k] === p[k]) &&
+    JSON.stringify(input.previous) === JSON.stringify(p.previous) &&
     publicationTree(input.files) === p.treeSha1
   );
 }
@@ -241,7 +244,7 @@ function resultEvidence(
     if (
       !oid(v.commit) ||
       v.tree !== p.treeSha1 ||
-      v.parent !== p.sourceRevision ||
+      v.parent !== (p.previous?.commit ?? p.sourceRevision) ||
       v.signer !== p.publicationLogin ||
       v.localVerified !== true
     )
@@ -279,6 +282,7 @@ function resultEvidence(
     const v = value as ProposedPullRequest;
     if (
       !Number.isSafeInteger(v.number) ||
+      (p.previous !== undefined && v.number !== p.previous.number) ||
       v.number < 1 ||
       v.repository !== p.repository ||
       v.head !== p.commit ||

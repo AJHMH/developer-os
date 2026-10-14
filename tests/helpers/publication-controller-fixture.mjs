@@ -2,8 +2,8 @@ import { DeliveryController } from "../../dist/controller.js";
 import assert from "node:assert/strict";
 import { codingFixture } from "./feature-fixture.mjs";
 
-export async function fixture(t) {
-  const f = codingFixture(t);
+export async function fixture(t, configurePolicy) {
+  const f = codingFixture(t, configurePolicy);
   await f.controller.planFeature(f.delivery.id);
   await f.controller.validateBaseline(f.delivery.id);
   await f.controller.codeFeature(f.delivery.id);
