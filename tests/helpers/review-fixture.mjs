@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { DeliveryController } from "../../dist/controller.js";
 import { monitored } from "./pr-checks-fixture.mjs";
 
-export async function reviewed(t) {
-  const f = await monitored(t);
+export async function reviewed(t, configurePolicy) {
+  const f = await monitored(t, configurePolicy);
   await f.controller.monitorPRChecks(f.delivery.id);
   f.reviewSnapshot = () => {
     const p = f.controller.status(f.delivery.id).publication;
