@@ -74,3 +74,10 @@ human review, with exact-head identity checks, retained rerun history, durable C
 deadlines and cumulative repair followed by conditional publication. See
 [receipt](ticket09-implementation-receipt.md). Native GitHub and cross-platform
 qualification remain open; production delivery stays disabled.
+
+
+14 October ticket 10 progress: controlled review findings and owner approval are
+ready for human review. Scoped fixes use persisted repair allowances; conversation
+resolution requires verified changed output and current checks. Exact-head human
+approval reaches the separate merge gate. See [receipt](ticket10-implementation-receipt.md).
+Native review and complete delivery qualification remain open.
