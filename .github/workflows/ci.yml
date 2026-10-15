@@ -72,7 +72,7 @@ jobs:
         env:
           TEST_SHARD: ${{ matrix.shard }}/8
         run: |
-          node --test --test-concurrency=2 --test-shard=$env:TEST_SHARD --test-reporter=tap 2>&1 | Tee-Object -FilePath windows-tests.tap
+          node --import ./.scratch/aios-v1-implementation/diagnostics/python-subprocess-probe.mjs --test --test-concurrency=2 --test-shard=$env:TEST_SHARD --test-reporter=tap 2>&1 | Tee-Object -FilePath windows-tests.tap
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: always()
@@ -93,3 +93,42 @@ jobs:
         env:
           WINDOWS_RESULT: ${{ needs.windows-tests.result }}
         run: test "$WINDOWS_RESULT" = success
+
+  windows-python-probe:
+    name: Diagnose Windows Python subprocesses
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Repeat isolated and concurrent fixture probes
+        shell: pwsh
+        run: |
+          $probeFailed = $false
+          $pattern = "^synthetic expiry arms|^generated native management freezes"
+          foreach ($iteration in 1..3) {
+            "[DEBUG-pr39-probe] isolated iteration $iteration" | Tee-Object -FilePath windows-python-probe.tap -Append
+            node --import ./.scratch/aios-v1-implementation/diagnostics/python-subprocess-probe.mjs --test --test-concurrency=1 --test-reporter=tap --test-name-pattern=$pattern tests/codex-endpoint.test.mjs tests/podman-platform.test.mjs 2>&1 | Tee-Object -FilePath windows-python-probe.tap -Append
+            if ($LASTEXITCODE -ne 0) { $probeFailed = $true }
+          }
+          $pattern += "|^actual local conditional deletion"
+          foreach ($iteration in 1..3) {
+            "[DEBUG-pr39-probe] concurrent iteration $iteration" | Tee-Object -FilePath windows-python-probe.tap -Append
+            node --import ./.scratch/aios-v1-implementation/diagnostics/python-subprocess-probe.mjs --test --test-concurrency=2 --test-reporter=tap --test-name-pattern=$pattern tests/branch-cleanup-cas.test.mjs tests/codex-endpoint.test.mjs tests/podman-platform.test.mjs 2>&1 | Tee-Object -FilePath windows-python-probe.tap -Append
+            if ($LASTEXITCODE -ne 0) { $probeFailed = $true }
+          }
+          if ($probeFailed) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-python-probe
+          path: windows-python-probe.tap
+          if-no-files-found: warn
+          retention-days: 14
