@@ -44,7 +44,7 @@ jobs:
       - run: npm run build
       # A fresh runner exercises native registration before any helper is warm.
       # The complete eight-shard inventory below still runs every test.
-      - run: node --test --test-name-pattern="^separate darwin authorization completes" tests/auth-host.test.mjs
+      - run: node --test --test-concurrency=1 --test-name-pattern="^separate darwin authorization completes|^Windows host storage works without PowerShell" tests/auth-host.test.mjs tests/windows-auth-store.test.mjs
   windows-tests:
     name: Windows CLI tests (${{ matrix.shard }}/8)
     runs-on: windows-latest

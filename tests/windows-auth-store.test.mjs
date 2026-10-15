@@ -11,7 +11,7 @@ import {
 } from "../dist/windows-auth-store.js";
 
 test(
-  "Windows host storage works with implicit module loading disabled",
+  "Windows host storage works without PowerShell modules or cmdlets",
   { skip: process.platform !== "win32" },
   (t) => {
     const root = fs.realpathSync(
@@ -22,7 +22,7 @@ test(
       const updated = [...args];
       const index = updated.indexOf("-EncodedCommand") + 1;
       const script =
-        "$PSModuleAutoLoadingPreference='None';\n" +
+        "$PSModuleAutoLoadingPreference='None'; function Import-Module { throw 'PowerShell module loading forbidden by native regression' }; function ConvertFrom-Json { throw 'PowerShell JSON cmdlet forbidden by native regression' };\n" +
         Buffer.from(updated[index], "base64").toString("utf16le");
       updated[index] = Buffer.from(script, "utf16le").toString("base64");
       return original(exe, updated, options);

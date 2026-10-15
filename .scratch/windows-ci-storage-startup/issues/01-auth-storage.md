@@ -27,3 +27,9 @@ Counterfactual under test: serialize test files within each of the eight Windows
 ## Rejected scheduling hypothesis
 
 Serial file run `d0404df`, CI 38769070684, shard 2 still failed: first initialization timed out at 15,035 ms; the next initialization passed in 4,974 ms. Serialization alone does not fix this failure and is reverted. Fixed-label script milestones now distinguish process entry, module imports, path parsing and ACL application without recording any request, path or raw child error.
+
+## Failing bootstrap milestone
+
+Run 38770509393, shard 2, first initialize: 15,014 ms, timed out; milestones `entered`, three `module-start`, then `modules-ready`, with no `path-ready` or `acl-ready`. The cold bootstrap consumes the deadline before ACL work. The next initialization passes at 2,135 ms. Run 38770571500's isolated cold probe passed at 6,850 ms, preserving the observed variability. This is a cold PowerShell bootstrap dependency, not proof of a permission denial or of concurrency as the sole cause.
+
+Native regression: disable module autoloading and deny `Import-Module` and `ConvertFrom-Json` at the actual helper invocation, then require real registration, protected metadata checks, DPAPI create/read/replace and retained-file refusals to succeed under the unchanged deadline. The complete eight-shard suite remains unchanged.
