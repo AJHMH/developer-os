@@ -75,3 +75,12 @@ The Factory pin adoption also updates the approval-refresh fixture's single SHA
 constant. A first hosted run caught that stale fixture; all assertions and cases
 remain unchanged. The audit explicitly permits only that exact reviewed SHA
 replacement and still rejects any other change to the file.
+
+The final Windows shard 2 also hit its unchanged ten-minute total budget in its
+review suite, including its one diagnostic rerun. Renamed the byte-identical fast
+port-refusal file once more to `publication-signatures-port-refusal.test.mjs`.
+This swaps only the four-case signature group (from shard 2 to shard 1) and the
+fast port group (from shard 1 to shard 2); every other assignment stays fixed.
+The previous rebalance had removed the eight-case remote group from shard 1,
+leaving capacity for the smaller signature group. All assertions and limits
+remain unchanged.
