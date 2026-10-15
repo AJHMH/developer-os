@@ -4,7 +4,7 @@
 
 **Blocked by:** 10: [Address review findings and wait for owner approval](10-review-owner-approval.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 ## Source and governing contract
 
@@ -14,10 +14,18 @@ This is an implementation slice, separate from resolved wayfinder decisions. Uni
 
 ## Acceptance criteria
 
-- [ ] All required current-head approval/check/conversation gates and effective protections are verified immediately before dispatch; no bypass or manufactured evidence path exists.
-- [ ] Merge is conditioned on the expected validated/approved PR head; head races cannot cause a different candidate to land.
-- [ ] If main advances, refresh branch/applicable checks within remaining repair allowance; new PR commits require renewed owner approval.
-- [ ] Policy/permission revocation, unsupported conditional behavior or budget exhaustion blocks merge with evidence.
-- [ ] Persist intent and outcome; crash after remote merge acceptance reconciles the existing PR/main result rather than blindly merging again.
-- [ ] Public tests cover head/base races, approval withdrawal, check changes, exact-head effect conditions and before/after-acceptance crashes.
+- [x] All required current-head approval/check/conversation gates and effective protections are verified immediately before dispatch; no bypass or manufactured evidence path exists.
+- [x] Merge is conditioned on the expected validated/approved PR head; head races cannot cause a different candidate to land.
+- [x] If main advances, refresh branch/applicable checks within remaining repair allowance; new PR commits require renewed owner approval.
+- [x] Policy/permission revocation, unsupported conditional behavior or budget exhaustion blocks merge with evidence.
+- [x] Persist intent and outcome; crash after remote merge acceptance reconciles the existing PR/main result rather than blindly merging again.
+- [x] Public tests cover head/base races, approval withdrawal, check changes, exact-head effect conditions and before/after-acceptance crashes.
 
+
+## Controlled implementation — 2026-10-14
+
+Checked criteria describe the controlled controller boundary, not native readiness.
+See [conditional merge contract](../../../docs/conditional-merge.md) and
+[implementation receipt](../ticket11-implementation-receipt.md). The adapter
+must enforce exact head/base and current gates at the effect boundary. No native
+merge is enabled. Main checks, synchronization and cleanup remain later slices.
