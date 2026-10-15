@@ -42,3 +42,16 @@ stage presence, never arguments, environment values or program output. The
 Python marker lines are removed from the returned stderr. Instrumentation will
 be removed after diagnosis; this directory is explicitly temporary diagnostic
 material. No timeout, concurrency cap, production policy or approval rule changes.
+
+## Initial Windows narrowing result
+
+All six focused repetitions passed: expiry 6.66–8.16 seconds; generated
+management 72–102 ms. Full instrumented shard 6 passed with expiry at 9.53
+seconds. Full instrumented shard 8 passed with management at 2.70 seconds.
+These are successful measurements, not a reproduction or proof of a fix.
+
+The next probe retains the original Python source byte-for-byte (child markers
+disabled), repeats the exact management assertion up to 100 times and the expiry
+assertion up to ten times, and stops at the first failure. Parent-side telemetry
+still records error code, signal and duration. This tests the unmodified child
+path before proceeding to causal hypotheses.

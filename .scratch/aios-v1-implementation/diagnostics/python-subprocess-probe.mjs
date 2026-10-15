@@ -15,6 +15,7 @@ childProcess.spawnSync = function (command, args, options) {
   if (
     Array.isArray(args) &&
     args[0] === "-c" &&
+    process.env.AIOS_DIAGNOSTIC_PYTHON_MARKERS !== "off" &&
     (args[1].includes("identity='expiry-fixture'") ||
       args[1].includes("synthetic-management"))
   ) {

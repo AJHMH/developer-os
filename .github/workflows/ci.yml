@@ -125,6 +125,22 @@ jobs:
             if ($LASTEXITCODE -ne 0) { $probeFailed = $true }
           }
           if ($probeFailed) { exit 1 }
+      - name: Repeat original Python source without child markers
+        if: always()
+        shell: pwsh
+        env:
+          AIOS_DIAGNOSTIC_PYTHON_MARKERS: off
+        run: |
+          foreach ($iteration in 1..100) {
+            "[DEBUG-pr39-probe] passive management iteration $iteration" | Tee-Object -FilePath windows-python-probe.tap -Append
+            node --import ./.scratch/aios-v1-implementation/diagnostics/python-subprocess-probe.mjs --test --test-concurrency=1 --test-reporter=tap --test-name-pattern="^generated native management freezes" tests/podman-platform.test.mjs 2>&1 | Tee-Object -FilePath windows-python-probe.tap -Append
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          foreach ($iteration in 1..10) {
+            "[DEBUG-pr39-probe] passive expiry iteration $iteration" | Tee-Object -FilePath windows-python-probe.tap -Append
+            node --import ./.scratch/aios-v1-implementation/diagnostics/python-subprocess-probe.mjs --test --test-concurrency=1 --test-reporter=tap --test-name-pattern="^synthetic expiry arms" tests/codex-endpoint.test.mjs 2>&1 | Tee-Object -FilePath windows-python-probe.tap -Append
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
