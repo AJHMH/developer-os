@@ -157,3 +157,12 @@ before workload dispatch. CodeQL fixture findings were fixed without suppression
 Hosted consumer confirmation remains pending at publication. No tests, assertions,
 coverage thresholds or native qualification requirements are removed. All 21
 retained local snapshots match their inventory hashes and remain untracked.
+
+Adoption follow-up: the first pin run failed the independent distribution selector
+and exposed stale pins in the approval-refresh worker and its fixture. Updated
+both pins while retaining the identical trusted human-review policy blob
+`164c8371ce4239120a554203bed3448877fe1684`. The existing refresh suite reproduced
+the mismatch and passes after alignment; refusal assertions remain unchanged.
+The operator confirmed updating the repository distribution selector. The main
+branch refresh worker remains on the old pin until this PR lands, so this adoption
+may require a manual approval-job refresh.
