@@ -16,7 +16,9 @@ before PR #38. Run from the repository root:
 node .scratch/aios-v1-implementation/publication-recovery-restoration-audit.mjs
 ```
 
-- All 57 other original test/helper files match the baseline byte-for-byte.
+- All 56 other original test/helper files match the baseline byte-for-byte.
+- The approval-refresh fixture changes only its declared Factory SHA to the
+  reviewed merged pin; the audit compares every remaining byte to the baseline.
 - The original publication suite's 15 standalone tests, seven authority cases
   and twelve signature/remote evidence inputs are retained.
 - Every original recovery statement and loop is restored; shared fixture and
@@ -68,3 +70,8 @@ The final consumer pins and independent variable select that durable merged
 revision. The previous in-flight consumer run retained an old approved-variable
 value and its rerun could no longer resolve the deleted-branch workflow commit;
 those attempts remain recorded.
+
+The Factory pin adoption also updates the approval-refresh fixture's single SHA
+constant. A first hosted run caught that stale fixture; all assertions and cases
+remain unchanged. The audit explicitly permits only that exact reviewed SHA
+replacement and still rejects any other change to the file.

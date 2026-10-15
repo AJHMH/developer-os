@@ -15,7 +15,8 @@ const norm = (s) => s.replace(/\s+/g, "");
 const files = git("ls-tree", "-r", "--name-only", "833ce78", "tests")
   .trim()
   .split("\n");
-let unchanged = 0;
+let unchanged = 0,
+  fixturePinUpdates = 0;
 for (const f of files) {
   if (
     [
@@ -24,8 +25,21 @@ for (const f of files) {
     ].includes(f)
   )
     continue;
-  assert.equal(readFileSync(f, "utf8"), git("show", "833ce78:" + f), f);
-  unchanged++;
+  const original = git("show", "833ce78:" + f);
+  if (f === "tests/factory-approval-refresh.test.mjs") {
+    const previous = "3f64904a7a71985382fa5d5da29cc0e0610d5d2c";
+    const reviewed = "805c50d54254acd62e2f8f5aa78d0338b6346ce0";
+    assert.equal(original.split(previous).length - 1, 1);
+    assert.equal(
+      readFileSync(f, "utf8"),
+      original.replace(previous, reviewed),
+      "only the declared fixture Factory pin may change; every assertion must remain identical",
+    );
+    fixturePinUpdates++;
+  } else {
+    assert.equal(readFileSync(f, "utf8"), original, f);
+    unchanged++;
+  }
 }
 const currentFiles = execFileSync("rg", ["--files", "tests"], {
   encoding: "utf8",
@@ -108,6 +122,7 @@ console.log(
     {
       baseline: "833ce7851cd897617d30d89204dd4624d7725e87",
       unchangedOriginalFiles: unchanged,
+      fixturePinUpdates,
       originalPublicationStaticTests: staticTests,
       originalPublicationLoops: loops,
       restoredRecoveryScenarios: 15,
