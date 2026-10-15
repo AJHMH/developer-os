@@ -2,7 +2,7 @@
 
 ## Implementation scope
 
-This glossary defines the target delivery domain. The implementation currently reaches controlled main synchronization and read-only recovery; native synchronization, cleanup and full delivery remain unfinished. Independent fixed Windows/Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), including the audit finding that no repository ADR records exist.
+This glossary defines the target delivery domain. The implementation currently reaches controlled synchronization, eligible cleanup and completion; native delivery integrations and complete-platform/pilot qualification remain unfinished. Independent fixed Windows/Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), including the audit finding that no repository ADR records exist.
 
 
 A developer agent system that carries delegated feature work through validation, pull request review, merge, synchronization, and branch cleanup.

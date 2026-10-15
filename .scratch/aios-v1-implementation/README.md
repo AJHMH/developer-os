@@ -7,7 +7,7 @@ Canonical source: [Developer AIOS v1 specification](../aios-feature-delivery/spe
 
 ## Current status — 15 October 2026
 
-Tickets **01–03, 18–20, 23–25** are complete within their recorded scope. Ticket **21** is complete for fixed-request mediation; **22** has fixed-fixture evidence but its broad usage-monitoring/restart criterion remains open. Generalized production use remains gated. Tickets **05–13** have implemented controlled controller slices; ticket 13 is under local review on `codex/ticket13-safe-main-sync`, and native acceptance remains open throughout. Parent **04** stays open for production admission. Tickets **14–17** remain unfinished: cleanup, complete-platform qualification and observed pilot.
+Tickets **01–03, 18–20, 23–25** are complete within their recorded scope. Ticket **21** is complete for fixed-request mediation; **22** has fixed-fixture evidence but its broad usage-monitoring/restart criterion remains open. Generalized production use remains gated. Tickets **05–14** have implemented controlled controller slices; ticket 13 merged in PR #37, and ticket 14 is under local review on `codex/ticket14-eligible-cleanup`. Native acceptance remains open throughout. Parent **04** stays open for production admission. Tickets **15–17** remain unfinished: complete-platform qualification and observed pilot.
 
 Use the [implementation reference](../../docs/implementation-status.md) for evidence and limits. Qualification is source/host/policy bound, not automatically inherited by later revisions. Ticket review or completion never supplies inference authority or owner GitHub approval. Historical progress entries below retain the observations at their recorded dates and are superseded by the current summary where they conflict.
 
@@ -84,3 +84,6 @@ Native review and complete delivery qualification remain open.
 
 
 15 October issue reconciliation and ticket 13: current summaries separate controlled implementation, native acceptance and historical fixed-worker evidence. Ticket 21 is complete only for fixed-request mediation; ticket 22 retains its unchecked broad usage criterion. Ticket 13 implements controlled synchronization/reconciliation; see its [receipt](ticket13-implementation-receipt.md). No native production gate is waived.
+
+
+15 October ticket 14: controlled eligible cleanup and completion now have public-controller tests using real temporary Git repositories, bare remotes and linked worktrees. Native cleanup authority remains absent. See [receipt](ticket14-implementation-receipt.md).
