@@ -27,14 +27,14 @@ try {
         "validate",
         "--contract",
         path,
-        "--trusted-repo",
-        factory,
-        "--trusted-revision",
-        "805c50d54254acd62e2f8f5aa78d0338b6346ce0",
       ],
       { cwd: factory, encoding: "utf8", timeout: 180000, maxBuffer: 8388608 },
     );
     assert.equal(result.error, undefined, result.error?.code);
+    assert.ok(
+      result.stdout.trim(),
+      `Factory validate returned no JSON (exit ${result.status})`,
+    );
     const report = JSON.parse(result.stdout);
     writeFileSync(
       `contract-throughput-${index + 1}-${concurrency}.json`,
