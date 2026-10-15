@@ -17,3 +17,9 @@ Preserve the native 15-second bound and all ownership, ACL, link, registration a
 - [ ] Fix preserves every existing storage and authorization safety check.
 - [ ] Local checks and hosted Windows matrix pass.
 - [ ] Verified Factory App commit and PR; required human approval remains independent.
+
+## Native diagnostic result
+
+Diagnostic commit `82d0543`, CI run 38767949417, shard 2: the first helper operation was `initialize`, elapsed 15,096 ms, exit status null, `timedOut: true`, `signaled: true`. The next initialization passed in 7,518 ms; subsequent check/create/DPAPI operations passed in about 0.3–2.4 seconds. This establishes deadline exhaustion, not an observed ACL refusal. A separate shard-5 synthetic Python helper also exhausted its existing deadline on this run.
+
+Counterfactual under test: serialize test files within each of the eight Windows shards. Keep every test and all runtime and job deadlines unchanged. Successful native cold initialization under this schedule would support runner contention; no change to production storage enforcement is proposed.
