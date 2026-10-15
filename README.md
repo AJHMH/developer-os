@@ -1,6 +1,6 @@
 # Developer OS
 
-A local TypeScript controller for owner-approved feature delivery. It implements durable intake and controls, independently demonstrated fixed Podman workers on Windows and Apple-silicon macOS, and controlled delivery orchestration through merged-main verification. **Production feature delivery remains disabled.** Native delivery integrations, main synchronization, cleanup and the full pilot are unfinished.
+A local TypeScript controller for owner-approved feature delivery. It implements durable intake and controls, independently demonstrated fixed Podman workers on Windows and Apple-silicon macOS, and controlled delivery orchestration through main synchronization and read-only recovery. **Production feature delivery remains disabled.** Native delivery integrations (including synchronization), cleanup and the full pilot are unfinished.
 
 See [implementation status](docs/implementation-status.md) for completed scope, evidence and remaining gates; [implementation tickets](.scratch/aios-v1-implementation/README.md) track acceptance separately from implemented code.
 
@@ -62,18 +62,19 @@ Both platforms have independent fixed-worker passing receipts. These are version
 
 The public `DeliveryController` accepts explicit trusted host adapters. They are not loaded from repository configuration or worker output. The CLI exposes stage commands but refuses production effects without the required qualified integrations.
 
-| Stage       | Commands                                                           | Contract                                           |
-| ----------- | ------------------------------------------------------------------ | -------------------------------------------------- |
-| Candidate   | `plan-feature`, `clarify-feature`, `code-feature`, `extend-coding` | [Feature candidates](docs/feature-candidate.md)    |
-| Validation  | `validate-baseline`, `validate-candidate`                          | [Isolated validation](docs/isolated-validation.md) |
-| Repair      | `repair-feature`, `extend-repair`                                  | [Bounded repair](docs/bounded-repair.md)           |
-| Publication | `publish-feature`, `reconcile-publication`                         | [Signed publication](docs/signed-publication.md)   |
-| PR checks   | `monitor-pr-checks`, `repair-pr-checks`, `rerun-pr-check`          | [Trusted checks](docs/trusted-pr-checks.md)        |
-| Review      | `monitor-review`, `repair-review`, `resolve-review-thread`         | [Owner approval](docs/review-owner-approval.md)    |
-| Merge       | `merge-feature`, `reconcile-merge`, `refresh-merge-base`           | [Conditional merge](docs/conditional-merge.md)     |
-| Main checks | `monitor-main-checks`                                              | [Main verification](docs/main-verification.md)     |
+| Stage       | Commands                                                           | Contract                                             |
+| ----------- | ------------------------------------------------------------------ | ---------------------------------------------------- |
+| Candidate   | `plan-feature`, `clarify-feature`, `code-feature`, `extend-coding` | [Feature candidates](docs/feature-candidate.md)      |
+| Validation  | `validate-baseline`, `validate-candidate`                          | [Isolated validation](docs/isolated-validation.md)   |
+| Repair      | `repair-feature`, `extend-repair`                                  | [Bounded repair](docs/bounded-repair.md)             |
+| Publication | `publish-feature`, `reconcile-publication`                         | [Signed publication](docs/signed-publication.md)     |
+| PR checks   | `monitor-pr-checks`, `repair-pr-checks`, `rerun-pr-check`          | [Trusted checks](docs/trusted-pr-checks.md)          |
+| Review      | `monitor-review`, `repair-review`, `resolve-review-thread`         | [Owner approval](docs/review-owner-approval.md)      |
+| Merge       | `merge-feature`, `reconcile-merge`, `refresh-merge-base`           | [Conditional merge](docs/conditional-merge.md)       |
+| Main checks | `monitor-main-checks`                                              | [Main verification](docs/main-verification.md)       |
+| Main sync   | `sync-main`, `reconcile-main-sync`                                 | [Main synchronization](docs/main-synchronization.md) |
 
-Commands address an explicit `--id`; extensions and individual check/thread actions also require their documented arguments. Controlled tests exercise real temporary Git and persisted ledger state with external observations supplied by test adapters. They do not establish native publication or complete delivery. Main verification alone does not synchronize branches or perform cleanup.
+Commands address an explicit `--id`; extensions and individual check/thread actions also require their documented arguments. Controlled tests exercise real temporary Git and persisted ledger state with external observations supplied by test adapters. They do not establish native publication or complete delivery. Main verification alone does not synchronize branches or perform cleanup. Controlled `sync-main` and `reconcile-main-sync` require fresh main evidence and a trusted conditional Git adapter; no native synchronization adapter is installed. See [safe main synchronization](docs/main-synchronization.md).
 
 ## Factory and project documents
 

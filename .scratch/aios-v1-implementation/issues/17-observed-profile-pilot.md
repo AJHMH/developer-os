@@ -12,6 +12,10 @@ Read the [approved canonical specification](../../aios-feature-delivery/spec.md)
 
 This is an implementation slice, separate from resolved wayfinder decisions. Unimplemented or unqualified phases remain blocked. Controlled adapters and temporary repositories demonstrate behavior before real host/repository qualification; they do not establish live readiness. Preserve existing user material, authority boundaries and credentials. Do not enable live pilot delivery before all qualification prerequisites pass.
 
+## Current evidence reconciliation — 15 October 2026
+
+Complete-controller/pilot acceptance has not run. Fixed worker qualification in tickets 24–25 does not satisfy this ticket. Dependencies remain enforced; ready-for-agent describes specification readiness, not permission to skip upstream gates.
+
 ## Acceptance criteria
 
 - [ ] Confirm intended canonical repository/default branch, live App scope/author, effective protections/check names, trusted policy and working signed identities before any pilot write; missing prerequisites stop with an onboarding checklist.
