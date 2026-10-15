@@ -30,6 +30,28 @@ actual proposal head before requesting review. App authorship alone does not
 satisfy the latest-push approval rule. Only `aaron-howard` supplies the final-head
 GitHub approval; a new push requires renewed approval and passing checks.
 
+## Stacked PRs and last-push approval
+
+Merging a stacked PR into its dependency branch is a push to that branch. If the
+owner performs that merge, GitHub records the owner as the latest pusher even
+when the commit author is the Factory bot. The owner's subsequent approval of
+the dependency PR cannot satisfy `require_last_push_approval`, which requires a
+different approving actor. Passing Factory approval checks do not override this
+native GitHub requirement.
+
+For stacked work, have the Factory App perform authorized merges into dependency
+branches after their own review and check requirements pass. Verify the branch
+activity actor before asking the owner to approve the final dependency head.
+If an owner push has already caused this blocker, publish any needed corrective
+follow-up through the App and obtain a fresh owner review on the resulting head.
+Do not disable last-push approval, fabricate reviews, or assume an empty/no-op
+push changes the latest reviewable pusher.
+
+PR #35 demonstrated this distinction: the owner's squash merge of PR #34 made
+the owner the last pusher, despite bot authorship and two current-head approvals.
+The corrective App follow-up documents this requirement; it still needs its own
+fresh owner approval and passing checks.
+
 Keep a separate external owner policy for each repository. The local controller
 already models canonical identities and separate repository ownership, but
 production worker qualification and feature-delivery gates remain subject to the
