@@ -59,3 +59,12 @@ budgets, coverage thresholds, no-decrease enforcement and current human-review
 requirements remain intact. Earlier failed instrumentation attempts remain in
 GitHub. The within-suite concurrency experiment was reverted after negligible
 improvement; restored assertion bodies are unchanged.
+
+The human owner merged Factory PR #70 at `805c50d54254acd62e2f8f5aa78d0338b6346ce0`
+and deleted its feature branch after all 13 PR checks passed. The merge commit
+and approved head `15ce04e` have identical Git tree
+`117c496643421c9e197e0160fe0cb30a710c06a7`; the merge signature is verified.
+The final consumer pins and independent variable select that durable merged
+revision. The previous in-flight consumer run retained an old approved-variable
+value and its rerun could no longer resolve the deleted-branch workflow commit;
+those attempts remain recorded.
