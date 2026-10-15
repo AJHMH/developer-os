@@ -115,3 +115,13 @@ instrumentation budget changed. The complete sleep-protected local suite passed
 548 tests (546 passed, two platform skips) before this layout-only change; the
 focused run verifies every relocated publication scenario. Hosted current-head
 validation remains authoritative.
+
+## Remaining Windows publication group
+
+Head `c42d9e0` passed coverage and both approval gates plus 24 hosted checks.
+Windows shard 1 reached the unchanged ten-minute deadline while executing the
+remaining 15-case publication file; preceding assertions passed. Distributed
+that file into three groups of five, preserving every original test body and
+assertion byte-for-byte apart from whitespace (verified against the parent).
+All eight shards, two-file Windows concurrency and existing deadlines remain
+unchanged. Hosted validation must pass on the replacement head.
