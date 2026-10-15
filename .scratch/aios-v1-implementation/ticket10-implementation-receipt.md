@@ -61,5 +61,28 @@ conditional resolution, credential isolation, clock behavior and uncertain-effec
 recovery. Earlier worker, signer, publication and PR-check qualification gates
 remain open. Native readiness is not inferred from controlled fixtures. No live
 GitHub writes, owner-review submission, provider inference or production worker
-runs were performed. Hosted CI/Factory coverage has not been evaluated for this
-branch. Production delivery remains disabled pending applicable qualification.
+runs were performed. Initial hosted Factory coverage timed out during head instrumentation; the
+follow-up below addresses test scheduling and requires hosted confirmation. Production delivery remains disabled pending applicable qualification.
+
+## PR 32 coverage follow-up
+
+Factory run 38660011633 on 87ce111 failed before producing coverage percentages:
+`head coverage instrumentation failed or timed out`. The pinned adapter limits
+each instrumentation run to 60 seconds; the original Linux uninstrumented suite
+already took 65.3 seconds. The 17 new review scenarios ran serially in one file.
+
+Split those scenarios into approval/admission, repair, and resolution test files
+with shared fixture builders. Every test body and assertion is unchanged; each
+scenario retains its own temporary repository and ledger. Node can now schedule
+the independent files concurrently. Production behavior, coverage thresholds,
+exclusions and timeouts are unchanged.
+
+- Full c8-instrumented suite: 466 total, 464 passed, two platform skips, zero
+  failures (161.0 seconds on this Mac; hosted timing must be checked separately).
+- Changed-source coverage against 2124bcf: 747/749 lines (99.7%) and 323/343
+  branches (94.2%).
+- Typecheck, build, formatting and diff whitespace checks passed.
+- Independent Standards and Spec reviews found no actionable issues; all 17 test
+  bodies were verified byte-for-byte unchanged after extraction.
+- The 21 retained snapshots remain outside the change. Native qualification
+  requirements above remain open.
