@@ -97,3 +97,21 @@ and retained at `/private/tmp/pr38-bounded-suite.log`; an unchanged sleep-protec
 rerun uses the established `caffeinate -is` wrapper. This host interruption is not
 represented as a product repair or a passing run. Hosted current-head results
 remain authoritative for the scheduling change.
+
+## PR #38 instrumented-test distribution
+
+The bounded-concurrency head passed native Linux (all 548 tests; 82.9 seconds),
+Factory contract testing (100.7 seconds under the unchanged 120-second budget),
+dedicated coverage and trusted approval. The regular approval job separately
+refused `head coverage instrumentation failed or timed out`; its retained artifact
+contains no test failure detail. The pinned collector invokes Node directly and
+does not use the npm script's concurrency flag.
+
+Distributed the existing 34 publication scenarios across smaller files, extracting
+only their shared assertion body. All original authority, signature, remote/PR
+metadata and static scenario bodies are retained; focused validation passes all
+34 tests (40.9 seconds). No production code, test assertions, coverage policy or
+instrumentation budget changed. The complete sleep-protected local suite passed
+548 tests (546 passed, two platform skips) before this layout-only change; the
+focused run verifies every relocated publication scenario. Hosted current-head
+validation remains authoritative.

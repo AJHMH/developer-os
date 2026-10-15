@@ -64,63 +64,6 @@ test("partial PR acceptance is recovered with its original author and head and n
   assert.deepEqual(f.events, ["sign", "push", "pr"]);
 });
 
-for (const [name, patch] of [
-  ["signing unavailable", { signingAvailable: false }],
-  ["push denied", { publicationAllowed: false }],
-  ["App credentials reused for signing", { signingKeySha256: "2".repeat(64) }],
-  [
-    "broad App permissions",
-    { appPermissions: ["pull_requests:write", "contents:write"] },
-  ],
-  ["wrong repository", { repository: "untrusted/other" }],
-  ["wrong App", { appLogin: "owner" }],
-  ["multiple approvers", { eligibleApprovers: ["aaron-howard", "other"] }],
-])
-  test(name + " refuses publication before any effect", async (t) => {
-    const f = await fixture(t),
-      inspect = f.runtimePublication.inspect.bind(f.runtimePublication);
-    f.runtimePublication.inspect = async () => ({
-      ...(await inspect()),
-      ...patch,
-    });
-    await assert.rejects(f.controller.publishFeature(f.delivery.id), /blocked/);
-    assert.deepEqual(f.events, []);
-    assert.equal(f.controller.status(f.delivery.id).publication, undefined);
-  });
-
-for (const [stage, patch] of [
-  ["sign", { localVerified: false }],
-  ["sign", { tree: "b".repeat(40) }],
-  ["sign", { signer: "factory[bot]" }],
-  ["sign", { parent: "b".repeat(40) }],
-  ["push", { githubVerified: false }],
-  ["push", { publisher: "factory[bot]" }],
-  ["push", { repository: "wrong/repo" }],
-  ["push", { commit: "b".repeat(40) }],
-  ["createPullRequest", { author: "aaron-howard" }],
-  ["createPullRequest", { head: "b".repeat(40) }],
-  ["createPullRequest", { base: "other" }],
-  ["createPullRequest", { approver: "other" }],
-])
-  test(
-    stage + " rejects mismatched evidence " + JSON.stringify(patch),
-    async (t) => {
-      const f = await fixture(t),
-        original = f.runtimePublication[stage].bind(f.runtimePublication);
-      f.runtimePublication[stage] = async (r) => ({
-        ...(await original(r)),
-        ...patch,
-        credential: "never-record-this",
-      });
-      const d = await f.controller.publishFeature(f.delivery.id);
-      assert.equal(d.publication.outcome, "blocked");
-      assert.equal(d.publication.effects.at(-1).reason, "unverified");
-      assert.equal(JSON.stringify(d).includes("never-record-this"), false);
-      if (stage === "sign") assert.deepEqual(f.events, ["sign"]);
-      if (stage === "push") assert.deepEqual(f.events, ["sign", "push"]);
-    },
-  );
-
 test("paused accepted signing is retained but cannot schedule push until explicit resume", async (t) => {
   const f = await fixture(t),
     sign = f.runtimePublication.sign.bind(f.runtimePublication);
