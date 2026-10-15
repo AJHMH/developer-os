@@ -1,4 +1,11 @@
 import {
+  MainSyncCoordinator,
+  pendingMainSync,
+  type MainSyncEvidence,
+  type MainSyncRuntime,
+  type MainSyncTarget,
+} from "./main-sync.js";
+import {
   MainChecksCoordinator,
   type MainChecksEvidence,
   type MainChecksRuntime,
@@ -231,6 +238,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  mainSyncRuntime?: MainSyncRuntime;
   mainChecksRuntime?: MainChecksRuntime;
   mergeRuntime?: MergeRuntime;
   reviewRuntime?: ReviewRuntime;
@@ -250,6 +258,7 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  mainSync?: MainSyncEvidence;
   mainChecks?: MainChecksEvidence;
   merge?: MergeEvidence;
   review?: ReviewEvidence;
@@ -275,7 +284,9 @@ export interface Delivery {
     | "ready-to-merge"
     | "merged"
     | "verifying-main"
-    | "main-verified";
+    | "main-verified"
+    | "synchronizing-main"
+    | "main-synchronized";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -890,6 +901,78 @@ export class DeliveryController {
         };
       }
     });
+  }
+
+  private mainSyncCoordinator(id: string) {
+    return new MainSyncCoordinator(
+      {
+        status: () => this.status(id),
+        change: (update) => this.change(id, update),
+        observe: (p) => this.observe(p),
+        input: (): MainSyncTarget => {
+          const d = this.status(id),
+            a = d.merge?.attempts.at(-1),
+            m = d.mainChecks;
+          if (
+            !a ||
+            a.state !== "merged" ||
+            !a.mergeCommit ||
+            !m ||
+            m.outcome !== "passed" ||
+            m.mergeOperationId !== a.operationId ||
+            !m.revision ||
+            !/^[a-f0-9]{40}$/.test(m.revision) ||
+            m.policySha256 !== a.policySha256 ||
+            d.authorityPolicySha256 !== a.policySha256 ||
+            m.bindingSha256 !==
+              this.coordination.mainChecksRuntime?.bindingSha256 ||
+            d.publication?.id !== a.publicationId ||
+            d.publication.commit !== a.head
+          )
+            throw Error("Verified main linkage required");
+          validationContract(this.onboardingOptions.policyPath, a.policySha256);
+          return {
+            repository: a.repository,
+            checkout: d.repository,
+            branch: a.base,
+            revision: m.revision,
+            policySha256: a.policySha256,
+            mergeOperationId: a.operationId,
+          };
+        },
+      },
+      this.coordination.mainSyncRuntime,
+    );
+  }
+  async syncMain(id: string): Promise<Delivery> {
+    try {
+      if (pendingMainSync(this.status(id)))
+        return await this.reconcileMainSync(id);
+      await this.monitorMainChecks(id);
+      return await this.mainSyncCoordinator(id).sync();
+    } catch {
+      this.change(id, (d) => {
+        if (!["paused", "cancelled"].includes(d.phase)) d.phase = "blocked";
+        d.blocker.nextAction =
+          "Safe main synchronization requires fresh trusted main checks and a qualified controlled Git adapter. Preserve work; reconcile uncertain operations before retry. Native synchronization and cleanup remain disabled.";
+      });
+      throw new DeliveryError(
+        "Main synchronization requires verified main and a qualified adapter; native synchronization remains disabled.",
+      );
+    }
+  }
+  async reconcileMainSync(id: string): Promise<Delivery> {
+    // Recovery never dispatches a Git write. Refresh checks when controls permit;
+    // paused/cancelled recovery can still establish that an old effect stopped.
+    const d = this.status(id);
+    if (!["paused", "cancelled"].includes(d.phase)) {
+      try {
+        await this.monitorMainChecks(id);
+      } catch {
+        /* reconcile without advancement */
+      }
+    }
+    return this.mainSyncCoordinator(id).reconcile();
   }
 
   async monitorMainChecks(id: string): Promise<Delivery> {
@@ -3801,6 +3884,10 @@ export class DeliveryController {
   }
 
   resume(id: string): Delivery {
+    if (pendingMainSync(this.status(id)))
+      throw new DeliveryError(
+        "Reconcile main synchronization before resuming.",
+      );
     if (mergePending(this.status(id)))
       throw new DeliveryError("Reconcile merge before this control.");
     return this.change(id, (delivery, db) => {
@@ -3914,6 +4001,7 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (this.status(id).mainSync) return this.reconcileMainSync(id);
     if (this.status(id).mainChecks) return this.monitorMainChecks(id);
     if (mergeSealed(this.status(id))) return this.reconcileMerge(id);
     if (
@@ -4026,6 +4114,10 @@ export class DeliveryController {
   }
 
   release(id: string): Delivery {
+    if (pendingMainSync(this.status(id)))
+      throw new DeliveryError(
+        "Reconcile main synchronization before releasing ownership.",
+      );
     if (mergePending(this.status(id)))
       throw new DeliveryError("Reconcile merge before this control.");
     return this.change(id, (delivery, db) => {

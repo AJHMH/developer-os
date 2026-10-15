@@ -4,7 +4,7 @@
 
 **Blocked by:** 12: [Verify merged main and block unsafe recovery](12-merged-main-verification.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human — controlled implementation; native acceptance open
 
 ## Source and governing contract
 
@@ -12,12 +12,23 @@ Read the [approved canonical specification](../../aios-feature-delivery/spec.md)
 
 This is an implementation slice, separate from resolved wayfinder decisions. Unimplemented or unqualified phases remain blocked. Controlled adapters and temporary repositories demonstrate behavior before real host/repository qualification; they do not establish live readiness. Preserve existing user material, authority boundaries and credentials. Do not enable live pilot delivery before all qualification prerequisites pass.
 
-## Acceptance criteria
+## Current evidence reconciliation — 15 October 2026
 
-- [ ] Canonical repository identity, current remote refs, checkout and main are rechecked before synchronization; main advancement invalidates stale completion assumptions.
-- [ ] Clean local main can fast-forward to the recorded verified remote revision; final local/remote alignment is observed and reported.
-- [ ] Uncommitted work, local-only main commits and divergent history preserve all content/history and block unsafe synchronization.
-- [ ] No automatic stash, reset, rebase, force-push or discard is used; trusted Git operations never execute candidate-controlled scripts.
-- [ ] Interrupted or uncertain synchronization is reconciled from current refs before progression; evidence identifies safe completed steps.
-- [ ] Public tests use temporary Git repositories for clean/dirty/divergent histories, identity/ref changes and restart without data loss.
+The controlled controller implementation is present on this branch. It requires fresh ticket 12 evidence, records intent before effects, refuses unsafe checkout/ref changes, and reconciles uncertain results without redispatch. Public tests use real temporary Git repositories and local bare remotes. Manual agent Git operations remain separate from product acceptance. See the [contract](../../../docs/main-synchronization.md) and [implementation receipt](../ticket13-implementation-receipt.md).
+
+### Remaining native acceptance
+
+- [ ] Install and independently qualify trusted Windows/macOS Git transports and checkout/ref authority, including candidate configuration/environment exclusion, conditional effect races, bounded operations and crash recovery.
+- [ ] Qualify the integrated upstream native main observer and delivery path. Parent 04 and tickets 14–17 stay open; production delivery remains disabled.
+
+The checked criteria below describe the controlled implementation only. The native adapter is absent and the CLI refuses unqualified synchronization.
+
+## Controlled implementation acceptance
+
+- [x] Canonical repository identity, current remote refs, checkout and main are rechecked before synchronization; main advancement invalidates stale completion assumptions.
+- [x] Clean local main can fast-forward to the recorded verified remote revision; final local/remote alignment is observed and reported.
+- [x] Uncommitted work, local-only main commits and divergent history preserve all content/history and block unsafe synchronization.
+- [x] No automatic stash, reset, rebase, force-push or discard is used; trusted Git operations never execute candidate-controlled scripts.
+- [x] Interrupted or uncertain synchronization is reconciled from current refs before progression; evidence identifies safe completed steps.
+- [x] Public tests use temporary Git repositories for clean/dirty/divergent histories, identity/ref changes and restart without data loss.
 

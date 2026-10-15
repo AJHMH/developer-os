@@ -15,6 +15,15 @@ Read the [approved canonical specification](../../aios-feature-delivery/spec.md)
 
 This is an implementation slice, separate from resolved wayfinder decisions. Unimplemented or unqualified phases remain blocked. Controlled adapters and temporary repositories demonstrate behavior before real host/repository qualification; they do not establish live readiness. Preserve existing user material, authority boundaries and credentials. Do not enable live pilot delivery before all qualification prerequisites pass.
 
+## Current evidence reconciliation — 15 October 2026
+
+The controlled implementation is present on merged main and has a [ticket 11 receipt](../ticket11-implementation-receipt.md). Checked implementation criteria below apply to that controlled scope. Merging its development PR does not establish native controller acceptance.
+
+### Remaining native acceptance
+
+- [ ] Native head/base/gate enforcement at remote acceptance, credential separation and uncertain merge recovery.
+- [ ] Independently qualify the integrated delivery path on Windows and macOS; parent 04 and later tickets 15–17 remain open. Production delivery stays disabled.
+
 ## Acceptance criteria
 
 - [x] All required current-head approval/check/conversation gates and effective protections are verified immediately before dispatch; no bypass or manufactured evidence path exists.

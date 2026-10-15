@@ -13,6 +13,10 @@
 
 Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [canonical specification](../../aios-feature-delivery/spec.md) and owner-approved runtime/scope revision. Use the approved public-controller command/observation testing seam. Readiness describes specified work, not production qualification. No implicit weaker-runtime fallback or paid inference is authorized.
 
+## Current evidence reconciliation — 15 October 2026
+
+The fixed online canary and usage gate are implemented and exercised in controlled tests and retained platform reports. The broad usage criterion remains open: the fixed reports do not independently establish general delivery-wide foreground monitoring, exhaustion/work preservation and fresh restart/re-dispatch behavior through a production adapter. Keep this ticket ready-for-human until that scope is explicitly resolved and qualified. The index must not describe the entire ticket as complete.
+
 ## Acceptance criteria
 
 - [x] Model endpoints are enforced outside worker authority; separate dependency access and synthetic permitted/denied traffic demonstrate bypass resistance.

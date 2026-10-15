@@ -7,11 +7,15 @@
 
 **Blocked by:** 18.
 
-**Status:** ready-for-human
+**Status:** completed — fixed-request mediation scope only
 
 ## Parent and governing contract
 
 Supports open parent ticket [04](04-isolated-worker-gate.md), governed by the [canonical specification](../../aios-feature-delivery/spec.md) and owner-approved runtime/scope revision. Use the approved public-controller command/observation testing seam. Readiness describes specified work, not production qualification. No implicit weaker-runtime fallback or paid inference is authorized.
+
+## Current evidence reconciliation — 15 October 2026
+
+All four criteria have retained positive fixed-request evidence, including the trusted public capability decision. Later independent Windows and macOS worker reports (24–25) include authentication acceptance. This closes the demonstrated mediation slice, not general production dispatch. Old ready-for-agent/review and Windows-not-run statements below describe earlier milestones; no consumed approval supplies new authority.
 
 ## Acceptance criteria
 
