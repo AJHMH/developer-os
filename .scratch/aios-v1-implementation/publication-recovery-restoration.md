@@ -43,3 +43,19 @@ remote evidence group from shard 1 to shard 8, the five-case current publication
 recovery group from shard 8 to shard 7, and the fast port refusals from shard 7
 to shard 1. All other assignments remain unchanged. No test count, assertion,
 concurrency, shard count, production code, policy or deadline changed.
+
+## Reviewed collector adoption
+
+Factory PR #70 (`15ce04e0730e18b4c3bfd331972ebd1355e0535f`), authored by the Software Factory
+bot and approved by the human owner in GitHub, bounds all collector Node test
+invocations at four file workers. The public command regression failed before the
+change and passed after it (2.3 seconds); all 14 coverage tests and typechecking
+passed. Developer OS adopts that exact reviewed commit in its lock, reusable
+validation/certification calls and approval-refresh tool pin. The independent
+`FACTORY_DISTRIBUTION_REVISION` must select the same reviewed revision.
+
+All test scenarios, 120-second governed command budgets, ten-minute Windows job
+budgets, coverage thresholds, no-decrease enforcement and current human-review
+requirements remain intact. Earlier failed instrumentation attempts remain in
+GitHub. The within-suite concurrency experiment was reverted after negligible
+improvement; restored assertion bodies are unchanged.
