@@ -16,32 +16,35 @@ const failure = () =>
     "Windows protected authentication storage is unavailable; preserve existing credentials and inspect separate host storage. Production remains disabled.",
   );
 
-// Minimal child environments cannot rely on the host's module autoload cache.
-// Load only the fixed OS modules, never user or candidate module search paths.
-const systemModules = String.raw`
+// Use fixed Framework assemblies and core .NET filesystem/security APIs. Cold
+// PowerShell module and cmdlet initialization can exhaust the helper deadline
+// before any ACL work. No user/candidate module or assembly search path is used.
+const systemRuntime = String.raw`
 $PSModuleAutoLoadingPreference='None'
-foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')) {
- Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,($name+'.psd1'))) -ErrorAction Stop
-}
+[void][Reflection.Assembly]::Load('System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35')
+[void][Reflection.Assembly]::Load('System.Security, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a')
+$json=[Web.Script.Serialization.JavaScriptSerializer]::new()
+$json.MaxJsonLength=524288
+$json.RecursionLimit=32
 `;
 /** Initialize only a newly created setup directory; never repair existing ACLs. */
 export function initializeWindowsAuthDirectory(directory: string) {
   const setup = String.raw`
 $ErrorActionPreference='Stop'
 try {
- ${systemModules}
- $path=[Console]::In.ReadToEnd() | ConvertFrom-Json
- $item=Get-Item -LiteralPath $path -Force
- if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or (Get-ChildItem -LiteralPath $path -Force).Count -ne 0) { throw 'unsafe' }
+ ${systemRuntime}
+ $path=$json.DeserializeObject([Console]::In.ReadToEnd())
+ $attributes=[IO.File]::GetAttributes($path)
+ if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or [IO.Directory]::GetFileSystemEntries($path).Length -ne 0) { throw 'unsafe' }
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
- $acl=New-Object Security.AccessControl.DirectorySecurity
+ $acl=[Security.AccessControl.DirectorySecurity]::new()
  $acl.SetOwner($sid)
  $acl.SetAccessRuleProtection($true,$false)
- foreach($identity in @($sid,(New-Object Security.Principal.SecurityIdentifier('S-1-5-18')),(New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))) {
-  $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
-  $acl.AddAccessRule($rule)
+ foreach($identity in @($sid,([Security.Principal.SecurityIdentifier]::new('S-1-5-18')),([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')))) {
+  $rule=[Security.AccessControl.FileSystemAccessRule]::new($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+  [void]$acl.AddAccessRule($rule)
  }
- Set-Acl -LiteralPath $path -AclObject $acl
+ [IO.Directory]::SetAccessControl($path,$acl)
 } catch { exit 1 }
 `;
   if (process.platform !== "win32" || !isAbsolute(directory)) throw failure();
@@ -76,14 +79,14 @@ try {
 const script = String.raw`
 $ErrorActionPreference='Stop'
 try {
- ${systemModules}
- Add-Type -AssemblyName System.Security
- $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
+ ${systemRuntime}
+ $request=$json.DeserializeObject([Console]::In.ReadToEnd())
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
  foreach($path in $request.paths) {
-  $item=Get-Item -LiteralPath $path -Force
-  if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'unsafe' }
-  $acl=Get-Acl -LiteralPath $path
+  $attributes=[IO.File]::GetAttributes($path)
+  if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'unsafe' }
+  if(($attributes -band [IO.FileAttributes]::Directory) -ne 0) { $acl=[IO.Directory]::GetAccessControl($path) }
+  else { $acl=[IO.File]::GetAccessControl($path) }
   if($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid) { throw 'owner' }
   foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
    if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -notin @($sid,'S-1-5-18','S-1-5-32-544')) { throw 'acl' }
@@ -96,14 +99,14 @@ try {
  if($request.action -eq 'create') {
   if($request.paths.Count -ne 1 -or $request.name -notmatch '^(registration\.json|[a-f0-9]{64}\.(dpapi|replace))$') { throw 'name' }
   $path=[IO.Path]::Combine($request.paths[0],$request.name)
-  $acl=New-Object Security.AccessControl.FileSecurity
-  $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier($sid)))
+  $acl=[Security.AccessControl.FileSecurity]::new()
+  $acl.SetOwner(([Security.Principal.SecurityIdentifier]::new($sid)))
   $acl.SetAccessRuleProtection($true,$false)
   foreach($identity in @($sid,'S-1-5-18','S-1-5-32-544')) {
-   $rule=New-Object Security.AccessControl.FileSystemAccessRule((New-Object Security.Principal.SecurityIdentifier($identity)),'FullControl','Allow')
-   $acl.AddAccessRule($rule)
+   $rule=[Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($identity),'FullControl','Allow')
+   [void]$acl.AddAccessRule($rule)
   }
-  $stream=New-Object IO.FileStream($path,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::Write,[IO.FileShare]::None,4096,[IO.FileOptions]::WriteThrough,$acl)
+  $stream=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::Write,[IO.FileShare]::None,4096,[IO.FileOptions]::WriteThrough,$acl)
   try { $stream.Write($bytes,0,$bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
   [Console]::Out.Write('T0s='); exit 0
  }

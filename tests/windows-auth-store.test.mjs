@@ -18,7 +18,9 @@ test(
       fs.mkdtempSync(join(tmpdir(), "aios-explicit-modules-")),
     );
     const original = cp.spawnSync;
+    let nativeExecutable;
     t.mock.method(cp, "spawnSync", (exe, args, options) => {
+      nativeExecutable = exe;
       const updated = [...args];
       const index = updated.indexOf("-EncodedCommand") + 1;
       const script =
@@ -43,6 +45,58 @@ test(
     assert.equal(store.read(account), "fixed synthetic account");
     store.write(account, "fixed synthetic replacement", true);
     assert.equal(store.read(account), "fixed synthetic replacement");
+
+    const registration = join(root, "registration.json");
+    const retained = fs.readFileSync(registration);
+    const linked = join(root, "linked-registration.json");
+    fs.linkSync(registration, linked);
+    assert.throws(() => windowsAuthStore(root, [registration]), /unavailable/);
+    fs.unlinkSync(linked);
+    assert.deepEqual(fs.readFileSync(registration), retained);
+
+    const alias = join(root, "linked-directory");
+    fs.symlinkSync(root, alias, "junction");
+    assert.throws(() => windowsAuthStore(alias), /unavailable/);
+    fs.unlinkSync(alias);
+
+    const unsafe = join(root, "shared-directory");
+    fs.mkdirSync(unsafe);
+    initializeWindowsAuthDirectory(unsafe);
+    const grant = String.raw`
+$ErrorActionPreference='Stop'
+try {
+ $path=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String([Console]::In.ReadToEnd()))
+ $acl=[IO.Directory]::GetAccessControl($path)
+ $rule=[Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new('S-1-1-0'),'Read','Allow')
+ [void]$acl.AddAccessRule($rule)
+ [IO.Directory]::SetAccessControl($path,$acl)
+} catch { exit 1 }
+`;
+    const shared = original(
+      nativeExecutable,
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(grant, "utf16le").toString("base64"),
+      ],
+      {
+        input: Buffer.from(unsafe).toString("base64"),
+        encoding: "utf8",
+        timeout: 15000,
+        maxBuffer: 8192,
+        windowsHide: true,
+        shell: false,
+        env: { SystemRoot: process.env.SystemRoot },
+      },
+    );
+    assert.equal(
+      shared.status,
+      0,
+      "synthetic ACL grant must succeed before denial",
+    );
+    assert.throws(() => windowsAuthStore(unsafe), /unavailable/);
+    assert.deepEqual(fs.readdirSync(unsafe), []);
   },
 );
 

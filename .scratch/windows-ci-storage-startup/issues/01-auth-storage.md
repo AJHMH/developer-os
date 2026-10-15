@@ -33,3 +33,11 @@ Serial file run `d0404df`, CI 38769070684, shard 2 still failed: first initializ
 Run 38770509393, shard 2, first initialize: 15,014 ms, timed out; milestones `entered`, three `module-start`, then `modules-ready`, with no `path-ready` or `acl-ready`. The cold bootstrap consumes the deadline before ACL work. The next initialization passes at 2,135 ms. Run 38770571500's isolated cold probe passed at 6,850 ms, preserving the observed variability. This is a cold PowerShell bootstrap dependency, not proof of a permission denial or of concurrency as the sole cause.
 
 Native regression: disable module autoloading and deny `Import-Module` and `ConvertFrom-Json` at the actual helper invocation, then require real registration, protected metadata checks, DPAPI create/read/replace and retained-file refusals to succeed under the unchanged deadline. The complete eight-shard suite remains unchanged.
+
+## Native red regression and repair
+
+Commit `4724614`, run 38771519345, cold Windows job 116548258363: the native module-free regression fails in `initializeWindowsAuthDirectory` on the original helper (about 262 ms). This deterministic dependency-denial test exercises the real native helper, rather than a mocked ACL/DPAPI implementation.
+
+Repair: fixed strong-named .NET Framework assembly loading, bounded `JavaScriptSerializer` with no type resolver, and direct .NET attribute, enumeration, ACL and FileStream APIs replace PowerShell modules/cmdlets. Retain the same fixed OS executable, minimal environment, stdin-only data, CurrentUser DPAPI, per-account entropy, create-only private files, owner/allowlist checks, reparse/hard-link checks, replacement/readback and 15-second deadline. No retry, fallback, bypass, credential import or new authority is added. Internal milestone injection is removed after diagnosis; bounded helper timing/status diagnostics remain in the synthetic native fixture.
+
+Native regression additionally proves rejection of a hard-linked registration, a junction directory and a synthetic Everyone-readable directory after positively verifying that the permissive ACL was applied. Original cold authorization and all existing eight-shard tests remain enabled.

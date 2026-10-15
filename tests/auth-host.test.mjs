@@ -129,38 +129,8 @@ for (const [platform, arch] of [
       const nativeSpawn = cp.spawnSync;
       t.mock.method(cp, "spawnSync", (executable, args, options) => {
         const started = performance.now();
-        const nativeArgs = [...args];
-        const isPowerShell = String(executable)
-          .toLowerCase()
-          .endsWith("powershell.exe");
-        if (isPowerShell && nativeArgs.includes("-EncodedCommand")) {
-          const index = nativeArgs.indexOf("-EncodedCommand") + 1;
-          let script = Buffer.from(nativeArgs[index], "base64").toString(
-            "utf16le",
-          );
-          script =
-            "[Console]::Error.WriteLine('AIOS_STORAGE_PROBE:entered');\n" +
-            script;
-          script = script.replace(
-            " Import-Module ",
-            " [Console]::Error.WriteLine('AIOS_STORAGE_PROBE:module-start');\n Import-Module ",
-          );
-          script = script.replace(
-            " $path=[Console]",
-            " [Console]::Error.WriteLine('AIOS_STORAGE_PROBE:modules-ready');\n $path=[Console]",
-          );
-          script = script.replace(
-            " $item=Get-Item",
-            " [Console]::Error.WriteLine('AIOS_STORAGE_PROBE:path-ready');\n $item=Get-Item",
-          );
-          script = script.replace(
-            " Set-Acl ",
-            " [Console]::Error.WriteLine('AIOS_STORAGE_PROBE:acl-ready');\n Set-Acl ",
-          );
-          nativeArgs[index] = Buffer.from(script, "utf16le").toString("base64");
-        }
-        const result = nativeSpawn(executable, nativeArgs, options);
-        if (isPowerShell) {
+        const result = nativeSpawn(executable, args, options);
+        if (String(executable).toLowerCase().endsWith("powershell.exe")) {
           let stage = "initialize";
           try {
             const request = JSON.parse(options.input);
@@ -183,11 +153,6 @@ for (const [platform, arch] of [
               exitCode: result.status,
               timedOut: result.error?.code === "ETIMEDOUT",
               signaled: result.signal !== null && result.signal !== undefined,
-              milestones: [
-                ...String(result.stderr ?? "").matchAll(
-                  /AIOS_STORAGE_PROBE:(entered|module-start|modules-ready|path-ready|acl-ready)\r?\n/g,
-                ),
-              ].map((entry) => entry[1]),
             }),
           );
         }
