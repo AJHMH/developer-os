@@ -1,4 +1,9 @@
 import {
+  MainChecksCoordinator,
+  type MainChecksEvidence,
+  type MainChecksRuntime,
+} from "./main-checks.js";
+import {
   MergeCoordinator,
   mergePending,
   mergeSealed,
@@ -226,6 +231,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  mainChecksRuntime?: MainChecksRuntime;
   mergeRuntime?: MergeRuntime;
   reviewRuntime?: ReviewRuntime;
   prChecksRuntime?: PRChecksRuntime;
@@ -244,6 +250,7 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  mainChecks?: MainChecksEvidence;
   merge?: MergeEvidence;
   review?: ReviewEvidence;
   prChecks?: PRChecksEvidence;
@@ -266,7 +273,9 @@ export interface Delivery {
     | "waiting-checks"
     | "waiting-review"
     | "ready-to-merge"
-    | "merged";
+    | "merged"
+    | "verifying-main"
+    | "main-verified";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -881,6 +890,58 @@ export class DeliveryController {
         };
       }
     });
+  }
+
+  async monitorMainChecks(id: string): Promise<Delivery> {
+    try {
+      return await new MainChecksCoordinator(
+        {
+          status: () => this.status(id),
+          change: (update) => this.change(id, update),
+          now: () => (this.coordination.clock ?? Date.now)(),
+          observe: (p, ms) => this.observe(p, ms),
+          input: () => {
+            const d = this.status(id),
+              merge = d.merge?.attempts.at(-1),
+              p = d.publication;
+            if (
+              !merge ||
+              merge.state !== "merged" ||
+              !merge.mergeCommit ||
+              !merge.mainRevision ||
+              !p ||
+              p.id !== merge.publicationId ||
+              p.commit !== merge.head ||
+              p.policySha256 !== merge.policySha256 ||
+              d.authorityPolicySha256 !== merge.policySha256
+            )
+              throw Error("Confirmed merge required");
+            const checks = validationContract(
+              this.onboardingOptions.policyPath,
+              merge.policySha256,
+            ).checks.filter((c) => c.scope === "main");
+            if (!checks.length || checks.some((c) => !c.workflow))
+              throw Error("Declare trusted main workflows");
+            return { merge, checks };
+          },
+        },
+        this.coordination.mainChecksRuntime,
+      ).monitor();
+    } catch {
+      this.change(id, (d) => {
+        if (d.mainChecks) {
+          if (d.mainChecks.outcome !== "timeout")
+            d.mainChecks.outcome = "unavailable";
+          delete d.mainChecks.activeObservation;
+        }
+        if (!["paused", "cancelled"].includes(d.phase)) d.phase = "blocked";
+        d.blocker.nextAction =
+          "Restore confirmed merge linkage, pinned policy and trusted main observation binding. Preserve evidence; synchronization and cleanup remain blocked. Any fix or revert requires a new signed PR and owner approval.";
+      });
+      throw new DeliveryError(
+        "Main monitoring requires confirmed merge linkage, unchanged owner policy and a qualified read-only adapter; native monitoring remains disabled.",
+      );
+    }
   }
 
   private requireMergeIdle(id: string) {
@@ -3853,6 +3914,7 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (this.status(id).mainChecks) return this.monitorMainChecks(id);
     if (mergeSealed(this.status(id))) return this.reconcileMerge(id);
     if (
       this.status(id).publication?.outcome === "published" &&

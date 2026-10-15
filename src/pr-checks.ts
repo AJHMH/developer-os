@@ -102,7 +102,7 @@ const integer = (n: unknown): n is number =>
 const terminal = (s: CheckStatus) => !["pending", "missing"].includes(s);
 const failed = (s: CheckStatus) => ["failure", "timeout"].includes(s);
 const key = (a: PRCheckAttempt) => `${a.checkId}:${a.runId}:${a.attempt}`;
-function latest(run: PRCheckRun, id: string) {
+function latest(run: Pick<PRCheckRun, "attempts">, id: string) {
   return run.attempts
     .filter((a) => a.checkId === id)
     .sort(
@@ -126,6 +126,15 @@ function outcome(run: PRCheckRun, now: number): PRCheckRun["outcome"] {
     if (!next || (next.runId === d.runId && next.attempt <= d.attempt))
       return "incomplete";
   }
+  return hostedCheckOutcome(run, now);
+}
+export function hostedCheckOutcome(
+  run: HostedCheckState,
+  now: number,
+): PRCheckRun["outcome"] {
+  run.findings = [];
+  run.canRepair = false;
+  if (run.rejected) return "incomplete";
   let incomplete = false,
     flaky = false,
     failure = false,
@@ -138,7 +147,7 @@ function outcome(run: PRCheckRun, now: number): PRCheckRun["outcome"] {
     if (!allowed) {
       if (failed(status)) {
         failure = true;
-        run.findings.push(`Trusted PR check ${c.id}: ${status}`);
+        run.findings.push(`Trusted check ${c.id}: ${status}`);
       } else incomplete = true;
       if (now - run.startedAt >= c.timeoutMs) expired = true;
     }
@@ -174,37 +183,41 @@ function outcome(run: PRCheckRun, now: number): PRCheckRun["outcome"] {
         ? "incomplete"
         : "passed";
 }
-function record(
-  run: PRCheckRun,
-  observation: PRCheckObservation,
-  p: PublicationEvidence,
+export type HostedCheckState = Pick<
+  PRCheckRun,
+  | "checks"
+  | "attempts"
+  | "head"
+  | "rejected"
+  | "startedAt"
+  | "findings"
+  | "canRepair"
+>;
+/** Earliest unresolved required check; successful checks do not shorten a
+ * longer declared wait. Rejected provenance cannot supply a passing deadline. */
+export function hostedCheckDeadline(run: HostedCheckState): number {
+  const waiting = run.checks.filter((c) => {
+    const status = latest(run, c.id)?.status ?? "missing";
+    return (
+      run.rejected > 0 ||
+      !["success", ...(c.exception?.statuses ?? [])].includes(status)
+    );
+  });
+  return (
+    run.startedAt +
+    (waiting.length
+      ? Math.min(...waiting.map((c) => c.timeoutMs))
+      : Math.max(...run.checks.map((c) => c.timeoutMs)))
+  );
+}
+export function recordCheckAttempts(
+  run: HostedCheckState,
+  values: PRCheckAttempt[],
   now: number,
 ) {
-  run.canRepair = false;
-  if (
-    observation.repository !== p.repository ||
-    observation.number !== p.pullRequest!.number ||
-    observation.head !== p.commit ||
-    observation.base !== p.defaultBranch ||
-    observation.author !== p.appLogin ||
-    observation.state !== "open"
-  ) {
-    run.outcome = "stale";
-    return;
-  }
-  if (
-    observation.complete !== true ||
-    !Array.isArray(observation.checks) ||
-    observation.checks.length > 1024 ||
-    !Array.isArray(observation.reruns) ||
-    observation.reruns.length > 32
-  ) {
-    run.outcome = "unavailable";
-    return;
-  }
   let rejected = 0;
   const seen = new Set<string>();
-  for (const value of observation.checks) {
+  for (const value of values) {
     const c = run.checks.find((c) => c.id === value?.checkId);
     if (!c) continue;
     if (
@@ -276,6 +289,36 @@ function record(
   if (run.attempts.some((a) => !seen.has(key(a))) || run.attempts.length > 1024)
     rejected++;
   run.rejected = rejected;
+}
+function record(
+  run: PRCheckRun,
+  observation: PRCheckObservation,
+  p: PublicationEvidence,
+  now: number,
+) {
+  run.canRepair = false;
+  if (
+    observation.repository !== p.repository ||
+    observation.number !== p.pullRequest!.number ||
+    observation.head !== p.commit ||
+    observation.base !== p.defaultBranch ||
+    observation.author !== p.appLogin ||
+    observation.state !== "open"
+  ) {
+    run.outcome = "stale";
+    return;
+  }
+  if (
+    observation.complete !== true ||
+    !Array.isArray(observation.checks) ||
+    observation.checks.length > 1024 ||
+    !Array.isArray(observation.reruns) ||
+    observation.reruns.length > 32
+  ) {
+    run.outcome = "unavailable";
+    return;
+  }
+  recordCheckAttempts(run, observation.checks, now);
   const diagnostic = run.diagnostic;
   if (diagnostic && ["dispatched", "uncertain"].includes(diagnostic.state)) {
     const receipt = observation.reruns.filter(
