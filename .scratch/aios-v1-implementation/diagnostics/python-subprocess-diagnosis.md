@@ -60,3 +60,11 @@ The passive repetitions use their own fresh Windows runner. Management is its
 first Python workload; the staged expiry probe cannot warm it first. A separate
 `stages` runner retains the initial comparative probe. Interpreter identity is
 read through shell command resolution without starting Python.
+
+The fresh passive runner completed all 100 management cases and ten expiry
+cases without skips or failures (210 subprocesses). Management peaked at
+1.18 seconds; expiry at 7.54 seconds. All 110 TAP summaries confirm one selected
+case and zero skips. This rules out those isolated invocations as a current
+reproduction; it does not establish a cause for the earlier full-suite failures.
+The next full Windows run disables child-source markers, retaining only passive
+parent telemetry and the complete original suite context.

@@ -71,6 +71,7 @@ jobs:
         shell: pwsh
         env:
           TEST_SHARD: ${{ matrix.shard }}/8
+          AIOS_DIAGNOSTIC_PYTHON_MARKERS: off
         run: |
           node --import ./.scratch/aios-v1-implementation/diagnostics/python-subprocess-probe.mjs --test --test-concurrency=2 --test-shard=$env:TEST_SHARD --test-reporter=tap 2>&1 | Tee-Object -FilePath windows-tests.tap
           exit $LASTEXITCODE
