@@ -1,4 +1,10 @@
 import {
+  BranchCleanupCoordinator,
+  pendingCleanup,
+  type BranchCleanupRuntime,
+  type BranchCleanupEvidence,
+} from "./branch-cleanup.js";
+import {
   MainSyncCoordinator,
   pendingMainSync,
   type MainSyncEvidence,
@@ -238,6 +244,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  branchCleanupRuntime?: BranchCleanupRuntime;
   mainSyncRuntime?: MainSyncRuntime;
   mainChecksRuntime?: MainChecksRuntime;
   mergeRuntime?: MergeRuntime;
@@ -258,6 +265,7 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  cleanup?: BranchCleanupEvidence;
   mainSync?: MainSyncEvidence;
   mainChecks?: MainChecksEvidence;
   merge?: MergeEvidence;
@@ -286,7 +294,9 @@ export interface Delivery {
     | "verifying-main"
     | "main-verified"
     | "synchronizing-main"
-    | "main-synchronized";
+    | "main-synchronized"
+    | "cleaning-branches"
+    | "completed";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -903,48 +913,102 @@ export class DeliveryController {
     });
   }
 
+  private mainSyncTarget(id: string): MainSyncTarget {
+    const d = this.status(id),
+      a = d.merge?.attempts.at(-1),
+      m = d.mainChecks;
+    if (
+      !a ||
+      a.state !== "merged" ||
+      !a.mergeCommit ||
+      !m ||
+      m.outcome !== "passed" ||
+      m.mergeOperationId !== a.operationId ||
+      !m.revision ||
+      !/^[a-f0-9]{40}$/.test(m.revision) ||
+      m.policySha256 !== a.policySha256 ||
+      d.authorityPolicySha256 !== a.policySha256 ||
+      m.bindingSha256 !== this.coordination.mainChecksRuntime?.bindingSha256 ||
+      d.publication?.id !== a.publicationId ||
+      d.publication.commit !== a.head
+    )
+      throw Error("Verified main linkage required");
+    validationContract(this.onboardingOptions.policyPath, a.policySha256);
+    return {
+      repository: a.repository,
+      checkout: d.repository,
+      branch: a.base,
+      revision: m.revision,
+      policySha256: a.policySha256,
+      mergeOperationId: a.operationId,
+    };
+  }
   private mainSyncCoordinator(id: string) {
     return new MainSyncCoordinator(
       {
         status: () => this.status(id),
         change: (update) => this.change(id, update),
         observe: (p) => this.observe(p),
-        input: (): MainSyncTarget => {
-          const d = this.status(id),
-            a = d.merge?.attempts.at(-1),
-            m = d.mainChecks;
-          if (
-            !a ||
-            a.state !== "merged" ||
-            !a.mergeCommit ||
-            !m ||
-            m.outcome !== "passed" ||
-            m.mergeOperationId !== a.operationId ||
-            !m.revision ||
-            !/^[a-f0-9]{40}$/.test(m.revision) ||
-            m.policySha256 !== a.policySha256 ||
-            d.authorityPolicySha256 !== a.policySha256 ||
-            m.bindingSha256 !==
-              this.coordination.mainChecksRuntime?.bindingSha256 ||
-            d.publication?.id !== a.publicationId ||
-            d.publication.commit !== a.head
-          )
-            throw Error("Verified main linkage required");
-          validationContract(this.onboardingOptions.policyPath, a.policySha256);
-          return {
-            repository: a.repository,
-            checkout: d.repository,
-            branch: a.base,
-            revision: m.revision,
-            policySha256: a.policySha256,
-            mergeOperationId: a.operationId,
-          };
-        },
+        input: () => this.mainSyncTarget(id),
       },
       this.coordination.mainSyncRuntime,
     );
   }
+  private cleanupCoordinator(id: string) {
+    return new BranchCleanupCoordinator(
+      {
+        status: () => this.status(id),
+        change: (update) => this.change(id, update),
+        observe: (p) => this.observe(p),
+        refresh: async () => {
+          await this.reconcileMainSync(id);
+        },
+        input: () => {
+          const t = this.mainSyncTarget(id),
+            d = this.status(id),
+            a = d.mainSync?.attempts.at(-1);
+          if (
+            !a ||
+            a.state !== "aligned" ||
+            a.revision !== t.revision ||
+            a.policySha256 !== t.policySha256 ||
+            a.mergeOperationId !== t.mergeOperationId ||
+            a.bindingSha256 !==
+              this.coordination.mainSyncRuntime?.bindingSha256 ||
+            a.fence !== d.ownership.fence ||
+            pendingMainSync(d)
+          )
+            throw Error("Verified alignment required");
+          return t;
+        },
+      },
+      this.coordination.branchCleanupRuntime,
+    );
+  }
+  async cleanupBranches(id: string): Promise<Delivery> {
+    try {
+      if (pendingCleanup(this.status(id)))
+        return await this.reconcileCleanup(id);
+      await this.reconcileMainSync(id);
+      return await this.cleanupCoordinator(id).run();
+    } catch {
+      this.change(id, (d) => {
+        if (!["paused", "cancelled"].includes(d.phase)) d.phase = "blocked";
+        d.blocker.nextAction =
+          "Cleanup requires verified synchronized main and qualified conditional branch authority. Preserve all branches and evidence; reconcile uncertain deletions. Native cleanup remains disabled.";
+      });
+      throw new DeliveryError(
+        "Branch cleanup requires verified alignment and a qualified adapter; native cleanup remains disabled.",
+      );
+    }
+  }
+  async reconcileCleanup(id: string): Promise<Delivery> {
+    return this.cleanupCoordinator(id).reconcile();
+  }
+
   async syncMain(id: string): Promise<Delivery> {
+    if (pendingCleanup(this.status(id)))
+      throw new DeliveryError("Reconcile cleanup before synchronization.");
     try {
       if (pendingMainSync(this.status(id)))
         return await this.reconcileMainSync(id);
@@ -3884,6 +3948,8 @@ export class DeliveryController {
   }
 
   resume(id: string): Delivery {
+    if (pendingCleanup(this.status(id)))
+      throw new DeliveryError("Reconcile cleanup before resuming.");
     if (pendingMainSync(this.status(id)))
       throw new DeliveryError(
         "Reconcile main synchronization before resuming.",
@@ -4001,6 +4067,7 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (this.status(id).cleanup) return this.reconcileCleanup(id);
     if (this.status(id).mainSync) return this.reconcileMainSync(id);
     if (this.status(id).mainChecks) return this.monitorMainChecks(id);
     if (mergeSealed(this.status(id))) return this.reconcileMerge(id);
@@ -4114,6 +4181,8 @@ export class DeliveryController {
   }
 
   release(id: string): Delivery {
+    if (pendingCleanup(this.status(id)))
+      throw new DeliveryError("Reconcile cleanup before releasing ownership.");
     if (pendingMainSync(this.status(id)))
       throw new DeliveryError(
         "Reconcile main synchronization before releasing ownership.",
@@ -4165,7 +4234,11 @@ export class DeliveryController {
         throw new DeliveryError(
           "Reconcile worker shutdown before releasing repository ownership.",
         );
-      if (!["paused", "cancelled", "blocked"].includes(delivery.phase))
+      if (
+        !["paused", "cancelled", "blocked", "completed"].includes(
+          delivery.phase,
+        )
+      )
         throw new DeliveryError(
           "Stop the delivery before releasing repository ownership.",
         );

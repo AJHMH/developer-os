@@ -4,7 +4,7 @@
 
 **Blocked by:** 13: [Synchronize clean local main without losing work](13-safe-main-sync.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human — controlled implementation; native acceptance open
 
 ## Source and governing contract
 
@@ -14,16 +14,23 @@ This is an implementation slice, separate from resolved wayfinder decisions. Uni
 
 ## Current evidence reconciliation — 15 October 2026
 
-Controller implementation is not present; manual agent Git operations are not acceptance evidence. Dependencies remain enforced; ready-for-agent describes specification readiness, not permission to skip upstream gates.
+The controlled controller slice implements inventory, eligibility, conditional deletion, independent effect reconciliation and completion after fresh main checks/alignment. See the [contract](../../../docs/branch-cleanup.md) and [implementation receipt](../ticket14-implementation-receipt.md). Manual agent Git operations remain separate from product acceptance.
 
-## Acceptance criteria
+### Remaining native acceptance
 
-- [ ] Inventory includes unrelated merged branches and separate local/remote tips; main is excluded and every candidate has eligible/retained/blocked status with reason.
-- [ ] Ordinary ancestry or reliable squash/rebase PR-head/merge linkage establishes current-tip integration; newer tips/local-only work and ambiguous evidence are preserved.
-- [ ] Protected, Factory replay/event and active-worktree branches are retained as expected exclusions; no automatic unmerged deletion or replay-evidence migration occurs.
-- [ ] Eligibility evidence is durable before deletion. Recheck tip/policy/worktree state and condition the operation on the evaluated tip; unsupported race control blocks rather than deleting blindly.
-- [ ] Local and remote outcomes are independent; partial success and uncertain acceptance reconcile safely on resume without repeating PR creation or merge.
-- [ ] Completion requires all applicable main gates, recorded safe alignment and finished eligible cleanup; expected retention is not failure, while unknown/failed eligibility remains a blocker.
-- [ ] Completion/blocker reports include revisions, deletions/retentions, evidence and next action with synthetic secrets redacted.
-- [ ] Public temporary-Git/controlled-remote tests cover merge styles, new commits, exclusions, tip races, partial deletion and crash windows.
+- [ ] Independently qualify native Windows/macOS inventory/PR history, effective protection/replay policy, credential/configuration isolation, conditional tip/worktree/protection races and bounded operation quiescence.
+- [ ] Qualify the integrated upstream native delivery path. Parent 04, native 05–14 and tickets 15–17 remain open; production stays disabled.
+
+Checked criteria below describe the controlled implementation with real temporary Git repositories and controlled remote authority. The native cleanup adapter is absent and the CLI refuses unqualified authority.
+
+## Controlled implementation acceptance
+
+- [x] Inventory includes unrelated merged branches and separate local/remote tips; main is excluded and every candidate has eligible/retained/blocked status with reason.
+- [x] Ordinary ancestry or reliable squash/rebase PR-head/merge linkage establishes current-tip integration; newer tips/local-only work and ambiguous evidence are preserved.
+- [x] Protected, Factory replay/event and active-worktree branches are retained as expected exclusions; no automatic unmerged deletion or replay-evidence migration occurs.
+- [x] Eligibility evidence is durable before deletion. Recheck tip/policy/worktree state and condition the operation on the evaluated tip; unsupported race control blocks rather than deleting blindly.
+- [x] Local and remote outcomes are independent; partial success and uncertain acceptance reconcile safely on resume without repeating PR creation or merge.
+- [x] Completion requires all applicable main gates, recorded safe alignment and finished eligible cleanup; expected retention is not failure, while unknown/failed eligibility remains a blocker.
+- [x] Completion/blocker reports include revisions, deletions/retentions, evidence and next action with synthetic secrets redacted.
+- [x] Public temporary-Git/controlled-remote tests cover merge styles, new commits, exclusions, tip races, partial deletion and crash windows.
 
