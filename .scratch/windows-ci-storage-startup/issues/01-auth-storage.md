@@ -1,6 +1,6 @@
 # Diagnose and repair Windows auth-storage startup refusal
 
-Status: needs-info
+Status: ready-for-human
 
 ## Observed failure
 
@@ -12,11 +12,11 @@ Preserve the native 15-second bound and all ownership, ACL, link, registration a
 
 ## Acceptance
 
-- [ ] Native failure classified with safe evidence.
-- [ ] Minimal regression reproduces the established cause before the fix.
-- [ ] Fix preserves every existing storage and authorization safety check.
+- [x] Native failure classified with safe evidence.
+- [x] Minimal regression reproduces the established cause before the fix.
+- [x] Fix preserves every existing storage and authorization safety check.
 - [ ] Local checks and hosted Windows matrix pass.
-- [ ] Verified Factory App commit and PR; required human approval remains independent.
+- [x] Verified Factory App commits and [PR #36](https://github.com/AJHMH/developer-os/pull/36); required human approval remains independent.
 
 ## Native diagnostic result
 
@@ -41,3 +41,11 @@ Commit `4724614`, run 38771519345, cold Windows job 116548258363: the native mod
 Repair: fixed strong-named .NET Framework assembly loading, bounded `JavaScriptSerializer` with no type resolver, and direct .NET attribute, enumeration, ACL and FileStream APIs replace PowerShell modules/cmdlets. Retain the same fixed OS executable, minimal environment, stdin-only data, CurrentUser DPAPI, per-account entropy, create-only private files, owner/allowlist checks, reparse/hard-link checks, replacement/readback and 15-second deadline. No retry, fallback, bypass, credential import or new authority is added. Internal milestone injection is removed after diagnosis; bounded helper timing/status diagnostics remain in the synthetic native fixture.
 
 Native regression additionally proves rejection of a hard-linked registration, a junction directory and a synthetic Everyone-readable directory after positively verifying that the permissive ACL was applied. Original cold authorization and all existing eight-shard tests remain enabled.
+
+## Native green proof and review boundary
+
+Repair `e373fe6`, run 38771833565, cold job 116549343009: both native tests pass. Original cold initialization completes in 5,103 ms; the module/cmdlet-denied registration/DPAPI/negative-storage test passes in 5,458 ms. The timeout/no-retry/no-write regression and all existing local storage tests pass. The initial full local baseline passed 497 tests (495 pass, two platform skips); the repaired full-suite and complete hosted matrix are tracked in PR #36.
+
+The Windows file-concurrency experiment is fully reverted. The only lasting CI change is an additional fast cold-runner regression; all original eight shards still run their full inventories with concurrency two and unchanged deadlines. Existing external authentication/worker qualification pins must be reevaluated against the changed source before native production use; these synthetic fixtures enable no delivery and use no real account credentials.
+
+Final human review and current-head hosted checks remain required. This record does not claim that every possible overloaded Windows host must initialize within the bound: an actual timeout still refuses without retry, fallback or writes beyond the new setup directory.

@@ -62,6 +62,7 @@ test(
     const unsafe = join(root, "shared-directory");
     fs.mkdirSync(unsafe);
     initializeWindowsAuthDirectory(unsafe);
+    windowsAuthStore(unsafe);
     const grant = String.raw`
 $ErrorActionPreference='Stop'
 try {
@@ -118,15 +119,27 @@ function fixture(t) {
   Object.defineProperty(process, "arch", { value: "x64", configurable: true });
   const requests = [];
   let refused = false,
+    timedOut = false,
     malformed = false,
     mismatch = false;
   t.mock.method(cp, "spawnSync", (_exe, args, options) => {
     assert.equal(options.shell, false);
+    assert.equal(options.timeout, 15000);
     assert.equal(options.windowsHide, true);
     assert.deepEqual(options.env, { SystemRoot: process.env.SystemRoot });
     assert.ok(args.includes("-EncodedCommand"));
     const request = JSON.parse(options.input);
     requests.push(request);
+    if (timedOut)
+      return {
+        status: null,
+        signal: "SIGTERM",
+        stdout: "",
+        stderr: "private fixture error",
+        error: Object.assign(new Error("private fixture timeout"), {
+          code: "ETIMEDOUT",
+        }),
+      };
     if (typeof request === "string")
       return { status: refused ? 1 : 0, stdout: "" };
     assert.equal(request.paths[0], root);
@@ -160,6 +173,7 @@ function fixture(t) {
     root,
     requests,
     refuse: () => (refused = true),
+    timeOut: () => (timedOut = true),
     malform: () => (malformed = true),
     mismatch: () => (mismatch = true),
   };
@@ -277,4 +291,17 @@ test("Windows protected storage refuses unsupported architectures and uses only 
     configurable: true,
   });
   assert.throws(() => windowsAuthStore(f.root), /unavailable/);
+});
+
+test("Windows storage timeout refuses initialization and checks without retry or writes", (t) => {
+  const f = fixture(t);
+  f.timeOut();
+  const sanitized = (error) =>
+    error.message.includes("unavailable") &&
+    !error.message.includes("private fixture");
+  assert.throws(() => initializeWindowsAuthDirectory(f.root), sanitized);
+  assert.equal(f.requests.length, 1);
+  assert.throws(() => windowsAuthStore(f.root), sanitized);
+  assert.equal(f.requests.length, 2);
+  assert.deepEqual(fs.readdirSync(f.root), []);
 });
