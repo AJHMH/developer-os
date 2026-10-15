@@ -138,3 +138,22 @@ whitespace checks pass. Independent Standards and Spec reviews found no issues.
 No source behavior, coverage exclusions, assertions or execution budgets changed.
 The Windows workflow retains all discovered files automatically. The 21 snapshots
 remain untracked and unchanged. Native qualification requirements remain open.
+
+## Governed Factory coverage budget repair
+
+Factory PR #69 merged as the Factory App at
+`3f64904a7a71985382fa5d5da29cc0e0610d5d2c` after exact-head human approval
+and all upstream checks passed. The collector now uses the declared test-command
+budget for prerequisites and head/base instrumentation only after independent
+trusted-policy evaluation, bound to the captured contract and revisions.
+Developer OS already declares an authorized 120-second test budget; the obsolete
+fixed 60-second collector deadline caused run 38667335376 to time out.
+
+The lock and both reusable workflows now pin that merged immutable revision.
+Upstream validation: 13 coverage tests and typechecking pass; hosted safety,
+coverage, policy, security and CodeQL checks pass. Regression tests cover declared
+deadlines, over-limit rejection, external contract paths and contract replacement
+before workload dispatch. CodeQL fixture findings were fixed without suppression.
+Hosted consumer confirmation remains pending at publication. No tests, assertions,
+coverage thresholds or native qualification requirements are removed. All 21
+retained local snapshots match their inventory hashes and remain untracked.
