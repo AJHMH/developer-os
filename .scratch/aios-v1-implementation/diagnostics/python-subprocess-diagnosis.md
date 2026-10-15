@@ -55,3 +55,8 @@ disabled), repeats the exact management assertion up to 100 times and the expiry
 assertion up to ten times, and stops at the first failure. Parent-side telemetry
 still records error code, signal and duration. This tests the unmodified child
 path before proceeding to causal hypotheses.
+
+The passive repetitions use their own fresh Windows runner. Management is its
+first Python workload; the staged expiry probe cannot warm it first. A separate
+`stages` runner retains the initial comparative probe. Interpreter identity is
+read through shell command resolution without starting Python.

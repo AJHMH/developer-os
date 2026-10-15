@@ -95,9 +95,13 @@ jobs:
         run: test "$WINDOWS_RESULT" = success
 
   windows-python-probe:
-    name: Diagnose Windows Python subprocesses
+    name: Diagnose Windows Python subprocesses (${{ matrix.probe-mode }})
     runs-on: windows-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        probe-mode: [passive, stages]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -108,7 +112,11 @@ jobs:
           node-version: '24'
       - run: npm ci --ignore-scripts
       - run: npm run build
+      - name: Identify the selected interpreter without launching it
+        shell: pwsh
+        run: Get-Command python | Select-Object Name,Source
       - name: Repeat isolated and concurrent fixture probes
+        if: matrix.probe-mode == 'stages'
         shell: pwsh
         run: |
           $probeFailed = $false
@@ -126,7 +134,7 @@ jobs:
           }
           if ($probeFailed) { exit 1 }
       - name: Repeat original Python source without child markers
-        if: always()
+        if: matrix.probe-mode == 'passive'
         shell: pwsh
         env:
           AIOS_DIAGNOSTIC_PYTHON_MARKERS: off
@@ -144,7 +152,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: windows-python-probe
+          name: windows-python-probe-${{ matrix.probe-mode }}
           path: windows-python-probe.tap
           if-no-files-found: warn
           retention-days: 14
