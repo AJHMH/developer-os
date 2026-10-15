@@ -51,3 +51,50 @@ test("case-folded or Unicode-equivalent branch namespace collisions refuse the w
     assert.equal(f.deletions.length, 0);
   }
 });
+
+test("malformed, duplicate, incomplete and wrong-repository inventories never dispatch and never retain private transport text", async (t) => {
+  const f = await cleanupFixture(t);
+  f.local("eligible");
+  for (const modify of [
+    (o) => ({ ...o, complete: false }),
+    (o) => ({ ...o, repository: "wrong/repo" }),
+    (o) => ({ ...o, branches: [...o.branches, o.branches[0]] }),
+    (o) => ({ ...o, branches: [{ ...o.branches[0], name: "invalid..ref" }] }),
+    (o) => ({ ...o, quiescent: false }),
+  ]) {
+    f.inventoryChange = modify;
+    const d = await f.controller.cleanupBranches(f.delivery.id);
+    assert.equal(d.phase, "blocked");
+    assert.equal(f.deletions.length, 0);
+  }
+  f.inventoryChange = () => {
+    throw Error("private transport diagnostic");
+  };
+  const d = await f.controller.cleanupBranches(f.delivery.id);
+  assert.equal(d.phase, "blocked");
+  assert.doesNotMatch(JSON.stringify(d), /private transport diagnostic/);
+});
+
+test("new eligible branches discovered at final inventory block completion until an explicit new plan", async (t) => {
+  const f = await cleanupFixture(t);
+  f.local("victim");
+  let added = false;
+  f.afterDelete = async () => {
+    if (!added) {
+      added = true;
+      f.local("late-merged");
+    }
+  };
+  let d = await f.controller.cleanupBranches(f.delivery.id);
+  assert.equal(d.phase, "blocked");
+  assert.equal(f.g("rev-parse", "late-merged"), f.old);
+  assert.equal(
+    d.cleanup.rounds.at(-1).entries.find((e) => e.fact.name === "late-merged")
+      .state,
+    "eligible",
+  );
+  f.afterDelete = undefined;
+  d = await f.controller.cleanupBranches(f.delivery.id);
+  assert.equal(d.phase, "completed");
+  assert.equal(d.cleanup.rounds.length, 2);
+});

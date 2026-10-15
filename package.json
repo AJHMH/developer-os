@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test",
+    "test": "npm run build && node --test --test-concurrency=4",
     "test:cli": "npm run build && node --test tests/delivery.test.mjs",
     "start": "node dist/cli.js",
     "format": "prettier --write src tests scripts package.json tsconfig.json README.md",

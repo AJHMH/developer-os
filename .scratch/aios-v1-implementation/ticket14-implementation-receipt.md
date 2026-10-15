@@ -75,3 +75,25 @@ They verify branch preservation, private-diagnostic exclusion, durable uncertain
 and read-only reconciliation without repeated deletion. All three new tests pass
 locally (14.9 seconds); production code is unchanged. Hosted validation remains
 authoritative for the updated head.
+
+## PR #38 bounded test scheduling
+
+The test-only coverage follow-up passed hosted coverage, but its Factory contract
+full test command reached the unchanged 120-second deadline. Native Linux passed
+all 548 tests (545 passed, three platform skips) in 129.4 seconds. Windows shard 7
+also reached its unchanged ten-minute deadline after passing assertions; the
+11-case serial cleanup race file consumed about seven minutes by itself.
+
+`npm test` now bounds test-file concurrency at four. Windows CI retains all eight
+shards and its explicit two-file concurrency. The race cases are distributed into
+smaller files with a shared fixture; all original race, inventory and CAS bodies
+were verified unchanged ignoring formatting whitespace. All 13 relocated scenarios
+pass locally (57.2 seconds). No assertions, inventory, production behavior,
+coverage threshold or command/job deadline was weakened.
+
+An exploratory local full run overlapped a macOS-recorded 124-second maintenance
+sleep and failed the existing elapsed-time expiry assertion. That run was stopped
+and retained at `/private/tmp/pr38-bounded-suite.log`; an unchanged sleep-protected
+rerun uses the established `caffeinate -is` wrapper. This host interruption is not
+represented as a product repair or a passing run. Hosted current-head results
+remain authoritative for the scheduling change.
