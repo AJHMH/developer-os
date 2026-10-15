@@ -1,5 +1,8 @@
 # Ticket 24: Windows controls and qualification continuation
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Review base: signed commit `d52513a7aca681c4f0041f36fc44ad81784979fa`.
 
 ## Scope and safety gates

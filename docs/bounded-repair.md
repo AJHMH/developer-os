@@ -1,5 +1,7 @@
 # Bounded candidate repair
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Ticket 07 adds repairFeature(id, reviewFindings?) and extendRepair(id, cycles,
 minutes) to the public controller. The CLI exposes repair-feature --id ID and
 extend-repair --id ID --cycles N --minutes N. Omitted extension amounts default to

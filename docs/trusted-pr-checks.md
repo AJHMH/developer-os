@@ -1,5 +1,7 @@
 # Trusted PR check monitoring
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Ticket 09 adds `monitorPRChecks`, `rerunPRCheck` and `repairPRChecks` to the public
 controller. The corresponding CLI commands are `monitor-pr-checks`,
 `rerun-pr-check --check-id <id>` and `repair-pr-checks`, each requiring `--id`.

@@ -1,5 +1,8 @@
 # Existing Software Factory integration evidence
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Read-only source inspection on 7 October 2026. No key contents were read. Local documentation and source are evidence of intended behavior, not proof of current live GitHub state.
 
 - [Factory identity](D:/repos/factory-template/docs/factory-github-app.md:3) separates owner GPG signatures from App PR authorship. [App permissions](D:/repos/factory-template/docs/factory-github-app.md:27) are Contents read and Pull requests write; the App cannot push or merge. Signed branch pushes use the existing Git identity.

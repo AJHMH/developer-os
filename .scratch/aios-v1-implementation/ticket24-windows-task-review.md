@@ -1,5 +1,8 @@
 # Ticket 24 Windows capability and fixed synthetic task review
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 The public controller now projects the independently qualified Windows x64
 Hyper-V subscription mechanism from protected operator state. It verifies native
 Windows ownership/ACLs for the state, decision, consumed approval marker,

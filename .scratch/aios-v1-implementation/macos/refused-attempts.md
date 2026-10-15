@@ -1,5 +1,8 @@
 # Retained setup and qualification refusals — 10 October 2026
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 The installed Podman default is libkrun; this effort explicitly selected AppleHV.
 The initial VM setup generated an empty `/etc/containers/policy.json`; the first
 image pull refused it. Provisioning restored the immutable vendor policy from

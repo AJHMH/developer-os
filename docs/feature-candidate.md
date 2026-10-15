@@ -1,5 +1,7 @@
 # Bounded feature candidates
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Ticket 05 adds a controller slice through the existing public command/observation boundary. It prepares criteria, records a feature branch from a clean admitted Git revision, drives a configured controlled coding adapter, and stores a candidate only after verified descendant shutdown. Ticket 06 adds local controlled validation; signing, publication and completion remain gated.
 
 The integration boundary is `DeliveryController`, with owner-supplied `featurePlanner` and `featureRuntime` adapters. They are trusted host integrations, never loaded from repository text or worker output. Only `mode: controlled` is currently accepted. The native CLI has no production feature planner or coding adapter; `plan-feature` and `code-feature` refuse without those integrations. Controlled tests do not establish native isolation, CLI compatibility or provider authorization. Ticket 04 and later native qualification gates remain open.

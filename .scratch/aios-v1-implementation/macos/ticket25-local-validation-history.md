@@ -1,5 +1,8 @@
 # Ticket 25 macOS worker validation — completed 14 October 2026
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 Status: VERIFIED. The public Mac assertion passes all nine live checks with
 `outcome: qualified`, no blockers and `productionEnabled: false`.
 Validated the local repaired source based on PR 13 merge

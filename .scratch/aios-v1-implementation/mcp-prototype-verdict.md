@@ -1,5 +1,8 @@
 # MCP boundary live prototype verdict
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Question: does an empty static MCP set combined with global and per-sandbox deny-all prevent host MCP discovery and attachment?
 
 Verdict: no, on the tested Windows Docker Sandboxes 0.47.0 configuration. `--static-mcp=` created a gateway; proper MCP initialization followed by tools/list returned HTTP 200 and these names: code-mode, mcp-add, mcp-config-set, mcp-exec, mcp-find. No tool calls were made. This demonstrates discovery/attachment capabilities remain exposed, not that any particular registered server or owner credential was used.

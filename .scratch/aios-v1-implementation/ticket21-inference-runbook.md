@@ -1,5 +1,8 @@
 # Prepared single-request subscription inference test
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Preparation is complete; execution has not been authorized or run.
 Inspect `ticket21-inference-plan.json` and the reviewed
 `ticket21-inference-test.mjs` before granting this one run.

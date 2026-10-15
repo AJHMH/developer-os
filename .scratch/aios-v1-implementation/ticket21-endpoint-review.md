@@ -1,5 +1,8 @@
 # Ticket 21: Codex relay endpoint and capability review
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Owner-selected fixed base: `5d99f1f`; this continues the same ticket. The parallel
 reviews covered `git diff 5d99f1f...HEAD` plus this incremental working diff and
 new fixture/acceptance files.

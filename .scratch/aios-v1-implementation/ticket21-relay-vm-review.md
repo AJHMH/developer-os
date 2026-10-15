@@ -1,5 +1,8 @@
 # Ticket 21: relay and VM fixture review
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Review base: owner-selected `5d99f1f`; this continues the same implementation.
 Incremental reviews were run in parallel on the existing Spec and Standards
 review agents. The fixed inference plan is preparation, not execution approval.

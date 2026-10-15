@@ -1,5 +1,8 @@
 # Profile-page pilot readiness
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Read-only inspection on 7 October 2026. Selected pilot: [AJHMH/profile-page](https://github.com/AJHMH/profile-page). No secrets read and no repository or GitHub changes made.
 
 ## Local evidence

@@ -1,5 +1,7 @@
 # Merged main verification
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 `monitor-main-checks --id <delivery-id>` observes configured main checks after a
 confirmed merge. The controlled public-controller adapter is read-only; the CLI
 has no native main observer and refuses unqualified monitoring.

@@ -1,13 +1,8 @@
 # Factory onboarding
 
-Developer OS joins `AJHMH/profile-page` as a separate Factory consumer. This
-proposal targets the full TypeScript CLI through distribution 1.1.0's
-`node-24-typescript-cli` profile. It does not replace profile-page or alter its pin.
+Developer OS is an implemented Factory consumer alongside `AJHMH/profile-page`, using the `node-24-typescript-cli` profile. Consumer adoption was merged; full certification remains unverified in retained evidence.
 
-`factory.lock.yaml`, `factory-contract.yaml` and the two immutable reusable calls
-declare the proposed adoption. The lock and both calls now pin the reviewed Factory PR #68 schema-correction merge SHA
-`cc5913bfe31a386d8105f84a7f42556548fe353c`. The external Actions variable
-`FACTORY_DISTRIBUTION_REVISION` must independently select that same SHA.
+`factory.lock.yaml` and both reusable calls currently pin distribution 1.1.0 at `3f64904a7a71985382fa5d5da29cc0e0610d5d2c`. This supersedes the earlier PR #68 pin. The independent GitHub variable must match; its current remote value was not re-read in this documentation audit. [Hosted approval-refresh evidence](../.scratch/factory-approval-refresh/hosted-validation-20261014.md) records successful adoption, CodeQL and native CI at its recorded revision.
 
 Native CI runs typecheck, formatting, all tests and build on Node 24. CodeQL scans
 the full TypeScript CLI and GitHub Actions at the exact source revision. The
@@ -16,7 +11,7 @@ review reports. A successful main push produces the compiled CLI bundle and SBOM
 Certification dispatch uses that producer, the matching merged PR and the six
 unchanged passing reports; validation alone is not certification.
 
-Before certification, the operator must authorize the approved pin and additive
+For certification, the operator must verify the approved pin and additive
 no-bypass branch protection requiring all eight Factory checks, native CI and
 both CodeQL checks. Require one actual owner approval, signed commits, resolved
 threads, stale dismissal, linear history and protection against deletion and

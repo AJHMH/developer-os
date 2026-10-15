@@ -1,6 +1,9 @@
 # AIOS v1 implementation ticket breakdown — draft
 
-Status: awaiting owner review
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
+Status: superseded — published implementation tickets exist at ../aios-v1-implementation/README.md
 
 Source: [approved specification](spec.md). Proposed publication: one ticket per file in a separate `aios-v1-implementation` local tracker effort, leaving the resolved wayfinder tickets and parent specification unchanged.
 
