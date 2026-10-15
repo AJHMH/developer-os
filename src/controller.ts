@@ -1,4 +1,11 @@
 import {
+  MergeCoordinator,
+  mergePending,
+  mergeSealed,
+  type MergeRuntime,
+  type MergeEvidence,
+} from "./conditional-merge.js";
+import {
   ReviewCoordinator,
   unresolvedReviewEffect,
   type ReviewRuntime,
@@ -90,6 +97,7 @@ import {
   featurePlan,
   candidateSource,
   candidateMainSource,
+  candidateRevisionFiles,
   featureBranch,
   candidateOutput,
   candidateDigest,
@@ -218,6 +226,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  mergeRuntime?: MergeRuntime;
   reviewRuntime?: ReviewRuntime;
   prChecksRuntime?: PRChecksRuntime;
   publicationRuntime?: PublicationRuntime;
@@ -235,6 +244,7 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  merge?: MergeEvidence;
   review?: ReviewEvidence;
   prChecks?: PRChecksEvidence;
   publicationHistory?: PublicationEvidence[];
@@ -255,7 +265,8 @@ export interface Delivery {
     | "publishing"
     | "waiting-checks"
     | "waiting-review"
-    | "ready-to-merge";
+    | "ready-to-merge"
+    | "merged";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -872,6 +883,171 @@ export class DeliveryController {
     });
   }
 
+  private requireMergeIdle(id: string) {
+    if (mergeSealed(this.status(id)))
+      throw new DeliveryError(
+        "Reconcile merge before changing candidate or review state; a merged candidate is sealed.",
+      );
+  }
+  private mergeCoordinator(id: string) {
+    return new MergeCoordinator(
+      {
+        status: () => this.status(id),
+        change: (update) => this.change(id, update),
+        input: (d) => this.prChecksInput(id, d).publication,
+        observe: (p) => this.observe(p),
+        refresh: async () => {
+          this.invalidateReviewApproval(id);
+          await this.prChecksCoordinator(id).monitor(true);
+          await this.reviewCoordinator(id).monitor();
+        },
+        ready: (d) => {
+          const p = d.publication,
+            r = d.review?.runs.at(-1);
+          return !!(
+            p &&
+            r?.publicationId === p.id &&
+            r.outcome === "approved" &&
+            r.approval?.head === p.commit &&
+            !r.activeObservation &&
+            r.bindingSha256 ===
+              this.coordination.reviewRuntime?.bindingSha256 &&
+            this.reviewChecksPassed(d) &&
+            !unresolvedReviewEffect(d)
+          );
+        },
+      },
+      this.coordination.mergeRuntime,
+    );
+  }
+  async mergeFeature(id: string): Promise<Delivery> {
+    try {
+      return await this.mergeCoordinator(id).merge();
+    } catch {
+      throw new DeliveryError(
+        "Merge requires fresh approved-head gates and qualified conditional authority; native merge remains disabled.",
+      );
+    }
+  }
+  async reconcileMerge(id: string): Promise<Delivery> {
+    try {
+      return await this.mergeCoordinator(id).reconcile();
+    } catch {
+      throw new DeliveryError(
+        "Merge reconciliation requires the retained operation and same trusted binding.",
+      );
+    }
+  }
+
+  async refreshMergeBase(id: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
+    const snapshot = this.status(id),
+      a = snapshot.merge?.attempts.at(-1),
+      p = snapshot.publication ?? snapshot.publicationHistory?.at(-1);
+    if (
+      !snapshot.ownership.held ||
+      snapshot.phase !== "blocked" ||
+      !a?.advancedBase ||
+      a.state !== "blocked" ||
+      !p ||
+      p.id !== a.publicationId ||
+      this.coordination.mergeRuntime?.bindingSha256 !== a.bindingSha256 ||
+      unresolvedReviewEffect(snapshot)
+    )
+      throw new DeliveryError(
+        "Refresh requires a retained advanced-main observation and stopped owned candidate.",
+      );
+    const prior = snapshot.repair?.attempts.at(-1);
+    if (
+      !snapshot.publication &&
+      prior?.baseRefresh?.to === a.advancedBase &&
+      prior.state === "stopped" &&
+      prior.outcome === "passed"
+    )
+      return snapshot;
+    const r = snapshot.repair;
+    if (
+      r &&
+      (r.attempts.some((x) => x.state !== "stopped") ||
+        r.activeMs >= r.allowanceMs ||
+        r.attempts.length >= r.allowanceCycles)
+    )
+      throw new DeliveryError(
+        "Base refresh requires remaining repair allowance; preserve work and request an owner extension.",
+      );
+    const source = candidateMainSource(snapshot.repository, p.defaultBranch);
+    if (source.revision !== a.advancedBase)
+      throw new DeliveryError(
+        "Fetch and verify clean local main at the observed revision before refresh; never discard local work.",
+      );
+    // Read-only authority check before retiring the old publication. Fresh review
+    // and checks are deliberately required only after the repaired publication.
+    const onboarding = inspectOnboarding(
+      snapshot.repository,
+      this.onboardingOptions,
+    );
+    if (
+      !onboarding.ready ||
+      onboarding.policy?.sha256 !== p.policySha256 ||
+      this.repositoryKey(snapshot.repository, onboarding) !==
+        snapshot.ownership.key
+    )
+      throw new DeliveryError("Base refresh authority changed.");
+    const remote = await this.observe(
+      this.coordination.mergeRuntime!.observe({
+        repository: p.repository,
+        number: p.pullRequest!.number,
+        head: p.commit!,
+      }),
+    );
+    if (
+      !remote ||
+      remote.complete !== true ||
+      remote.repository !== p.repository ||
+      remote.number !== p.pullRequest!.number ||
+      remote.head !== p.commit ||
+      remote.base !== p.defaultBranch ||
+      remote.baseRevision !== source.revision ||
+      remote.policySha256 !== p.policySha256 ||
+      remote.state !== "open" ||
+      remote.mergeAllowed !== true ||
+      remote.protectionsEnforced !== true ||
+      remote.actor !== p.publicationLogin
+    )
+      throw new DeliveryError("Base refresh remote authority changed.");
+    this.change(id, (d) => {
+      if (
+        d.ownership.fence !== snapshot.ownership.fence ||
+        d.phase !== "blocked" ||
+        mergeSealed(d) ||
+        d.publication?.id !== snapshot.publication?.id ||
+        d.merge?.attempts.at(-1)?.operationId !== a.operationId
+      )
+        throw new DeliveryError("Base refresh generation changed.");
+      if (d.publication) {
+        (d.publicationHistory ??= []).push(d.publication);
+        delete d.publication;
+      }
+      d.merge!.refresh = {
+        publicationId: p.id,
+        from: p.sourceRevision,
+        to: source.revision,
+      };
+      const review = d.review?.runs.at(-1);
+      if (review) {
+        delete review.approval;
+        review.outcome = "waiting";
+      }
+    });
+    return this.repairCandidate(
+      id,
+      [
+        "Integrate the retained candidate with verified advanced main; preserve both changes and revalidate.",
+      ],
+      { from: p.sourceRevision, to: source.revision },
+    );
+  }
+
   private reviewInput(id: string, observed?: Delivery) {
     const d = observed ?? this.status(id),
       { publication } = this.prChecksInput(id, d),
@@ -903,6 +1079,7 @@ export class DeliveryController {
     );
   }
   async monitorReview(id: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       this.invalidateReviewApproval(id);
       await this.prChecksCoordinator(id).monitor(true);
@@ -957,6 +1134,7 @@ export class DeliveryController {
     );
   }
   async resolveReviewThread(id: string, threadId: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       this.invalidateReviewApproval(id);
       await this.prChecksCoordinator(id).monitor(true);
@@ -968,6 +1146,7 @@ export class DeliveryController {
     }
   }
   async repairReview(id: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       let d = this.status(id);
       if (d.publication) {
@@ -1090,6 +1269,7 @@ export class DeliveryController {
     );
   }
   async monitorPRChecks(id: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       this.invalidateReviewApproval(id);
       return await this.prChecksCoordinator(id).monitor();
@@ -1100,6 +1280,7 @@ export class DeliveryController {
     }
   }
   async rerunPRCheck(id: string, checkId: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       return await this.prChecksCoordinator(id).rerun(checkId);
     } catch {
@@ -1110,6 +1291,7 @@ export class DeliveryController {
   }
 
   async repairPRChecks(id: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       return await this.repairHostedChecks(id);
     } catch {
@@ -1307,6 +1489,7 @@ export class DeliveryController {
   }
 
   async publishFeature(id: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       this.invalidateReviewApproval(id);
       if (unresolvedReviewEffect(this.status(id)))
@@ -1320,6 +1503,7 @@ export class DeliveryController {
   }
 
   async reconcilePublication(id: string): Promise<Delivery> {
+    this.requireMergeIdle(id);
     try {
       return await this.publicationCoordinator(id).reconcile();
     } catch {
@@ -1402,7 +1586,14 @@ export class DeliveryController {
       snapshot.repository,
       onboarding.canonicalRepository!.defaultBranch,
     );
-    if (stage === "baseline" && snapshot.feature.session)
+    if (
+      stage === "baseline" &&
+      snapshot.feature.session &&
+      !(
+        repairId &&
+        snapshot.repair?.attempts.at(-1)?.baseRefresh?.to === source.revision
+      )
+    )
       throw new DeliveryError("Baseline must precede coding.");
     if (
       stage === "candidate" &&
@@ -1910,13 +2101,27 @@ export class DeliveryController {
     id: string,
     reviewFindings: string[] = [],
   ): Promise<Delivery> {
+    return this.repairCandidate(id, reviewFindings);
+  }
+
+  private async repairCandidate(
+    id: string,
+    reviewFindings: string[],
+    baseRefresh?: { from: string; to: string },
+  ): Promise<Delivery> {
     if (this.status(id).publication)
       throw new DeliveryError(
         "Published candidate updates require a new validated publication protocol.",
       );
     const snapshot = this.status(id),
       feature = snapshot.feature,
-      validation = snapshot.validation?.attempts.at(-1);
+      validation = baseRefresh
+        ? snapshot.validation?.attempts.findLast(
+            (v) =>
+              v.stage === "candidate" &&
+              v.treeSha256 === feature?.candidate?.sha256,
+          )
+        : snapshot.validation?.attempts.at(-1);
     if (
       !snapshot.ownership.held ||
       !["blocked", "preparing"].includes(snapshot.phase) ||
@@ -1976,6 +2181,7 @@ export class DeliveryController {
         ...(d.prChecks?.runs.at(-1)?.outcome === "repairing"
           ? { prCheckRunId: d.prChecks.runs.at(-1)!.id }
           : {}),
+        ...(baseRefresh ? { baseRefresh } : {}),
         id: attemptId,
         fence: d.ownership.fence,
         runnerId: this.runnerId,
@@ -1994,6 +2200,33 @@ export class DeliveryController {
     if (prepared.repair!.attempts.at(-1)?.id !== attemptId) return prepared;
     let passed = false;
     try {
+      if (baseRefresh) {
+        this.change(id, (d) => {
+          d.feature!.sourceRevision = baseRefresh.to;
+        });
+        const source = candidateMainSource(
+          snapshot.repository,
+          snapshot.publicationHistory!.at(-1)!.defaultBranch,
+        );
+        if (
+          !passedBaseline(
+            snapshot.validation,
+            source.digest,
+            source.revision,
+            snapshot.authorityPolicySha256,
+            validationCriteria(snapshot.feature!),
+            this.coordination.validationRuntime?.bindingSha256,
+          )
+        ) {
+          const baseline = await this.validateFeatureTree(
+            id,
+            "baseline",
+            attemptId,
+          );
+          if (baseline.validation?.attempts.at(-1)?.outcome !== "passed")
+            throw Error("Advanced baseline failed");
+        }
+      }
       const coded = await this.executeFeature(id, {}, attemptId);
       if (
         coded.feature?.outcome === "admitted" &&
@@ -2341,7 +2574,7 @@ export class DeliveryController {
       featureBranch(
         snapshot.repository,
         prepared.feature!.branch!,
-        source.revision,
+        snapshot.publicationHistory?.[0]?.sourceRevision ?? source.revision,
       );
       if (!checkpoint()) throw Error();
       result = await Promise.race([
@@ -2386,6 +2619,21 @@ export class DeliveryController {
           },
           argv,
           files: input.files,
+          ...(repairId && snapshot.repair?.attempts.at(-1)?.baseRefresh
+            ? {
+                baseRefresh: {
+                  from: {
+                    revision:
+                      snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
+                    files: candidateRevisionFiles(
+                      snapshot.repository,
+                      snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
+                    ),
+                  },
+                  to: { revision: source.revision, files: source.files },
+                },
+              }
+            : {}),
           pins: structuredClone(runtime.pins),
           allowanceMs:
             this.featureBudget(prepared).allowanceMs -
@@ -2442,7 +2690,7 @@ export class DeliveryController {
       featureBranch(
         snapshot.repository,
         prepared.feature!.branch!,
-        source.revision,
+        snapshot.publicationHistory?.[0]?.sourceRevision ?? source.revision,
       );
       const output = await this.observe(runtime.collect(session));
       if (
@@ -2467,7 +2715,7 @@ export class DeliveryController {
       featureBranch(
         snapshot.repository,
         prepared.feature!.branch!,
-        source.revision,
+        snapshot.publicationHistory?.[0]?.sourceRevision ?? source.revision,
       );
       if (repairId)
         protectValidationInputs(
@@ -3492,6 +3740,8 @@ export class DeliveryController {
   }
 
   resume(id: string): Delivery {
+    if (mergePending(this.status(id)))
+      throw new DeliveryError("Reconcile merge before this control.");
     return this.change(id, (delivery, db) => {
       if (
         delivery.publication?.effects.some(
@@ -3603,6 +3853,7 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (mergeSealed(this.status(id))) return this.reconcileMerge(id);
     if (
       this.status(id).publication?.outcome === "published" &&
       this.status(id).review
@@ -3713,6 +3964,8 @@ export class DeliveryController {
   }
 
   release(id: string): Delivery {
+    if (mergePending(this.status(id)))
+      throw new DeliveryError("Reconcile merge before this control.");
     return this.change(id, (delivery, db) => {
       if (
         delivery.publication?.effects.some(

@@ -87,6 +87,16 @@ export interface CodingSession {
   threadId?: string;
 }
 export interface CodingRequest extends CodingSession {
+  baseRefresh?: {
+    from: {
+      revision: string;
+      files: { path: string; bytes: Buffer; executable: boolean }[];
+    };
+    to: {
+      revision: string;
+      files: { path: string; bytes: Buffer; executable: boolean }[];
+    };
+  };
   argv: string[];
   branch: string;
   sourceRevision: string;
@@ -327,6 +337,42 @@ export function candidateSource(repository: string, expected?: string) {
     (file, index) => ({ ...file, executable: manifest[index]!.executable }),
   );
   return { revision, files, digest: candidateDigest(JSON.stringify(manifest)) };
+}
+/** Read an immutable previous baseline after a clean current source was verified. */
+export function candidateRevisionFiles(repository: string, revision: string) {
+  if (!/^[a-f0-9]{40}$/.test(revision))
+    throw Error("Invalid baseline revision");
+  const entries = candidateGit(repository, ["ls-tree", "-r", "-z", revision])
+    .toString()
+    .split("\0")
+    .filter(Boolean);
+  let total = 0;
+  const paths = new Set<string>();
+  if (entries.length > 10000) throw Error("Oversized baseline");
+  return entries.map((entry) => {
+    const match = entry.match(/^(100644|100755) blob [a-f0-9]{40}\t(.+)$/s);
+    if (
+      !match ||
+      !admittedPath(match[2]!) ||
+      /(?:^|\/)\.git(?:config|modules|attributes)$/i.test(match[2]!)
+    )
+      throw Error("Unsafe baseline entry");
+    const path = match[2]!,
+      key = path.normalize("NFC").toLowerCase();
+    if (paths.has(key)) throw Error("Ambiguous baseline path");
+    paths.add(key);
+    const bytes = candidateGit(repository, [
+      "cat-file",
+      "blob",
+      revision + ":" + path,
+    ]);
+    if (
+      bytes.length > 16 * 1024 * 1024 ||
+      (total += bytes.length) > 128 * 1024 * 1024
+    )
+      throw Error("Oversized baseline");
+    return { path, bytes, executable: match[1] === "100755" };
+  });
 }
 export function featureBranch(
   repository: string,
