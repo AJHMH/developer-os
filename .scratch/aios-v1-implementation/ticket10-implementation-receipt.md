@@ -86,3 +86,32 @@ exclusions and timeouts are unchanged.
   bodies were verified byte-for-byte unchanged after extraction.
 - The 21 retained snapshots remain outside the change. Native qualification
   requirements above remain open.
+
+## Windows CI sharding
+
+The main Windows job took 18m28s before ticket 10; both PR 32 runs exceeded
+its 20-minute limit. Focused Factory App diagnostic run 38664085816 passed all
+17 review tests, taking 470.9 combined seconds across three isolated jobs.
+Run 38664531332 measured 301 synchronous Git launches consuming 14.5 of
+16.3 seconds in one review scenario. This is measured Git process overhead,
+not evidence that Windows ACL helpers caused that scenario's cost.
+
+The Windows workflow now runs Node's complete test discovery in four disjoint
+built-in shards, each with a ten-minute job budget and two concurrent files.
+Every shard retains install, typecheck, format and build checks. The exact required
+check `Validate Developer OS CLI (Windows)` is an always-running aggregate that
+passes only when every shard succeeds. Failed, cancelled or skipped dependencies
+fail it. TAP logs are uploaded for each shard. Linux/macOS commands are unchanged.
+
+Local validation ran all four exact shard commands: 466 tests total, 464 passed,
+two platform skips, zero failures. Shards completed in 55.5, 127.8, 92.8 and
+116.7 seconds on macOS. Workflow YAML parsed and the aggregate shell condition
+rejected every non-success result. Independent Standards and Spec reviews found
+no actionable findings and confirmed complete, disjoint Node test discovery.
+Hosted Windows timing confirmation is required after publishing.
+
+The separate expiry flake remains unproven: 15 focused Windows repetitions passed;
+the concurrent diagnostic's background review process exceeded its wait, making
+that load experiment inconclusive. No assertions, test exclusions, production
+behavior, or coverage thresholds were changed. All 21 retained snapshots remain
+outside this change. Native qualification requirements remain open.
