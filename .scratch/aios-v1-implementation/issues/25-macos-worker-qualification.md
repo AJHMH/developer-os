@@ -1,10 +1,13 @@
 # 25: Independently qualify the macOS worker path
 
+**Completion reconciliation — 15 October 2026:** Fixed synthetic worker acceptance is complete, as recorded in the [retained receipt](../ticket25-macos-validation-20261013.md) and merged history. This does not close parent 04 or full-controller tickets 15–17. Earlier review/not-run statements below describe historical milestones; production remains disabled.
+
+
 **What to build:** Deliver the same controller/worker contract on macOS 14+ Apple silicon with an explicitly selected, supported VM provider and independent live evidence for every required control. Portability work stays inside this verifiable host slice. Missing macOS infrastructure reports blocked/not-run and keeps execution disabled; Windows evidence is not inherited. Existing ticket 16 remains the later complete-controller delivery qualification.
 
 **Blocked by:** 24.
 
-**Status:** ready-for-human
+**Status:** completed
 
 ## Parent and governing contract
 

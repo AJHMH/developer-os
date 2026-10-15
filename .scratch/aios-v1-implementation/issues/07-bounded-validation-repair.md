@@ -1,5 +1,8 @@
 # 07: Repair validation findings within persisted allowances
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** A failed candidate check returns a batch of findings to the isolated worker, revalidates the resulting change and either progresses with evidence or stops with a preserved repair-budget blocker.
 
 **Blocked by:** 06: [Validate baseline and candidate behavior inside isolation](06-isolated-validation.md).

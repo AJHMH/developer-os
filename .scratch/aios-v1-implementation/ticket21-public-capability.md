@@ -1,5 +1,8 @@
 # Ticket 21 public capability decision
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 The successful approved run `55f1cce4-6ea9-484d-8433-51e5cf6ed98f` is endorsed
 in private external controller state as
 `subscription-decision-29727630-9a13-4050-a217-7a554b04448e.json`.

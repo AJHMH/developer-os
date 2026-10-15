@@ -1,5 +1,7 @@
 # Windows worker qualification
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Use this runbook when preparing, resuming or reviewing native Windows acceptance.
 Automatic CI runs the credential-free suite on Windows, macOS and Linux. Native
 VM acceptance, protected account inspection and inference are explicit operator

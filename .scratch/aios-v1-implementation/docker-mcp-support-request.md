@@ -1,5 +1,8 @@
 # Support request: supported MCP isolation for local Docker Sandboxes
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 **Subject:** Docker Sandboxes 0.47.0 on Windows: disable automatic MCP gateway or enforce an immutable empty capability set
 
 Hello Docker Support,

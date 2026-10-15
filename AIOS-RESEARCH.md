@@ -1,5 +1,8 @@
 # Building an AIOS: research and implementation blueprint
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](docs/implementation-status.md).
+
+
 Researched 7 October 2026. Scope: a developer-focused agent operating runtime over an existing host OS. This is a research report, not an implemented system.
 
 ## Recommendation

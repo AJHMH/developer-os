@@ -1,10 +1,13 @@
 # 24: Qualify the Windows production worker path
 
+**Completion reconciliation — 15 October 2026:** Fixed synthetic worker acceptance is complete, as recorded in the [retained receipt](../ticket24-windows-main-repair.md) and merged history. This does not close parent 04 or full-controller tickets 15–17. Earlier review/not-run statements below describe historical milestones; production remains disabled.
+
+
 **What to build:** Deliver the complete Windows worker-boundary qualification report through real controller/CLI integration, combining exact pins, admitted transfer, offline/online controls, authentication, allowance gates and fencing/recovery. Run a synthetic end-to-end worker task and isolated validation with safe result collection. Enable only the qualified host/binding; failures remain blockers. This does not replace later signed publication, approval, merge or full pilot qualification.
 
 **Blocked by:** 22, 23.
 
-**Status:** ready-for-human
+**Status:** completed
 
 ## Parent and governing contract
 

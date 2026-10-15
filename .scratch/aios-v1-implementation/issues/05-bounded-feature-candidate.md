@@ -1,5 +1,8 @@
 # 05: Implement a bounded feature and safely admit the worker result
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** A feature request becomes observable acceptance criteria, a trusted feature branch and an explicit isolated Codex session. The controller safely imports stopped-worker output as a candidate, without publishing or declaring completed delivery.
 
 **Blocked by:** 04: [Launch an isolated worker with a fail-closed qualification gate](04-isolated-worker-gate.md).

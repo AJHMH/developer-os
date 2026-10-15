@@ -1,5 +1,7 @@
 # Automatic Factory human-approval refresh
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Developer OS observes owner reviews submitted, edited or dismissed on an open
 same-repository PR targeting main. After bootstrap, the trusted default-branch
 worker reruns only the two original required Factory jobs:
@@ -63,7 +65,7 @@ in `FACTORY_GITHUB_TOKEN`; apply additionally needs Actions write:
 node scripts/refresh-factory-approvals.mjs --mode inspect \
   --repository AJHMH/developer-os --trigger-run REVIEW_OBSERVER_RUN_ID \
   --trusted-revision EXACT_PR_BASE_SHA \
-  --approved-factory-revision cc5913bfe31a386d8105f84a7f42556548fe353c
+  --approved-factory-revision 3f64904a7a71985382fa5d5da29cc0e0610d5d2c
 ```
 
 Change `inspect` to `apply` to request reruns after validated preflight. Inspect

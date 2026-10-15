@@ -1,5 +1,8 @@
 # Developer AIOS v1: owner-approved feature delivery
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Status: superseded
 Canonical specification: [spec.md](spec.md)
 

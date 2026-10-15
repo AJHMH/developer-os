@@ -1,5 +1,8 @@
 # Windows qualification retrospective review
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Reviewed against `1c0f61470ea008d7eff48b22f2923af8ccf4f0d7` on 12 October 2026.
 Spec: `.scratch/windows-qualification-retro/spec.md`.
 

@@ -1,5 +1,8 @@
 # Ticket 24 Windows qualification report
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 `DeliveryController.qualificationReport(id)` and CLI
 `qualification-report --id <delivery-id>` emit the latest version-bound Windows
 worker qualification snapshot without running probes or changing delivery

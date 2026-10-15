@@ -1,5 +1,8 @@
 # Ticket 24: Windows qualification on main 1b5b545
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Status: blocked at `codex-persistence-read-error`; no executable inference plan.
 Windows only; not ready for macOS handoff. The first cycle's refusal below is
 historical; see the separately approved second cycle at the end.

@@ -1,5 +1,8 @@
 # 08: Publish signed code and create an App-authored PR
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** A validated candidate is signed through the trusted configured Git identity, published to the onboarded repository and proposed as a Software Factory App-authored PR, preserving independent owner review eligibility.
 
 **Blocked by:** 07: [Repair validation findings within persisted allowances](07-bounded-validation-repair.md).

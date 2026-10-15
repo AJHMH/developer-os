@@ -1,5 +1,8 @@
 # 04: Launch an isolated worker with a fail-closed qualification gate
 
+**Current scope — 15 October 2026:** Independent fixed Windows and Mac worker qualifications now pass all nine checks (tickets 24–25), including fixed authentication, online controls, inference and isolated task validation. Earlier statements that these have never run are historical. Generalized production admission remains open; this ticket is not closed beyond its demonstrated fixture scope. See [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** The controller runs a sandbox qualification probe, records version-bound host evidence and starts/stops a pinned microVM worker only under admitted workspace, model-only credential and network policy. Unsafe or unverifiable configurations refuse launch.
 
 **Blocked by:** 02: [Report repository onboarding readiness without changing setup](02-onboarding-readiness.md); 03: [Queue, pause, cancel and recover repository-owned deliveries](03-ownership-pause-recovery.md).

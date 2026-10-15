@@ -1,5 +1,8 @@
 # Ticket 24 PR readiness
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Branch: codex/ticket24-windows-worker. Proposed base: main.
 
 The proposal combines protected Windows subscription storage, trusted capability

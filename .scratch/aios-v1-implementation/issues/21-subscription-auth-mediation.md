@@ -1,5 +1,8 @@
 # 21: Qualify model-only subscription authentication mediation
 
+**Current scope — 15 October 2026:** Independent fixed Windows and Mac worker qualifications now pass all nine checks (tickets 24–25), including fixed authentication, online controls, inference and isolated task validation. Earlier statements that these have never run are historical. Generalized production admission remains open; this ticket is not closed beyond its demonstrated fixture scope. See [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** Deliver a capability decision through qualification/status: a supported mediation mechanism must separate subscription inference from reusable owner credentials, host MCP/discovery and publication authority. Test credential-free protocol/capability canaries before any authorized live inference. Unsupported or unverifiable mediation reports an actionable blocker; do not copy owner authentication files, buy credits or substitute paid API access. A negative finding completes the investigation but leaves the production gate blocked and requires an owner tradeoff decision; it does not satisfy this ticket's positive qualification criteria.
 
 **Blocked by:** 18.

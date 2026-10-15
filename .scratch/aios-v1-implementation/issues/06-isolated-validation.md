@@ -1,5 +1,8 @@
 # 06: Validate baseline and candidate behavior inside isolation
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** The delivery validates unchanged main before coding and the final candidate afterward, returning complete revision-bound evidence or blockers for the declared formatting, lint, type, coverage, build and feature-specific checks.
 
 **Blocked by:** 05: [Implement a bounded feature and safely admit the worker result](05-bounded-feature-candidate.md).

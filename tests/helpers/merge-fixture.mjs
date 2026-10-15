@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { DeliveryController } from "../../dist/controller.js";
 import { reviewed } from "./review-fixture.mjs";
 
-export async function mergeFixture(t) {
-  const f = await reviewed(t);
+export async function mergeFixture(t, configurePolicy) {
+  const f = await reviewed(t, configurePolicy);
   f.merges = [];
   f.mergeSnapshot = () => {
     const d = f.controller.status(f.delivery.id);

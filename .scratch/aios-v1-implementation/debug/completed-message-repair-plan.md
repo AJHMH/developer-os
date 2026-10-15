@@ -1,5 +1,8 @@
 # Completed-message consistency: proposed repair
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 ## Observed diagnosis
 
 Latest exact approved run and safe receipt: `../ticket21-gateway-inference-observation.json`. Approval consumed; one provider attempt; usage may have been consumed. No retries, refresh or paid fallback. The receipt contains event types and fixed-marker comparison flags only, not provider content.

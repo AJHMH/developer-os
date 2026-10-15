@@ -1,3 +1,6 @@
+
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](docs/implementation-status.md).
+
 This is the end-to-end picture, built from the foundations upward. Where a claim comes from a source I found, it's cited. The build order, the code and the table mappings are my own synthesis from those sources.
 
 ## 1. The foundational truths

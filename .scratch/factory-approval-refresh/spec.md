@@ -1,5 +1,8 @@
 # Automatic Factory consumer approval refresh
 
+Status: completed within the hosted scope recorded in [validation receipt](hosted-validation-20261014.md). Current review authority is still required for each PR/head; this feature supplies no approval itself.
+
+
 Developer OS reruns its two existing Factory human-approval jobs after the owner
 submits, edits or dismisses a review. The refresh requests a fresh evaluation;
 it never approves a PR, grants approval, replaces a check, merges or alters rules.

@@ -1,3 +1,6 @@
+
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](docs/implementation-status.md).
+
 If I were designing an Agentic OS from scratch today, I would stop thinking about it as "ChatGPT with tools" and start thinking about it as a new operating system whose processes happen to be AI agents.
 
 The biggest mistake most builders make is starting with prompts. Operating systems are not built around applications. They are built around kernels, schedulers, memory, permissions, and device interfaces. The same principle applies to Agentic OS design.

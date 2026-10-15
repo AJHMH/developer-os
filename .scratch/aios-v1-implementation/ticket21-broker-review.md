@@ -1,5 +1,8 @@
 # Ticket 21 broker review
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Base: `5d99f1f0371bd55eb0cdc9be40d7f9eb4c463ccd`.
 Implementation: `62df578`, with review corrections in the following commit.
 Scope: separate macOS authentication setup, preceding live owner consent.

@@ -1,5 +1,8 @@
 # Remaining local-only validation review — 14 October 2026
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 Reviewed all 112 original local-only files against the committed macOS qualification receipt, continuation history and tracked issues. These files are historical logs, diagnostic measurements, policy enrollments and host/controller snapshots; none is an unfinished source-code implementation.
 
 ## Unfinished work

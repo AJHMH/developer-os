@@ -1,5 +1,8 @@
 # Podman Hyper-V prototype progress — 7 October 2026
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Question: can a dedicated Podman Hyper-V VM meet ticket #4 host-authority isolation without Docker's automatic MCP gateway?
 
 Actual progress: Podman 6.0.2 located at the user's LocalAppData Programs/Podman/podman.exe; persistent PATH in this Codex session was stale. Local machine-init help revealed default mounts for the user home, C: drive, and host containers configuration. Task-local CONTAINERS_CONF sets [machine] volumes=[]; no persistent configuration was edited. Existing Git OpenSSH binaries supplied only on the task process PATH, because Windows OpenSSH ssh-keygen was unavailable.

@@ -1,5 +1,8 @@
 # Factory readiness on macOS
 
+**Status reconciliation — 15 October 2026:** Consumer CI adoption and approval refresh are implemented and merged. Earlier missing-workflow/governance/schema observations below belong to their recorded revisions; local configuration now pins Factory `3f64904a7a71985382fa5d5da29cc0e0610d5d2c`. No successful certification receipt was found, so full certification remains open. Current remote secrets/protections were not re-inspected. See [implementation status](implementation-status.md).
+
+
 Inspected 10 October 2026 at consumer revision
 `a03269b71b7aa333466d329a86b05461d5ca65ae`.
 

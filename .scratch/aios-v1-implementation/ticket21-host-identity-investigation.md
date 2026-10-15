@@ -1,5 +1,8 @@
 # Synthetic preparation blocked by host identity drift
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 The diagnostics were signed and committed in `e229d8a` after loading the existing SSH key using the saved macOS Keychain passphrase. No key/passphrase material was retained. No live inference was executed.
 
 Fresh preparation refused in the native observe binding equality check. A bounded diagnostic reported only `hostId` differs from the v2 external policy; all other binding fields match. No running rootless/rootful containers were present. Engine and VM management connectivity worked. The current identity formula matches the native implementation; client version remains 6.1.1. Alternate configured Mac hostname variants did not reproduce the old hash with the current VM UUID.

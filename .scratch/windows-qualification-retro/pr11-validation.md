@@ -1,5 +1,8 @@
 # PR 11 validation repairs
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Base for corrective review: b8272e4317ce04e1cde37470cc3c68fd8d07dd91.
 
 Hosted macOS CI rejected fixture paths under the /var temporary-directory alias.

@@ -1,5 +1,7 @@
 # Isolated baseline and candidate validation
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Ticket 06 adds controlled validation through DeliveryController.validateBaseline,
 validateCandidate and stopValidation. Plan criteria first, validate unchanged clean
 main, then code and validate the admitted candidate. The CLI exposes
