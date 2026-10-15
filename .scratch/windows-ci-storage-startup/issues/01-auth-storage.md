@@ -23,3 +23,7 @@ Preserve the native 15-second bound and all ownership, ACL, link, registration a
 Diagnostic commit `82d0543`, CI run 38767949417, shard 2: the first helper operation was `initialize`, elapsed 15,096 ms, exit status null, `timedOut: true`, `signaled: true`. The next initialization passed in 7,518 ms; subsequent check/create/DPAPI operations passed in about 0.3–2.4 seconds. This establishes deadline exhaustion, not an observed ACL refusal. A separate shard-5 synthetic Python helper also exhausted its existing deadline on this run.
 
 Counterfactual under test: serialize test files within each of the eight Windows shards. Keep every test and all runtime and job deadlines unchanged. Successful native cold initialization under this schedule would support runner contention; no change to production storage enforcement is proposed.
+
+## Rejected scheduling hypothesis
+
+Serial file run `d0404df`, CI 38769070684, shard 2 still failed: first initialization timed out at 15,035 ms; the next initialization passed in 4,974 ms. Serialization alone does not fix this failure and is reverted. Fixed-label script milestones now distinguish process entry, module imports, path parsing and ACL application without recording any request, path or raw child error.

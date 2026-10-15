@@ -49,14 +49,13 @@ jobs:
       - run: npm run format:check
       - run: npm run build
       # Node partitions its complete discovered test inventory across these eight
-      # shards. Run one file at a time on each runner: competing file processes
-      # can starve cold Windows storage/Python helpers past their safety deadlines.
+      # shards. Keep two files per runner to bound native helper contention.
       - name: Run all tests assigned to this shard
         shell: pwsh
         env:
           TEST_SHARD: ${{ matrix.shard }}/8
         run: |
-          node --test --test-concurrency=1 --test-shard=$env:TEST_SHARD --test-reporter=tap 2>&1 | Tee-Object -FilePath windows-tests.tap
+          node --test --test-concurrency=2 --test-shard=$env:TEST_SHARD --test-reporter=tap 2>&1 | Tee-Object -FilePath windows-tests.tap
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: always()
