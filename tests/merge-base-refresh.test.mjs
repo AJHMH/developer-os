@@ -23,8 +23,11 @@ async function advanced(t) {
     "main advances",
   );
   const next = f.git("rev-parse", "HEAD");
+  // Exercise Windows-style Git defaults on every host.
+  f.git("config", "core.autocrlf", "true");
   // Restore local main so the remote change is detected at the merge boundary.
-  f.git("checkout", "-B", "main", "HEAD^");
+  // Keep checkout bytes identical to the LF bytes admitted by the fixture.
+  f.git("-c", "core.autocrlf=false", "checkout", "-B", "main", "HEAD^");
   f.mergeSnapshot = () => ({ ...observe(), baseRevision: next });
   let d = await f.controller.mergeFeature(f.delivery.id);
   assert.equal(d.merge.attempts.at(-1).advancedBase, next);
@@ -34,7 +37,7 @@ async function advanced(t) {
 
 test("advanced main is revalidated and integrated through bounded repair before signed publication and renewed approval", async (t) => {
   const { f, next } = await advanced(t);
-  f.git("merge", "--ff-only", next);
+  f.git("-c", "core.autocrlf=false", "merge", "--ff-only", next);
   let d;
   const collect = f.runtime.collect;
   f.runtime.collect = async (r) => {
@@ -92,7 +95,7 @@ test("unsafe local main and exhausted refresh allowance preserve the candidate a
     /clean local main/,
   );
   assert.ok(f.controller.status(f.delivery.id).publication);
-  f.git("merge", "--ff-only", next);
+  f.git("-c", "core.autocrlf=false", "merge", "--ff-only", next);
   writeFileSync(join(f.repository, "local.txt"), "unfinished work");
   await assert.rejects(f.controller.refreshMergeBase(f.delivery.id));
   const { unlinkSync } = await import("node:fs");
@@ -119,7 +122,7 @@ test("unsafe local main and exhausted refresh allowance preserve the candidate a
 
 test("coding failure after a passed advanced baseline remains retryable within cumulative allowance", async (t) => {
   const { f, next } = await advanced(t);
-  f.git("merge", "--ff-only", next);
+  f.git("-c", "core.autocrlf=false", "merge", "--ff-only", next);
   const execute = f.runtime.execute;
   f.runtime.execute = async () => {
     throw Error("worker failed");

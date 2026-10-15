@@ -62,3 +62,13 @@ acceptance boundary, and read-only reconciliation need observed qualification.
 The adapter must refuse APIs that cannot supply those semantics. Native execution
 and pilot delivery remain disabled. Main checks, safe synchronization and eligible
 branch cleanup are subsequent tickets; `merged` is not completed delivery.
+
+## PR #33 Windows checkout correction
+
+Hosted Windows shard 4 failed all three advanced-main tests in run 38674133512. Enabling `core.autocrlf=true` locally reproduced all three failures
+at the initial merge gate: checkout changed the admitted LF file bytes to CRLF.
+Pinning `core.autocrlf=false` only on the fixture checkout and fast-forward
+commands made the same forced-CRLF invocation pass all three tests (14.4 seconds).
+The fixture now explicitly enables Windows-style Git defaults on every host,
+while its materialization commands preserve the admitted bytes. Production
+source admission and all assertions remain unchanged.
