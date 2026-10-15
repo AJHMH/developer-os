@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 const root = fileURLToPath(new URL("../", import.meta.url)),
-  pin = "cc5913bfe31a386d8105f84a7f42556548fe353c";
+  pin = "3f64904a7a71985382fa5d5da29cc0e0610d5d2c";
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), "aios-refresh-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

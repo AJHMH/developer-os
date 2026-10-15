@@ -1,7 +1,7 @@
 schema_version: 1
 factory:
   repository: AJHMH/software-factory
-  revision: cc5913bfe31a386d8105f84a7f42556548fe353c
+  revision: 3f64904a7a71985382fa5d5da29cc0e0610d5d2c
   version: 1.1.0
   profile: node-24-typescript-cli
   policy_pack: baseline-1

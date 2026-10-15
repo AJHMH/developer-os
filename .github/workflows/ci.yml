@@ -8,14 +8,13 @@ permissions:
   contents: read
 jobs:
   validate:
-    name: Validate Developer OS CLI${{ matrix.os == 'macos-latest' && ' (macOS)' || matrix.os == 'windows-latest' && ' (Windows)' || '' }}
+    name: Validate Developer OS CLI${{ matrix.os == 'macos-latest' && ' (macOS)' || '' }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # Windows ACL-backed fixtures are slower; keep a bounded full-suite budget.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 20 || 10 }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -27,10 +26,53 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run format:check
-      # Windows ACL helpers spawn PowerShell; bound test-file concurrency to
-      # avoid starving their fixed management deadlines on hosted runners.
-      - run: npm test -- --test-concurrency=2
-        if: runner.os == 'Windows'
       - run: npm test
-        if: runner.os != 'Windows'
       - run: npm run build
+  windows-tests:
+    name: Windows CLI tests (${{ matrix.shard }}/4)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm run build
+      # Node partitions its complete discovered test inventory across these four
+      # shards. Keep two files per runner to bound native helper contention.
+      - name: Run all tests assigned to this shard
+        shell: pwsh
+        env:
+          TEST_SHARD: ${{ matrix.shard }}/4
+        run: |
+          node --test --test-concurrency=2 --test-shard=$env:TEST_SHARD --test-reporter=tap 2>&1 | Tee-Object -FilePath windows-tests.tap
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-tests-${{ matrix.shard }}
+          path: windows-tests.tap
+          if-no-files-found: warn
+          retention-days: 14
+  windows:
+    # Preserve the exact required check name; success requires every shard.
+    name: Validate Developer OS CLI (Windows)
+    needs: windows-tests
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require all Windows shards to pass
+        env:
+          WINDOWS_RESULT: ${{ needs.windows-tests.result }}
+        run: test "$WINDOWS_RESULT" = success

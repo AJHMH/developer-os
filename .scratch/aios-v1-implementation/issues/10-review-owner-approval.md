@@ -4,7 +4,7 @@
 
 **Blocked by:** 09: [Monitor trusted PR checks for the current revision](09-trusted-pr-checks.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 ## Source and governing contract
 
@@ -14,11 +14,21 @@ This is an implementation slice, separate from resolved wayfinder decisions. Uni
 
 ## Acceptance criteria
 
-- [ ] A conversation is resolved only after its straightforward fix has relevant verification evidence; disagreement/conflicting scope remains unresolved and is reported to the owner.
-- [ ] Review text cannot authorize credential access, scope/policy changes or new budgets; all fixes use existing repair allowance and check/publication evidence.
-- [ ] Only trusted eligible owner current-head APPROVED review satisfies the gate. Bot/self/stale/dismissed reviews and outstanding required changes do not.
-- [ ] No agent credentials submit an owner review; chat approval does not replace the GitHub review, and no separate merge instruction is added to valid approved-head authorization.
-- [ ] New commits invalidate review and checks; explicit session/allowance state survives review-fix restarts.
-- [ ] Approval wait has no deadline or repeated reminders; status records pending action while pause/cancel remain effective.
-- [ ] Public tests exercise review repair, disputed findings, identity/permission changes, exact-head invalidation and indefinite approval waiting with controlled time.
+- [x] A conversation is resolved only after its straightforward fix has relevant verification evidence; disagreement/conflicting scope remains unresolved and is reported to the owner.
+- [x] Review text cannot authorize credential access, scope/policy changes or new budgets; all fixes use existing repair allowance and check/publication evidence.
+- [x] Only trusted eligible owner current-head APPROVED review satisfies the gate. Bot/self/stale/dismissed reviews and outstanding required changes do not.
+- [x] No agent credentials submit an owner review; chat approval does not replace the GitHub review, and no separate merge instruction is added to valid approved-head authorization.
+- [x] New commits invalidate review and checks; explicit session/allowance state survives review-fix restarts.
+- [x] Approval wait has no deadline or repeated reminders; status records pending action while pause/cancel remain effective.
+- [x] Public tests exercise review repair, disputed findings, identity/permission changes, exact-head invalidation and indefinite approval waiting with controlled time.
 
+
+## Controlled implementation — 2026-10-14
+
+Checked criteria describe the controlled public-controller slice, with durable
+review repair, verified conversation resolution and exact-head owner approval.
+See [review contract](../../../docs/review-owner-approval.md) and
+[implementation receipt](../ticket10-implementation-receipt.md). Native review
+provenance, policy eligibility, scope assessment, conditional resolution and
+Windows/macOS credential/isolation qualification remain open. No native GitHub
+review adapter, approval submission or merge operation is enabled by this slice.

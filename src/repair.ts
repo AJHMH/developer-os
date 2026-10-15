@@ -2,6 +2,7 @@ import { redact } from "./redaction.js";
 import type { CodingSession } from "./feature-candidate.js";
 
 export interface RepairAttempt {
+  reviewRunId?: string;
   prCheckRunId?: string;
   id: string;
   fence: number;

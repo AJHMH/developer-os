@@ -1,4 +1,11 @@
 import {
+  ReviewCoordinator,
+  unresolvedReviewEffect,
+  type ReviewRuntime,
+  type ReviewEvidence,
+  type ReviewThread,
+} from "./review.js";
+import {
   PRChecksCoordinator,
   type PRChecksRuntime,
   type PRChecksEvidence,
@@ -211,6 +218,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  reviewRuntime?: ReviewRuntime;
   prChecksRuntime?: PRChecksRuntime;
   publicationRuntime?: PublicationRuntime;
   validationRuntime?: ValidationRuntime;
@@ -227,6 +235,7 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  review?: ReviewEvidence;
   prChecks?: PRChecksEvidence;
   publicationHistory?: PublicationEvidence[];
   publication?: PublicationEvidence;
@@ -245,7 +254,8 @@ export interface Delivery {
     | "validating"
     | "publishing"
     | "waiting-checks"
-    | "waiting-review";
+    | "waiting-review"
+    | "ready-to-merge";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -862,6 +872,180 @@ export class DeliveryController {
     });
   }
 
+  private reviewInput(id: string, observed?: Delivery) {
+    const d = observed ?? this.status(id),
+      { publication } = this.prChecksInput(id, d),
+      checks = d.prChecks?.runs.at(-1);
+    const checksPassed = !!(
+      checks &&
+      checks.publicationId === publication.id &&
+      checks.outcome === "passed" &&
+      !checks.activeObservation &&
+      this.coordination.prChecksRuntime?.bindingSha256 === checks.bindingSha256
+    );
+    return {
+      publication,
+      criteriaSha256: validationCriteria(d.feature!),
+      checksPassed,
+    };
+  }
+  private reviewCoordinator(id: string) {
+    return new ReviewCoordinator(
+      {
+        status: () => this.status(id),
+        change: (update) => this.change(id, update),
+        input: (d) => this.reviewInput(id, d),
+        observe: (p) => this.observe(p),
+        now: () => (this.coordination.clock ?? Date.now)(),
+        canResolve: (d, t) => this.reviewFixVerified(d, t),
+      },
+      this.coordination.reviewRuntime,
+    );
+  }
+  async monitorReview(id: string): Promise<Delivery> {
+    try {
+      this.invalidateReviewApproval(id);
+      await this.prChecksCoordinator(id).monitor(true);
+      return await this.reviewCoordinator(id).monitor();
+    } catch {
+      throw new DeliveryError(
+        "Review requires current validated publication, trusted checks, unchanged authority and a controlled review adapter; native review remains disabled.",
+      );
+    }
+  }
+
+  private invalidateReviewApproval(id: string) {
+    this.change(id, (d) => {
+      const run = d.review?.runs.at(-1);
+      if (run) {
+        delete run.approval;
+        if (run.outcome === "approved") run.outcome = "waiting";
+      }
+      if (d.phase === "ready-to-merge") d.phase = "waiting-review";
+    });
+  }
+  private reviewChecksPassed(d: Delivery): boolean {
+    const c = d.prChecks?.runs.at(-1);
+    return !!(
+      c &&
+      c.publicationId === d.publication?.id &&
+      c.outcome === "passed" &&
+      !c.activeObservation &&
+      c.bindingSha256 === this.coordination.prChecksRuntime?.bindingSha256
+    );
+  }
+  private reviewFixVerified(d: Delivery, thread: ReviewThread): boolean {
+    const a = d.repair?.attempts.at(-1),
+      p = d.publication,
+      old = d.review?.runs.find((r) => r.id === a?.reviewRunId);
+    const previous = d.publicationHistory?.at(-1);
+    return !!(
+      this.reviewChecksPassed(d) &&
+      p?.outcome === "published" &&
+      previous?.id === old?.publicationId &&
+      p.previous?.commit === previous?.commit &&
+      a?.state === "stopped" &&
+      a.outcome === "passed" &&
+      a.candidateSha256 === p.candidateSha256 &&
+      a.validationOperationId === p.validationOperationId &&
+      old?.repair?.threads.some(
+        (t) => t.id === thread.id && t.digest === thread.digest,
+      ) &&
+      thread.assessment?.disposition === "straightforward" &&
+      thread.assessment.criteriaSha256 === validationCriteria(d.feature!) &&
+      this.coordination.reviewRuntime?.bindingSha256 === old.bindingSha256
+    );
+  }
+  async resolveReviewThread(id: string, threadId: string): Promise<Delivery> {
+    try {
+      this.invalidateReviewApproval(id);
+      await this.prChecksCoordinator(id).monitor(true);
+      return await this.reviewCoordinator(id).resolve(threadId);
+    } catch {
+      throw new DeliveryError(
+        "Conversation resolution requires the exact verified review fix, current authority and reconciled effects.",
+      );
+    }
+  }
+  async repairReview(id: string): Promise<Delivery> {
+    try {
+      let d = this.status(id);
+      if (d.publication) {
+        this.invalidateReviewApproval(id);
+        await this.prChecksCoordinator(id).monitor(true);
+        await this.reviewCoordinator(id).monitor();
+        d = this.status(id);
+        const run = d.review?.runs.at(-1),
+          threads = run?.threads.filter((t) => !t.resolved),
+          p = d.publication!,
+          budget = d.repair;
+        if (
+          !run ||
+          !this.reviewChecksPassed(d) ||
+          run.outcome !== "blocked" ||
+          run.activeObservation ||
+          !threads?.length ||
+          threads.length > 32 ||
+          threads.some(
+            (t) => t.assessment?.disposition !== "straightforward",
+          ) ||
+          !d.ownership.held ||
+          d.phase !== "blocked" ||
+          unresolvedReviewEffect(d) ||
+          (budget &&
+            (budget.attempts.some((a) => a.state !== "stopped") ||
+              budget.attempts.length >= budget.allowanceCycles ||
+              budget.activeMs >= budget.allowanceMs))
+        )
+          throw Error("Review batch requires owner resolution or allowance");
+        const findings = repairFindings(
+          threads.map((t) => t.assessment!.finding!),
+        );
+        this.change(id, (current) => {
+          const latest = current.review?.runs.at(-1);
+          if (
+            current.ownership.fence !== d.ownership.fence ||
+            current.phase !== "blocked" ||
+            current.publication?.id !== p.id ||
+            latest?.id !== run.id ||
+            latest.activeObservation ||
+            unresolvedReviewEffect(current)
+          )
+            throw Error("Review repair authority changed");
+          latest.repair = {
+            threads: threads.map((t) => ({ id: t.id, digest: t.digest })),
+            findings,
+          };
+          latest.outcome = "repairing";
+          delete latest.approval;
+          (current.publicationHistory ??= []).push(current.publication);
+          delete current.publication;
+        });
+      }
+      d = this.status(id);
+      const run = d.review?.runs.at(-1),
+        last = d.repair?.attempts.at(-1);
+      if (
+        !run?.repair ||
+        run.outcome !== "repairing" ||
+        d.publicationHistory?.at(-1)?.id !== run.publicationId ||
+        !["blocked", "preparing"].includes(d.phase)
+      )
+        throw Error("No resumable review batch");
+      if (
+        last?.reviewRunId === run.id &&
+        last.state === "stopped" &&
+        last.outcome === "passed"
+      )
+        return d;
+      return await this.repairFeature(id, run.repair.findings);
+    } catch {
+      throw new DeliveryError(
+        "Review repair requires independently assessed in-scope findings, stopped work and cumulative allowance; disputed requests remain for the owner.",
+      );
+    }
+  }
+
   private prChecksInput(id: string, observed?: Delivery) {
     const d = observed ?? this.status(id),
       p = d.publication;
@@ -907,6 +1091,7 @@ export class DeliveryController {
   }
   async monitorPRChecks(id: string): Promise<Delivery> {
     try {
+      this.invalidateReviewApproval(id);
       return await this.prChecksCoordinator(id).monitor();
     } catch {
       throw new DeliveryError(
@@ -934,6 +1119,9 @@ export class DeliveryController {
     }
   }
   private async repairHostedChecks(id: string): Promise<Delivery> {
+    this.invalidateReviewApproval(id);
+    if (unresolvedReviewEffect(this.status(id)))
+      throw new DeliveryError("Reconcile review effects before repair.");
     let snapshot = this.status(id),
       run = snapshot.prChecks?.runs.at(-1);
     if (snapshot.publication) {
@@ -1120,6 +1308,9 @@ export class DeliveryController {
 
   async publishFeature(id: string): Promise<Delivery> {
     try {
+      this.invalidateReviewApproval(id);
+      if (unresolvedReviewEffect(this.status(id)))
+        throw Error("Uncertain review effect");
       return await this.publicationCoordinator(id).publish();
     } catch {
       throw new DeliveryError(
@@ -1779,6 +1970,9 @@ export class DeliveryController {
         return;
       }
       r.attempts.push({
+        ...(d.review?.runs.at(-1)?.outcome === "repairing"
+          ? { reviewRunId: d.review.runs.at(-1)!.id }
+          : {}),
         ...(d.prChecks?.runs.at(-1)?.outcome === "repairing"
           ? { prCheckRunId: d.prChecks.runs.at(-1)!.id }
           : {}),
@@ -3305,6 +3499,10 @@ export class DeliveryController {
         )
       )
         throw new DeliveryError("Reconcile publication before this control.");
+      if (unresolvedReviewEffect(delivery))
+        throw new DeliveryError(
+          "Reconcile review resolution before this control.",
+        );
       if (
         delivery.prChecks?.runs.some(
           (r) =>
@@ -3405,6 +3603,11 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (
+      this.status(id).publication?.outcome === "published" &&
+      this.status(id).review
+    )
+      return this.monitorReview(id);
     if (
       this.status(id).publication?.outcome === "published" &&
       this.status(id).prChecks
@@ -3517,6 +3720,10 @@ export class DeliveryController {
         )
       )
         throw new DeliveryError("Reconcile publication before this control.");
+      if (unresolvedReviewEffect(delivery))
+        throw new DeliveryError(
+          "Reconcile review resolution before this control.",
+        );
       if (
         delivery.prChecks?.runs.some(
           (r) =>

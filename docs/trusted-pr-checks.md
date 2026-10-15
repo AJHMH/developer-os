@@ -78,5 +78,5 @@ pagination/history completeness, workflow/App publisher provenance, timestamp an
 clock behavior, operation-ID rerun reconciliation, conditional branch updates,
 credential isolation and interruption on Windows and macOS. The owner Git signer
 and App PR transport still require their earlier native qualification.
-Review decisions, final-head approval, merge, main verification and completion
-remain separate gates. Production delivery remains disabled.
+[Review decisions and final-head approval](review-owner-approval.md), merge, main
+verification and completion remain separate gates. Production delivery remains disabled.

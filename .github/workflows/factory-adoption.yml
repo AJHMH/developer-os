@@ -32,7 +32,7 @@ jobs:
       contents: read
       pull-requests: read
       security-events: read
-    uses: AJHMH/software-factory/.github/workflows/factory-consumer-validation.yml@cc5913bfe31a386d8105f84a7f42556548fe353c
+    uses: AJHMH/software-factory/.github/workflows/factory-consumer-validation.yml@3f64904a7a71985382fa5d5da29cc0e0610d5d2c
     with:
       source_revision: ${{ github.event.pull_request.head.sha || github.sha }}
   certification:
@@ -41,7 +41,7 @@ jobs:
       contents: read
       actions: read
       pull-requests: read
-    uses: AJHMH/software-factory/.github/workflows/factory-consumer-certification.yml@cc5913bfe31a386d8105f84a7f42556548fe353c
+    uses: AJHMH/software-factory/.github/workflows/factory-consumer-certification.yml@3f64904a7a71985382fa5d5da29cc0e0610d5d2c
     with:
       source_revision: ${{ inputs.source_revision }}
       producer_run_id: ${{ inputs.producer_run_id }}

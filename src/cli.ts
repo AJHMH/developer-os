@@ -17,7 +17,7 @@ import { prepareSubscriptionAuth } from "./subscription-auth.js";
 import { inspectSubscriptionAuth } from "./auth-status.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify-windows-controls or qualify-macos-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use auth-status with the same repo/state/auth-directory and a required --auth-account to inspect host-only eligibility before requesting inference approval; it performs no refresh and grants no inference authority. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows or Mac worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent host authentication qualification. Use --coding-minutes <1..1440> on start for the initial coding allowance (default 120). plan-feature/code-feature address an explicit --id; the CLI currently has no trusted feature planner or production coding adapter and refuses those dispatches. clarify-feature --id <id> --clarification <text> retains an explicit owner answer to material planning ambiguity. extend-coding --id <id> --minutes <1..1440> records an owner extension for stopped exhausted work. validate-baseline/validate-candidate --id <id> require an owner validation contract and trusted isolated validation adapter; no native validation executor is installed. repair-feature --id <id> repairs a failed candidate within three cycles or 60 active minutes, including local revalidation. extend-repair --id <id> [--cycles <0..100>] [--minutes <0..1440>] records an explicit owner extension for stopped exhausted repairs. publish-feature/reconcile-publication --id <id> require qualified controlled signing/publication and separate App PR adapters; no native publisher is installed. monitor-pr-checks/repair-pr-checks --id <id> and rerun-pr-check --id <id> --check-id <id> require a trusted controlled PR check adapter; no native monitor is installed. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Use qualify-windows-controls or qualify-macos-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use auth-status with the same repo/state/auth-directory and a required --auth-account to inspect host-only eligibility before requesting inference approval; it performs no refresh and grants no inference authority. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows or Mac worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent host authentication qualification. Use --coding-minutes <1..1440> on start for the initial coding allowance (default 120). plan-feature/code-feature address an explicit --id; the CLI currently has no trusted feature planner or production coding adapter and refuses those dispatches. clarify-feature --id <id> --clarification <text> retains an explicit owner answer to material planning ambiguity. extend-coding --id <id> --minutes <1..1440> records an owner extension for stopped exhausted work. validate-baseline/validate-candidate --id <id> require an owner validation contract and trusted isolated validation adapter; no native validation executor is installed. repair-feature --id <id> repairs a failed candidate within three cycles or 60 active minutes, including local revalidation. extend-repair --id <id> [--cycles <0..100>] [--minutes <0..1440>] records an explicit owner extension for stopped exhausted repairs. publish-feature/reconcile-publication --id <id> require qualified controlled signing/publication and separate App PR adapters; no native publisher is installed. monitor-pr-checks/repair-pr-checks --id <id> and rerun-pr-check --id <id> --check-id <id> require a trusted controlled PR check adapter; no native monitor is installed. monitor-review/repair-review --id <id> and resolve-review-thread --id <id> --thread-id <id> require a trusted controlled review adapter; no native reviewer is installed. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -32,6 +32,7 @@ function argumentsForCommand() {
         "auth-directory": { type: "string" },
         "auth-account": { type: "string" },
         "check-id": { type: "string" },
+        "thread-id": { type: "string" },
         "podman-machine": { type: "string" },
         "worker-policy": { type: "string" },
         "dependency-policy": { type: "string" },
@@ -345,43 +346,60 @@ try {
         process.exit(0);
       }
       const command =
-        positionals[0] === "monitor-pr-checks"
-          ? "monitorPRChecks"
-          : positionals[0] === "repair-pr-checks"
-            ? "repairPRChecks"
-            : positionals[0] === "publish-feature"
-              ? "publishFeature"
-              : positionals[0] === "reconcile-publication"
-                ? "reconcilePublication"
-                : positionals[0] === "repair-feature"
-                  ? "repairFeature"
-                  : positionals[0] === "validate-baseline"
-                    ? "validateBaseline"
-                    : positionals[0] === "validate-candidate"
-                      ? "validateCandidate"
-                      : positionals[0] === "plan-feature"
-                        ? "planFeature"
-                        : positionals[0] === "code-feature"
-                          ? "codeFeature"
-                          : positionals[0] === "qualify-windows-controls"
-                            ? "qualifyWindowsControls"
-                            : positionals[0] === "qualify-macos-controls"
-                              ? "qualifyMacosControls"
-                              : positionals[0] === "synthetic-task"
-                                ? "syntheticTask"
-                                : positionals[0] === "check-usage"
-                                  ? "checkUsage"
-                                  : positionals[0] === "poll-usage"
-                                    ? "pollUsage"
-                                    : positionals[0] === "offline-canary"
-                                      ? "offlineCanary"
-                                      : positionals[0] === "online-canary"
-                                        ? "onlineCanary"
-                                        : positionals[0] ===
-                                            "qualification-report"
-                                          ? "qualificationReport"
-                                          : positionals[0];
+        positionals[0] === "monitor-review"
+          ? "monitorReview"
+          : positionals[0] === "repair-review"
+            ? "repairReview"
+            : positionals[0] === "monitor-pr-checks"
+              ? "monitorPRChecks"
+              : positionals[0] === "repair-pr-checks"
+                ? "repairPRChecks"
+                : positionals[0] === "publish-feature"
+                  ? "publishFeature"
+                  : positionals[0] === "reconcile-publication"
+                    ? "reconcilePublication"
+                    : positionals[0] === "repair-feature"
+                      ? "repairFeature"
+                      : positionals[0] === "validate-baseline"
+                        ? "validateBaseline"
+                        : positionals[0] === "validate-candidate"
+                          ? "validateCandidate"
+                          : positionals[0] === "plan-feature"
+                            ? "planFeature"
+                            : positionals[0] === "code-feature"
+                              ? "codeFeature"
+                              : positionals[0] === "qualify-windows-controls"
+                                ? "qualifyWindowsControls"
+                                : positionals[0] === "qualify-macos-controls"
+                                  ? "qualifyMacosControls"
+                                  : positionals[0] === "synthetic-task"
+                                    ? "syntheticTask"
+                                    : positionals[0] === "check-usage"
+                                      ? "checkUsage"
+                                      : positionals[0] === "poll-usage"
+                                        ? "pollUsage"
+                                        : positionals[0] === "offline-canary"
+                                          ? "offlineCanary"
+                                          : positionals[0] === "online-canary"
+                                            ? "onlineCanary"
+                                            : positionals[0] ===
+                                                "qualification-report"
+                                              ? "qualificationReport"
+                                              : positionals[0];
       if (
+        command === "resolve-review-thread" &&
+        values.id &&
+        values["thread-id"] &&
+        values.repo === undefined &&
+        values.request === undefined &&
+        values.issue === undefined &&
+        values["owner-policy"] === undefined
+      ) {
+        result = await controller.resolveReviewThread(
+          values.id,
+          values["thread-id"],
+        );
+      } else if (
         (command === "approve-usage" || command === "rerun-pr-check") &&
         values.id &&
         values["check-id"] &&
@@ -400,7 +418,9 @@ try {
         values.request === undefined &&
         values.issue === undefined &&
         values["owner-policy"] === undefined &&
-        (command === "monitorPRChecks" ||
+        (command === "monitorReview" ||
+          command === "repairReview" ||
+          command === "monitorPRChecks" ||
           command === "repairPRChecks" ||
           command === "publishFeature" ||
           command === "reconcilePublication" ||
