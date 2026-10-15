@@ -65,7 +65,7 @@ function fixture(t) {
   return { root, repository, state, git, criteria, controller, delivery };
 }
 
-function codingFixture(t) {
+function codingFixture(t, configurePolicy = () => {}) {
   const f = fixture(t),
     revision = f.git("rev-parse", "HEAD");
   const policyPath = join(f.root, "owner-policy.json");
@@ -80,6 +80,7 @@ function codingFixture(t) {
     validation: ["isolated-node"],
     validationContract: ownerValidationContract(),
   };
+  configurePolicy(facts);
   writeFileSync(policyPath, JSON.stringify(facts));
   f.options = {
     policyPath,

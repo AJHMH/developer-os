@@ -67,3 +67,10 @@ and complete delivery qualification remain open.
 is ready for review. See [receipt](ticket08-implementation-receipt.md). Native
 credential-bearing ports and live Windows/macOS/GitHub qualification remain open;
 the CLI still refuses publication without trusted controlled integrations.
+
+
+14 October ticket 09 progress: controlled trusted PR-check monitoring is ready for
+human review, with exact-head identity checks, retained rerun history, durable CI
+deadlines and cumulative repair followed by conditional publication. See
+[receipt](ticket09-implementation-receipt.md). Native GitHub and cross-platform
+qualification remain open; production delivery stays disabled.

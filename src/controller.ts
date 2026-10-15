@@ -1,4 +1,9 @@
 import {
+  PRChecksCoordinator,
+  type PRChecksRuntime,
+  type PRChecksEvidence,
+} from "./pr-checks.js";
+import {
   PublicationCoordinator,
   type PublicationRuntime,
   type PublicationEvidence,
@@ -206,6 +211,7 @@ export interface WorkerAdapter {
   fenceAndStop(session: WorkerSession): Promise<WorkerReceipt>;
 }
 export interface CoordinationOptions {
+  prChecksRuntime?: PRChecksRuntime;
   publicationRuntime?: PublicationRuntime;
   validationRuntime?: ValidationRuntime;
   featurePlanner?: FeaturePlanner;
@@ -221,6 +227,8 @@ export interface CoordinationOptions {
 }
 
 export interface Delivery {
+  prChecks?: PRChecksEvidence;
+  publicationHistory?: PublicationEvidence[];
   publication?: PublicationEvidence;
   validation?: ValidationEvidence;
   initialCodingAllowanceMs?: number;
@@ -235,7 +243,9 @@ export interface Delivery {
     | "preparing"
     | "implementing"
     | "validating"
-    | "publishing";
+    | "publishing"
+    | "waiting-checks"
+    | "waiting-review";
   ownership: { held: boolean; fence: number; key: string };
   priorPhase?: Delivery["phase"];
   controls?: {
@@ -852,6 +862,145 @@ export class DeliveryController {
     });
   }
 
+  private prChecksInput(id: string, observed?: Delivery) {
+    const d = observed ?? this.status(id),
+      p = d.publication;
+    if (
+      !p ||
+      p.outcome !== "published" ||
+      !p.commit ||
+      !p.pullRequest ||
+      p.pullRequest.head !== p.commit
+    )
+      throw new DeliveryError(
+        "Publish a validated PR before monitoring checks.",
+      );
+    const input = this.publicationInput(id, d);
+    if (
+      input.policySha256 !== p.policySha256 ||
+      input.validationOperationId !== p.validationOperationId ||
+      input.candidateSha256 !== p.candidateSha256
+    )
+      throw new DeliveryError("Published validation authority changed.");
+    const checks = validationContract(
+      this.onboardingOptions.policyPath,
+      d.authorityPolicySha256!,
+    ).checks.filter((c) => c.scope === "pr");
+    if (!checks.length || checks.some((c) => !c.workflow))
+      throw new DeliveryError(
+        "Declare trusted PR workflows before monitoring.",
+      );
+    return { publication: p, checks };
+  }
+
+  private prChecksCoordinator(id: string) {
+    return new PRChecksCoordinator(
+      {
+        status: () => this.status(id),
+        change: (update) => this.change(id, update),
+        input: (d) => this.prChecksInput(id, d),
+        observe: (p, ms) => this.observe(p, ms),
+        now: () => (this.coordination.clock ?? Date.now)(),
+      },
+      this.coordination.prChecksRuntime,
+    );
+  }
+  async monitorPRChecks(id: string): Promise<Delivery> {
+    try {
+      return await this.prChecksCoordinator(id).monitor();
+    } catch {
+      throw new DeliveryError(
+        "PR monitoring requires a published candidate, unchanged trusted policy and a controlled check adapter; native monitoring remains disabled.",
+      );
+    }
+  }
+  async rerunPRCheck(id: string, checkId: string): Promise<Delivery> {
+    try {
+      return await this.prChecksCoordinator(id).rerun(checkId);
+    } catch {
+      throw new DeliveryError(
+        "Diagnostic rerun blocked: reconcile the current failed head and retained rerun allowance.",
+      );
+    }
+  }
+
+  async repairPRChecks(id: string): Promise<Delivery> {
+    try {
+      return await this.repairHostedChecks(id);
+    } catch {
+      throw new DeliveryError(
+        "PR repair requires current trusted terminal failures, stopped work and remaining cumulative allowance.",
+      );
+    }
+  }
+  private async repairHostedChecks(id: string): Promise<Delivery> {
+    let snapshot = this.status(id),
+      run = snapshot.prChecks?.runs.at(-1);
+    if (snapshot.publication) {
+      await this.prChecksCoordinator(id).monitor(true);
+      snapshot = this.status(id);
+      run = snapshot.prChecks?.runs.at(-1);
+      if (
+        !run ||
+        run.outcome !== "failed" ||
+        !run.canRepair ||
+        snapshot.phase !== "blocked" ||
+        !snapshot.ownership.held ||
+        run.publicationId !== snapshot.publication?.id ||
+        run.activeObservation
+      )
+        throw new DeliveryError(
+          "Only current trusted terminal PR failures can enter repair.",
+        );
+      const findings = repairFindings(run.findings);
+      const saved = snapshot.publication!,
+        expected = run.id;
+      this.change(id, (d) => {
+        const current = d.prChecks?.runs.at(-1),
+          budget = d.repair;
+        if (
+          d.ownership.fence !== snapshot.ownership.fence ||
+          d.phase !== "blocked" ||
+          d.publication?.id !== saved.id ||
+          current?.id !== expected ||
+          !current.canRepair ||
+          current.outcome !== "failed" ||
+          (budget &&
+            (budget.attempts.some((a) => a.state !== "stopped") ||
+              budget.attempts.length >= budget.allowanceCycles ||
+              budget.activeMs >= budget.allowanceMs))
+        )
+          throw new DeliveryError(
+            "Resolve repair authority or allowance before updating the PR.",
+          );
+        current.findings = findings;
+        current.outcome = "repairing";
+        current.canRepair = false;
+        (d.publicationHistory ??= []).push(d.publication);
+        delete d.publication;
+      });
+    }
+    snapshot = this.status(id);
+    run = snapshot.prChecks?.runs.at(-1);
+    if (
+      !run ||
+      run.outcome !== "repairing" ||
+      snapshot.publicationHistory?.at(-1)?.id !== run.publicationId ||
+      !["blocked", "preparing"].includes(snapshot.phase)
+    )
+      throw new DeliveryError(
+        "No retained PR failure batch is eligible for repair.",
+      );
+    const last = snapshot.repair?.attempts.at(-1);
+    if (
+      last?.prCheckRunId === run.id &&
+      last.outcome === "passed" &&
+      last.state === "stopped"
+    )
+      return snapshot;
+    return this.repairFeature(id, run.findings);
+  }
+
   private publicationInput(id: string, observed?: Delivery): PublicationInput {
     const d = observed ?? this.status(id),
       f = d.feature,
@@ -907,7 +1056,29 @@ export class DeliveryController {
       throw new DeliveryError("Publication source or check contract changed.");
     const candidate = validationCandidate(f, this.stateDirectory);
     protectValidationInputs(v.contract, source.files, candidate.files);
+    const previous = d.publicationHistory?.at(-1);
+    if (
+      previous &&
+      (previous.outcome !== "published" ||
+        !previous.commit ||
+        !previous.pullRequest ||
+        previous.repository !== policy.repository ||
+        previous.branch !== f.branch ||
+        previous.candidateSha256 === candidate.digest ||
+        d.repair?.attempts.at(-1)?.outcome !== "passed")
+    )
+      throw new DeliveryError(
+        "PR update requires a changed repaired candidate and retained publication identity.",
+      );
     return {
+      ...(previous
+        ? {
+            previous: {
+              commit: previous.commit!,
+              number: previous.pullRequest!.number,
+            },
+          }
+        : {}),
       repository: policy.repository,
       defaultBranch: policy.defaultBranch,
       branch: f.branch,
@@ -1608,6 +1779,9 @@ export class DeliveryController {
         return;
       }
       r.attempts.push({
+        ...(d.prChecks?.runs.at(-1)?.outcome === "repairing"
+          ? { prCheckRunId: d.prChecks.runs.at(-1)!.id }
+          : {}),
         id: attemptId,
         fence: d.ownership.fence,
         runnerId: this.runnerId,
@@ -2961,7 +3135,10 @@ export class DeliveryController {
     });
   }
 
-  private async observe<T>(pending: Promise<T>): Promise<T | undefined> {
+  private async observe<T>(
+    pending: Promise<T>,
+    timeoutMs?: number,
+  ): Promise<T | undefined> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
@@ -2969,7 +3146,10 @@ export class DeliveryController {
         new Promise<undefined>((resolve) => {
           timer = setTimeout(
             () => resolve(undefined),
-            this.coordination.observationTimeoutMs ?? 30000,
+            Math.min(
+              this.coordination.observationTimeoutMs ?? 30000,
+              timeoutMs ?? 30000,
+            ),
           );
         }),
       ]);
@@ -3125,6 +3305,16 @@ export class DeliveryController {
         )
       )
         throw new DeliveryError("Reconcile publication before this control.");
+      if (
+        delivery.prChecks?.runs.some(
+          (r) =>
+            r.diagnostic &&
+            ["dispatched", "uncertain"].includes(r.diagnostic.state),
+        )
+      )
+        throw new DeliveryError(
+          "Reconcile the PR diagnostic rerun before this control.",
+        );
       if (delivery.repair?.attempts.some((a) => a.state !== "stopped"))
         throw new DeliveryError("Recover the repair cycle before resuming.");
       if (delivery.validation?.attempts.some((a) => a.state !== "stopped"))
@@ -3215,6 +3405,11 @@ export class DeliveryController {
   }
 
   async recover(id: string): Promise<Delivery> {
+    if (
+      this.status(id).publication?.outcome === "published" &&
+      this.status(id).prChecks
+    )
+      return this.monitorPRChecks(id);
     if (
       this.status(id).publication?.effects.some(
         (e) => e.state === "dispatched" || e.state === "uncertain",
@@ -3322,6 +3517,16 @@ export class DeliveryController {
         )
       )
         throw new DeliveryError("Reconcile publication before this control.");
+      if (
+        delivery.prChecks?.runs.some(
+          (r) =>
+            r.diagnostic &&
+            ["dispatched", "uncertain"].includes(r.diagnostic.state),
+        )
+      )
+        throw new DeliveryError(
+          "Reconcile the PR diagnostic rerun before this control.",
+        );
       if (delivery.repair?.attempts.some((a) => a.state !== "stopped"))
         throw new DeliveryError(
           "Recover the repair cycle before releasing ownership.",

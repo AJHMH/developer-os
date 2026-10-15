@@ -108,7 +108,7 @@ export function signedFixture(f) {
         "commit-tree",
         tree,
         "-p",
-        r.publication.sourceRevision,
+        r.publication.previous?.commit ?? r.publication.sourceRevision,
         "-S",
         "-m",
         "Validated fixture",
@@ -128,10 +128,16 @@ export function signedFixture(f) {
     },
     async push(r) {
       assert.equal(r.mayDispatch(), true);
-      assert.equal(r.expectedRemoteHead, null);
+      assert.equal(
+        r.expectedRemoteHead,
+        r.publication.previous?.commit ?? null,
+      );
       git([
         "push",
-        "--force-with-lease=refs/heads/" + r.publication.branch + ":",
+        "--force-with-lease=refs/heads/" +
+          r.publication.branch +
+          ":" +
+          (r.expectedRemoteHead ?? ""),
         remote,
         r.publication.commit + ":refs/heads/" + r.publication.branch,
       ]);
@@ -187,7 +193,9 @@ export function signedFixture(f) {
       });
     },
     async observe(r) {
-      const result = prs.get(r.operationId);
+      const result = [...prs.values()].find((p) => p.branch === r.branch);
+      if (result && branches.has(r.branch))
+        result.head = branches.get(r.branch);
       return result
         ? { state: "found", result }
         : { state: "absent", quiescent: true };

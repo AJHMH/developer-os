@@ -4,7 +4,7 @@
 
 **Blocked by:** 08: [Publish signed code and create an App-authored PR](08-signed-app-publication.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 ## Source and governing contract
 
@@ -14,10 +14,23 @@ This is an implementation slice, separate from resolved wayfinder decisions. Uni
 
 ## Acceptance criteria
 
-- [ ] Required check identity includes expected revision and trusted publisher/workflow, not name alone; stale or spoofed results never enable advancement.
-- [ ] Skipped, neutral, missing, cancelled and untrusted required evidence is incomplete unless a trusted exception explicitly covers it.
-- [ ] Failures and automatic/diagnostic reruns remain recorded, and actionable failures use the existing cumulative repair/validation/publication loop.
-- [ ] Declared timeouts override the 60-minute default per CI phase; expiration produces evidence and no repeated unbounded polling behavior.
-- [ ] A new head invalidates prior applicable evidence; resumed monitoring reconciles current PR and durable phase without resetting waits or allowances.
-- [ ] Public tests cover success/failure, stale head, same-name spoofing, unavailable checks, timeout, retry history and process interruption.
+- [x] Required check identity includes expected revision and trusted publisher/workflow, not name alone; stale or spoofed results never enable advancement.
+- [x] Skipped, neutral, missing, cancelled and untrusted required evidence is incomplete unless a trusted exception explicitly covers it.
+- [x] Failures and automatic/diagnostic reruns remain recorded, and actionable failures use the existing cumulative repair/validation/publication loop.
+- [x] Declared timeouts override the 60-minute default per CI phase; expiration produces evidence and no repeated unbounded polling behavior.
+- [x] A new head invalidates prior applicable evidence; resumed monitoring reconciles current PR and durable phase without resetting waits or allowances.
+- [x] Public tests cover success/failure, stale head, same-name spoofing, unavailable checks, timeout, retry history and process interruption.
 
+
+## Controlled implementation — 2026-10-14
+
+The checked criteria describe the controlled public-controller slice. Exact-head
+workflow/publisher admission, retained attempt history, durable deadlines, one
+diagnostic rerun and cumulative repair are covered by public fixtures. Real
+temporary signed Git objects exercise conditional updates to the same PR.
+
+See [trusted PR checks](../../../docs/trusted-pr-checks.md) and
+[implementation receipt](../ticket09-implementation-receipt.md). Native GitHub
+pagination and provenance, rerun reconciliation, credential isolation and
+conditional update behavior still require Windows/macOS qualification. No live
+provider calls, GitHub writes or production delivery are enabled by this slice.

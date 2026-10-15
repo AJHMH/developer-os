@@ -66,8 +66,10 @@ interrupt a newer publisher. Only explicit publication after eligible controls m
 continue with a fresh generation.
 
 Once publication begins, candidate coding/repair/revalidation cannot silently
-replace its pinned evidence. Updating an already proposed candidate requires a
-later exact-head update/review protocol. Final status directs the owner/controller
+replace its pinned evidence. Ticket 09 adds an explicit trusted-check repair path
+that retains the prior publication, revalidates changed output and conditionally
+updates the same branch and PR from the exact prior signed head. See
+[trusted PR checks](trusted-pr-checks.md). Final status directs the owner/controller
 to hosted checks and independent review; production delivery remains disabled.
 
 ## Validation and qualification limits

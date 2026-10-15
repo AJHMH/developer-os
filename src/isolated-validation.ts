@@ -40,6 +40,7 @@ export interface ValidationCheck {
   stages: ValidationStage[];
   command: string[];
   publisher: string;
+  workflow?: string;
   timeoutMs: number;
   exception?: { statuses: CheckStatus[]; reason: string };
   flake?: { allowDiagnosticPass: true; reason: string };
@@ -185,6 +186,8 @@ export function validationContract(
   }
   const ids = new Set<string>();
   const checks = c.checks.map((check) => {
+    const timeout =
+      check.timeoutMs ?? (check.scope === "local" ? NaN : 3600000);
     if (
       !text(check.id) ||
       !text(check.publisher) ||
@@ -206,9 +209,10 @@ export function validationContract(
       !check.command.length ||
       check.command.length > 32 ||
       !check.command.every(text) ||
-      !Number.isSafeInteger(check.timeoutMs) ||
-      check.timeoutMs < 1 ||
-      check.timeoutMs > 120000
+      !Number.isSafeInteger(timeout) ||
+      timeout < 1 ||
+      timeout > (check.scope === "local" ? 120000 : 86400000) ||
+      (check.workflow !== undefined && !text(check.workflow))
     )
       throw Error("Invalid validation check");
     ids.add(check.id);
@@ -234,7 +238,8 @@ export function validationContract(
       stages: [...check.stages],
       command: [...check.command],
       publisher: check.publisher,
-      timeoutMs: check.timeoutMs,
+      timeoutMs: timeout,
+      ...(check.workflow ? { workflow: check.workflow } : {}),
       ...(check.exception
         ? {
             exception: {

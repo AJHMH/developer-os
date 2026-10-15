@@ -46,7 +46,7 @@ export interface GitPublicationPort {
     request: Reference & {
       mayDispatch(): boolean;
       controls: typeof publicationGitControls;
-      expectedRemoteHead: null;
+      expectedRemoteHead: string | null;
     },
   ): Promise<void>;
   findSigned(request: Reference): Promise<Observation<{ commit: string }>>;
@@ -132,7 +132,8 @@ export class SplitPublicationAdapter implements PublicationRuntime {
       !signature.localVerified ||
       signature.commit !== r.publication.commit ||
       signature.tree !== r.publication.treeSha1 ||
-      signature.parent !== r.publication.sourceRevision ||
+      signature.parent !==
+        (r.publication.previous?.commit ?? r.publication.sourceRevision) ||
       signature.signer !== r.publication.publicationLogin ||
       !r.mayDispatch()
     )
@@ -141,15 +142,29 @@ export class SplitPublicationAdapter implements PublicationRuntime {
       publication: r.publication,
       effect: r.effect,
     });
-    if (existing.state === "found") return existing.result;
-    if (existing.state !== "absent" || !existing.quiescent || !r.mayDispatch())
-      throw Error("Remote branch absence is unverified");
+    if (
+      existing.state === "found" &&
+      existing.result.commit === r.publication.commit
+    )
+      return existing.result;
+    const previous = r.publication.previous;
+    const expected = previous
+      ? existing.state === "found" &&
+        existing.result.commit === previous.commit &&
+        existing.result.repository === r.publication.repository &&
+        existing.result.branch === r.publication.branch &&
+        existing.result.githubVerified &&
+        existing.result.publisher === r.publication.publicationLogin &&
+        existing.result.signer === r.publication.publicationLogin
+      : existing.state === "absent" && existing.quiescent;
+    if (!expected || !r.mayDispatch())
+      throw Error("Remote branch precondition is unverified");
     await this.git.push({
       publication: r.publication,
       effect: r.effect,
       mayDispatch: r.mayDispatch,
       controls: publicationGitControls,
-      expectedRemoteHead: null,
+      expectedRemoteHead: r.publication.previous?.commit ?? null,
     });
     const remote = await this.git.observeRemote({
       publication: r.publication,
@@ -190,6 +205,7 @@ export class SplitPublicationAdapter implements PublicationRuntime {
     const request = this.pr(r);
     const existing = await this.app.observe(request);
     if (existing.state === "found") return existing.result;
+    if (r.publication.previous) throw Error("Existing PR is unobserved");
     if (existing.state !== "absent" || !existing.quiescent || !r.mayDispatch())
       throw Error("PR absence is unverified");
     await this.app.create({ ...request, mayDispatch: r.mayDispatch });
