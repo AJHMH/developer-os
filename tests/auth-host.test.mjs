@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import http from "node:http";
+import cp from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import {
   mkdtempSync,
@@ -122,6 +124,46 @@ for (const [platform, arch] of [
       transport,
       keychainStore,
     };
+
+    if (process.platform === "win32") {
+      const nativeSpawn = cp.spawnSync;
+      t.mock.method(cp, "spawnSync", (executable, args, options) => {
+        const started = performance.now();
+        const result = nativeSpawn(executable, args, options);
+        if (String(executable).toLowerCase().endsWith("powershell.exe")) {
+          let stage = "initialize";
+          try {
+            const fields = options.input.split("\n");
+            if (fields.length > 1) stage = fields[0];
+          } catch {
+            stage = "unknown";
+          }
+          const allowed = [
+            "initialize",
+            "check",
+            "create",
+            "protect",
+            "unprotect",
+          ];
+          t.diagnostic(
+            JSON.stringify({
+              probe: "windows-storage",
+              stage: allowed.includes(stage) ? stage : "unknown",
+              elapsedMs: Math.round(performance.now() - started),
+              exitCode: result.status,
+              timedOut: result.error?.code === "ETIMEDOUT",
+              signaled: result.signal !== null && result.signal !== undefined,
+            }),
+          );
+        }
+        return result;
+      });
+      syncBuiltinESMExports();
+      t.after(() => {
+        t.mock.restoreAll();
+        syncBuiltinESMExports();
+      });
+    }
 
     const result = await authorizeSubscriptionAuth(
       authDirectory,

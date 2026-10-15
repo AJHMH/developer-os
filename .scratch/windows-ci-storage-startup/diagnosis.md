@@ -15,3 +15,7 @@ Validation evidence under .scratch/aios-v1-implementation remains unchanged.
 The exact root cause remains unconfirmed: the first-attempt timings align with the 15-second storage-helper deadline, but the generic refusal did not report child timeout metadata. The unchanged-source success supports an intermittent runner/startup issue; it does not establish concurrency as the cause. No runtime or CI configuration repair was applied.
 
 After all main CI passed, the fully merged `codex/macos-diagnostic-cleanup-record` branch and empty unpublished experiment branch were removed. All 169 preserved validation evidence files matched their inventory SHA-256 hashes. Only these diagnosis/evidence records are added by this PR.
+
+## 15 October 2026 follow-up
+
+The repeated failure on main `521c930` is now diagnosed beyond the earlier timing hypothesis. Native milestones show the 15-second deadline expires after module imports but before path parsing/ACL work. Serializing test files did not resolve it. The module/cmdlet-free native regression fails on the original helper and passes after a direct .NET bootstrap repair, with the same deadline and safety checks. See [repair evidence and issue](issues/01-auth-storage.md) and [Factory App PR #36](https://github.com/AJHMH/developer-os/pull/36). Final review and checks are tracked in that PR; earlier no-repair observations above remain historical.

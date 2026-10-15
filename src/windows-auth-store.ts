@@ -16,32 +16,32 @@ const failure = () =>
     "Windows protected authentication storage is unavailable; preserve existing credentials and inspect separate host storage. Production remains disabled.",
   );
 
-// Minimal child environments cannot rely on the host's module autoload cache.
-// Load only the fixed OS modules, never user or candidate module search paths.
-const systemModules = String.raw`
+// Keep bootstrap to core .NET operations: importing PowerShell modules/cmdlets
+// or a general JSON framework can consume the deadline before ACL validation.
+// All values remain data on stdin; base64 framing cannot become script syntax.
+const systemRuntime = String.raw`
 $PSModuleAutoLoadingPreference='None'
-foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')) {
- Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,($name+'.psd1'))) -ErrorAction Stop
-}
 `;
 /** Initialize only a newly created setup directory; never repair existing ACLs. */
 export function initializeWindowsAuthDirectory(directory: string) {
   const setup = String.raw`
 $ErrorActionPreference='Stop'
 try {
- ${systemModules}
- $path=[Console]::In.ReadToEnd() | ConvertFrom-Json
- $item=Get-Item -LiteralPath $path -Force
- if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or (Get-ChildItem -LiteralPath $path -Force).Count -ne 0) { throw 'unsafe' }
+ ${systemRuntime}
+ $wire=[Console]::In.ReadToEnd()
+ if($wire.Length -gt 524288) { throw 'size' }
+ $path=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($wire))
+ $attributes=[IO.File]::GetAttributes($path)
+ if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or [IO.Directory]::GetFileSystemEntries($path).Length -ne 0) { throw 'unsafe' }
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
- $acl=New-Object Security.AccessControl.DirectorySecurity
+ $acl=[Security.AccessControl.DirectorySecurity]::new()
  $acl.SetOwner($sid)
  $acl.SetAccessRuleProtection($true,$false)
- foreach($identity in @($sid,(New-Object Security.Principal.SecurityIdentifier('S-1-5-18')),(New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))) {
-  $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
-  $acl.AddAccessRule($rule)
+ foreach($identity in @($sid,([Security.Principal.SecurityIdentifier]::new('S-1-5-18')),([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')))) {
+  $rule=[Security.AccessControl.FileSystemAccessRule]::new($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+  [void]$acl.AddAccessRule($rule)
  }
- Set-Acl -LiteralPath $path -AclObject $acl
+ [IO.Directory]::SetAccessControl($path,$acl)
 } catch { exit 1 }
 `;
   if (process.platform !== "win32" || !isAbsolute(directory)) throw failure();
@@ -60,7 +60,7 @@ try {
       Buffer.from(setup, "utf16le").toString("base64"),
     ],
     {
-      input: JSON.stringify(directory),
+      input: Buffer.from(directory, "utf8").toString("base64"),
       encoding: "utf8",
       timeout: 15000,
       maxBuffer: 8192,
@@ -76,39 +76,47 @@ try {
 const script = String.raw`
 $ErrorActionPreference='Stop'
 try {
- ${systemModules}
- Add-Type -AssemblyName System.Security
- $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
+ ${systemRuntime}
+ $wire=[Console]::In.ReadToEnd()
+ if($wire.Length -gt 524288) { throw 'size' }
+ $fields=$wire.Split([char]10)
+ if($fields.Length -lt 5 -or $fields.Length -gt 1028 -or $fields[0] -notin @('check','create','protect','unprotect')) { throw 'request' }
+ $action=$fields[0]
+ $bytes=[Convert]::FromBase64String($fields[1])
+ $entropy=[Convert]::FromBase64String($fields[2])
+ if($bytes.Length -gt 262144 -or $entropy.Length -ne 32) { throw 'size' }
+ $name=$fields[3]
+ $paths=[Collections.Generic.List[string]]::new()
+ for($i=4;$i -lt $fields.Length;$i++) { $paths.Add([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($fields[$i]))) }
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
- foreach($path in $request.paths) {
-  $item=Get-Item -LiteralPath $path -Force
-  if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'unsafe' }
-  $acl=Get-Acl -LiteralPath $path
+ foreach($path in $paths) {
+  $attributes=[IO.File]::GetAttributes($path)
+  if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'unsafe' }
+  if(($attributes -band [IO.FileAttributes]::Directory) -ne 0) { $acl=[IO.Directory]::GetAccessControl($path) }
+  else { $acl=[IO.File]::GetAccessControl($path) }
   if($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid) { throw 'owner' }
   foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
    if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -notin @($sid,'S-1-5-18','S-1-5-32-544')) { throw 'acl' }
   }
  }
- if($request.action -eq 'check') { [Console]::Out.Write('T0s='); exit 0 }
- $bytes=[Convert]::FromBase64String($request.bytes)
- $entropy=[Convert]::FromBase64String($request.entropy)
- if($bytes.Length -gt 262144) { throw 'size' }
- if($request.action -eq 'create') {
-  if($request.paths.Count -ne 1 -or $request.name -notmatch '^(registration\.json|[a-f0-9]{64}\.(dpapi|replace))$') { throw 'name' }
-  $path=[IO.Path]::Combine($request.paths[0],$request.name)
-  $acl=New-Object Security.AccessControl.FileSecurity
-  $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier($sid)))
+ if($action -eq 'check') { [Console]::Out.Write('T0s='); exit 0 }
+ if($action -eq 'create') {
+  if($paths.Count -ne 1 -or $name -notmatch '^(registration\.json|[a-f0-9]{64}\.(dpapi|replace))$') { throw 'name' }
+  $path=[IO.Path]::Combine($paths[0],$name)
+  $acl=[Security.AccessControl.FileSecurity]::new()
+  $acl.SetOwner(([Security.Principal.SecurityIdentifier]::new($sid)))
   $acl.SetAccessRuleProtection($true,$false)
   foreach($identity in @($sid,'S-1-5-18','S-1-5-32-544')) {
-   $rule=New-Object Security.AccessControl.FileSystemAccessRule((New-Object Security.Principal.SecurityIdentifier($identity)),'FullControl','Allow')
-   $acl.AddAccessRule($rule)
+   $rule=[Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($identity),'FullControl','Allow')
+   [void]$acl.AddAccessRule($rule)
   }
-  $stream=New-Object IO.FileStream($path,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::Write,[IO.FileShare]::None,4096,[IO.FileOptions]::WriteThrough,$acl)
+  $stream=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::Write,[IO.FileShare]::None,4096,[IO.FileOptions]::WriteThrough,$acl)
   try { $stream.Write($bytes,0,$bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
   [Console]::Out.Write('T0s='); exit 0
  }
- if($request.action -eq 'protect') { $output=[Security.Cryptography.ProtectedData]::Protect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
- elseif($request.action -eq 'unprotect') { $output=[Security.Cryptography.ProtectedData]::Unprotect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
+ [void][Reflection.Assembly]::Load('System.Security, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a')
+ if($action -eq 'protect') { $output=[Security.Cryptography.ProtectedData]::Protect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
+ elseif($action -eq 'unprotect') { $output=[Security.Cryptography.ProtectedData]::Unprotect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
  else { throw 'action' }
  [Console]::Out.Write([Convert]::ToBase64String($output))
 } catch { exit 1 }
@@ -170,13 +178,13 @@ export function windowsAuthStore(
         Buffer.from(script, "utf16le").toString("base64"),
       ],
       {
-        input: JSON.stringify({
+        input: [
           action,
-          bytes: bytes.toString("base64"),
+          bytes.toString("base64"),
           entropy,
-          paths,
-          ...(name === undefined ? {} : { name }),
-        }),
+          name ?? "",
+          ...paths.map((path) => Buffer.from(path, "utf8").toString("base64")),
+        ].join("\n"),
         encoding: "utf8",
         timeout: 15000,
         maxBuffer: 524288,

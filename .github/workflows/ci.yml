@@ -28,6 +28,23 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run build
+  windows-auth-startup:
+    name: Cold Windows authentication storage
+    runs-on: windows-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      # A fresh runner exercises native registration before any helper is warm.
+      # The complete eight-shard inventory below still runs every test.
+      - run: node --test --test-concurrency=1 --test-name-pattern="^separate darwin authorization completes|^Windows host storage works without PowerShell" tests/auth-host.test.mjs tests/windows-auth-store.test.mjs
   windows-tests:
     name: Windows CLI tests (${{ matrix.shard }}/8)
     runs-on: windows-latest
