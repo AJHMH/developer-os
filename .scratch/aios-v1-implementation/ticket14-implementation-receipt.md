@@ -125,3 +125,15 @@ that file into three groups of five, preserving every original test body and
 assertion byte-for-byte apart from whitespace (verified against the parent).
 All eight shards, two-file Windows concurrency and existing deadlines remain
 unchanged. Hosted validation must pass on the replacement head.
+
+## Split publication port refusal coverage
+
+Head `99e2989` completed measurement, but global branch coverage was
+4807/5302 (90.6639%) below baseline 4610/5076 (90.8195%); changed
+branches passed at 270/288 (93.75%). The approval prerequisite correctly refused
+this decrease. Added four fast tests at the public split identity port boundary:
+mismatched identities and revoked dispatch, changed local signatures and exact
+remote acceptance reuse, changed remote/unknown PR absence, and uncertain PR
+acceptance after creation. They assert no forbidden side effects and preserve
+uncertainty after possible acceptance; all four pass. No production logic,
+threshold, approval rule or deadline changed.
