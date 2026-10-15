@@ -60,3 +60,18 @@ exclusive checkout/ref/worktree authority and bounded descendant quiescence stil
 need independent Windows/macOS qualification. Controlled completion is not
 production readiness or the observed pilot. Parent 04 and native acceptance in
 05–14 remain open; tickets 15–17 are separate unperformed gates.
+
+## PR #38 coverage follow-up
+
+The first hosted run passed the new-code threshold (254/280 branches, 90.71%) but
+correctly refused the no-decrease gate: global branch coverage was 4,841/5,332
+(90.79%), below baseline 4,610/5,076 (90.82%). The approval jobs failed during
+that coverage prerequisite, before review evaluation. No approval rule or coverage
+threshold was changed.
+
+Added public-controller regressions for mismatched/unavailable canonical checkout,
+untrusted PR linkage projection and unavailable post-effect/final inventories.
+They verify branch preservation, private-diagnostic exclusion, durable uncertainty
+and read-only reconciliation without repeated deletion. All three new tests pass
+locally (14.9 seconds); production code is unchanged. Hosted validation remains
+authoritative for the updated head.
