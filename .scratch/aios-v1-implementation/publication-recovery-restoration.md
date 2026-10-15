@@ -28,3 +28,18 @@ node .scratch/aios-v1-implementation/publication-recovery-restoration-audit.mjs
 Production code, coverage thresholds, approval rules, Windows shard count,
 concurrency and all deadlines are unchanged. Native qualification and production
 gates remain open as documented for issue 14.
+
+## Hosted scheduling evidence
+
+The first repair head passed all restored tests, Linux, macOS, coverage (after
+one retained instrumentation diagnostic rerun), both approval gates and seven
+Windows shards. Windows shard 1 passed all 61 assertions twice, but setup plus
+562–581 seconds of tests exceeded the unchanged ten-minute total job budget.
+
+Node assigns alphabetically discovered files modulo eight. Renamed the fast
+publication port refusal file to `publication-remote-port-refusal.test.mjs`,
+verified byte-for-byte unchanged against its parent. This moves the eight-case
+remote evidence group from shard 1 to shard 8, the five-case current publication
+recovery group from shard 8 to shard 7, and the fast port refusals from shard 7
+to shard 1. All other assignments remain unchanged. No test count, assertion,
+concurrency, shard count, production code, policy or deadline changed.
