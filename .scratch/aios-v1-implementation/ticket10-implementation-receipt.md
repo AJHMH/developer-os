@@ -115,3 +115,26 @@ the concurrent diagnostic's background review process exceeded its wait, making
 that load experiment inconclusive. No assertions, test exclusions, production
 behavior, or coverage thresholds were changed. All 21 retained snapshots remain
 outside this change. Native qualification requirements remain open.
+
+## Remaining Factory timeout investigation
+
+Factory run 38665403113 attempt 1 completed coverage measurements but its unit
+prerequisite ended without an exit code; attempt 2 stopped during head
+instrumentation. The pinned adapter applies a fixed 60-second budget to these
+stages, separately from the contract's 120-second test-command budget.
+
+A local full instrumented reproduction with a 60-second watchdog timed out.
+The isolated PR-check file passed all 25 tests in 58.5 seconds under c8.
+Redistributing its exact test definitions into observation, admission, repair
+and deadline files reduced focused instrumented time to 40.7 seconds. All 19
+top-level definitions (including the seven-case loop) retain identical hashes.
+Fresh per-test repositories, clocks and adapters remain isolated.
+
+The full post-change instrumented suite passes 466 tests total (464 passed,
+two platform skips) in 163.5 seconds on this Mac. This is not a full-suite speedup
+against the prior 161-second local result; hosted Factory confirmation is required.
+Changed lines remain 747/749 (99.7%), branches 323/343 (94.2%). Formatting and
+whitespace checks pass. Independent Standards and Spec reviews found no issues.
+No source behavior, coverage exclusions, assertions or execution budgets changed.
+The Windows workflow retains all discovered files automatically. The 21 snapshots
+remain untracked and unchanged. Native qualification requirements remain open.
