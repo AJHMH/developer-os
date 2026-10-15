@@ -1,5 +1,8 @@
 # 12: Verify merged main and block unsafe recovery
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** A merged PR remains incomplete while configured main checks, including the pilot's hosted E2E, are monitored for the actual merged/main revision. Failure preserves evidence and stops downstream progression.
 
 **Blocked by:** 11: [Merge only the validated and owner-approved head](11-conditional-owner-merge.md).

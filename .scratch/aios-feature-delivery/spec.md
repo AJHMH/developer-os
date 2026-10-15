@@ -1,5 +1,8 @@
 # Developer AIOS v1: owner-approved feature delivery
 
+**Implementation status — 15 October 2026:** Approved target contract, partially implemented. Controlled orchestration reaches main verification; fixed workers are independently qualified on both platforms. Synchronization, cleanup and full pilot acceptance remain unfinished. See [implementation status](../../docs/implementation-status.md).
+
+
 Status: ready-for-agent
 Testing seam: owner-approved on 7 October 2026
 

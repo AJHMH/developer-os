@@ -1,5 +1,8 @@
 # Mac validation implementation review
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 Fixed point: PR 13 merge `02c11ac49be5ea41be2ee9f6d1b8f36b7723c810`.
 Scope: local working-tree implementation, tests, assertion script and Mac documentation. No commits were created.
 

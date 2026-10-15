@@ -1,5 +1,8 @@
 # Ticket 21 host-only gateway integration review
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Owner-selected fixed base: `5d99f1f`. Parallel Standards and Spec review covered
 that cumulative ticket diff plus the current gateway continuation, native bridge,
 public status test, acceptance harness and separately approved inference harness.

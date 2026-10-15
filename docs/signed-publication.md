@@ -1,5 +1,7 @@
 # Signed candidate publication
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Ticket 08 adds publishFeature and reconcilePublication to the public controller.
 The CLI exposes publish-feature and reconcile-publication with --id, but installs
 no native publisher. Only a trusted controlled PublicationRuntime is accepted.

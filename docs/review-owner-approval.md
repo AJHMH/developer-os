@@ -1,5 +1,7 @@
 # Review findings and owner approval
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Ticket 10 adds the public `monitorReview`, `repairReview` and
 `resolveReviewThread` commands. CLI equivalents are `monitor-review`,
 `repair-review` and `resolve-review-thread --thread-id <id>`, each with `--id`.

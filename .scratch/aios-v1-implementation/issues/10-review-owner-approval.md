@@ -1,5 +1,8 @@
 # 10: Address review findings and wait for owner approval
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** Straightforward review findings pass through the signed repair loop; disputed requests remain open for owner resolution. The controller waits for only the sole owner's valid current-head GitHub review.
 
 **Blocked by:** 09: [Monitor trusted PR checks for the current revision](09-trusted-pr-checks.md).

@@ -1,5 +1,7 @@
 # Windows qualification retrospective improvements
 
+Status: completed — all six approved improvements are implemented, as recorded in [review and validation](review.md) and merged PR #11. Later fresh Windows acceptance is recorded in [ticket 24 completion evidence](../aios-v1-implementation/ticket24-windows-main-repair.md). Production delivery remains disabled.
+
 Implement the six retrospective candidates approved by the owner on 12 October
 2026, after ticket 24 commit `1c0f614`.
 

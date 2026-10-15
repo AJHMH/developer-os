@@ -1,5 +1,8 @@
 # Windows native qualification observation — 2026-10-07
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Owner approved and initialized `sbx policy init deny-all`. Docker Sandboxes 0.47.0 created `aios-ticket4-qualification` using `shell`, no workspace arguments, `--skills off`, and `--deny-network '**'`.
 
 Observed daemon inspection:

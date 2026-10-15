@@ -1,5 +1,8 @@
 # Ticket 21 diagnosis: evidence gap
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 Diagnosis skill Phase 1 is incomplete for the actual live discrepancy. No production code or consistency policy was changed. No network, Keychain, VM operation or subscription inference was used in this diagnosis.
 
 ## Existing evidence

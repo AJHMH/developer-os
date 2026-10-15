@@ -58,13 +58,7 @@ gateway grant. Longer fixture scheduling does not admit a failed control.
 
 ## Scope and outcome
 
-Ticket 04 now has an independently observed **synthetic offline** macOS path.
-It does not complete ticket 04, ticket 25 or later full-controller ticket 16.
-Production delivery stays disabled: `ready` and `liveReady` are false, and the
-Podman adapter refuses production start. Real subscription authorization
-mediation, endpoint/dependency enforcement, online inference and production
-isolated validation remain blocked by tickets 21, 22 and 24. Windows results
-were not promoted into this Mac's report.
+Ticket 25 is complete for the independently observed fixed synthetic Mac worker slice, including all nine checks in the completion receipt above. The dated offline observations below are historical subsets. Production `ready`/`liveReady` remain false; parent ticket 04, native generalized delivery integrations and full-controller ticket 16 remain separate open gates. Windows results are not inherited by this Mac's report.
 
 ## Observed host and pins
 

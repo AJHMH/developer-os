@@ -1,5 +1,8 @@
 # 09: Monitor trusted PR checks for the current revision
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** The controller observes expected trusted PR checks for the exact head, advances only on valid success, routes actionable failures into repair and preserves missing or stalled-check blockers.
 
 **Blocked by:** 08: [Publish signed code and create an App-authored PR](08-signed-app-publication.md).

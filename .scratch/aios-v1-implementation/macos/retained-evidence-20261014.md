@@ -1,5 +1,8 @@
 # Selected historical macOS validation evidence
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 Reviewed 169 remaining untracked files; selected 57 for repository retention and preserved 112 unchanged locally. The [selection inventory](retained-evidence-inventory-20261014.json) records every original path, decision, byte size and SHA-256. No artifact was deleted.
 
 These are historical observations and regression outputs from 13–14 October. The authoritative nine-check result is the [source-bound qualification report](ticket25-final-qualified-report.json), described in the [committed qualification receipt](../ticket25-macos-validation-20261013.md) for implementation snapshot `beda43ef73caec62fcc045baaf3abef9e0df99a7`. Subsequent changes require fresh native evidence; production remains disabled.

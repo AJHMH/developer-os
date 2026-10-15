@@ -1,5 +1,8 @@
 # Ticket 4: MCP gateway isolation research
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Research date: 2026-10-07. Scope: local Docker Sandboxes 0.47.0, credential-free qualification. No host configuration, server registration, credentials, or sandbox lifecycle were changed by this research.
 
 ## Finding

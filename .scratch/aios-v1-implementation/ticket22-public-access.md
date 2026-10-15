@@ -1,5 +1,8 @@
 # Ticket 22 public online-access gate
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 `DeliveryController.onlineCanary(id)` and CLI `online-canary --id <delivery-id>`
 exercise the fixed synthetic model/dependency boundary. The public controller
 requires current trusted qualification, the ticket 21 historical positive

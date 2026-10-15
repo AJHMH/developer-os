@@ -1,5 +1,8 @@
 # Worker isolation on Windows and macOS
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Research date: 7 October 2026. Planning evidence for [ticket 06](issues/06-worker-isolation.md), supporting [runtime ticket 05](issues/05-runtime-foundation.md). No infrastructure was installed or executed, no secret contents were read, and no GitHub effects were performed. The repository has no initial commit; a research branch cannot be created from HEAD. Findings are preserved as this working-tree artifact.
 
 ## Recommendation

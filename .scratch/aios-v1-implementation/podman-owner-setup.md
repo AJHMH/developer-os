@@ -1,5 +1,8 @@
 # Owner setup for the Podman feasibility prototype
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Scope: prepare this Windows PC for a dedicated Hyper-V prototype. Installation does not qualify Podman or replace the approved ticket #4 runtime. Docker support case 00239659 remains open.
 
 1. Check Windows edition in Settings > System > About. Use Windows 11 Pro or Enterprise for the documented Hyper-V route. If this PC is Home, report that before continuing; do not switch to WSL or upgrade Windows just for this test.

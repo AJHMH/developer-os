@@ -1,5 +1,8 @@
 # 22: Dispatch online inference under independently enforced access policy
 
+**Current scope — 15 October 2026:** Independent fixed Windows and Mac worker qualifications now pass all nine checks (tickets 24–25), including fixed authentication, online controls, inference and isolated task validation. Earlier statements that these have never run are historical. Generalized production admission remains open; this ticket is not closed beyond its demonstrated fixture scope. See [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** Deliver controller dispatch with external model-endpoint enforcement, separate controlled dependency access and the existing subscription allowance approval gate. Demonstrate permitted synthetic traffic and denied host/MCP/arbitrary destinations, including bypass attempts; worker privilege cannot alter the outer policy. Low/unknown usage requires a run-scoped owner grant, exhaustion stops with preserved work, and restart/re-dispatch rechecks. No paid fallback or financial-cap claim. Actual subscription inference remains gated by verified mediation and existing owner authorization.
 
 **Blocked by:** 20, 21 (the pinned macOS fixture has a positive public decision; broader runtime qualification remains required).

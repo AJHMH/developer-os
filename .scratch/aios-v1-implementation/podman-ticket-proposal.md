@@ -1,5 +1,8 @@
 # Podman qualification ticket proposal
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Status: approved and published
 
 Source: the revised canonical specification and approved runtime/scope decision. The owner approved this breakdown; tickets 18–25 are now published in the implementation tracker. Preserve existing ticket numbers 01–17 and the open parent ticket 04; append the approved 18–25. Existing tickets 15 and 16 still qualify the complete delivery workflow after ticket 14; the new host qualification slices qualify only the worker boundary and therefore do not duplicate them.

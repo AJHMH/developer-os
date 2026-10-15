@@ -1,5 +1,8 @@
 # Separate ChatGPT setup prerequisites
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Owner approved preparation, separate from feature delivery. The CLI prepared stable, non-secret host registration at C:/Users/mraar/.developer-os-model-auth/registration.json, outside candidate and controller state. It stored no credentials and enabled no delivery.
 
 Follow OpenAI's [Sign in with ChatGPT flow](https://developers.openai.com/siwc/token-sharing-open-source/sign-in): implement a trusted host broker using dynamic_agent_client, stable ext_agent_host_id and Developer OS agent name, PKCE/state/nonce, exact loopback callback, and the issued client ID for exchange. Verify ID-token signature, issuer, audience, expiry and nonce before encrypted host-only credential storage. Scope direct resource invocation to https://api.openai.com/v1; retain refresh tokens outside the worker.

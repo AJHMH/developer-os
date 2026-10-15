@@ -1,5 +1,8 @@
 # Untracked artifact cleanup — 14 October 2026
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../../docs/implementation-status.md).
+
+
 Reviewed 183 untracked files (1,278,749 bytes), all from Ticket 25 macOS validation. No exact duplicates of tracked files were found.
 
 Preserved 169 unique logs, JSON observations, historical refusals, before-fix snapshots, successful acceptance evidence, and the local continuation history in their original locations. No evidence was promoted to current-source qualification, and no uncertain work was discarded.

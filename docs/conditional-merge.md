@@ -1,5 +1,7 @@
 # Conditional owner-approved merge
 
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+
 Ticket #11 adds `mergeFeature`, `reconcileMerge` and `refreshMergeBase` to the
 public delivery controller. CLI aliases are `merge-feature`, `reconcile-merge`
 and `refresh-merge-base`, each with `--id`. No native merge runtime is installed;
@@ -37,7 +39,8 @@ not reset usage or silently restart the worker.
 
 `merged` is intermediate status. It records the merge commit and observed main,
 not successful main checks, synchronization, cleanup or completed delivery.
-Those remain tickets #12 onward. All production/native qualification remains open:
+Ticket 12 now implements controlled main-check verification; synchronization and
+cleanup remain tickets 13–14. Native production delivery qualification remains open:
 Windows and macOS credentials, protected conditional GitHub effects, race handling,
 complete trusted observations, read-only reconciliation and isolation require
 observed qualification. Controlled tests are not live readiness evidence.

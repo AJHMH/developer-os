@@ -1,5 +1,8 @@
 # AIOS feature delivery — wayfinder map
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Label: wayfinder:map
 Status: resolved
 

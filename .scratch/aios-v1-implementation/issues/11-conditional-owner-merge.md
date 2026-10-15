@@ -1,5 +1,8 @@
 # 11: Merge only the validated and owner-approved head
 
+**Implementation reconciliation — 15 October 2026:** The controlled controller slice is implemented in current source and covered by the corresponding implementation receipt. Native adapter/qualification acceptance remains open, so this ticket is not marked fully completed. See the [current status](../../../docs/implementation-status.md).
+
+
 **What to build:** At the merge boundary the controller rechecks revisions, protection, reviews, conversations and trusted checks, then conditionally merges only the authorized candidate or reports a preserved blocker.
 
 **Blocked by:** 10: [Address review findings and wait for owner approval](10-review-owner-approval.md).

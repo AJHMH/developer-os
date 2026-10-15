@@ -1,5 +1,8 @@
 # Windows inference preparation — 11 October 2026
 
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](../../docs/implementation-status.md).
+
+
 Owner completed independent Windows browser consent. The trusted broker returned
 `authorized`, `credentialsStored: true`, Windows CurrentUser DPAPI,
 `planUsageAuthorized: true`, and `deliveryEnabled: false`. Credential contents

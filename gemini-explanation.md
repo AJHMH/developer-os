@@ -1,3 +1,6 @@
+
+> Historical/design artifact: statements below apply to the recorded investigation, proposal or revision. For implemented capabilities, later completion evidence and remaining production gates, see [implementation status](docs/implementation-status.md).
+
 Designing and engineering an **Agentic OS** (or Agent Operating System) requires migrating the classic responsibilities of a computer operating system kernel—such as process scheduling, resource allocation, memory management, and security sandboxing—from physical hardware to LLM-driven software workflows.
 
 The comprehensive, end-to-end architecture, grounded in primary literature and production-grade design principles, is laid out below.
