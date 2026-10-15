@@ -157,3 +157,33 @@ jobs:
           path: windows-python-probe.tap
           if-no-files-found: warn
           retention-days: 14
+  contract-throughput-probe:
+    name: Diagnose complete contract throughput
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          path: consumer
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: AJHMH/software-factory
+          ref: 805c50d54254acd62e2f8f5aa78d0338b6346ce0
+          persist-credentials: false
+          path: factory
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+        working-directory: factory
+      - name: Measure the complete inventory with unchanged governed budgets
+        run: node consumer/.scratch/aios-v1-implementation/diagnostics/contract-throughput-probe.mjs consumer factory
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contract-throughput-probe
+          path: contract-throughput-*.json
+          if-no-files-found: warn
+          retention-days: 14
