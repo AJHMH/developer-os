@@ -72,3 +72,11 @@ commands made the same forced-CRLF invocation pass all three tests (14.4 seconds
 The fixture now explicitly enables Windows-style Git defaults on every host,
 while its materialization commands preserve the admitted bytes. Production
 source admission and all assertions remain unchanged.
+
+The next Windows run (38674746084) confirmed the checkout fix: shard 4 passed.
+Shard 1 instead reached its ten-minute job limit after 109 passing tests and no
+assertion failures; completed test durations alone totaled 759.6 seconds across
+two concurrent files. Adding merge test files changed Node's inventory partition.
+The workflow now partitions the full inventory into eight jobs, retaining the
+same ten-minute limit, two-file concurrency, uploaded TAP evidence, and required
+aggregate Windows gate. No tests are filtered or skipped by this change.
