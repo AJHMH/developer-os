@@ -16,16 +16,11 @@ const failure = () =>
     "Windows protected authentication storage is unavailable; preserve existing credentials and inspect separate host storage. Production remains disabled.",
   );
 
-// Use fixed Framework assemblies and core .NET filesystem/security APIs. Cold
-// PowerShell module and cmdlet initialization can exhaust the helper deadline
-// before any ACL work. No user/candidate module or assembly search path is used.
+// Keep bootstrap to core .NET operations: importing PowerShell modules/cmdlets
+// or a general JSON framework can consume the deadline before ACL validation.
+// All values remain data on stdin; base64 framing cannot become script syntax.
 const systemRuntime = String.raw`
 $PSModuleAutoLoadingPreference='None'
-[void][Reflection.Assembly]::Load('System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35')
-[void][Reflection.Assembly]::Load('System.Security, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a')
-$json=[Web.Script.Serialization.JavaScriptSerializer]::new()
-$json.MaxJsonLength=524288
-$json.RecursionLimit=32
 `;
 /** Initialize only a newly created setup directory; never repair existing ACLs. */
 export function initializeWindowsAuthDirectory(directory: string) {
@@ -33,7 +28,9 @@ export function initializeWindowsAuthDirectory(directory: string) {
 $ErrorActionPreference='Stop'
 try {
  ${systemRuntime}
- $path=$json.DeserializeObject([Console]::In.ReadToEnd())
+ $wire=[Console]::In.ReadToEnd()
+ if($wire.Length -gt 524288) { throw 'size' }
+ $path=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($wire))
  $attributes=[IO.File]::GetAttributes($path)
  if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or [IO.Directory]::GetFileSystemEntries($path).Length -ne 0) { throw 'unsafe' }
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
@@ -63,7 +60,7 @@ try {
       Buffer.from(setup, "utf16le").toString("base64"),
     ],
     {
-      input: JSON.stringify(directory),
+      input: Buffer.from(directory, "utf8").toString("base64"),
       encoding: "utf8",
       timeout: 15000,
       maxBuffer: 8192,
@@ -80,9 +77,19 @@ const script = String.raw`
 $ErrorActionPreference='Stop'
 try {
  ${systemRuntime}
- $request=$json.DeserializeObject([Console]::In.ReadToEnd())
+ $wire=[Console]::In.ReadToEnd()
+ if($wire.Length -gt 524288) { throw 'size' }
+ $fields=$wire.Split([char]10)
+ if($fields.Length -lt 5 -or $fields.Length -gt 1028 -or $fields[0] -notin @('check','create','protect','unprotect')) { throw 'request' }
+ $action=$fields[0]
+ $bytes=[Convert]::FromBase64String($fields[1])
+ $entropy=[Convert]::FromBase64String($fields[2])
+ if($bytes.Length -gt 262144 -or $entropy.Length -ne 32) { throw 'size' }
+ $name=$fields[3]
+ $paths=[Collections.Generic.List[string]]::new()
+ for($i=4;$i -lt $fields.Length;$i++) { $paths.Add([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($fields[$i]))) }
  $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
- foreach($path in $request.paths) {
+ foreach($path in $paths) {
   $attributes=[IO.File]::GetAttributes($path)
   if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'unsafe' }
   if(($attributes -band [IO.FileAttributes]::Directory) -ne 0) { $acl=[IO.Directory]::GetAccessControl($path) }
@@ -92,13 +99,10 @@ try {
    if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -notin @($sid,'S-1-5-18','S-1-5-32-544')) { throw 'acl' }
   }
  }
- if($request.action -eq 'check') { [Console]::Out.Write('T0s='); exit 0 }
- $bytes=[Convert]::FromBase64String($request.bytes)
- $entropy=[Convert]::FromBase64String($request.entropy)
- if($bytes.Length -gt 262144) { throw 'size' }
- if($request.action -eq 'create') {
-  if($request.paths.Count -ne 1 -or $request.name -notmatch '^(registration\.json|[a-f0-9]{64}\.(dpapi|replace))$') { throw 'name' }
-  $path=[IO.Path]::Combine($request.paths[0],$request.name)
+ if($action -eq 'check') { [Console]::Out.Write('T0s='); exit 0 }
+ if($action -eq 'create') {
+  if($paths.Count -ne 1 -or $name -notmatch '^(registration\.json|[a-f0-9]{64}\.(dpapi|replace))$') { throw 'name' }
+  $path=[IO.Path]::Combine($paths[0],$name)
   $acl=[Security.AccessControl.FileSecurity]::new()
   $acl.SetOwner(([Security.Principal.SecurityIdentifier]::new($sid)))
   $acl.SetAccessRuleProtection($true,$false)
@@ -110,8 +114,9 @@ try {
   try { $stream.Write($bytes,0,$bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
   [Console]::Out.Write('T0s='); exit 0
  }
- if($request.action -eq 'protect') { $output=[Security.Cryptography.ProtectedData]::Protect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
- elseif($request.action -eq 'unprotect') { $output=[Security.Cryptography.ProtectedData]::Unprotect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
+ [void][Reflection.Assembly]::Load('System.Security, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a')
+ if($action -eq 'protect') { $output=[Security.Cryptography.ProtectedData]::Protect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
+ elseif($action -eq 'unprotect') { $output=[Security.Cryptography.ProtectedData]::Unprotect($bytes,$entropy,[Security.Cryptography.DataProtectionScope]::CurrentUser) }
  else { throw 'action' }
  [Console]::Out.Write([Convert]::ToBase64String($output))
 } catch { exit 1 }
@@ -173,13 +178,13 @@ export function windowsAuthStore(
         Buffer.from(script, "utf16le").toString("base64"),
       ],
       {
-        input: JSON.stringify({
+        input: [
           action,
-          bytes: bytes.toString("base64"),
+          bytes.toString("base64"),
           entropy,
-          paths,
-          ...(name === undefined ? {} : { name }),
-        }),
+          name ?? "",
+          ...paths.map((path) => Buffer.from(path, "utf8").toString("base64")),
+        ].join("\n"),
         encoding: "utf8",
         timeout: 15000,
         maxBuffer: 524288,

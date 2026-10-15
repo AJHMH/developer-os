@@ -49,3 +49,7 @@ Repair `e373fe6`, run 38771833565, cold job 116549343009: both native tests pass
 The Windows file-concurrency experiment is fully reverted. The only lasting CI change is an additional fast cold-runner regression; all original eight shards still run their full inventories with concurrency two and unchanged deadlines. Existing external authentication/worker qualification pins must be reevaluated against the changed source before native production use; these synthetic fixtures enable no delivery and use no real account credentials.
 
 Final human review and current-head hosted checks remain required. This record does not claim that every possible overloaded Windows host must initialize within the bound: an actual timeout still refuses without retry, fallback or writes beyond the new setup directory.
+
+## Remove remaining JSON bootstrap dependency
+
+A second repaired cold probe passed but initialization took 14,437 ms, leaving little margin. The private helper now uses bounded base64-framed stdin fields rather than loading a general JSON framework. Initialization uses core .NET only; the fixed strong-named System.Security assembly loads only for actual DPAPI. The public TypeScript API and persisted registration/DPAPI formats are unchanged. Wire size, arity, action, base64, entropy and creation-name validation refuse malformed requests. Native tests cover malformed frames, the full 131072-byte public payload limit, unchanged retained bytes, and all prior positive/negative storage behavior. The 15-second limit remains unchanged.

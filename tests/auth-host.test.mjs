@@ -133,8 +133,8 @@ for (const [platform, arch] of [
         if (String(executable).toLowerCase().endsWith("powershell.exe")) {
           let stage = "initialize";
           try {
-            const request = JSON.parse(options.input);
-            if (typeof request === "object") stage = request.action;
+            const fields = options.input.split("\n");
+            if (fields.length > 1) stage = fields[0];
           } catch {
             stage = "unknown";
           }
