@@ -22,6 +22,8 @@ export interface QualificationCheck {
 }
 export interface WindowsWorkerQualificationReport {
   schema: 1;
+  /** Fixed worker evidence never qualifies the complete delivery controller. */
+  scope: "fixed-worker";
   target:
     | { platform: "win32"; arch: "x64"; provider: "hyperv" }
     | { platform: "darwin"; arch: "arm64"; provider: "applehv" };
@@ -455,6 +457,7 @@ function workerQualificationReport(
       : "blocked";
   return {
     schema: 1,
+    scope: "fixed-worker",
     target: macos
       ? { platform: "darwin", arch: "arm64", provider: "applehv" }
       : { platform: "win32", arch: "x64", provider: "hyperv" },

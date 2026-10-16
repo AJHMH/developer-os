@@ -7,6 +7,12 @@ Automatic CI runs the credential-free suite on Windows, macOS and Linux. Native
 VM acceptance, protected account inspection and inference are explicit operator
 actions outside CI.
 
+The public report now explicitly emits `scope: "fixed-worker"`. Its qualified
+outcome applies only to that worker evidence; it does not close complete-controller
+[issue 15](../.scratch/aios-v1-implementation/issues/15-windows-qualification.md).
+See the [complete-controller acceptance matrix](../.scratch/aios-v1-implementation/ticket15-implementation-plan.md)
+for missing native prerequisites and required Windows observations.
+
 ## Current entry points
 
 - `node scripts/run-windows-qualification.mjs`: the phased operator runner.

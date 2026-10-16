@@ -19,6 +19,17 @@ import { isolationProbes } from "../dist/qualification.js";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
+test("public qualification report identifies fixed-worker evidence without claiming complete-controller qualification", async (t) => {
+  const f = fixture(t);
+  await f.controller.qualify(f.delivery.id);
+  const before = f.controller.status(f.delivery.id);
+  const report = f.controller.qualificationReport(f.delivery.id);
+  assert.equal(report.scope, "fixed-worker");
+  assert.equal(report.productionEnabled, false);
+  assert.equal(report.outcome, "blocked");
+  assert.deepEqual(f.controller.status(f.delivery.id), before);
+});
+
 test("Windows controls qualification requires a trusted runtime and cannot be supplied by candidate evidence", async (t) => {
   const f = fixture(t);
   await assert.rejects(
@@ -378,6 +389,7 @@ test("public CLI emits the same report and refuses a weakened Windows observatio
   );
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(result.stdout);
+  assert.equal(report.scope, "fixed-worker");
   assert.equal(report.checks.hostBinding.result, "failed");
   assert.equal(report.outcome, "blocked");
   assert.equal(report.productionEnabled, false);

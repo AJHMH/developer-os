@@ -137,3 +137,18 @@ remote acceptance reuse, changed remote/unknown PR absence, and uncertain PR
 acceptance after creation. They assert no forbidden side effects and preserve
 uncertainty after possible acceptance; all four pass. No production logic,
 threshold, approval rule or deadline changed.
+
+
+## Merged evidence update — 15 October 2026
+
+Controlled implementation is merged (PR #37 for ticket 13, PR #38 for ticket 14).
+PR #39 at main `c63ee3ad7a8b96521f148175633ddcbd38716f43` restores all 15
+publication recovery cases overwritten during the earlier test split. The prior
+retention assertions in historical scheduling notes do not supersede that audit:
+see [restoration evidence](publication-recovery-restoration.md). All 24 current-main
+checks pass, including eight Windows shards and both independent approval checks.
+Manual local main synchronization preserved tracked content and 21 untracked owner
+snapshots. These observations close controlled implementation/merge verification;
+the remaining native acceptance above is still open. Ticket 15 has started with
+scope clarification and a complete-controller prerequisite/acceptance matrix;
+no complete-controller Windows qualification is claimed.
