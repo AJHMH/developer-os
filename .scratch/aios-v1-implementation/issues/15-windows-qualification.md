@@ -4,7 +4,7 @@
 
 **Blocked by:** 14: [Clean eligible merged branches and report delivery completion](14-eligible-cleanup-completion.md).
 
-**Status:** ready-for-agent
+**Status:** ready-for-agent — started; native prerequisites and Windows acceptance blocked
 
 ## Source and governing contract
 
@@ -26,3 +26,29 @@ Complete-controller/pilot acceptance has not run. Fixed worker qualification in 
 - [ ] Unavailable infrastructure/credentials yield blocked/not-run; mocks and successful macOS tests never count as Windows qualification.
 - [ ] Owner provisioning remains separate from delivery; this ticket does not silently change App access, protections or key material.
 
+
+## Comments
+
+### Implementation started — 15 October 2026
+
+Starting main: `c63ee3ad7a8b96521f148175633ddcbd38716f43` (24 successful
+hosted checks). Controlled issues 13 and 14 are merged; their native acceptance
+remains open, so this ticket's dependency is not fully satisfied.
+
+The first implementation slice labels the existing public qualification report
+`scope: fixed-worker`. It remains read-only and cannot authorize complete
+controller delivery. A public-controller regression first failed on the missing
+scope, then passed; the CLI report also exposes the same label. This distinguishes
+ticket 24/25 worker evidence from this ticket's complete-controller acceptance.
+
+See the [implementation plan and qualification matrix](../ticket15-implementation-plan.md).
+Current execution host: Darwin arm64, Node v24.15.0, OS release 27.2.0. This host
+cannot establish Windows 11 x64 / Hyper-V acceptance. No live Windows probe,
+provider inference, provisioning, credential change or repository effect was
+performed. All native criteria above remain unchecked.
+
+Next: implement and independently qualify the missing native delivery adapters
+at the existing public-controller seam, then execute the matrix on the intended
+Windows host with fresh external pins and retained positive/negative controls.
+Historical ticket 24 receipts and ordinary Windows CI cannot substitute for that
+run. Parent 04 and tickets 15–17 remain open; production stays disabled.

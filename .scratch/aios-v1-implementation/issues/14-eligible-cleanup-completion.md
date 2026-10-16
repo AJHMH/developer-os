@@ -4,7 +4,7 @@
 
 **Blocked by:** 13: [Synchronize clean local main without losing work](13-safe-main-sync.md).
 
-**Status:** ready-for-human — controlled implementation; native acceptance open
+**Status:** ready-for-human — controlled implementation complete and merged; native acceptance open
 
 ## Source and governing contract
 
@@ -34,3 +34,27 @@ Checked criteria below describe the controlled implementation with real temporar
 - [x] Completion/blocker reports include revisions, deletions/retentions, evidence and next action with synthetic secrets redacted.
 - [x] Public temporary-Git/controlled-remote tests cover merge styles, new commits, exclusions, tip races, partial deletion and crash windows.
 
+
+## Comments
+
+### Merged implementation and hosted verification — 15 October 2026
+
+The controlled implementation is complete and merged in [PR #38](https://github.com/AJHMH/developer-os/pull/38) at `37f31f94c1ac049d5f2327f4b35534407e368fb3`. Subsequent [PR #39](https://github.com/AJHMH/developer-os/pull/39)
+restored all 15 overwritten publication recovery scenarios, verified preservation
+of the original tests, and adopted reviewed Factory diagnostics/evidence reuse.
+Current main `c63ee3ad7a8b96521f148175633ddcbd38716f43` passes all 24 hosted
+checks across Developer OS CI, CodeQL and Factory adoption. Local main was
+fast-forwarded to that exact revision with tracked work clean and all 21
+untracked owner snapshots preserved.
+
+- [x] Controlled implementation merged and reviewed.
+- [x] Current-main Linux, macOS, eight Windows shards, Factory coverage and both
+  independent approval checks passed.
+- [x] Regression preservation audited after the test split (zero missing original
+  statements or changed original assertion bodies).
+- [ ] Native product adapters and complete-controller qualification remain open
+  as listed above. Manual agent synchronization and CI are not product acceptance.
+
+This closes the controlled implementation work, not the native acceptance gate.
+Ticket 15 may begin prerequisite assessment and harness preparation; it cannot
+claim successful complete-controller Windows qualification from these results.

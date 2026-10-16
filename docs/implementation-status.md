@@ -1,6 +1,6 @@
 # Implementation status
 
-Reconciled 15 October 2026 from main `833ce78` and retained repository evidence; ticket 13 merged in PR #37 and the controlled ticket 14 slice is under local review on `codex/ticket14-eligible-cleanup`. This is an implementation reference for contributors and operators. Qualification receipts apply to their recorded source and host bindings; they do not qualify every later revision.
+Reconciled 15 October 2026 through main `c63ee3a` and retained repository evidence; controlled tickets 13 and 14 merged in PRs #37 and #38. PR #39 restored publication recovery scenarios and adopted reviewed Factory diagnostics/evidence reuse; all 24 main checks pass. This is an implementation reference for contributors and operators. Qualification receipts apply to their recorded source and host bindings; they do not qualify every later revision.
 
 ## Implemented and verified scope
 
@@ -23,6 +23,8 @@ Reconciled 15 October 2026 from main `833ce78` and retained repository evidence;
 ## Remaining production gates
 
 Parent ticket 04 remains open for production admission. Passing fixed synthetic worker reports does not enable generalized coding or validate complete delivery. Tickets 05–14 contain implemented controlled slices; their native acceptance requirements remain open. Native feature planning/coding, validation, signing/publication, PR observation/review, conditional merge and main observation need trusted integrations and independent qualification.
+
+Ticket 15 has started prerequisite assessment and explicit fixed-worker report scope; its complete-controller Windows acceptance remains blocked.
 
 Ticket 13 now has controlled synchronization and read-only reconciliation with real temporary Git tests; its native adapter remains absent. Ticket 14 now implements controlled eligibility, conditional cleanup, independent recovery and completion; its native ports remain absent. Tickets 15–16 require later complete-controller Windows/macOS qualification. Ticket 17 requires the observed profile-page pilot after both pass. No current command completes that end-to-end workflow. Production remains disabled; do not reuse historical inference approvals.
 
