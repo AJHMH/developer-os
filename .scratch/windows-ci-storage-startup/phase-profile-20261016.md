@@ -51,3 +51,62 @@ no-op absorbs the cold cost and initialization becomes warm-fast, shared
 PowerShell/runtime startup is supported over initialization-specific work.
 If no-op stays fast but initialization remains slow, that prediction fails.
 A control refusal stops the probe; no storage action is retried.
+
+## No-op-first counterfactual
+
+Four new hosts on `aab78d0` observed no-op times of 3,566 / 4,622 / 2,035 /
+4,116 ms. The subsequent first initializations took 299 / 362 / 265 / 285 ms,
+including measured script times of 59 / 97 / 55 / 77 ms. All four strict ACL
+checks and later samples passed. The read-only control absorbs the multi-second
+cold cost without performing storage initialization. This supports shared
+PowerShell/runtime cold-start overhead in successful runs over slow ACL work;
+it does not identify the OS/runtime component or prove the historical timeout
+occurred at the same phase. No production warm-up, retry or deadline change is
+proposed.
+
+Across both cohorts: eight fresh Windows hosts, 32 initializations, 32 strict
+native ACL observations and four no-op controls; all observed. Raw bounded
+reports `phase-profile-initialize-first-{1..4}.json` and
+`phase-profile-noop-first-{1..4}.json` retain exact source/runtime bindings and
+stage data. They are synthetic diagnostics, not worker qualification evidence.
+The temporary sampling workflow is removed from the final tree.
+
+## Repeatable probe
+
+On a native Windows x64 host, build the trusted tree and run:
+
+```text
+node .scratch/windows-ci-storage-startup/profile-native-startup.mjs new-report.json --approve-synthetic-storage-probe
+```
+
+For the counterfactual, append `--first-noop`. Reports are create-only. The probe
+never opens an owner account, imports credentials, invokes inference or changes
+production policy. Its `[DEBUG-storage-profile]` injection is intentionally
+retained only inside this explicitly marked diagnostic harness, not in tests
+or production code. Stop on any refusal; do not repeat until it disappears.
+
+Status: PARTIAL — healthy cold overhead is localized and a controlled
+counterfactual supports shared runtime startup. The 15-second refusal itself
+has not been reproduced with stage evidence, so no cause-specific fix is
+claimed. Issue 04 remains paused. Next useful evidence is a naturally failing
+instrumented initialization, followed by OS/runtime tracing on that affected
+host. Repair allowance is conservatively charged 24 active minutes total,
+including the previously recorded 14; CI waits excluded, limits not reset.
+
+## Validation and review
+
+Both native cohorts completed on their recorded source revisions. The final
+probe source is identical to the no-op-first cohort's `aab78d0` source; later
+changes retain results and remove temporary CI only. Syntax and formatting
+checks passed. A macOS invocation positively refused before report creation or
+storage effects; it is not native Windows acceptance. Standards review: zero
+actionable findings. Specification review: zero actionable findings.
+All production source, existing tests, net workflows, contract/dependencies and
+21 preexisting owner reports are unchanged. Final-head hosted validation and
+owner review remain pending.
+
+Merged-main checks:
+[CI](https://github.com/AJHMH/developer-os/actions/runs/38946420793),
+[Factory](https://github.com/AJHMH/developer-os/actions/runs/38946421234),
+[CodeQL](https://github.com/AJHMH/developer-os/actions/runs/38946420720).
+These passed at `22f55c3` without rerunning this main revision.
