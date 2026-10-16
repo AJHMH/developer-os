@@ -40,3 +40,51 @@ the published record. A positive control passed the unchanged original scenario
 and retained three successful native pushes. This tests diagnostic correctness;
 it does not reproduce the unexplained historical null status. The refusal control
 runs after the complete native shard so it cannot warm that observation.
+
+## Native results and limitations
+
+Run `38979409445`, source `bade224`, retained 26 successful real push traces
+on each host, with no missing or truncated traces. Maximum observed elapsed
+times were 468 ms and 842 ms; maximum Git-root exit times were 0.451143 s and
+0.818814 s. Transport, packing and unpacking child roles were observed. The
+difference between parent elapsed time and Git's recorded root exit time ranged
+from 16.38–21.96 ms and 22.89–32.91 ms on these hosts. This is instrumented
+healthy-push evidence, not historical startup, scheduler or filesystem attribution.
+
+Host 1 passed all 102 shard tests (78 passed, 24 existing skips) and its subsequent
+real-Git refusal control. Host 2 had 77 passed, 24 skips and one unrelated
+`tests/auth-setup.test.mjs:41` failure: authentication preparation returned the
+generic ordinary-external-storage refusal after 15.467 s. Its Git pushes all
+succeeded; the subsequent refusal control did not run because the shard failed.
+The overall run failed and is retained as failed evidence, not a passing shard.
+No original main-sync null status was reproduced. The authentication failure was
+not repaired, reclassified as a timeout, or waived by this experiment.
+
+`native-observations.json` binds summaries and artifact fingerprints to the exact
+source/run. Sanitized native event arrays remain in its named CI artifacts and
+the private downloaded copies. The temporary workflow is removed.
+
+### Diagnostic parser correction
+
+The initial parser counted a trailing blank line as malformed evidence. The
+real-Git refusal regression was strengthened to expect zero malformed lines;
+it failed before the correction and passed after blank lines were ignored.
+The positive original scenario also passed with three successful push traces and
+zero malformed lines. The native source summaries preserve their original
+reported counters; they are not retroactively rewritten. A reported trailing
+blank is not proof of native trace corruption. Command options, results and
+all original deadlines/assertions remain unchanged. The corrected parser has
+local real-Git controls; the native observations bind the earlier parser source.
+
+### Remaining gate and allowance
+
+The historical cause remains PARTIAL and no cause-specific behavior repair is
+justified. Normal tests/application code never load this probe. A future failing
+execution with phase evidence is still required for causal diagnosis. All earlier
+failed attempts and qualification gates remain open.
+
+Conservatively charge 15 additional active investigation minutes from the prior
+20 remaining: five active minutes remain. CI waits are excluded. The parser
+correction uses the third repair cycle (following sampler supervision and the
+complete pin correction). Further applicable repair cycles require an explicit
+owner extension; restarts and passing probes do not reset this limit.

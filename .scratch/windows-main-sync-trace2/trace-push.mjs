@@ -59,6 +59,7 @@ function readTrace(path) {
     const lines = text.split("\n");
     if (!text.endsWith("\n")) lines.pop();
     for (const line of lines) {
+      if (line.trim() === "") continue;
       if (events.length >= 128) break;
       let item;
       try {

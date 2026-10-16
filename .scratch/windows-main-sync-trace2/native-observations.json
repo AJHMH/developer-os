@@ -1,0 +1,1012 @@
+{
+  "schemaVersion": 1,
+  "diagnosticOnly": true,
+  "sourceRevision": "bade224711f8e00980fdabb3f8e7f12e5be7914b",
+  "runId": 38979409445,
+  "concurrency": 2,
+  "shard": "3/8",
+  "observations": [
+    {
+      "artifact": "windows-main-sync-trace2-2-bade224711f8e00980fdabb3f8e7f12e5be7914b",
+      "artifactFileSha256": "a05d460a9123b793e0ce9d685a2004eaf16d442779c652c9ae1b7de8654570cb",
+      "summary": {
+        "tests": 102,
+        "pass": 77,
+        "fail": 1,
+        "skipped": 24,
+        "cancelled": 0
+      },
+      "pushObservations": [
+        {
+          "elapsedMs": 409,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.38297,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 397,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.37163,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 339,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 30508,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 52,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.313292,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 187,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 11895,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 24,
+          "commandRoles": ["other", "push", "receive-pack"],
+          "rootExitSeconds": 0.161772,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 353,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.328293,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 357,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.331026,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 364,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.338003,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 405,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.378244,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 376,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.353062,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 408,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.385112,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 359,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.332374,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 370,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.344722,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 361,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.336847,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 374,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31359,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.344787,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 387,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.3618,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 842,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31359,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.818814,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 460,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31683,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.434106,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 371,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.346793,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 372,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.34813,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 357,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.331416,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 365,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.337045,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 391,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.366316,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 373,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.348514,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 329,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31683,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.300859,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 599,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.566094,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 450,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.422498,
+          "firstChildStartSeconds": null
+        }
+      ]
+    },
+    {
+      "artifact": "windows-main-sync-trace2-1-bade224711f8e00980fdabb3f8e7f12e5be7914b",
+      "artifactFileSha256": "16c1641ece7083746bc39099abcdf4dfbfa8125aa2ad4e73b5b04751dc2fc398",
+      "summary": {
+        "tests": 102,
+        "pass": 78,
+        "fail": 0,
+        "skipped": 24,
+        "cancelled": 0
+      },
+      "pushObservations": [
+        {
+          "elapsedMs": 468,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.451143,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 416,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.395792,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 270,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 30509,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 52,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.251164,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 134,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 11895,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 24,
+          "commandRoles": ["other", "push", "receive-pack"],
+          "rootExitSeconds": 0.11682,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 326,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31361,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.307754,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 279,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.261433,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 291,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31361,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.273536,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 319,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.297044,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 303,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.284273,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 274,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.255054,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 258,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31685,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.238285,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 270,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31361,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.252155,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 293,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.274216,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 292,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31361,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.272174,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 278,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31683,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.261116,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 300,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.281634,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 279,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31685,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.259814,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 292,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.273113,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 291,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31683,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.273649,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 278,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.259861,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 273,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.254997,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 271,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.254625,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 281,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.263506,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 325,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.305716,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 276,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31360,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.255227,
+          "firstChildStartSeconds": null
+        },
+        {
+          "elapsedMs": 289,
+          "timeoutMs": 5000,
+          "status": 0,
+          "traceAvailable": true,
+          "bytesRead": 31684,
+          "truncated": false,
+          "malformedLines": 1,
+          "eventCount": 54,
+          "commandRoles": [
+            "other",
+            "pack-objects",
+            "push",
+            "receive-pack",
+            "unpack-objects"
+          ],
+          "rootExitSeconds": 0.267559,
+          "firstChildStartSeconds": null
+        }
+      ]
+    }
+  ]
+}

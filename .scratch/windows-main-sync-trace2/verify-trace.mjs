@@ -39,6 +39,11 @@ try {
   assert.equal(record.status, 1);
   assert.equal(record.timeoutMs, 5000);
   assert.equal(record.traceAvailable, true);
+  assert.equal(
+    record.malformedLines,
+    0,
+    "a trailing newline is not malformed evidence",
+  );
   assert.ok(
     record.events.some((event) => event.event === "exit" && event.code === 1),
   );
