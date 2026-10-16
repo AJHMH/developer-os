@@ -254,3 +254,21 @@ after Factory's merged-main checks passed. Exact committed consumer inspection a
 that independently selected immutable distribution; no workload commands ran in
 inspect mode. Consumer type checking, formatting and both review axes passed.
 Hosted validation of the final follow-up head remains required.
+
+### First required execution and complete pin correction
+
+Required Factory run `38969870232`, job `117205325918`, source `a8d1464`,
+retained 51 numeric test-stage samples without sampling failure. The command
+failed assertions, not its deadline (`timedOut=false`): the approval-refresh script
+and fixture still selected the prior Factory revision. Their exact immutable SHA
+constants now match `b8fd860`; the policy blob remains independently verified at
+`164c8371ce4239120a554203bed3448877fe1684`. All 55 existing refresh tests
+pass with assertions unchanged. The initial structured result is retained in
+`required-command-pin-mismatch.json`; it is not evidence of the historical timeout.
+
+Conservatively charge ten further active minutes for consumer adoption and this
+first repair batch. Together with the previous 55 minutes and the 20-minute
+Factory capture implementation, cumulative active use is 85 of the extended
+90 minutes; five remain. Two repair cycles are used (sampler supervision and this
+complete pin correction). CI and approval waits are excluded. Qualification and
+the historical root-cause finding remain open.
