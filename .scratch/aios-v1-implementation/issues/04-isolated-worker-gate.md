@@ -112,6 +112,10 @@ Collection drift prevents candidate admission. This is controlled lifecycle
 integration, not native process-census qualification. See the
 [lifecycle-binding receipt](../ticket04-lifecycle-binding-receipt.md).
 
+A naming-only [Windows shard follow-up](../ticket04-windows-shard-balance-receipt.md)
+retains all test contents while addressing the discovery-order scheduling change
+and tight shard headroom observed after that slice merged.
+
 The owner-authorized unrelated relay baseline repair merged as verified bot
 commit `f96b8f0` in [PR #41](https://github.com/AJHMH/developer-os/pull/41), after
 all checks and current-head owner approval passed. Its six relay tests and full
