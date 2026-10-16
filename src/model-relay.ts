@@ -58,6 +58,7 @@ export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
   const upstreamCredential = randomBytes(32).toString("hex");
   const checks: boolean[] = [];
   let forwarded = 0;
+  let revocationDeadline: ReturnType<typeof setTimeout> | undefined;
   let started!: () => void;
   let cancelled!: () => void;
   const inFlightStarted = new Promise<void>((resolve) => {
@@ -259,12 +260,15 @@ export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
       after.status === 200 && after.content === output && forwarded === 2,
     );
     const pending = send("/v1/responses");
+    // Deadline refusal can close this peer before the normal await below.
+    // Observe that rejection too; it must not escape as asynchronous activity.
+    void pending.catch(() => undefined);
     const deadline = new Promise<never>((_, reject) => {
-      const timer = setTimeout(
+      revocationDeadline = setTimeout(
         () => reject(Error("Revocation control unavailable")),
         2000,
       );
-      timer.unref();
+      revocationDeadline.unref();
     });
     await Promise.race([inFlightStarted, deadline]);
     grant.revoke();
@@ -283,6 +287,7 @@ export async function syntheticRelayCanary(): Promise<"passed" | "not-run"> {
   } catch {
     return "not-run";
   } finally {
+    clearTimeout(revocationDeadline);
     grant.revoke();
     relay.closeAllConnections();
     upstream.closeAllConnections();
