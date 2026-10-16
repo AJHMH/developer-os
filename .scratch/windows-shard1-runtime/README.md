@@ -46,5 +46,37 @@ two and the original ten-minute job limit. Always-run artifact retention matches
 the mechanism demonstrated on the cancelled original job. No warmup, stress,
 threshold change, command exemption or unchanged-main rerun is introduced. These
 are instrumented changed-revision observations, not replacements for required CI.
-The temporary workflow will be removed after results are reconciled. Missing or
+The temporary workflow was removed after results were reconciled. Missing or
 failed snapshots remain missing evidence; instrumented timings have probe cost.
+
+## Native observations and outcome
+
+[Run 38982598047](https://github.com/AJHMH/developer-os/actions/runs/38982598047)
+at diagnostic revision `7f35e91455329d710fbcd8199fd36e5f3b488b14` passed on both
+Windows hosts: 63/63 tests each, zero skips, failures or cancellations. Test runner
+wall times were 374.187 and 456.290 seconds. All 20 snapshots per host completed;
+none reported snapshot failure. Both artifacts were downloaded before cleanup.
+The bounded numeric/file-family summaries are in `native-observations.json`.
+
+Each host recorded 9,524 Git calls in test-file processes. Their summed Git times
+were 521.856 and 420.359 seconds across concurrent files; these are not wall time.
+The slower host spent less summed time inside these synchronous Git calls, so a
+Git-only explanation is insufficient. Review resolution took 175.08/220.11 seconds,
+conditional merge 158.19/181.88, and main-sync admission 95.21/122.45. These healthy
+instrumented observations do not reproduce the historical deadline failure,
+identify its cause, or establish that main is green. No production repair is made.
+
+The preload and filesystem-failure control remain explicitly opt-in under scratch;
+normal tests and required workflows do not load them. The temporary two-host
+workflow is removed. No assertions, command arguments, subprocess deadlines,
+ten-minute job limit, coverage thresholds, approval requirements or isolation
+rules changed. Issue 04 remains paused behind the unresolved main baseline.
+Actual required main-sync Git phase capture remains pending.
+
+Allowance ledger: the owner added 30 active minutes and two repair cycles to the
+previous five minutes/three used cycles, then explicitly authorized using that
+extension for this separate baseline investigation. Charge 15 active minutes for
+this profiling slice (CI waits excluded), leaving 20 active minutes and the two
+additional repair cycles. The new implementation/control was validated before
+publication; no cause-specific repair cycle or unchanged-main retry was used.
+Restarting or opening this diagnostic PR does not reset those limits.

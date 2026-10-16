@@ -1,0 +1,1015 @@
+{
+  "run": 38982598047,
+  "revision": "7f35e91455329d710fbcd8199fd36e5f3b488b14",
+  "diagnosticOnly": true,
+  "observations": [
+    {
+      "host": "windows-shard1-runtime-1-7f35e91455329d710fbcd8199fd36e5f3b488b14",
+      "snapshots": 20,
+      "incomplete": 0,
+      "failedSnapshots": 0,
+      "tapSummary": "1..63\n# tests 63\n# suites 0\n# pass 63\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 374186.93\n",
+      "files": [
+        {
+          "file": "branch-cleanup-races.test.mjs",
+          "elapsedMs": 72363.8689,
+          "cpuUsage": {
+            "user": 2500000,
+            "system": 3953000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 425.81509999999946,
+              "maxMs": 90.26050000000001
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 329.48600000000147,
+              "maxMs": 67.43219999999997
+            },
+            "git:commit": {
+              "count": 3,
+              "totalMs": 294.9774999999991,
+              "maxMs": 114.45139999999998
+            },
+            "git:rev-parse": {
+              "count": 314,
+              "totalMs": 16649.29099999995,
+              "maxMs": 68.47479999999996
+            },
+            "git:config": {
+              "count": 177,
+              "totalMs": 9246.885699999979,
+              "maxMs": 65.38460000000009
+            },
+            "git:status": {
+              "count": 153,
+              "totalMs": 8594.84549999996,
+              "maxMs": 71.23189999999886
+            },
+            "git:ls-tree": {
+              "count": 126,
+              "totalMs": 7115.306100000016,
+              "maxMs": 71.02059999999983
+            },
+            "git:cat-file": {
+              "count": 126,
+              "totalMs": 7071.684200000005,
+              "maxMs": 67.38369999999986
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 396.02970000000187,
+              "maxMs": 88.91240000000016
+            },
+            "git:push": {
+              "count": 8,
+              "totalMs": 1971.0132000000049,
+              "maxMs": 299.6281999999992
+            },
+            "git:other": {
+              "count": 144,
+              "totalMs": 8122.533199999969,
+              "maxMs": 97.72339999999895
+            },
+            "git:fetch": {
+              "count": 12,
+              "totalMs": 1667.0306000000091,
+              "maxMs": 159.56600000000253
+            },
+            "git:symbolic-ref": {
+              "count": 27,
+              "totalMs": 1183.1662999999753,
+              "maxMs": 50.42899999999645
+            }
+          }
+        },
+        {
+          "file": "publication-signature.test.mjs",
+          "elapsedMs": 31178.4565,
+          "cpuUsage": {
+            "user": 1046000,
+            "system": 1781000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 4,
+              "totalMs": 281.1496999999969,
+              "maxMs": 73.91119999999864
+            },
+            "git:add": {
+              "count": 4,
+              "totalMs": 239.88469999999896,
+              "maxMs": 63.714899999999034
+            },
+            "git:commit": {
+              "count": 4,
+              "totalMs": 374.9396000000037,
+              "maxMs": 98.29750000000058
+            },
+            "git:rev-parse": {
+              "count": 148,
+              "totalMs": 8092.245799999997,
+              "maxMs": 65.93550000000323
+            },
+            "git:config": {
+              "count": 72,
+              "totalMs": 3991.0068999999958,
+              "maxMs": 63.6257999999998
+            },
+            "git:status": {
+              "count": 72,
+              "totalMs": 4205.127100000011,
+              "maxMs": 66.94440000000031
+            },
+            "git:ls-tree": {
+              "count": 72,
+              "totalMs": 4042.1064000000097,
+              "maxMs": 78.41259999999988
+            },
+            "git:cat-file": {
+              "count": 72,
+              "totalMs": 3970.752799999995,
+              "maxMs": 65.04520000000048
+            },
+            "git:update-ref": {
+              "count": 4,
+              "totalMs": 275.84019999999873,
+              "maxMs": 70.34649999999965
+            }
+          }
+        },
+        {
+          "file": "native-podman-options.test.mjs",
+          "elapsedMs": 783.5844999999999,
+          "cpuUsage": {
+            "user": 187000,
+            "system": 78000
+          },
+          "completed": true,
+          "families": {
+            "node": {
+              "count": 4,
+              "totalMs": 594.6373000000001,
+              "maxMs": 158.48559999999998
+            }
+          }
+        },
+        {
+          "file": "main-sync-admission.test.mjs",
+          "elapsedMs": 95206.57489999999,
+          "cpuUsage": {
+            "user": 2968000,
+            "system": 5421000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 10,
+              "totalMs": 658.9092000000035,
+              "maxMs": 73.96210000000428
+            },
+            "git:add": {
+              "count": 10,
+              "totalMs": 547.4868999999899,
+              "maxMs": 77.6137000000017
+            },
+            "git:commit": {
+              "count": 5,
+              "totalMs": 496.49010000000374,
+              "maxMs": 130.40819999999803
+            },
+            "git:rev-parse": {
+              "count": 466,
+              "totalMs": 25197.58399999998,
+              "maxMs": 66.7109000000055
+            },
+            "git:config": {
+              "count": 240,
+              "totalMs": 12932.132600000028,
+              "maxMs": 70.18600000000151
+            },
+            "git:status": {
+              "count": 220,
+              "totalMs": 12727.679799999976,
+              "maxMs": 70.43279999999868
+            },
+            "git:ls-tree": {
+              "count": 210,
+              "totalMs": 11783.957500000062,
+              "maxMs": 65.77180000000226
+            },
+            "git:cat-file": {
+              "count": 210,
+              "totalMs": 11795.089299999989,
+              "maxMs": 66.87090000000035
+            },
+            "git:update-ref": {
+              "count": 5,
+              "totalMs": 349.33389999999235,
+              "maxMs": 78.00259999999253
+            },
+            "git:push": {
+              "count": 11,
+              "totalMs": 2495.974600000023,
+              "maxMs": 247.00940000000992
+            },
+            "git:other": {
+              "count": 30,
+              "totalMs": 1565.452500000003,
+              "maxMs": 78.18869999999879
+            },
+            "git:fetch": {
+              "count": 10,
+              "totalMs": 1349.704399999995,
+              "maxMs": 140.75680000000284
+            },
+            "git:symbolic-ref": {
+              "count": 10,
+              "totalMs": 447.76179999999295,
+              "maxMs": 50.26469999999972
+            }
+          }
+        },
+        {
+          "file": "auth-broker.test.mjs",
+          "elapsedMs": 1664.8738,
+          "cpuUsage": {
+            "user": 1640000,
+            "system": 46000
+          },
+          "completed": true,
+          "families": {}
+        },
+        {
+          "file": "pr-checks-admission.test.mjs",
+          "elapsedMs": 90685.23379999999,
+          "cpuUsage": {
+            "user": 2750000,
+            "system": 4890000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 470.53070000000486,
+              "maxMs": 75.41590000000001
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 447.27890000000264,
+              "maxMs": 78.5573000000004
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 705.4449000000105,
+              "maxMs": 119.88739999999962
+            },
+            "git:rev-parse": {
+              "count": 455,
+              "totalMs": 24985.129700000034,
+              "maxMs": 66.68570000000182
+            },
+            "git:config": {
+              "count": 224,
+              "totalMs": 12420.313899999968,
+              "maxMs": 65.4343000000008
+            },
+            "git:status": {
+              "count": 224,
+              "totalMs": 13003.126499999995,
+              "maxMs": 67.22529999999824
+            },
+            "git:ls-tree": {
+              "count": 224,
+              "totalMs": 12554.061200000055,
+              "maxMs": 78.07920000000013
+            },
+            "git:cat-file": {
+              "count": 224,
+              "totalMs": 12645.234099999916,
+              "maxMs": 67.90099999999802
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 479.2227999999923,
+              "maxMs": 74.67849999999453
+            }
+          }
+        },
+        {
+          "file": "conditional-merge.test.mjs",
+          "elapsedMs": 158187.0989,
+          "cpuUsage": {
+            "user": 5781000,
+            "system": 8109000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 524.8781999999708,
+              "maxMs": 96.3288
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 415.32439999998996,
+              "maxMs": 69.83250000000001
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 653.2637999999916,
+              "maxMs": 115.63890000000004
+            },
+            "git:rev-parse": {
+              "count": 809,
+              "totalMs": 44076.94520000018,
+              "maxMs": 68.04910000000382
+            },
+            "git:config": {
+              "count": 401,
+              "totalMs": 21874.56580000006,
+              "maxMs": 64.77809999999954
+            },
+            "git:status": {
+              "count": 401,
+              "totalMs": 23370.176000000014,
+              "maxMs": 74.78650000000198
+            },
+            "git:ls-tree": {
+              "count": 401,
+              "totalMs": 22464.016999999967,
+              "maxMs": 78.33520000000135
+            },
+            "git:cat-file": {
+              "count": 401,
+              "totalMs": 22500.21309999998,
+              "maxMs": 72.13580000000366
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 469.191400000012,
+              "maxMs": 72.93700000000536
+            },
+            "node": {
+              "count": 3,
+              "totalMs": 445.9933999999921,
+              "maxMs": 156.11329999999725
+            }
+          }
+        },
+        {
+          "file": "windows-qualification-runner.test.mjs",
+          "elapsedMs": 653.4717999999999,
+          "cpuUsage": {
+            "user": 62000,
+            "system": 62000
+          },
+          "completed": true,
+          "families": {
+            "node": {
+              "count": 1,
+              "totalMs": 90.33229999999999,
+              "maxMs": 90.33229999999999
+            }
+          }
+        },
+        {
+          "file": "review-resolution.test.mjs",
+          "elapsedMs": 175080.0651,
+          "cpuUsage": {
+            "user": 4968000,
+            "system": 8937000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 367.04020000002447,
+              "maxMs": 72.3024
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 318.9895999999934,
+              "maxMs": 60.9614
+            },
+            "git:commit": {
+              "count": 6,
+              "totalMs": 513.2250000000131,
+              "maxMs": 94.18220000000292
+            },
+            "git:rev-parse": {
+              "count": 898,
+              "totalMs": 44407.542600000146,
+              "maxMs": 78.46300000000338
+            },
+            "git:config": {
+              "count": 446,
+              "totalMs": 22359.865599999925,
+              "maxMs": 76.67960000000312
+            },
+            "git:status": {
+              "count": 446,
+              "totalMs": 23451.716899999818,
+              "maxMs": 126.4594999999972
+            },
+            "git:ls-tree": {
+              "count": 446,
+              "totalMs": 22635.736899999923,
+              "maxMs": 166.2335000000021
+            },
+            "git:cat-file": {
+              "count": 446,
+              "totalMs": 22482.553800000103,
+              "maxMs": 80.13149999999587
+            },
+            "git:update-ref": {
+              "count": 6,
+              "totalMs": 371.7440000000138,
+              "maxMs": 69.51499999999987
+            }
+          }
+        }
+      ],
+      "families": {
+        "git:init": {
+          "count": 40,
+          "totalMs": 2728.3231,
+          "maxMs": 96.3288
+        },
+        "git:add": {
+          "count": 40,
+          "totalMs": 2298.4504999999763,
+          "maxMs": 78.5573000000004
+        },
+        "git:commit": {
+          "count": 32,
+          "totalMs": 3038.3409000000215,
+          "maxMs": 130.40819999999803
+        },
+        "git:rev-parse": {
+          "count": 3090,
+          "totalMs": 163408.7383000003,
+          "maxMs": 78.46300000000338
+        },
+        "git:config": {
+          "count": 1560,
+          "totalMs": 82824.77049999996,
+          "maxMs": 76.67960000000312
+        },
+        "git:status": {
+          "count": 1516,
+          "totalMs": 85352.67179999978,
+          "maxMs": 126.4594999999972
+        },
+        "git:ls-tree": {
+          "count": 1479,
+          "totalMs": 80595.18510000003,
+          "maxMs": 166.2335000000021
+        },
+        "git:cat-file": {
+          "count": 1479,
+          "totalMs": 80465.52729999999,
+          "maxMs": 80.13149999999587
+        },
+        "git:update-ref": {
+          "count": 36,
+          "totalMs": 2341.362000000011,
+          "maxMs": 88.91240000000016
+        },
+        "git:push": {
+          "count": 19,
+          "totalMs": 4466.987800000028,
+          "maxMs": 299.6281999999992
+        },
+        "git:other": {
+          "count": 174,
+          "totalMs": 9687.985699999972,
+          "maxMs": 97.72339999999895
+        },
+        "git:fetch": {
+          "count": 22,
+          "totalMs": 3016.735000000004,
+          "maxMs": 159.56600000000253
+        },
+        "git:symbolic-ref": {
+          "count": 37,
+          "totalMs": 1630.9280999999683,
+          "maxMs": 50.42899999999645
+        },
+        "node": {
+          "count": 8,
+          "totalMs": 1130.9629999999922,
+          "maxMs": 158.48559999999998
+        }
+      }
+    },
+    {
+      "host": "host2",
+      "snapshots": 20,
+      "incomplete": 0,
+      "failedSnapshots": 0,
+      "tapSummary": "1..63\n# tests 63\n# suites 0\n# pass 63\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 456289.6897\n",
+      "files": [
+        {
+          "file": "windows-qualification-runner.test.mjs",
+          "elapsedMs": 557.2698,
+          "cpuUsage": {
+            "user": 93000,
+            "system": 15000
+          },
+          "completed": true,
+          "families": {
+            "node": {
+              "count": 1,
+              "totalMs": 61.579800000000006,
+              "maxMs": 61.579800000000006
+            }
+          }
+        },
+        {
+          "file": "branch-cleanup-races.test.mjs",
+          "elapsedMs": 74350.571,
+          "cpuUsage": {
+            "user": 1906000,
+            "system": 2859000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 419.0159000000053,
+              "maxMs": 134.5632
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 468.5027999999986,
+              "maxMs": 157.31910000000062
+            },
+            "git:commit": {
+              "count": 3,
+              "totalMs": 406.06580000000054,
+              "maxMs": 216.97379999999998
+            },
+            "git:rev-parse": {
+              "count": 314,
+              "totalMs": 13101.290000000005,
+              "maxMs": 67.95629999999801
+            },
+            "git:config": {
+              "count": 177,
+              "totalMs": 7082.527299999991,
+              "maxMs": 52.74109999999928
+            },
+            "git:status": {
+              "count": 153,
+              "totalMs": 6797.9272999999985,
+              "maxMs": 65.08239999999932
+            },
+            "git:ls-tree": {
+              "count": 126,
+              "totalMs": 5638.109299999975,
+              "maxMs": 66.71799999999985
+            },
+            "git:cat-file": {
+              "count": 126,
+              "totalMs": 5628.936200000055,
+              "maxMs": 55.964099999997416
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 353.2883999999949,
+              "maxMs": 93.29280000000017
+            },
+            "git:push": {
+              "count": 8,
+              "totalMs": 2133.3643000000047,
+              "maxMs": 414.6335000000108
+            },
+            "git:other": {
+              "count": 144,
+              "totalMs": 7313.193100000044,
+              "maxMs": 258.5176000000065
+            },
+            "git:fetch": {
+              "count": 12,
+              "totalMs": 1322.4271000000044,
+              "maxMs": 162.61590000000433
+            },
+            "git:symbolic-ref": {
+              "count": 27,
+              "totalMs": 940.7063999999918,
+              "maxMs": 49.64630000000034
+            }
+          }
+        },
+        {
+          "file": "native-podman-options.test.mjs",
+          "elapsedMs": 839.9884999999999,
+          "cpuUsage": {
+            "user": 78000,
+            "system": 62000
+          },
+          "completed": true,
+          "families": {
+            "node": {
+              "count": 4,
+              "totalMs": 462.60820000000007,
+              "maxMs": 119.68520000000001
+            }
+          }
+        },
+        {
+          "file": "auth-broker.test.mjs",
+          "elapsedMs": 1393.7492,
+          "cpuUsage": {
+            "user": 1140000,
+            "system": 46000
+          },
+          "completed": true,
+          "families": {}
+        },
+        {
+          "file": "publication-signature.test.mjs",
+          "elapsedMs": 38999.3631,
+          "cpuUsage": {
+            "user": 953000,
+            "system": 1421000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 4,
+              "totalMs": 429.3014000000002,
+              "maxMs": 202.59000000000015
+            },
+            "git:add": {
+              "count": 4,
+              "totalMs": 363.5544000000028,
+              "maxMs": 127.26150000000052
+            },
+            "git:commit": {
+              "count": 4,
+              "totalMs": 621.679699999999,
+              "maxMs": 193.68059999999969
+            },
+            "git:rev-parse": {
+              "count": 148,
+              "totalMs": 6353.618699999978,
+              "maxMs": 51.933100000000195
+            },
+            "git:config": {
+              "count": 72,
+              "totalMs": 3153.21560000002,
+              "maxMs": 53.47140000000218
+            },
+            "git:status": {
+              "count": 72,
+              "totalMs": 3292.3795000000023,
+              "maxMs": 55.42290000000503
+            },
+            "git:ls-tree": {
+              "count": 72,
+              "totalMs": 3145.0562000000054,
+              "maxMs": 50.56140000000232
+            },
+            "git:cat-file": {
+              "count": 72,
+              "totalMs": 3173.8047000000033,
+              "maxMs": 51.06550000000061
+            },
+            "git:update-ref": {
+              "count": 4,
+              "totalMs": 214.5825999999929,
+              "maxMs": 60.1338999999989
+            }
+          }
+        },
+        {
+          "file": "main-sync-admission.test.mjs",
+          "elapsedMs": 122448.8695,
+          "cpuUsage": {
+            "user": 2515000,
+            "system": 4468000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 10,
+              "totalMs": 1083.5966000000035,
+              "maxMs": 490.7357000000047
+            },
+            "git:add": {
+              "count": 10,
+              "totalMs": 930.1260999999786,
+              "maxMs": 460.92459999999846
+            },
+            "git:commit": {
+              "count": 5,
+              "totalMs": 600.979500000014,
+              "maxMs": 150.5636000000086
+            },
+            "git:rev-parse": {
+              "count": 466,
+              "totalMs": 20077.652500000037,
+              "maxMs": 83.11369999998715
+            },
+            "git:config": {
+              "count": 240,
+              "totalMs": 10125.59479999995,
+              "maxMs": 56.41730000000098
+            },
+            "git:status": {
+              "count": 220,
+              "totalMs": 9959.485900000027,
+              "maxMs": 69.33389999999781
+            },
+            "git:ls-tree": {
+              "count": 210,
+              "totalMs": 9295.32570000002,
+              "maxMs": 58.38060000000405
+            },
+            "git:cat-file": {
+              "count": 210,
+              "totalMs": 9440.161499999991,
+              "maxMs": 77.64820000001055
+            },
+            "git:update-ref": {
+              "count": 5,
+              "totalMs": 268.83959999999524,
+              "maxMs": 57.18639999999141
+            },
+            "git:push": {
+              "count": 11,
+              "totalMs": 3275.515900000002,
+              "maxMs": 563.627800000002
+            },
+            "git:other": {
+              "count": 30,
+              "totalMs": 1647.618599999998,
+              "maxMs": 130.32710000000952
+            },
+            "git:fetch": {
+              "count": 10,
+              "totalMs": 1462.4105000000127,
+              "maxMs": 290.7526000000071
+            },
+            "git:symbolic-ref": {
+              "count": 10,
+              "totalMs": 357.2134999999762,
+              "maxMs": 41.44520000000193
+            }
+          }
+        },
+        {
+          "file": "review-resolution.test.mjs",
+          "elapsedMs": 220112.26549999998,
+          "cpuUsage": {
+            "user": 4296000,
+            "system": 7390000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 963.6002000000044,
+              "maxMs": 549.4849000000104
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 657.5528999999979,
+              "maxMs": 230.1614
+            },
+            "git:commit": {
+              "count": 6,
+              "totalMs": 1245.6924000000076,
+              "maxMs": 690.1693000000087
+            },
+            "git:rev-parse": {
+              "count": 898,
+              "totalMs": 34879.625800000205,
+              "maxMs": 64.70840000000317
+            },
+            "git:config": {
+              "count": 446,
+              "totalMs": 17537.80740000016,
+              "maxMs": 65.33699999999953
+            },
+            "git:status": {
+              "count": 446,
+              "totalMs": 18338.165500000032,
+              "maxMs": 54.68319999999949
+            },
+            "git:ls-tree": {
+              "count": 446,
+              "totalMs": 17770.827400000064,
+              "maxMs": 66.81870000000345
+            },
+            "git:cat-file": {
+              "count": 446,
+              "totalMs": 17634.013099999844,
+              "maxMs": 53.92989999999918
+            },
+            "git:update-ref": {
+              "count": 6,
+              "totalMs": 291.6921999999936,
+              "maxMs": 58.370800000000145
+            }
+          }
+        },
+        {
+          "file": "conditional-merge.test.mjs",
+          "elapsedMs": 181878.6293,
+          "cpuUsage": {
+            "user": 4156000,
+            "system": 7140000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 547.7186000000332,
+              "maxMs": 197.7804
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 421.9340000000048,
+              "maxMs": 67.2765
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 1061.8340999999998,
+              "maxMs": 276.6885
+            },
+            "git:rev-parse": {
+              "count": 809,
+              "totalMs": 34911.6820999999,
+              "maxMs": 83.14730000001146
+            },
+            "git:config": {
+              "count": 401,
+              "totalMs": 17328.92510000005,
+              "maxMs": 61.91470000000845
+            },
+            "git:status": {
+              "count": 401,
+              "totalMs": 18323.615100000028,
+              "maxMs": 86.74799999999232
+            },
+            "git:ls-tree": {
+              "count": 401,
+              "totalMs": 17601.836400000102,
+              "maxMs": 64.148199999996
+            },
+            "git:cat-file": {
+              "count": 401,
+              "totalMs": 17495.588199999824,
+              "maxMs": 61.26170000000275
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 372.6321999999809,
+              "maxMs": 58.17909999997937
+            },
+            "node": {
+              "count": 3,
+              "totalMs": 337.56089999999676,
+              "maxMs": 114.32979999999225
+            }
+          }
+        },
+        {
+          "file": "pr-checks-admission.test.mjs",
+          "elapsedMs": 102705.6996,
+          "cpuUsage": {
+            "user": 2765000,
+            "system": 3703000
+          },
+          "completed": true,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 677.0481999999755,
+              "maxMs": 169.47720000000118
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 728.6630999999991,
+              "maxMs": 182.30429999999978
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 966.9134999999937,
+              "maxMs": 244.22620000000097
+            },
+            "git:rev-parse": {
+              "count": 455,
+              "totalMs": 19780.80140000008,
+              "maxMs": 211.48450000000048
+            },
+            "git:config": {
+              "count": 224,
+              "totalMs": 9657.750600000078,
+              "maxMs": 117.80850000000282
+            },
+            "git:status": {
+              "count": 224,
+              "totalMs": 10164.392399999968,
+              "maxMs": 89.21660000000156
+            },
+            "git:ls-tree": {
+              "count": 224,
+              "totalMs": 9858.624800000101,
+              "maxMs": 73.22930000000088
+            },
+            "git:cat-file": {
+              "count": 224,
+              "totalMs": 9880.560600000044,
+              "maxMs": 73.6265000000003
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 382.137999999989,
+              "maxMs": 60.09769999999844
+            }
+          }
+        }
+      ],
+      "families": {
+        "node": {
+          "count": 8,
+          "totalMs": 861.7488999999969,
+          "maxMs": 119.68520000000001
+        },
+        "git:init": {
+          "count": 40,
+          "totalMs": 4120.2809000000225,
+          "maxMs": 549.4849000000104
+        },
+        "git:add": {
+          "count": 40,
+          "totalMs": 3570.333299999981,
+          "maxMs": 460.92459999999846
+        },
+        "git:commit": {
+          "count": 32,
+          "totalMs": 4903.165000000015,
+          "maxMs": 690.1693000000087
+        },
+        "git:rev-parse": {
+          "count": 3090,
+          "totalMs": 129104.67050000021,
+          "maxMs": 211.48450000000048
+        },
+        "git:config": {
+          "count": 1560,
+          "totalMs": 64885.820800000256,
+          "maxMs": 117.80850000000282
+        },
+        "git:status": {
+          "count": 1516,
+          "totalMs": 66875.96570000006,
+          "maxMs": 89.21660000000156
+        },
+        "git:ls-tree": {
+          "count": 1479,
+          "totalMs": 63309.779800000266,
+          "maxMs": 73.22930000000088
+        },
+        "git:cat-file": {
+          "count": 1479,
+          "totalMs": 63253.064299999765,
+          "maxMs": 77.64820000001055
+        },
+        "git:update-ref": {
+          "count": 36,
+          "totalMs": 1883.1729999999466,
+          "maxMs": 93.29280000000017
+        },
+        "git:push": {
+          "count": 19,
+          "totalMs": 5408.880200000007,
+          "maxMs": 563.627800000002
+        },
+        "git:other": {
+          "count": 174,
+          "totalMs": 8960.811700000042,
+          "maxMs": 258.5176000000065
+        },
+        "git:fetch": {
+          "count": 22,
+          "totalMs": 2784.837600000017,
+          "maxMs": 290.7526000000071
+        },
+        "git:symbolic-ref": {
+          "count": 37,
+          "totalMs": 1297.919899999968,
+          "maxMs": 49.64630000000034
+        }
+      }
+    }
+  ]
+}
