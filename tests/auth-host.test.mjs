@@ -129,7 +129,43 @@ for (const [platform, arch] of [
       const nativeSpawn = cp.spawnSync;
       t.mock.method(cp, "spawnSync", (executable, args, options) => {
         const started = performance.now();
-        const result = nativeSpawn(executable, args, options);
+        const observedArgs = [...args];
+        if (
+          String(executable).toLowerCase().endsWith("powershell.exe") &&
+          !String(options.input).includes("\n")
+        ) {
+          const index = observedArgs.indexOf("-EncodedCommand") + 1;
+          let source = Buffer.from(observedArgs[index], "base64").toString(
+            "utf16le",
+          );
+          const mark = (label) =>
+            `[Console]::Error.WriteLine('[DEBUG-coldauth] ${label}');\n`;
+          source = mark("entered") + source;
+          for (const [statement, label] of [
+            ["$wire=[Console]::In.ReadToEnd()", "stdin-read"],
+            [
+              "$path=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($wire))",
+              "path-decoded",
+            ],
+            ["$attributes=[IO.File]::GetAttributes($path)", "attributes-read"],
+            [
+              "$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User",
+              "identity-read",
+            ],
+            [
+              "$acl=[Security.AccessControl.DirectorySecurity]::new()",
+              "acl-created",
+            ],
+            ["$acl.SetOwner($sid)", "owner-set"],
+            ["$acl.SetAccessRuleProtection($true,$false)", "inheritance-set"],
+            ["[IO.Directory]::SetAccessControl($path,$acl)", "acl-written"],
+          ])
+            source = source.replace(statement, statement + "\n" + mark(label));
+          observedArgs[index] = Buffer.from(source, "utf16le").toString(
+            "base64",
+          );
+        }
+        const result = nativeSpawn(executable, observedArgs, options);
         if (String(executable).toLowerCase().endsWith("powershell.exe")) {
           let stage = "initialize";
           try {
@@ -148,6 +184,10 @@ for (const [platform, arch] of [
           t.diagnostic(
             JSON.stringify({
               probe: "windows-storage",
+              milestones: String(result.stderr ?? "")
+                .split(/\r?\n/)
+                .filter((line) => /^\[DEBUG-coldauth\] [a-z-]+$/.test(line))
+                .slice(0, 16),
               stage: allowed.includes(stage) ? stage : "unknown",
               elapsedMs: Math.round(performance.now() - started),
               exitCode: result.status,
