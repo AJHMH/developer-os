@@ -1,0 +1,47 @@
+name: Temporary Linux contract profile
+on:
+  push:
+    branches: [codex/linux-test-runtime-diagnosis]
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          path: consumer
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: AJHMH/software-factory
+          ref: dda7ff97b3b5f83ac4af8be62fc531aa7ca4514b
+          persist-credentials: false
+          path: factory
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+        working-directory: consumer
+      - run: npm ci --ignore-scripts
+        working-directory: factory
+      - name: Run original test command under original Factory deadline
+        run: |
+          mkdir -p evidence/processes
+          export AIOS_PROCESS_PROFILE="$PWD/evidence/processes"
+          export NODE_OPTIONS="--import=$PWD/consumer/.scratch/linux-contract-runtime/process-profile.mjs"
+          node --input-type=module <<'JS'
+          import { execute } from './factory/scripts/contract-execution.mjs';
+          import { writeFileSync } from 'node:fs';
+          const result = await execute({run: 'npm test', timeout_seconds: 120}, process.cwd() + '/consumer');
+          writeFileSync('evidence/result.json', JSON.stringify(result, null, 2));
+          console.log(JSON.stringify({status: result.status, timedOut: result.timedOut, startedAt: result.startedAt, finishedAt: result.finishedAt}));
+          process.exitCode = result.status === 'passed' ? 0 : 1;
+          JS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: linux-contract-profile-${{ github.sha }}
+          path: evidence
+          if-no-files-found: error
