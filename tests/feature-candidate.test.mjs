@@ -560,6 +560,18 @@ test("source admission refuses include declarations in both local and worktree s
     });
 });
 
+test("source admission refuses a nested workspace claiming its parent repository identity", async (t) => {
+  const f = fixture(t);
+  const { mkdirSync } = await import("node:fs");
+  const { candidateSource } = await import("../dist/feature-candidate.js");
+  const nested = join(f.repository, "nested");
+  mkdirSync(nested);
+  writeFileSync(join(nested, "index.html"), "<h1>Contact</h1>\n");
+  writeFileSync(join(f.repository, ".git", "info", "exclude"), "/nested/\n");
+  assert.equal(f.git("status", "--porcelain"), "");
+  assert.throws(() => candidateSource(nested), /Changed Git worktree root/);
+});
+
 test("unsafe planner results and unavailable integrations never create feature authority", async (t) => {
   const f = codingFixture(t);
   for (const value of [

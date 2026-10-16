@@ -31,3 +31,13 @@ Read the canonical root and HEAD in one `rev-parse` invocation. Split at the fin
 - All pre-existing tests and the 21 owner snapshot files must remain preserved. No test is removed or skipped beyond existing platform restrictions and the new POSIX-only path scenario.
 
 The 120-second contract limit, collector concurrency, coverage thresholds, scanners, approval rules and all production qualification gates are unchanged. Hosted head/base instrumentation must still pass; local timing improvement alone does not establish a repaired baseline. Issue 04 implementation remains paused until a reviewed repair merges and main validation passes.
+
+## Full validation and coverage follow-up
+
+The completed full local run passed 605 tests: 603 passed, two platform skips, zero failures, in 289.817 seconds. All original test contents and the 21 owner snapshots are preserved. Both final review axes reported zero actionable findings for the source change.
+
+Hosted run `38934015480` completed all stages within the unchanged limits: unit tests 82.682 seconds, head instrumentation 90.523 seconds, base instrumentation 105.543 seconds. Coverage then correctly refused a global branch decrease: 5028/5516 (91.153009%) versus 5029/5517 (91.154613%), despite changed lines and branches both being 100% covered. Removing a fully covered callback changed the denominator; the rule remains unchanged.
+
+A test-only follow-up covers the previously unobserved root-mismatch refusal. An ignored nested folder with matching file bytes cannot claim its parent repository identity. Removing the actual compiled root guard made this test fail with a missing expected refusal; restoring the guard made it pass. Production code, deadlines, concurrency, prior assertions and all policy rules are unchanged. All 57 focused source-admission tests pass after this follow-up, and focused coverage records one hit on the root-refusal branch that was previously unobserved. This new test is verified separately after the full run; final hosted coverage is still required.
+
+Repair budget: this is repair cycle 2 (the first source repair and this measured coverage follow-up). Fewer than 30 active minutes have been used at this follow-up; CI and approval waits are excluded. The third cycle and remaining active time stay bounded by the canonical specification.
