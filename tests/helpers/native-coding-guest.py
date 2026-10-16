@@ -1,11 +1,12 @@
 """External Linux/Podman simulator; executes the transported Python program.
 No VM, provider, owner credentials or real qualification is involved.
 """
-import sys, os, json, pathlib, subprocess, hashlib, types, fcntl
+import sys, os, json, pathlib, subprocess, hashlib, types, fcntl, threading, time
 root = pathlib.Path(sys.argv[1])
 os.environ['HOME'] = str(root)
 state_path = root / 'engine.json'
 state = json.loads(state_path.read_text()) if state_path.exists() else {'commands': [], 'container': None, 'alive': False}
+real_popen = subprocess.Popen
 real_read = pathlib.Path.read_text
 real_exists = pathlib.Path.exists
 real_rglob = pathlib.Path.rglob
@@ -61,15 +62,54 @@ def run(args, **kwargs):
     elif args[:3] == ['sudo','-n','cat']: output = b'synthetic-vm-uuid'
     elif args[0] == 'systemd-run':
         if state.get('leaseUnavailable'): code = 1
+        else:
+            unit = next(x.split('=',1)[1] for x in args if x.startswith('--unit=')) + '.timer'
+            state.setdefault('timers', {})[unit] = {'active': 'active', 'starts': [time.monotonic()]}
     elif args[0] == 'systemctl':
-        if args[2] == 'is-active': output = b'active'
+        timers = state.setdefault('timers', {})
+        verb = args[2]
+        if verb == 'is-active':
+            output = timers.get(args[3], {}).get('active', 'inactive').encode()
+        elif verb == 'show':
+            timer = timers.get(args[3])
+            mode = state.get('timerObservation')
+            if mode == 'unavailable': code = 1
+            elif mode == 'malformed': output = b'ActiveState=inactive\nJob=\n'
+            else: output = ('LoadState=' + ('loaded' if timer else 'not-found') + '\nActiveState=' + (timer['active'] if timer else 'inactive') + '\nJob=' + ('42' if mode == 'pending-job' else '') + '\n').encode()
+        elif verb == 'restart':
+            timer = timers.get(args[3])
+            if not timer: code = 5
+            else:
+                recent = [n for n in timer['starts'] if time.monotonic()-n < 10]
+                if state.get('enforceTimerRate') and len(recent) >= 5:
+                    timer['active'] = 'failed';code = 1
+                else: timer.update(active='active', starts=recent+[time.monotonic()])
+        elif verb == 'stop':
+            for unit in args[3:]:
+                if state.get('timerStopUnavailable'):
+                    code = 1;continue
+                if unit not in timers and state.get('strictTimers'): code = 5
+                timers.pop(unit, None)
+        else: raise RuntimeError('Unexpected systemctl action')
     elif args[0] == 'podman':
         action = args[1]
         c = state['container']
-        if action == 'info': output = json.dumps({'host': {'security': {'rootless': True}, 'cgroupVersion': 'v2'}, 'version': {'Version': '6.1.1'}}).encode()
+        if action == 'info':
+            info = {'host': {'security': {'rootless': True}, 'cgroupVersion': 'v2'}, 'version': {'Version': '6.1.1'}}
+            if state.get('oversizedObservation') == 'stdout': info['padding'] = 'x' * (8*1024*1024)
+            output = json.dumps(info).encode()
         elif action == 'ps': output = json.dumps([{'Names': [request['name']]}] if c and c['State']['Running'] else []).encode()
         elif action == 'image': output = json.dumps([{'RepoDigests': [request['template']], 'Architecture': request['guestArch'], 'Config': {'Env': ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']}}]).encode()
         elif action == 'create':
+            if state.get('largeDatabase'):
+                database = root / 'engine-private.db'
+                program = 'import pathlib,sys; pathlib.Path(sys.argv[1]).write_bytes(b"x"*(9*1024*1024))'
+                with real_popen([sys.executable, '-c', program, str(database)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=kwargs.get('preexec_fn')) as probe:
+                    out, err = probe.communicate(timeout=10)
+                    if probe.returncode:
+                        state_path.write_text(json.dumps(state))
+                        if hasattr(kwargs.get('stderr'), 'write'): kwargs['stderr'].write(err)
+                        return types.SimpleNamespace(returncode=probe.returncode, stdout=out, stderr=err)
             mounts = []; env = []; labels = {}
             for i, value in enumerate(args):
                 if value == '--volume':
@@ -92,7 +132,11 @@ def run(args, **kwargs):
                 state['alive'] = False
             workspace = next(m['Source'] for m in c['Mounts'] if m['Destination'] == '/workspace')
             (pathlib.Path(workspace) / 'index.html').write_bytes(b'after\n')
-        elif action == 'logs': output = b'{"type":"turn.failed"}\n'
+        elif action == 'logs':
+            output = b'{"type":"turn.failed"}\n'
+            state['polls'] = state.get('polls',0) + 1
+            if state.get('stopAfterPolls') and state['polls'] >= state['stopAfterPolls']:
+                c['State'].update(Running=False, Pid=0, Status='exited', ExitCode=1);state['alive'] = False
         elif action == 'stop': c['State'].update(Running=False, Pid=0, Status='exited');state['alive'] = bool(state.get('orphan'))
         elif action == 'container': code = 0 if c else 1
         else: raise RuntimeError('Unexpected external command: ' + repr(args))
@@ -102,6 +146,60 @@ def run(args, **kwargs):
         kwargs['stdout'].write(output)
         output = None
     return types.SimpleNamespace(returncode=code, stdout=output, stderr=b'')
+# Real pipes exercise the management stream reader. Engine behavior remains an
+# external simulator; only the large-database case creates a real limited child.
+class Process:
+    def __init__(self, args, **kwargs):
+        result = run(args, **kwargs)
+        self.pid = 2147483647 # Synthetic identity, intercepted by the external kill adapter.
+        self.returncode = None
+        self.code = result.returncode
+        self.threads = []
+        streams = []
+        for data in [result.stdout or b'', b'x' * (8*1024*1024+1) if state.get('oversizedObservation') == 'stderr' and len(args)>1 and args[1]=='info' else result.stderr or b'']:
+            readfd, writefd = os.pipe()
+            streams.append(os.fdopen(readfd, 'rb', buffering=0))
+            def emit(fd=writefd, content=data):
+                try:
+                    view = memoryview(content)
+                    while view:
+                        count = os.write(fd, view)
+                        view = view[count:]
+                except BrokenPipeError: pass
+                finally: os.close(fd)
+            thread = threading.Thread(target=emit, daemon=True)
+            thread.start(); self.threads.append(thread)
+        self.stdout, self.stderr = streams
+    def poll(self):
+        if all(not t.is_alive() for t in self.threads): self.returncode = self.code
+        return self.returncode
+    def wait(self, timeout=None):
+        deadline = time.monotonic() + (timeout if timeout is not None else 30)
+        for thread in self.threads: thread.join(max(0, deadline-time.monotonic()))
+        if any(t.is_alive() for t in self.threads): raise subprocess.TimeoutExpired('simulated engine', timeout)
+        self.returncode = self.code
+        return self.code
+
+real_killpg = os.killpg
+owned_groups = set()
+def killpg(pid, sig):
+    if pid == 2147483647: raise ProcessLookupError(pid)
+    if pid not in owned_groups: raise AssertionError("Unowned process group")
+    return real_killpg(pid, sig)
+os.killpg = killpg
+
+def popen(args, **kwargs):
+    if state.get('hungObservation') and args[:2] == ['/usr/bin/podman', 'info']:
+        child = real_popen([sys.executable, '-c', 'import time;time.sleep(30)'], **kwargs)
+        owned_groups.add(child.pid)
+        state['managementPid'] = child.pid
+        state_path.write_text(json.dumps(state))
+        monotonic = time.monotonic
+        time.monotonic = lambda: monotonic() + 16
+        return child
+    return Process(args, **kwargs)
+
+subprocess.Popen = popen
 subprocess.run = run
 import io, contextlib
 output = io.StringIO()

@@ -25,17 +25,40 @@ const armTemplate =
 /** Trusted VM management source. Requests are JSON data, never generated commands.
  * This separate offline scope cannot reuse fixed-worker credentials/qualification. */
 const management = String.raw`
-import os,json,subprocess,hashlib,pathlib,stat,tempfile,resource
+import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time
 
 def fail(): raise RuntimeError('Native coding observation unavailable')
 def h(b): return hashlib.sha256(b).hexdigest()
 def command(args):
  args=[args[0] if args[0].startswith('/') else '/usr/bin/'+args[0],*args[1:]]
- def bounded(): resource.setrlimit(resource.RLIMIT_FSIZE,(8388608,8388608))
- with tempfile.TemporaryFile() as output,tempfile.TemporaryFile() as errors:
-  p=subprocess.run(args,stdout=output,stderr=errors,timeout=15,preexec_fn=bounded)
-  if p.returncode or output.tell()>8388608 or errors.tell()>8388608: fail()
-  output.seek(0);return output.read(8388609)
+ deadline=time.monotonic()+15
+ p=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+ output=bytearray();errors=bytearray();completed=False
+ try:
+  # Bound observation streams, not the engine's private database files.
+  with selectors.DefaultSelector() as streams:
+   streams.register(p.stdout,selectors.EVENT_READ,output)
+   streams.register(p.stderr,selectors.EVENT_READ,errors)
+   while streams.get_map():
+    remaining=deadline-time.monotonic()
+    if remaining<=0: fail()
+    for key,_ in streams.select(remaining):
+     chunk=os.read(key.fd,65536)
+     if not chunk:
+      streams.unregister(key.fileobj);key.fileobj.close()
+     else:
+      if len(key.data)+len(chunk)>8388608: fail()
+      key.data.extend(chunk)
+  remaining=deadline-time.monotonic()
+  if remaining<=0 or p.wait(timeout=remaining)!=0: fail()
+  completed=True
+  return bytes(output)
+ finally:
+  if not completed:
+   try: os.killpg(p.pid,signal.SIGKILL)
+   except ProcessLookupError: pass
+  p.stdout.close();p.stderr.close()
+  p.wait(timeout=3)
 def pod(*args): return command(['podman',*args])
 def obj(*args): return json.loads(pod(*args))
 def ordinary(path):
@@ -154,9 +177,28 @@ def lease(start=False):
   for name,seconds in [(unit,min(remaining,30)),(R['name']+'-deadline',remaining)]:
    command(['systemd-run','--user','--unit='+name,'--on-active='+str(seconds)+'s','--timer-property=AccuracySec=100ms','/usr/bin/podman','kill','--signal','KILL',R['name']])
  else:
-  command(['systemctl','--user','restart',unit+'.timer'])
+  # Avoid the manager's start-rate limit; do not weaken it or the 30s lease.
+  renew=time.monotonic()-record['leaseRenewedAt']>=10
+  if renew: command(['systemctl','--user','restart',unit+'.timer'])
  if command(['systemctl','--user','is-active',unit+'.timer']).strip()!=b'active': fail()
  if start and command(['systemctl','--user','is-active',R['name']+'-deadline.timer']).strip()!=b'active': fail()
+ if start or renew:
+  record['leaseRenewedAt']=time.monotonic();save(recordPath,record)
+def timer_state(unit):
+ lines=command(['systemctl','--user','show',unit,'--property=LoadState,ActiveState,Job']).decode('ascii').splitlines()
+ if len(lines)!=3: fail()
+ state=dict(line.split('=',1) for line in lines)
+ if set(state)!=set(['LoadState','ActiveState','Job']) or state['Job']!='': fail()
+ if state['LoadState']=='not-found':
+  if state['ActiveState']!='inactive': fail()
+ elif state['LoadState']!='loaded' or state['ActiveState'] not in ['active','inactive','failed']: fail()
+ return state
+def stop_timers():
+ for unit in [R['name']+'-lease.timer',R['name']+'-deadline.timer']:
+  before=timer_state(unit)
+  if before['LoadState']=='loaded': command(['systemctl','--user','stop',unit])
+  if timer_state(unit)['ActiveState'] not in ['inactive','failed']: fail()
+ record['lease']=False;save(recordPath,record)
 def collect_files():
  files=[];total=0;names=set()
  def visit(path,prefix):
@@ -249,7 +291,7 @@ else:
     if not record['group'] and c['State'].get('Status') not in ['created','configured']: fail()
    elif exists.returncode!=1: fail()
    if not gone(record): fail()
-   if record.get('lease'): command(['systemctl','--user','stop',R['name']+'-lease.timer',R['name']+'-deadline.timer'])
+   if record.get('lease'): stop_timers()
    record['phase']='stopped';save(recordPath,record)
    binding=snapshot()
    if record['binding'] and record['binding']!=binding: fail()
