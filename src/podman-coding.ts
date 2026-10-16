@@ -550,8 +550,10 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
         if (performance.now() >= deadline || !permit(checkpoint))
           throw Error("Native coding run stopped by its gate");
         const polled = await this.invoke("poll", session);
-        if (JSON.stringify(polled.pins) !== expected || !permit(checkpoint))
+        if (JSON.stringify(polled.pins) !== expected)
           throw Error("Native coding binding changed");
+        if (!permit(checkpoint))
+          throw Error("Native coding run stopped by its gate");
         const { running, exitCode, output } = polled.result;
         if (
           typeof running !== "boolean" ||

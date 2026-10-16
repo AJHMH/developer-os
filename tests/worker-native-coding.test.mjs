@@ -888,3 +888,21 @@ for (const mode of [
       await assert.rejects(transport.collect(session));
     },
   );
+
+test(
+  "checkpoint refusal after native polling reports a gated stop and preserves recovery",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t, { keepRunning: true });
+    let checkpoints = 0;
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      checkpoint: () => ++checkpoints < 2,
+    });
+    await assert.rejects(transport.run(request, () => {}), {
+      message: "Native coding run stopped by its gate",
+    });
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+    assert.equal((await transport.collect(session)).complete, true);
+  },
+);
