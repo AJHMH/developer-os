@@ -20,8 +20,9 @@ export async function syncFixture(t) {
     GIT_TERMINAL_PROMPT: "0",
     GIT_ATTR_NOSYSTEM: "1",
   });
-  f.run = (args, cwd = f.repository, input) =>
-    spawnSync(
+  f.run = (args, cwd = f.repository, input) => {
+    const started = performance.now();
+    const result = spawnSync(
       "git",
       [
         "-c",
@@ -44,6 +45,51 @@ export async function syncFixture(t) {
       ],
       { env, encoding: "utf8", timeout: 5000, input },
     );
+    if (args[0] === "push" || result.status !== 0) {
+      const operation = [
+        "push",
+        "init",
+        "rev-parse",
+        "remote",
+        "hash-object",
+        "mktree",
+        "commit-tree",
+        "switch",
+        "config",
+        "add",
+      ].includes(args[0])
+        ? args[0]
+        : "other";
+      const errorCode = result.error?.code;
+      console.error(
+        "[main-sync-git] " +
+          JSON.stringify({
+            operation,
+            elapsedMs: Math.round(performance.now() - started),
+            timeoutMs: 5000,
+            status: result.status,
+            signal: result.signal,
+            errorCode:
+              errorCode === undefined
+                ? null
+                : [
+                      "ETIMEDOUT",
+                      "ENOENT",
+                      "EACCES",
+                      "EPERM",
+                      "EAGAIN",
+                      "ENOMEM",
+                      "ENOBUFS",
+                      "UNKNOWN",
+                    ].includes(errorCode)
+                  ? errorCode
+                  : "unclassified",
+            stderrBytes: Buffer.byteLength(result.stderr ?? ""),
+          }),
+      );
+    }
+    return result;
+  };
   f.g = (...args) => {
     const r = f.run(args);
     assert.equal(r.status, 0, r.stderr);
