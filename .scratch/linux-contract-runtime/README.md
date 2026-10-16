@@ -193,3 +193,19 @@ no cause-specific runtime fix was attempted. The remaining allowance is 20 activ
 minutes and two cycles, whichever is exhausted first. The unresolved baseline
 blocks merge and resumed work under the existing specification. This remains
 PARTIAL evidence, not VERIFIED main repair.
+
+## Resumed after PR #53
+
+Main `b870b429ad695f1f2fec3d08ce71f6a49e65816b` passed all 24 executed
+checks on 16 October 2026; certification was the expected conditional skip.
+Local main matched that exact revision. The Linux full contract, macOS and all
+eight Windows shards passed. This new revision does not explain the two older
+Linux timeouts. PR #52 was refreshed through verified App merge `b4b410b`.
+
+The next bounded observation reuses the reviewed two-host external sampler and
+exact pinned Factory executor. No preload, warmup, workload stress, concurrency
+change or increased deadline is introduced. The full current contract runs once
+on each host, retaining numeric resource counters and every result, including
+failures. This is a changed-revision diagnostic comparison, not another rerun of
+unchanged failed main. The workflow is temporary and will be removed after its
+artifacts are reconciled. Historical-cause and minimized-reproduction gaps remain.
