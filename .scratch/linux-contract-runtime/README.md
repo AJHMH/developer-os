@@ -209,3 +209,26 @@ on each host, retaining numeric resource counters and every result, including
 failures. This is a changed-revision diagnostic comparison, not another rerun of
 unchanged failed main. The workflow is temporary and will be removed after its
 artifacts are reconciled. Historical-cause and minimized-reproduction gaps remain.
+
+### Resumed observation results
+
+[Run 38964772767](https://github.com/AJHMH/developer-os/actions/runs/38964772767)
+completed both observations at source `174610a`. Both hosts reported AMD EPYC
+9V45, four available CPUs and Node 24.21.0. The test stages took 78.968 s and
+74.566 s respectively; each ran all 630 tests, with 627 passed, three existing
+platform skips and zero failures. Install, preceding validation and build passed
+as well. The complete results and numeric samples are retained in
+`resumed-host-profile-1.json` and `resumed-host-profile-2.json`.
+
+Neither observation timed out. They therefore supply no failed-host trace and
+do not explain the historical 120-second failures. No cause-specific production
+repair is justified. The temporary workflow was removed after artifact retention;
+normal workflows, deadlines, tests, assertions and safety gates are unchanged.
+Both review axes found zero actionable issues in the resumed diagnostic scope.
+
+Conservatively charge another 10 active investigation minutes: cumulative Linux
+allowance used is 50 minutes, with 10 minutes remaining. No new repair cycle was
+used because this comparison made no validation/review fix. The earlier one-cycle
+count remains. CI waiting is excluded. This is still PARTIAL; the missing evidence
+is a resource/process trace from an actually failing Linux contract execution.
+Passing more healthy hosts alone cannot close that gap.
