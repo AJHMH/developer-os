@@ -24,11 +24,11 @@ jobs:
           node-version: '24'
       - run: npm ci --ignore-scripts
       - run: npm run build
-      - run: node .scratch/windows-ci-storage-startup/profile-native-startup.mjs storage-profile.json --approve-synthetic-storage-probe
+      - run: node .scratch/windows-ci-storage-startup/profile-native-startup.mjs storage-profile.json --approve-synthetic-storage-probe --first-noop
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: storage-phase-profile-${{ matrix.sample }}
+          name: storage-noop-first-${{ matrix.sample }}
           path: storage-profile.json
           if-no-files-found: error
           retention-days: 14

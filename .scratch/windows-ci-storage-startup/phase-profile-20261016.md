@@ -34,3 +34,20 @@ The sampling workflow will be removed after collecting observations.
 
 Status: diagnostic observation pending. Issue 04 and production qualification
 remain blocked; this is not a storage timeout fix or a gate waiver.
+
+## Initializer-first measurements
+
+Four native hosts on probe revision `5cb9b15` completed all 16 initializations
+and strict ACL observations. First-call totals: 3,003 / 4,107 / 3,082 / 1,974 ms;
+timed script totals: 58 / 62 / 44 / 56 ms. Later initialization totals ranged
+174–267 ms. Most cold-call time is outside the measured script, not observed
+inside stdin parsing or ACL work. These healthy timings do not reproduce the
+historical 15-second refusal or identify its cause.
+
+Counterfactual: four new hosts run a fixed read-only Console output script first,
+using the exact helper executable, flags, environment, working directory and
+15-second timeout. Then they run the same initialization/ACL samples. If the
+no-op absorbs the cold cost and initialization becomes warm-fast, shared
+PowerShell/runtime startup is supported over initialization-specific work.
+If no-op stays fast but initialization remains slow, that prediction fails.
+A control refusal stops the probe; no storage action is retried.

@@ -19,11 +19,12 @@ import {
   windowsAuthStore,
 } from "../../dist/windows-auth-store.js";
 
-const [output, approval, ...extra] = process.argv.slice(2);
+const [output, approval, control, ...extra] = process.argv.slice(2);
 assert.equal(process.platform, "win32", "Native Windows observation required");
 assert.equal(process.arch, "x64");
 assert.ok(output);
 assert.equal(approval, "--approve-synthetic-storage-probe");
+assert.ok(control === undefined || control === "--first-noop");
 assert.equal(extra.length, 0);
 const original = cp.spawnSync;
 const revision = original("git", ["rev-parse", "HEAD"], {
@@ -35,6 +36,7 @@ assert.match(revision.stdout.trim(), /^[a-f0-9]{40}$/);
 closeSync(openSync(output, "wx", 0o600));
 const report = {
   scope: "synthetic-windows-storage-phase-timing",
+  firstCall: control ? "noop" : "initialize",
   sourceRevision: revision.stdout.trim(),
   helperSourceSha256: createHash("sha256")
     .update(
@@ -62,9 +64,38 @@ const report = {
 const persist = () => writeFileSync(output, JSON.stringify(report, null, 2));
 persist();
 let sample = 0;
+let controlDone = false;
 cp.spawnSync = (executable, args, options) => {
   assert.ok(String(executable).toLowerCase().endsWith("powershell.exe"));
   assert.equal(options.timeout, 15000);
+  if (control && !controlDone) {
+    controlDone = true;
+    const controlArgs = [...args];
+    const index = controlArgs.indexOf("-EncodedCommand") + 1;
+    assert.ok(index > 0);
+    controlArgs[index] = Buffer.from(
+      "[Console]::Out.Write('AIOS-profile-control')",
+      "utf16le",
+    ).toString("base64");
+    const started = performance.now();
+    const result = original(executable, controlArgs, { ...options, input: "" });
+    report.observations.push({
+      sample: 0,
+      operation: "noop",
+      elapsedMs: Math.round(performance.now() - started),
+      exitCode: result.status,
+      timedOut: result.error?.code === "ETIMEDOUT",
+      signaled: Boolean(result.signal),
+      phases: [],
+    });
+    persist();
+    assert.equal(result.status, 0, "Read-only control refused");
+    assert.equal(
+      result.stdout,
+      "AIOS-profile-control",
+      "Read-only control unavailable",
+    );
+  }
   const observedArgs = [...args];
   const initialization = !String(options.input).includes("\n");
   if (initialization) {
