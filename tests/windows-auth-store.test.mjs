@@ -20,6 +20,7 @@ test(
     const original = cp.spawnSync;
     let nativeExecutable, nativeArgs, nativeOptions;
     t.mock.method(cp, "spawnSync", (exe, args, options) => {
+      const started = performance.now();
       nativeExecutable = exe;
       const updated = [...args];
       const index = updated.indexOf("-EncodedCommand") + 1;
@@ -29,7 +30,16 @@ test(
       updated[index] = Buffer.from(script, "utf16le").toString("base64");
       nativeArgs = updated;
       nativeOptions = options;
-      return original(exe, updated, options);
+      const result = original(exe, updated, options);
+      t.diagnostic(
+        JSON.stringify({
+          probe: "cold-auth-regression",
+          elapsedMs: Math.round(performance.now() - started),
+          exitCode: result.status,
+          timedOut: result.error?.code === "ETIMEDOUT",
+        }),
+      );
+      return result;
     });
     syncBuiltinESMExports();
     t.after(() => {
