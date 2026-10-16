@@ -790,3 +790,122 @@ test("revocation during host preparation refuses the guest management effect", a
     true,
   );
 });
+
+test(
+  "native observations do not cap the engine private database at the stream byte limit",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t, { largeDatabase: true });
+    const request = await launchRequest(transport, { allowanceMs: 60000 });
+    const result = await transport.run(request, () => {});
+    assert.equal(result.exitCode, 1);
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+    assert.equal(
+      (await transport.collect(session)).files[0].bytes.toString(),
+      "after\n",
+    );
+  },
+);
+
+for (const stream of ["stdout", "stderr"])
+  test(
+    `native management refuses oversized ${stream} while preserving the observation limit`,
+    posixGuest,
+    async (t) => {
+      const { transport } = guestFixture(t, { oversizedObservation: stream });
+      await assert.rejects(transport.inspect(session));
+    },
+  );
+
+test(
+  "native management kills and reaps a stalled command when its unchanged deadline expires",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t, { hungObservation: true });
+    let pid;
+    try {
+      await assert.rejects(transport.inspect(session));
+      pid = read().managementPid;
+      assert.ok(Number.isSafeInteger(pid) && pid > 1);
+      assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+    } finally {
+      // Failure of the regression must not leave its owned synthetic child alive.
+      if (pid)
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch (error) {
+          assert.equal(error.code, "ESRCH");
+        }
+    }
+  },
+);
+
+test(
+  "native exact-session recovery tolerates independently observed collected timer units",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t, { strictTimers: true });
+    const request = await launchRequest(transport, { allowanceMs: 60000 });
+    await transport.run(request, () => {});
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+    assert.equal((await transport.collect(session)).complete, true);
+  },
+);
+
+test(
+  "native polling does not exhaust the manager timer start-rate allowance",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t, {
+      keepRunning: true,
+      stopAfterPolls: 8,
+      enforceTimerRate: true,
+    });
+    const request = await launchRequest(transport, { allowanceMs: 60000 });
+    assert.equal((await transport.run(request, () => {})).exitCode, 1);
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+  },
+);
+
+for (const mode of [
+  "unavailable",
+  "malformed",
+  "pending-job",
+  "stop-unavailable",
+])
+  test(
+    `unverified native timer cleanup blocks collection: ${mode}`,
+    posixGuest,
+    async (t) => {
+      const { transport } = guestFixture(
+        t,
+        mode === "stop-unavailable"
+          ? { timerStopUnavailable: true }
+          : { timerObservation: mode },
+      );
+      const request = await launchRequest(transport, { allowanceMs: 60000 });
+      await assert.rejects(transport.run(request, () => {}));
+      await assert.rejects(transport.collect(session));
+    },
+  );
+
+test(
+  "checkpoint refusal after native polling reports a gated stop and preserves recovery",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t, { keepRunning: true });
+    let checkpoints = 0;
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      checkpoint: () => ++checkpoints < 2,
+    });
+    await assert.rejects(
+      transport.run(request, () => {}),
+      {
+        message: "Native coding run stopped by its gate",
+      },
+    );
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+    assert.equal((await transport.collect(session)).complete, true);
+  },
+);

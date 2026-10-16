@@ -1,0 +1,67 @@
+{
+  "scope": "native-coding-offline-first-launch",
+  "productionEnabled": false,
+  "qualified": false,
+  "outcome": "blocked",
+  "sourceRevision": "0a9d3f379655eb197fabe36ea7b2e7c0704ade4d",
+  "runtimeSourceDirty": false,
+  "authorization": "fixed-synthetic-offline-only",
+  "runnerSha256": "6e9c4f459518d7a5b17e1ef72faa26085e46e15a1b4e35179ce295846fbeb3e5",
+  "transportSourceSha256": "cf0e1ca4cbc33e18ec6163e50425165923342383adb8aee1cc7331ae94a7d259",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "session": {
+    "operationId": "12eaf6a2-886f-4e5c-8512-c66ead41aa06",
+    "fence": 1,
+    "state": "running",
+    "intent": "start"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "startedMs": 0,
+      "outcome": "passed",
+      "finishedMs": 1281
+    },
+    {
+      "name": "offline-launch-and-gated-stop",
+      "startedMs": 1281,
+      "outcome": "blocked",
+      "error": "Native coding binding changed",
+      "finishedMs": 30396
+    },
+    {
+      "name": "final-exact-session-stop",
+      "startedMs": 30397,
+      "outcome": "passed",
+      "finishedMs": 33015
+    }
+  ],
+  "remaining": [
+    "Windows observation",
+    "adversarial mount/network/escape and descendant probes",
+    "independent timer expiry and interrupted-controller recovery",
+    "writable storage limits, explicit resume and dependency controls",
+    "model-only authority, usage/exhaustion and production integration"
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "9c2a5c8e6f414867ebb5814ae3d867c3829d705774cd0b67292c9d531f101cd0",
+    "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+  },
+  "checkpointStopAfterMs": 20000,
+  "workerCompletedTurn": false,
+  "inferenceAuthorized": false,
+  "error": "Native coding binding changed",
+  "runReturned": false,
+  "output": {
+    "bytes": 392,
+    "sha256": "5703056b5a84df671a0f0b749d3b7c72d00a09a4e41cf96590f3b79c2b75dc19"
+  }
+}

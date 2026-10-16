@@ -1,0 +1,61 @@
+{
+  "scope": "native-coding-offline-first-launch",
+  "productionEnabled": false,
+  "qualified": false,
+  "outcome": "blocked",
+  "sourceRevision": "013425692dc2c3c69335b781546bed7804ff0fd0",
+  "runnerSha256": "cc24c82ae6f84b5337a969ac8e71f6e2192b816940a56cb999fa2f83cb04cb21",
+  "transportSourceSha256": "9259d453cc24ae19176271117a2a8c2d9acb0d582c0796bacb74640ca67bba43",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "session": {
+    "operationId": "dbff204e-ee0e-4445-b02a-7e73fdd2a5af",
+    "fence": 1,
+    "state": "running",
+    "intent": "start"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "startedMs": 0,
+      "outcome": "passed",
+      "finishedMs": 1261
+    },
+    {
+      "name": "offline-launch-and-exit",
+      "startedMs": 1261,
+      "outcome": "blocked",
+      "error": "Native coding prepare observation unavailable",
+      "finishedMs": 6171
+    },
+    {
+      "name": "final-exact-session-stop",
+      "startedMs": 6171,
+      "outcome": "passed",
+      "finishedMs": 7276
+    }
+  ],
+  "remaining": [
+    "Windows observation",
+    "adversarial mount/network/escape and descendant probes",
+    "independent timer expiry and interrupted-controller recovery",
+    "writable storage limits, explicit resume and dependency controls",
+    "model-only authority, usage/exhaustion and production integration"
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "352bd8a9a98ff6fe7127feded78320a4a45b788b5c9aed9ecc1e9216db0d0769",
+    "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+  },
+  "runReturned": false,
+  "output": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

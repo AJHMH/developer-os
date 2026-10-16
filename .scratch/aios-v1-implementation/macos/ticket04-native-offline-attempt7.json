@@ -1,0 +1,82 @@
+{
+  "scope": "native-coding-offline-first-launch",
+  "productionEnabled": false,
+  "qualified": false,
+  "outcome": "observed-offline-lifecycle",
+  "sourceRevision": "dca75fae8dd5f6c34286ae5dcbbc1f37fdeb0803",
+  "runtimeSourceDirty": false,
+  "authorization": "fixed-synthetic-offline-only",
+  "runnerSha256": "6e9c4f459518d7a5b17e1ef72faa26085e46e15a1b4e35179ce295846fbeb3e5",
+  "transportSourceSha256": "9858c6bc8d41e804efd7a16c6c6519ce44c5935c2330aa851f2edb0d03fb7d6a",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "session": {
+    "operationId": "e42e646d-47b9-4390-9a9a-b856e3d932f3",
+    "fence": 1,
+    "state": "running",
+    "intent": "start"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "startedMs": 0,
+      "outcome": "passed",
+      "finishedMs": 1245
+    },
+    {
+      "name": "offline-launch-and-gated-stop",
+      "startedMs": 1245,
+      "outcome": "passed",
+      "finishedMs": 30237
+    },
+    {
+      "name": "fresh-exact-session-stop",
+      "startedMs": 30239,
+      "outcome": "passed",
+      "finishedMs": 36068
+    },
+    {
+      "name": "stopped-ordinary-file-collection",
+      "startedMs": 36069,
+      "outcome": "passed",
+      "finishedMs": 42821
+    },
+    {
+      "name": "final-exact-session-stop",
+      "startedMs": 42822,
+      "outcome": "passed",
+      "finishedMs": 45487
+    }
+  ],
+  "remaining": [
+    "Windows observation",
+    "adversarial mount/network/escape and descendant probes",
+    "independent timer expiry and interrupted-controller recovery",
+    "writable storage limits, explicit resume and dependency controls",
+    "model-only authority, usage/exhaustion and production integration"
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "9c2a5c8e6f414867ebb5814ae3d867c3829d705774cd0b67292c9d531f101cd0",
+    "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+  },
+  "checkpointStopAfterMs": 20000,
+  "workerCompletedTurn": false,
+  "inferenceAuthorized": false,
+  "executionOutcome": "checkpoint-stopped",
+  "collection": {
+    "files": 1,
+    "inputPreserved": true
+  },
+  "runReturned": false,
+  "output": {
+    "bytes": 392,
+    "sha256": "b41965c84b0677a2470c788406ad2999bc59317e5be5cc9840e5110defc8eb18"
+  }
+}
