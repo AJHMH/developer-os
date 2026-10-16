@@ -171,9 +171,18 @@ function canonicalPath(path: string): string {
   return join(realpathSync(existing), ...missing);
 }
 
-function assertStorageEntry(path: string, directory: boolean): void {
+function assertStorageEntry(
+  path: string,
+  directory: boolean,
+  removedSidecarMayBeAbsent = false,
+): void {
   try {
-    const entry = lstatSync(path);
+    let entry = lstatSync(path);
+    // SQLite removes WAL/SHM files when its last connection closes. A stat
+    // racing that unlink can describe an ordinary inode with no remaining link.
+    // Observe the path once more; a replacement must pass every original check.
+    if (removedSidecarMayBeAbsent && entry.isFile() && entry.nlink === 0)
+      entry = lstatSync(path);
     if (
       entry.isSymbolicLink() ||
       (directory ? !entry.isDirectory() : !entry.isFile() || entry.nlink !== 1)
@@ -185,6 +194,37 @@ function assertStorageEntry(path: string, directory: boolean): void {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+}
+
+const ledgerBusyTimeoutMs = 5000;
+function configureLedgerJournal(db: DatabaseSync): void {
+  const deadline = performance.now() + ledgerBusyTimeoutMs;
+  const waiter = new Int32Array(new SharedArrayBuffer(4));
+  // Journal-mode promotion can return SQLITE_BUSY without invoking SQLite's
+  // busy handler. Own that wait here, within the same existing lock budget.
+  db.exec("PRAGMA busy_timeout = 0;");
+  try {
+    for (;;) {
+      try {
+        db.exec("PRAGMA journal_mode = WAL;");
+        break;
+      } catch (error) {
+        const sqlite = error as { code?: string; errcode?: number };
+        const remaining = deadline - performance.now();
+        if (
+          sqlite.code !== "ERR_SQLITE_ERROR" ||
+          sqlite.errcode !== 5 ||
+          remaining <= 0
+        )
+          throw error;
+        Atomics.wait(waiter, 0, 0, Math.min(10, remaining));
+        if (performance.now() >= deadline) throw error;
+      }
+    }
+  } finally {
+    db.exec(`PRAGMA busy_timeout = ${ledgerBusyTimeoutMs};`);
+  }
+  db.exec("PRAGMA synchronous = FULL;");
 }
 
 function contains(parent: string, child: string): boolean {
@@ -4316,15 +4356,16 @@ export class DeliveryController {
     const artifacts = join(this.stateDirectory, "artifacts");
     assertStorageEntry(artifacts, true);
     const ledger = join(this.stateDirectory, "deliveries.sqlite");
-    for (const path of [ledger, `${ledger}-wal`, `${ledger}-shm`])
-      assertStorageEntry(path, false);
+    assertStorageEntry(ledger, false);
+    for (const path of [`${ledger}-wal`, `${ledger}-shm`])
+      assertStorageEntry(path, false, true);
     mkdirSync(join(this.stateDirectory, "artifacts"), {
       recursive: true,
       mode: 0o700,
     });
     const db = new DatabaseSync(ledger);
     try {
-      db.exec("PRAGMA busy_timeout = 5000;");
+      db.exec(`PRAGMA busy_timeout = ${ledgerBusyTimeoutMs};`);
       db.exec("BEGIN IMMEDIATE");
       const version = Number(
         db.prepare("PRAGMA user_version").get()?.user_version,
@@ -4370,7 +4411,7 @@ export class DeliveryController {
         }
       }
       db.exec("COMMIT");
-      db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;");
+      configureLedgerJournal(db);
       return work(db);
     } finally {
       if (db.isTransaction) db.exec("ROLLBACK");

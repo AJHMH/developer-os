@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "baselineRevision": "04a911ede7773a82f711d874ee33160c669ddf9e",
+  "hostedFailure": {
+    "pullRequest": 52,
+    "revision": "698385093f192fb1807160776a0711a46757ee15",
+    "runId": 38953371587,
+    "jobId": 117150053624,
+    "runtime": "Node 24.21.0, macOS 26 arm64",
+    "test": "competing CLI processes admit exactly one owner for the same repository",
+    "exitCode": 1,
+    "error": "Unable to access the repository or delivery state. Check local paths and permissions.",
+    "tests": 617,
+    "passed": 614,
+    "failed": 1,
+    "skipped": 2
+  },
+  "naturalLocalObservation": {
+    "node": "24.15.0",
+    "contenders": 32,
+    "attempt": 48,
+    "entry": "deliveries.sqlite-wal",
+    "links": 0,
+    "file": true,
+    "directory": false,
+    "symbolic": false
+  },
+  "deterministicBeforeAfter": {
+    "removedWal": "failed before; passed after",
+    "nativeJournalWriter": "ERR_SQLITE_ERROR/5 before; queued after",
+    "lockBudgetMs": 5000,
+    "focusedCases": 13
+  },
+  "runtimeArchive": {
+    "version": "24.21.0",
+    "platform": "darwin-arm64",
+    "sha256": "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057"
+  },
+  "qualificationEnabled": false
+}
