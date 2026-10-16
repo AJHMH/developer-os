@@ -1,6 +1,6 @@
 # 04: Launch an isolated worker with a fail-closed qualification gate
 
-**Status:** ready-for-agent — remaining implementation started; production qualification pending
+**Status:** ready-for-agent — implementation partial; paused on an unexplained Windows baseline timeout; production qualification pending
 
 **What to build:** Run a pinned dedicated Podman worker for admitted feature work
 only after fresh, version-bound host, workspace, model-only authentication,
@@ -10,6 +10,13 @@ launch; there is no host/shared-runtime fallback.
 **Active dependency blockers:** None. [02: onboarding readiness](02-onboarding-readiness.md)
 and [03: ownership and recovery](03-ownership-pause-recovery.md) are completed
 prerequisites, not current blockers.
+
+**Current validation blocker:** The unrelated cold Windows storage timeout remains
+unexplained. Main's diagnostic follow-up is green, but successful samples and a
+historical unchanged-source rerun do not resolve the earlier failure. Further
+Issue 04 implementation is paused under the approved baseline-failure rule;
+02/03 remain completed. See the
+[Windows phase diagnosis](../../windows-ci-storage-startup/phase-profile-20261016.md).
 
 **Information needed from the owner:** No unanswered requirement blocks the next
 implementation slice. Later live enrollment/inference still requires the relevant
@@ -139,8 +146,8 @@ lease renewal cadence and idempotent timer cleanup exposed by real macOS launch
 attempts. It also separates checkpoint refusal from runtime-binding drift.
 Failed attempts remain retained. The macOS offline checkpoint-stop, fresh-session
 recovery and unchanged ordinary-file collection observation passed. All 617 local
-tests passed or were explicitly skipped (615 passed, two platform skips); hosted
-validation remains in progress. Production remains disabled,
+tests passed or were explicitly skipped (615 passed, two platform skips). PR #49
+passed all 26 active checks and merged as `d9a43e3`. Production remains disabled,
 and no general native qualification criterion is checked off. See the
 [offline lifecycle receipt](../ticket04-native-offline-lifecycle-receipt.md).
 

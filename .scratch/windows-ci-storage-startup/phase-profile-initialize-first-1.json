@@ -1,0 +1,264 @@
+{
+  "scope": "synthetic-windows-storage-phase-timing",
+  "sourceRevision": "5cb9b15567a8b27fa83feca3a2ef416239a1dfd5",
+  "helperSourceSha256": "0829394348ab485399d5555d57edcea9afa06547b8f0e2e86c9b26c3d3e0c66a",
+  "startedAt": "2026-10-16T18:31:42.774Z",
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26100",
+    "node": "v24.21.0",
+    "availableParallelism": 4
+  },
+  "productionEnabled": false,
+  "qualified": false,
+  "outcome": "observed",
+  "observations": [
+    {
+      "sample": 1,
+      "operation": "initialize",
+      "elapsedMs": 3003,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": [
+        {
+          "name": "entered",
+          "elapsedMs": 1
+        },
+        {
+          "name": "stdin-read",
+          "elapsedMs": 9
+        },
+        {
+          "name": "path-decoded",
+          "elapsedMs": 23
+        },
+        {
+          "name": "attributes-read",
+          "elapsedMs": 25
+        },
+        {
+          "name": "identity-read",
+          "elapsedMs": 37
+        },
+        {
+          "name": "acl-created",
+          "elapsedMs": 38
+        },
+        {
+          "name": "owner-set",
+          "elapsedMs": 40
+        },
+        {
+          "name": "inheritance-set",
+          "elapsedMs": 43
+        },
+        {
+          "name": "acl-written",
+          "elapsedMs": 58
+        },
+        {
+          "name": "script-finished",
+          "elapsedMs": 58
+        }
+      ],
+      "outsideMeasuredScriptMs": 2945
+    },
+    {
+      "sample": 1,
+      "operation": "check",
+      "elapsedMs": 382,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": []
+    },
+    {
+      "sample": 2,
+      "operation": "initialize",
+      "elapsedMs": 255,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": [
+        {
+          "name": "entered",
+          "elapsedMs": 1
+        },
+        {
+          "name": "stdin-read",
+          "elapsedMs": 7
+        },
+        {
+          "name": "path-decoded",
+          "elapsedMs": 19
+        },
+        {
+          "name": "attributes-read",
+          "elapsedMs": 21
+        },
+        {
+          "name": "identity-read",
+          "elapsedMs": 31
+        },
+        {
+          "name": "acl-created",
+          "elapsedMs": 32
+        },
+        {
+          "name": "owner-set",
+          "elapsedMs": 33
+        },
+        {
+          "name": "inheritance-set",
+          "elapsedMs": 37
+        },
+        {
+          "name": "acl-written",
+          "elapsedMs": 46
+        },
+        {
+          "name": "script-finished",
+          "elapsedMs": 46
+        }
+      ],
+      "outsideMeasuredScriptMs": 209
+    },
+    {
+      "sample": 2,
+      "operation": "check",
+      "elapsedMs": 290,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": []
+    },
+    {
+      "sample": 3,
+      "operation": "initialize",
+      "elapsedMs": 254,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": [
+        {
+          "name": "entered",
+          "elapsedMs": 1
+        },
+        {
+          "name": "stdin-read",
+          "elapsedMs": 7
+        },
+        {
+          "name": "path-decoded",
+          "elapsedMs": 18
+        },
+        {
+          "name": "attributes-read",
+          "elapsedMs": 20
+        },
+        {
+          "name": "identity-read",
+          "elapsedMs": 30
+        },
+        {
+          "name": "acl-created",
+          "elapsedMs": 32
+        },
+        {
+          "name": "owner-set",
+          "elapsedMs": 33
+        },
+        {
+          "name": "inheritance-set",
+          "elapsedMs": 37
+        },
+        {
+          "name": "acl-written",
+          "elapsedMs": 46
+        },
+        {
+          "name": "script-finished",
+          "elapsedMs": 46
+        }
+      ],
+      "outsideMeasuredScriptMs": 208
+    },
+    {
+      "sample": 3,
+      "operation": "check",
+      "elapsedMs": 274,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": []
+    },
+    {
+      "sample": 4,
+      "operation": "initialize",
+      "elapsedMs": 261,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": [
+        {
+          "name": "entered",
+          "elapsedMs": 1
+        },
+        {
+          "name": "stdin-read",
+          "elapsedMs": 7
+        },
+        {
+          "name": "path-decoded",
+          "elapsedMs": 19
+        },
+        {
+          "name": "attributes-read",
+          "elapsedMs": 21
+        },
+        {
+          "name": "identity-read",
+          "elapsedMs": 31
+        },
+        {
+          "name": "acl-created",
+          "elapsedMs": 32
+        },
+        {
+          "name": "owner-set",
+          "elapsedMs": 33
+        },
+        {
+          "name": "inheritance-set",
+          "elapsedMs": 37
+        },
+        {
+          "name": "acl-written",
+          "elapsedMs": 46
+        },
+        {
+          "name": "script-finished",
+          "elapsedMs": 46
+        }
+      ],
+      "outsideMeasuredScriptMs": 215
+    },
+    {
+      "sample": 4,
+      "operation": "check",
+      "elapsedMs": 278,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false,
+      "phases": []
+    }
+  ],
+  "limitations": [
+    "Successful timings do not explain the historical timeout",
+    "Outside-script time includes startup, instrumentation setup, I/O and exit",
+    "Later samples share host runtime caches"
+  ],
+  "finishedAt": "2026-10-16T18:31:47.784Z"
+}

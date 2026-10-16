@@ -59,3 +59,12 @@ actual owner review remain required. Production code and net workflow files
 are unchanged. No cause-specific fix has been attempted; diagnostic time remains
 within the 60-active-minute repair allowance (14 minutes conservatively charged;
 CI waits excluded). Do not reset this allowance during subsequent diagnosis.
+
+## Merged diagnostic follow-up
+
+PR #50 merged as `22f55c368e4bf7723885a1390dcb034172a31813`; local main
+was synchronized and all 24 active main checks passed without a rerun of this
+revision. The original failed `d9a43e3` occurrence above remains unexplained.
+The [subsequent phase profile](phase-profile-20261016.md) records healthy cold
+and warm timings and a read-only no-op counterfactual. It narrows the observed
+cold overhead but does not claim a fix or waive the Issue 04 validation blocker.
