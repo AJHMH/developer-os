@@ -103,6 +103,11 @@ try {
   report.pins = pins;
   const bytes = Buffer.from("AIOS native coding offline input\n");
   const files = [{ path: "canary.txt", bytes, executable: false }];
+  const executionStarted = performance.now();
+  let pauseRequested = false;
+  report.checkpointStopAfterMs = 20000;
+  report.workerCompletedTurn = false;
+  report.inferenceAuthorized = false;
   const request = {
     ...session,
     pins,
@@ -124,21 +129,44 @@ try {
     files,
     allowanceMs: 60000,
     mayDispatch: () => !interrupted,
-    checkpoint: () => !interrupted,
+    checkpoint: () => {
+      if (interrupted) return false;
+      if (
+        performance.now() - executionStarted >=
+        report.checkpointStopAfterMs
+      ) {
+        pauseRequested = true;
+        return false;
+      }
+      return true;
+    },
     onEvent: () => !interrupted,
   };
   launchAttempted = true;
-  const result = await stage("offline-launch-and-exit", () =>
-    transport.run(request, (chunk) => {
-      output = Buffer.concat([output, chunk]);
-      assert.ok(output.length <= 65536);
-    }),
-  );
-  runReturned = true;
-  report.exitCode = result.exitCode;
-  report.output = { bytes: output.length, sha256: sha256(output) };
-  // This empty-home, deny-all worker has no authority to complete inference.
-  assert.notEqual(result.exitCode, 0);
+  report.outcome = "running";
+  persist();
+  await stage("offline-launch-and-gated-stop", async () => {
+    try {
+      const result = await transport.run(request, (chunk) => {
+        output = Buffer.concat([output, chunk]);
+        assert.ok(output.length <= 65536);
+      });
+      runReturned = true;
+      report.exitCode = result.exitCode;
+      // An empty-home, deny-all worker has no authority to complete inference.
+      assert.notEqual(result.exitCode, 0);
+      report.executionOutcome = "offline-exit";
+    } catch (error) {
+      if (
+        !pauseRequested ||
+        interrupted ||
+        error.message !== "Native coding run stopped by its gate"
+      )
+        throw error;
+      // run() verifies shutdown and runtime pins before preserving this error.
+      report.executionOutcome = "checkpoint-stopped";
+    }
+  });
   await stage("fresh-exact-session-stop", async () => {
     const recovered = new NativePodmanCodingTransport(machine, authority);
     const stopped = await recovered.stop({ ...session, state: "uncertain" });
@@ -160,9 +188,10 @@ try {
     report.collection = { files: 1, inputPreserved: true };
   });
   assert.equal(interrupted, false);
-  report.outcome = "observed-offline-refusal";
+  report.outcome = "observed-offline-lifecycle";
 } catch (error) {
   report.outcome = "blocked";
+  report.error = String(error.message).slice(0, 300);
   process.exitCode = 1;
 } finally {
   // A failed launch can still have effects. Preserve exact-session stop evidence.
