@@ -104,3 +104,56 @@ test("model grant uses an exact capability and destroys tracked requests on revo
   grant.track(lateRequest);
   assert.deepEqual(destroyed, ["active", "late"]);
 });
+
+test("completed synthetic relay qualification releases its deadline instead of firing during later work", async (t) => {
+  const set = globalThis.setTimeout;
+  const clear = globalThis.clearTimeout;
+  const pending = new Set();
+  t.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
+    const timer = set(() => {
+      pending.delete(timer);
+      callback(...args);
+    }, delay);
+    pending.add(timer);
+    return timer;
+  });
+  t.mock.method(globalThis, "clearTimeout", (timer) => {
+    pending.delete(timer);
+    clear(timer);
+  });
+  t.after(() => {
+    for (const timer of pending) clear(timer);
+  });
+  assert.equal(await syntheticRelayCanary(), "passed");
+  assert.equal(
+    pending.size,
+    0,
+    "completed qualification must leave no scheduled callback",
+  );
+});
+
+test("synthetic relay deadline still refuses qualification and releases pending work", async (t) => {
+  const set = globalThis.setTimeout;
+  const clear = globalThis.clearTimeout;
+  const pending = new Set();
+  t.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
+    const timer = set(callback, delay, ...args);
+    pending.add(timer);
+    // Advance the external clock at the first asynchronous deadline.
+    queueMicrotask(() => callback(...args));
+    return timer;
+  });
+  t.mock.method(globalThis, "clearTimeout", (timer) => {
+    pending.delete(timer);
+    clear(timer);
+  });
+  t.after(() => {
+    for (const timer of pending) clear(timer);
+  });
+  assert.equal(await syntheticRelayCanary(), "not-run");
+  assert.equal(
+    pending.size,
+    0,
+    "refused qualification must release scheduled work",
+  );
+});
