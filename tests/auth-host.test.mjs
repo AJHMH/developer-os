@@ -139,7 +139,7 @@ for (const [platform, arch] of [
             "utf16le",
           );
           const mark = (label) =>
-            `[Console]::Error.WriteLine('[DEBUG-coldauth] ${label}');\n`;
+            `[Console]::Error.WriteLine('storage-init-phase: ${label}');\n`;
           source = mark("entered") + source;
           for (const [statement, label] of [
             ["$wire=[Console]::In.ReadToEnd()", "stdin-read"],
@@ -186,7 +186,7 @@ for (const [platform, arch] of [
               probe: "windows-storage",
               milestones: String(result.stderr ?? "")
                 .split(/\r?\n/)
-                .filter((line) => /^\[DEBUG-coldauth\] [a-z-]+$/.test(line))
+                .filter((line) => /^storage-init-phase: [a-z-]+$/.test(line))
                 .slice(0, 16),
               stage: allowed.includes(stage) ? stage : "unknown",
               elapsedMs: Math.round(performance.now() - started),

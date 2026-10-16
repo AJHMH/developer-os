@@ -1,0 +1,119 @@
+{
+  "scope": "synthetic-windows-auth-storage-diagnosis",
+  "baselineRevision": "d9a43e3184a7a99a9a7670765e2a4c49766a9e48",
+  "diagnosticRevision": "6e195c77e253b09099048a0ff4763d83ebad8a4b",
+  "originalJob": 117115815829,
+  "originalOutcome": "failed",
+  "originalInitialize": {
+    "elapsedMs": 16104,
+    "timedOut": true,
+    "exitCode": null
+  },
+  "unchangedSourceRerunJob": 117119464841,
+  "unchangedSourceRerun": "passed",
+  "rootCause": "unconfirmed",
+  "repairClaimed": false,
+  "productionEnabled": false,
+  "samples": [
+    {
+      "job": 117117953732,
+      "probe": "windows-storage",
+      "milestones": [
+        "[DEBUG-coldauth] entered",
+        "[DEBUG-coldauth] stdin-read",
+        "[DEBUG-coldauth] path-decoded",
+        "[DEBUG-coldauth] attributes-read",
+        "[DEBUG-coldauth] identity-read",
+        "[DEBUG-coldauth] acl-created",
+        "[DEBUG-coldauth] owner-set",
+        "[DEBUG-coldauth] inheritance-set",
+        "[DEBUG-coldauth] acl-written"
+      ],
+      "stage": "initialize",
+      "elapsedMs": 3248,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false
+    },
+    {
+      "job": 117119389719,
+      "probe": "windows-storage",
+      "milestones": [
+        "[DEBUG-coldauth] entered",
+        "[DEBUG-coldauth] stdin-read",
+        "[DEBUG-coldauth] path-decoded",
+        "[DEBUG-coldauth] attributes-read",
+        "[DEBUG-coldauth] identity-read",
+        "[DEBUG-coldauth] acl-created",
+        "[DEBUG-coldauth] owner-set",
+        "[DEBUG-coldauth] inheritance-set",
+        "[DEBUG-coldauth] acl-written"
+      ],
+      "stage": "initialize",
+      "elapsedMs": 2154,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false
+    },
+    {
+      "job": 117119390038,
+      "probe": "windows-storage",
+      "milestones": [
+        "[DEBUG-coldauth] entered",
+        "[DEBUG-coldauth] stdin-read",
+        "[DEBUG-coldauth] path-decoded",
+        "[DEBUG-coldauth] attributes-read",
+        "[DEBUG-coldauth] identity-read",
+        "[DEBUG-coldauth] acl-created",
+        "[DEBUG-coldauth] owner-set",
+        "[DEBUG-coldauth] inheritance-set",
+        "[DEBUG-coldauth] acl-written"
+      ],
+      "stage": "initialize",
+      "elapsedMs": 2980,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false
+    },
+    {
+      "job": 117119390102,
+      "probe": "windows-storage",
+      "milestones": [
+        "[DEBUG-coldauth] entered",
+        "[DEBUG-coldauth] stdin-read",
+        "[DEBUG-coldauth] path-decoded",
+        "[DEBUG-coldauth] attributes-read",
+        "[DEBUG-coldauth] identity-read",
+        "[DEBUG-coldauth] acl-created",
+        "[DEBUG-coldauth] owner-set",
+        "[DEBUG-coldauth] inheritance-set",
+        "[DEBUG-coldauth] acl-written"
+      ],
+      "stage": "initialize",
+      "elapsedMs": 2506,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false
+    },
+    {
+      "job": 117119390247,
+      "probe": "windows-storage",
+      "milestones": [
+        "[DEBUG-coldauth] entered",
+        "[DEBUG-coldauth] stdin-read",
+        "[DEBUG-coldauth] path-decoded",
+        "[DEBUG-coldauth] attributes-read",
+        "[DEBUG-coldauth] identity-read",
+        "[DEBUG-coldauth] acl-created",
+        "[DEBUG-coldauth] owner-set",
+        "[DEBUG-coldauth] inheritance-set",
+        "[DEBUG-coldauth] acl-written"
+      ],
+      "stage": "initialize",
+      "elapsedMs": 4953,
+      "exitCode": 0,
+      "timedOut": false,
+      "signaled": false
+    }
+  ]
+}
