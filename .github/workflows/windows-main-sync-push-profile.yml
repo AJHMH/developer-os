@@ -1,0 +1,37 @@
+name: Temporary Windows main-sync push observation
+on:
+  push:
+    branches: [codex/windows-main-sync-push-diagnostics]
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        observation: [1, 2]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "24"
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Observe original main-sync scenario with unchanged five-second Git limit
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force tmp | Out-Null
+          node --test --test-reporter=tap "--test-name-pattern=remote advancement invalidates green checks" tests/main-sync.test.mjs *> tmp/windows-main-sync-push.tap
+          $fixtureExit = $LASTEXITCODE
+          Get-Content tmp/windows-main-sync-push.tap
+          exit $fixtureExit
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-main-sync-push-${{ matrix.observation }}-${{ github.sha }}
+          path: tmp/windows-main-sync-push.tap
+          if-no-files-found: error
