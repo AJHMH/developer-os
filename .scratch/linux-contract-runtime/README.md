@@ -69,7 +69,7 @@ optimization. No production change is justified by these observations alone.
 ## Retained diagnostic boundary
 
 `process-profile.mjs` is an explicit NODE_OPTIONS preload, not installed by the
-application or normal tests. The two historical workflow definitions can be
+application or normal tests. The historical workflow definitions can be
 inspected at their recorded commits. The temporary workflow is removed from the
 final tree. `profile-1.json` and `profile-2.json` retain complete executor results
 and numeric per-process observations.
@@ -125,8 +125,71 @@ repository formatting passed; full-suite evidence is the three hosted probes.
 No additional local full run was needed for this diagnostics-only change, which
 contains no production or existing-test edits.
 
-Linux repair allowance is separate from the Windows investigation's retained
-24 active minutes. Conservatively charge 30 active Linux investigation minutes;
-CI waits are excluded. No cause-specific repair cycle has been attempted yet.
-The unresolved baseline blocks merging this draft or resuming the paused work
-under the existing specification. This is PARTIAL evidence, not VERIFIED repair.
+## External host sampling without a preload
+
+A final comparison removed NODE_OPTIONS entirely. The parent invoked the pinned
+full contract and sampled allowlisted numeric Linux CPU, I/O-pressure, memory
+and cgroup counters every two seconds. It did not wrap or change child commands.
+Source `1e9e502`, [run 38952644530](https://github.com/AJHMH/developer-os/actions/runs/38952644530),
+two independent hosts:
+
+| Host | CPU model                 | Test stage | Tests                            |
+| ---- | ------------------------- | ---------- | -------------------------------- |
+| 1    | AMD EPYC 7763             | 100.281 s  | 614 passed, three existing skips |
+| 2    | Intel Xeon Platinum 8370C | 82.281 s   | 614 passed, three existing skips |
+
+Both reported four available CPUs and Node v24.21.0; all contract commands
+passed. `host-profile-1.json` and `host-profile-2.json` retain every sample and
+result. Neither observed cgroup CPU throttling or nonzero steal ticks. Memory
+pressure remained negligible in these healthy observations. This shows the
+preload is not necessary to obtain a passing observation. Hardware and timing
+vary, but these healthy measurements do not prove what delayed either failed
+main host. No stress, warmup, timeout increase or test exemption was introduced.
+
+## Diagnostic supervisor correction
+
+Review found that a periodic report-write exception could terminate the parent
+that owns Factory's deadline. The retained sampler now catches sampling failures,
+stops sampling and lets the original command finish or reach its original
+termination deadline. It records diagnostic failure after command reconciliation.
+The optional process preload likewise catches snapshot write failures rather
+than terminating a deadline supervisor. Missing reports remain missing evidence.
+
+The public process/filesystem regression uses the exact pinned Factory executor,
+a disposable never-completing Node child and a four-second fixture deadline. It
+replaces the existing host report with a directory after the child starts,
+causing EISDIR on the next sample. It introduces no test-only production hook.
+[Run 38953090240](https://github.com/AJHMH/developer-os/actions/runs/38953090240),
+source `40ae8a9`, confirmed:
+
+- Original sampler from `1e9e502`: exited after 2.138 s with EISDIR; command still
+  alive. The regression then explicitly cleaned up its owned process group.
+- Corrected sampler: returned after 4.138 s, original deadline still enforced,
+  child stopped, `timedOut=true`, `terminationFailed=false`, and diagnostic
+  sampling failure retained. The diagnostic command refused as required.
+
+`sampler-supervision.json` records both verdicts and the exact old-source SHA256,
+which matched `git show 1e9e502:.../profile-host.mjs`. This verifies a diagnostic
+supervision repair only, not the original main runtime failure. The two healthy
+host observations used the earlier sampler; neither encountered a write error.
+The temporary workflow is removed after this focused regression. The standalone
+verification helper is Linux-only and uses explicit disposable fixture paths;
+non-Linux sampler invocation refused before report creation or command effects.
+
+## Remaining blocker and allowance
+
+PR #52 retains the investigation as Software Factory bot with verified commits.
+The owner marked it ready for review in GitHub; that UI state does not establish
+a cause-specific repair. Final-head checks and GitHub approval remain required.
+The failed main hosts have no equivalent resource trace, so the historical cause
+and a reliable minimized reproduction remain unavailable. The next useful step
+is capturing these counters during a naturally failing complete contract run.
+Do not add an unchanged-main retry or claim passing diagnostic hosts resolved it.
+
+Linux allowance is separate from the Windows investigation's retained 24 active
+minutes. Conservatively charge 40 active Linux investigation/repair minutes;
+CI waits are excluded. One review-repair cycle was used for sampler supervision;
+no cause-specific runtime fix was attempted. The remaining allowance is 20 active
+minutes and two cycles, whichever is exhausted first. The unresolved baseline
+blocks merge and resumed work under the existing specification. This remains
+PARTIAL evidence, not VERIFIED main repair.
