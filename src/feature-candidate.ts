@@ -445,7 +445,8 @@ export function candidateOutput(receipt: CodingCollection): string {
 import { StringDecoder } from "node:string_decoder";
 /** Trusted isolated-management transport. inspect measures the worker executable
  * and immutable host/policy binding independently of worker JSON. run must check
- * those expected pins again at dispatch, use argv (never a shell), and close the
+ * those expected pins and call request.mayDispatch() immediately before each
+ * worker effect after asynchronous preparation. Use argv (never a shell), and close the
  * CLI output stream before resolving. No host coding executor is provided. */
 export interface IsolatedCodingTransport {
   readonly mode: "controlled";
@@ -514,14 +515,50 @@ export class PinnedCodingRuntime implements FeatureRuntime {
   async execute(request: CodingRequest): Promise<CodingResult> {
     const expected = JSON.stringify(this.pins);
     const admittedLaunch = codingLaunchBinding(request);
+    const { mayDispatch, checkpoint, onEvent } = request;
     if (
       this.transport.mode !== "controlled" ||
       JSON.stringify(request.pins) !== expected ||
       JSON.stringify(await this.transport.inspect(request)) !== expected ||
       codingLaunchBinding(request) !== admittedLaunch ||
-      !request.mayDispatch()
+      request.mayDispatch !== mayDispatch ||
+      request.checkpoint !== checkpoint ||
+      request.onEvent !== onEvent ||
+      !mayDispatch()
     )
       throw Error("Coding executable or authority changed");
+    const copyFiles = (files: CodingRequest["files"]) =>
+      files.map((file) => ({ ...file, bytes: Buffer.from(file.bytes) }));
+    const launch: CodingRequest = {
+      ...request,
+      argv: [...request.argv],
+      pins: { ...request.pins },
+      files: copyFiles(request.files),
+      ...(request.baseRefresh
+        ? {
+            baseRefresh: {
+              from: {
+                ...request.baseRefresh.from,
+                files: copyFiles(request.baseRefresh.from.files),
+              },
+              to: {
+                ...request.baseRefresh.to,
+                files: copyFiles(request.baseRefresh.to.files),
+              },
+            },
+          }
+        : {}),
+      mayDispatch: () =>
+        launchUnchanged() && mayDispatch() && launchUnchanged(),
+      checkpoint: () => launchUnchanged() && checkpoint() && launchUnchanged(),
+      onEvent,
+    };
+    const launchUnchanged = () =>
+      this.transport.mode === "controlled" &&
+      JSON.stringify(this.pins) === expected &&
+      codingLaunchBinding(launch) === admittedLaunch;
+    Object.freeze(launch);
+
     const decoder = new StringDecoder("utf8"),
       events: unknown[] = [];
     let pending = "",
@@ -534,17 +571,17 @@ export class PinnedCodingRuntime implements FeatureRuntime {
         !event ||
         typeof event !== "object" ||
         events.length >= 4096 ||
-        !request.checkpoint()
+        !launch.checkpoint()
       )
         throw Error("Invalid coding frame");
       if (
         (event as Record<string, unknown>).type === "thread.started" &&
-        !request.onEvent(event)
+        !onEvent(event)
       )
         throw Error("Invalid coding session");
       events.push(event);
     };
-    const result = await this.transport.run(request, (bytes) => {
+    const result = await this.transport.run(launch, (bytes) => {
       if (closed || !Buffer.isBuffer(bytes) || (count += bytes.length) > 65536)
         throw Error("Coding stream is unavailable or oversized");
       pending += decoder.write(bytes);
@@ -558,10 +595,10 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     pending += decoder.end();
     if (pending.trim()) frame(pending);
     if (
-      result.operationId !== request.operationId ||
-      result.fence !== request.fence ||
+      result.operationId !== launch.operationId ||
+      result.fence !== launch.fence ||
       JSON.stringify(result.pins) !== expected ||
-      this.transport.mode !== "controlled"
+      !launchUnchanged()
     )
       throw Error("Coding result binding changed");
     // Validate the full observed transcript, not only its final frame.
@@ -571,7 +608,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       exitCode: result.exitCode,
       events: structuredClone(events),
     };
-    codingTurn(execution, request.threadId);
+    codingTurn(execution, launch.threadId);
     return execution;
   }
   stop(session: CodingSession) {

@@ -1,6 +1,6 @@
 # Implementation status
 
-Reconciled 15 October 2026 through main `f96b8f0` and retained repository evidence; controlled tickets 13 and 14 merged in PRs #37 and #38. PR #39 restored publication recovery scenarios and adopted reviewed Factory diagnostics/evidence reuse; all 24 main checks pass. This is an implementation reference for contributors and operators. Qualification receipts apply to their recorded source and host bindings; they do not qualify every later revision.
+Reconciled 15 October 2026 through main `caaac9e` and retained repository evidence; controlled tickets 13 and 14 merged in PRs #37 and #38. PR #39 restored publication recovery scenarios and adopted reviewed Factory diagnostics/evidence reuse; all 24 main checks pass. This is an implementation reference for contributors and operators. Qualification receipts apply to their recorded source and host bindings; they do not qualify every later revision.
 
 ## Implemented and verified scope
 
@@ -22,7 +22,7 @@ Reconciled 15 October 2026 through main `f96b8f0` and retained repository eviden
 
 ## Remaining production gates
 
-Parent ticket 04 remains open for production admission. Its issue record now separates completed fixed-worker work from remaining implementation and native qualification; 02/03 are satisfied prerequisites. The first remaining slice binds coding launch data across inspection before dispatch; it does not install a native generic transport. Passing fixed synthetic worker reports does not enable generalized coding or validate complete delivery. Tickets 05–14 contain implemented controlled slices; their native acceptance requirements remain open. Native feature planning/coding, validation, signing/publication, PR observation/review, conditional merge and main observation need trusted integrations and independent qualification.
+Parent ticket 04 remains open for production admission. Its issue record now separates completed fixed-worker work from remaining implementation and native qualification; 02/03 are satisfied prerequisites. The merged first slice binds coding launch data across inspection before dispatch. The next slice preserves controller callbacks, owns prepared launch bytes/arguments and guards effect acceptance/checkpoints against drift. These controlled safeguards do not install a native generic transport. Passing fixed synthetic worker reports does not enable generalized coding or validate complete delivery. Tickets 05–14 contain implemented controlled slices; their native acceptance requirements remain open. Native feature planning/coding, validation, signing/publication, PR observation/review, conditional merge and main observation need trusted integrations and independent qualification.
 
 Ticket 15 has started prerequisite assessment and explicit fixed-worker report scope; its complete-controller Windows acceptance remains blocked.
 
