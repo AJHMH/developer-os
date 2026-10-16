@@ -1,0 +1,14 @@
+{
+  "scope": "native-coding-exact-session-recovery-only",
+  "observedAt": "2026-10-16T17:30:31.495520+00:00",
+  "sourceRevision": "dca75fae8dd5f6c34286ae5dcbbc1f37fdeb0803",
+  "originalAttempt": "ticket04-native-offline-attempt4.json",
+  "operationId": "3aa67323-7243-46d9-b1f0-d7b483bc00d5",
+  "fence": 1,
+  "stopped": true,
+  "remainingProcesses": 0,
+  "outputAdmitted": false,
+  "qualified": false,
+  "productionEnabled": false,
+  "note": "Fresh public NativePodmanCodingTransport.stop observation after repair. No collection or dispatch; original failed policy is not admitted by current source."
+}

@@ -147,3 +147,10 @@ contract. Podman documents explicit bind mounts and user namespace mapping in
 The management timer design uses systemd's relative activation timers; see the
 [upstream timer contract](https://github.com/systemd/systemd/blob/main/man/systemd.timer.xml).
 These references establish intended mechanisms, not observed native qualification.
+
+## Subsequent native lifecycle observation
+
+The [offline lifecycle receipt](ticket04-native-offline-lifecycle-receipt.md)
+retains failed macOS launch attempts, the resulting observation/timer repairs
+and a passing bounded checkpoint-stop/recovery/file-collection observation.
+It does not qualify this transport or enable production dispatch.

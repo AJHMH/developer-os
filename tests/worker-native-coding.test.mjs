@@ -899,9 +899,12 @@ test(
       allowanceMs: 60000,
       checkpoint: () => ++checkpoints < 2,
     });
-    await assert.rejects(transport.run(request, () => {}), {
-      message: "Native coding run stopped by its gate",
-    });
+    await assert.rejects(
+      transport.run(request, () => {}),
+      {
+        message: "Native coding run stopped by its gate",
+      },
+    );
     assert.equal((await transport.stop(session)).remainingProcesses, 0);
     assert.equal((await transport.collect(session)).complete, true);
   },

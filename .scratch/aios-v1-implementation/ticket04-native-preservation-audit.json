@@ -1,0 +1,11 @@
+{
+  "base": "013425692dc2c3c69335b781546bed7804ff0fd0",
+  "preexistingTestFiles": 82,
+  "allExistingNativeTestsPreserved": true,
+  "otherTestContentsUnchanged": true,
+  "externalSimulatorChanged": [
+    "tests/helpers/native-coding-guest.py"
+  ],
+  "ownerFilesUnchanged": 21,
+  "workflowContractDependenciesUnchanged": true
+}

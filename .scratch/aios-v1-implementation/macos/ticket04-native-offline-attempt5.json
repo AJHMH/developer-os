@@ -1,0 +1,63 @@
+{
+  "scope": "native-coding-offline-first-launch",
+  "productionEnabled": false,
+  "qualified": false,
+  "outcome": "blocked",
+  "sourceRevision": "21bb050c6f7b8c1287f131bf3a33ae3717c15fdb",
+  "runtimeSourceDirty": false,
+  "authorization": "fixed-synthetic-offline-only",
+  "runnerSha256": "ebbcbd96b6025ac73bb7c35aacdbe0697bf23bae9ae8b5f791219daa81424c96",
+  "transportSourceSha256": "cf0e1ca4cbc33e18ec6163e50425165923342383adb8aee1cc7331ae94a7d259",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "session": {
+    "operationId": "6800ebe4-4ff2-4c5d-8b51-34f821aba185",
+    "fence": 1,
+    "state": "running",
+    "intent": "start"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "startedMs": 0,
+      "outcome": "passed",
+      "finishedMs": 1186
+    },
+    {
+      "name": "offline-launch-and-exit",
+      "startedMs": 1186,
+      "outcome": "blocked",
+      "error": "Native coding run stopped by its gate",
+      "finishedMs": 65369
+    },
+    {
+      "name": "final-exact-session-stop",
+      "startedMs": 65370,
+      "outcome": "passed",
+      "finishedMs": 66535
+    }
+  ],
+  "remaining": [
+    "Windows observation",
+    "adversarial mount/network/escape and descendant probes",
+    "independent timer expiry and interrupted-controller recovery",
+    "writable storage limits, explicit resume and dependency controls",
+    "model-only authority, usage/exhaustion and production integration"
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "9c2a5c8e6f414867ebb5814ae3d867c3829d705774cd0b67292c9d531f101cd0",
+    "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+  },
+  "runReturned": false,
+  "output": {
+    "bytes": 1156,
+    "sha256": "33eec7b867aecad0154fb6de105c50e7bd4421d3e76591c58615a2b362fcd4fa"
+  }
+}

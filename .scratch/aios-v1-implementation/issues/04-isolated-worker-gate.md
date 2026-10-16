@@ -134,6 +134,15 @@ and adversarial qualification of the new mounts/timers remain open. Existing
 fixed-worker receipts cannot qualify this transport. See the
 [native transport receipt](../ticket04-native-transport-receipt.md).
 
+The current offline native lifecycle slice repairs engine-observation limits,
+lease renewal cadence and idempotent timer cleanup exposed by real macOS launch
+attempts. It also separates checkpoint refusal from runtime-binding drift.
+Failed attempts remain retained. The macOS offline checkpoint-stop, fresh-session
+recovery and unchanged ordinary-file collection observation passed; final suite
+and hosted validation are in progress. Production remains disabled,
+and no general native qualification criterion is checked off. See the
+[offline lifecycle receipt](../ticket04-native-offline-lifecycle-receipt.md).
+
 The owner-authorized unrelated relay baseline repair merged as verified bot
 commit `f96b8f0` in [PR #41](https://github.com/AJHMH/developer-os/pull/41), after
 all checks and current-head owner approval passed. Its six relay tests and full

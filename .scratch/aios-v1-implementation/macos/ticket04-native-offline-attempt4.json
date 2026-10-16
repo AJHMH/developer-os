@@ -1,0 +1,62 @@
+{
+  "scope": "native-coding-offline-first-launch",
+  "productionEnabled": false,
+  "qualified": false,
+  "outcome": "uncertain",
+  "sourceRevision": "013425692dc2c3c69335b781546bed7804ff0fd0",
+  "runnerSha256": "cc24c82ae6f84b5337a969ac8e71f6e2192b816940a56cb999fa2f83cb04cb21",
+  "transportSourceSha256": "3393f7ea1d0710103bc6a130d99500a9aa04c03048d2adaf1279364aa5946346",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "session": {
+    "operationId": "3aa67323-7243-46d9-b1f0-d7b483bc00d5",
+    "fence": 1,
+    "state": "running",
+    "intent": "start"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "startedMs": 0,
+      "outcome": "passed",
+      "finishedMs": 1225
+    },
+    {
+      "name": "offline-launch-and-exit",
+      "startedMs": 1225,
+      "outcome": "blocked",
+      "error": "Native coding poll observation unavailable",
+      "finishedMs": 16545
+    },
+    {
+      "name": "final-exact-session-stop",
+      "startedMs": 16546,
+      "outcome": "blocked",
+      "error": "Native coding stop observation unavailable",
+      "finishedMs": 17169
+    }
+  ],
+  "remaining": [
+    "Windows observation",
+    "adversarial mount/network/escape and descendant probes",
+    "independent timer expiry and interrupted-controller recovery",
+    "writable storage limits, explicit resume and dependency controls",
+    "model-only authority, usage/exhaustion and production integration"
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "34df4c60315b44d1a0100c522078384f2afc6d6832c6133adb719f39060f79a1",
+    "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+  },
+  "runReturned": false,
+  "output": {
+    "bytes": 392,
+    "sha256": "1f1acbde1bb09b7d0743cc902257335b4cd1ecd5f97193c96647982fd4175613"
+  }
+}
