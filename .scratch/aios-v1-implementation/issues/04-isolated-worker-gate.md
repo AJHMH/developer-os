@@ -43,8 +43,10 @@ say `scope: fixed-worker` and retain `productionEnabled: false`.
 ## Remaining implementation
 
 - [ ] Integrate the general coding transport with the pinned dedicated VM. The
-  current `PinnedCodingRuntime`/`IsolatedCodingTransport` is controlled-only;
-  `PodmanHostAdapter.start()` refuses production execution. A generic request must
+  `NativePodmanCodingTransport` now supplies an offline first-launch transport.
+  `PinnedCodingRuntime` and controller admission remain controlled-only;
+  `PodmanHostAdapter.start()` still refuses production execution. Native
+  integration, explicit resume and qualification remain unfinished. A generic request must
   not broaden fixed-task credentials, mounts, endpoints or management authority.
 - [ ] Bind each launch and explicit-session resume to admitted plain-file input,
   exact executable/runtime/policy pins, current delivery ownership and fresh
@@ -115,6 +117,22 @@ integration, not native process-census qualification. See the
 A naming-only [Windows shard follow-up](../ticket04-windows-shard-balance-receipt.md)
 retains all test contents while addressing the discovery-order scheduling change
 and tight shard headroom observed after that slice merged.
+
+The fourth slice adds a native, explicitly offline first-launch transport behind
+`IsolatedCodingTransport`. It measures the supported host and dedicated VM, stages
+ordinary files into a fresh guest-private workspace, launches the pinned Codex
+artifact under deny-all networking, and polls bounded output. Durable revocation,
+independent process census, bounded management timers and stable stopped-file
+collection preserve fail-closed behavior. Its `live` identity cannot be relabeled
+as controlled; the controller does not install it or enable production.
+
+This is implementation evidence from external OS/process fixtures, including
+execution of the transported Linux management program. It is **not** native
+Windows/macOS qualification. Fresh model-only authority, explicit resume,
+controlled dependencies, usage/exhaustion integration, storage/resource controls
+and adversarial qualification of the new mounts/timers remain open. Existing
+fixed-worker receipts cannot qualify this transport. See the
+[native transport receipt](../ticket04-native-transport-receipt.md).
 
 The owner-authorized unrelated relay baseline repair merged as verified bot
 commit `f96b8f0` in [PR #41](https://github.com/AJHMH/developer-os/pull/41), after

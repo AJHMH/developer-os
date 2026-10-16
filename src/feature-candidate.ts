@@ -449,7 +449,7 @@ import { StringDecoder } from "node:string_decoder";
  * worker effect after asynchronous preparation. Use argv (never a shell), and close the
  * CLI output stream before resolving. No host coding executor is provided. */
 export interface IsolatedCodingTransport {
-  readonly mode: "controlled";
+  readonly mode: "controlled" | "live";
   inspect(session: CodingSession): Promise<CodingPins>;
   run(
     request: CodingRequest,
