@@ -32,3 +32,15 @@ Two temporary fresh Windows hosts run the unchanged original selected scenario
 once each. The temporary workflow will be removed after results are reconciled.
 Passing observations cannot explain or waive the original failure. The first
 failed log and structured Windows shard artifact are retained privately.
+
+## Selected-scenario observations
+
+Run `38976063659`, source `f3dbac5`, passed the original selected scenario on
+two fresh Windows hosts. Six push observations completed in 164–253 ms with
+status 0, no signal and no spawn error. `selected-observations.json` retains
+the bounded metadata. The original null-status failure was not reproduced.
+
+This selected workload does not reproduce the original shard's simultaneous
+file workload. The next bounded comparison runs the complete original shard
+with its unchanged concurrency two and five-second fixture subprocess limit on
+two fresh Windows hosts. No additional synthetic load or warmup is introduced.

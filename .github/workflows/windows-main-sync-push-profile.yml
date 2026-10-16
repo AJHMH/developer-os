@@ -20,12 +20,14 @@ jobs:
         with:
           node-version: "24"
       - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run format:check
       - run: npm run build
-      - name: Observe original main-sync scenario with unchanged five-second Git limit
+      - name: Observe original full shard with unchanged concurrency and Git limit
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force tmp | Out-Null
-          node --test --test-reporter=tap "--test-name-pattern=remote advancement invalidates green checks" tests/main-sync.test.mjs *> tmp/windows-main-sync-push.tap
+          node --test --test-concurrency=2 --test-shard=3/8 --test-reporter=tap *> tmp/windows-main-sync-push.tap
           $fixtureExit = $LASTEXITCODE
           Get-Content tmp/windows-main-sync-push.tap
           exit $fixtureExit

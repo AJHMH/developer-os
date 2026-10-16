@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "diagnosticOnly": true,
+  "sourceRevision": "f3dbac53094f1d8026b1ec260635d89471a890f8",
+  "runId": 38976063659,
+  "observations": [
+    {
+      "artifact": "windows-main-sync-push-2-f3dbac53094f1d8026b1ec260635d89471a890f8",
+      "pushObservations": [
+        {
+          "operation": "push",
+          "elapsedMs": 253,
+          "timeoutMs": 5000,
+          "status": 0,
+          "signal": null,
+          "errorCode": null,
+          "stderrBytes": 107
+        },
+        {
+          "operation": "push",
+          "elapsedMs": 184,
+          "timeoutMs": 5000,
+          "status": 0,
+          "signal": null,
+          "errorCode": null,
+          "stderrBytes": 143
+        },
+        {
+          "operation": "push",
+          "elapsedMs": 164,
+          "timeoutMs": 5000,
+          "status": 0,
+          "signal": null,
+          "errorCode": null,
+          "stderrBytes": 143
+        }
+      ]
+    },
+    {
+      "artifact": "windows-main-sync-push-1-f3dbac53094f1d8026b1ec260635d89471a890f8",
+      "pushObservations": [
+        {
+          "operation": "push",
+          "elapsedMs": 248,
+          "timeoutMs": 5000,
+          "status": 0,
+          "signal": null,
+          "errorCode": null,
+          "stderrBytes": 107
+        },
+        {
+          "operation": "push",
+          "elapsedMs": 210,
+          "timeoutMs": 5000,
+          "status": 0,
+          "signal": null,
+          "errorCode": null,
+          "stderrBytes": 143
+        },
+        {
+          "operation": "push",
+          "elapsedMs": 240,
+          "timeoutMs": 5000,
+          "status": 0,
+          "signal": null,
+          "errorCode": null,
+          "stderrBytes": 143
+        }
+      ]
+    }
+  ]
+}
