@@ -93,11 +93,40 @@ an assertion or policy change based on a healthy proxy.
 No production source, existing test, assertion, deadline, coverage threshold,
 approval rule, dependency or Factory revision is changed. The 21 preexisting
 owner reports are preserved. Production qualification remains disabled.
-One unchanged-code main diagnostic rerun was requested after retaining the failed
-attempt and both distinct profiles. Its result must be recorded separately;
-a passing retry cannot explain or waive the original failure. The App lacks
+The single permitted unchanged-code main diagnostic rerun also failed: attempt 2,
+job `117143659186`, test stage 120.009 seconds, SIGKILL, no final suite summary.
+It reached native-worker tests near the end; attempt 1 stopped earlier in the
+printed suite. `main-04a911e-rerun.json` retains this result. No further unchanged
+main rerun is authorized by the default retry rule. The App lacks
 Actions-write permission; the rerun used the authorized existing CLI session.
 Commits and PR authorship use the verified Software Factory App identity.
 
+## Complete-sequence countercheck
+
+The third probe reproduced the full contract command sequence through the exact
+pinned `runContract`, including install and preceding validation, while retaining
+the preload. Source `f356a0d`, [run 38951902280](https://github.com/AJHMH/developer-os/actions/runs/38951902280):
+install 0.588 s; validate 6.790 s; test 96.258 s; build 4.103 s. Every command
+passed its unchanged 120-second deadline. All 617 tests ran: 614 passed, three
+existing platform skips. `profile-3-full-contract.json` preserves the result and
+process observations. The pinned executor was also compared byte-for-byte with
+the locally inspected Factory source and matched.
+
+This rules out the omitted preceding phase as a sufficient explanation for the
+first two passing profiles; it does not establish what slowed either failed
+main host. All observed diagnostic processes completed. No failed-host CPU or
+I/O trace exists, so the historical cause remains unknown. No smaller reliable
+red reproduction has been obtained. The preload is opt-in and can affect timing;
+its passing observations are not uninstrumented causal proof.
+
+The temporary workflow is again removed after the complete-sequence observation.
+Both earlier review axes reported zero actionable findings. Type checking and
+repository formatting passed; full-suite evidence is the three hosted probes.
+No additional local full run was needed for this diagnostics-only change, which
+contains no production or existing-test edits.
+
 Linux repair allowance is separate from the Windows investigation's retained
-24 active minutes. No cause-specific repair cycle has been attempted yet.
+24 active minutes. Conservatively charge 30 active Linux investigation minutes;
+CI waits are excluded. No cause-specific repair cycle has been attempted yet.
+The unresolved baseline blocks merging this draft or resuming the paused work
+under the existing specification. This is PARTIAL evidence, not VERIFIED repair.
