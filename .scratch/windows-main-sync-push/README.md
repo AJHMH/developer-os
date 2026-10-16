@@ -44,3 +44,25 @@ This selected workload does not reproduce the original shard's simultaneous
 file workload. The next bounded comparison runs the complete original shard
 with its unchanged concurrency two and five-second fixture subprocess limit on
 two fresh Windows hosts. No additional synthetic load or warmup is introduced.
+
+## Full-shard results and remaining gate
+
+Run `38976227934`, source `5cbf9fa`, passed the unchanged complete Windows
+shard 3/8 on both hosts with concurrency two. Each ran 102 tests: 78 passed,
+24 existing platform skips, zero failures/cancellations. The two hosts retained
+29 Git observations each, with elapsed times 25–324 ms and 46–296 ms.
+`full-shard-observations.json` preserves the bounded records and summaries.
+The temporary workflow was removed after artifact reconciliation.
+
+These observations do not establish the original error code or cause; no
+cause-specific production or fixture behavior repair is justified. The historical
+case remains PARTIAL. The retained diagnostic regression passed after failing
+before logging; all six local main-sync tests, type checking and formatting
+passed. Both review axes found zero actionable initial findings. No original
+assertion, five-second deadline, Git isolation or approval rule changed.
+
+Conservatively charge 15 active investigation minutes from the five remaining
+plus the newly approved 30: 20 active minutes remain. CI waits are excluded.
+No new behavior-repair cycle was used; the prior two-cycle count remains. The
+original failed shard and passing probes are separate evidence, not a retry
+waiver or a claim that passing diagnostics resolve PR #54's failed check.

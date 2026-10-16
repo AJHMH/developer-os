@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "diagnosticOnly": true,
+  "sourceRevision": "c3642df27682bae5de6e68af8703dc49dd8f2590",
+  "runId": 38970239339,
+  "jobId": 117206540933,
+  "artifact": "windows-tests-3",
+  "artifactFileSha256": "48bf20d1f1b6557a28cb6c596f67517e73bffc22be02cd6c0fc46e1e625e6e50",
+  "test": "remote advancement invalidates green checks and requires newly verified main",
+  "fixtureOperation": "git push origin main",
+  "timeoutMs": 5000,
+  "observedStatus": null,
+  "expectedStatus": 0,
+  "spawnErrorCaptured": false,
+  "signalCaptured": false,
+  "conclusion": "Original cause unknown: null status alone cannot distinguish timeout, spawn failure or other termination."
+}
