@@ -138,8 +138,9 @@ The current offline native lifecycle slice repairs engine-observation limits,
 lease renewal cadence and idempotent timer cleanup exposed by real macOS launch
 attempts. It also separates checkpoint refusal from runtime-binding drift.
 Failed attempts remain retained. The macOS offline checkpoint-stop, fresh-session
-recovery and unchanged ordinary-file collection observation passed; final suite
-and hosted validation are in progress. Production remains disabled,
+recovery and unchanged ordinary-file collection observation passed. All 617 local
+tests passed or were explicitly skipped (615 passed, two platform skips); hosted
+validation remains in progress. Production remains disabled,
 and no general native qualification criterion is checked off. See the
 [offline lifecycle receipt](../ticket04-native-offline-lifecycle-receipt.md).
 

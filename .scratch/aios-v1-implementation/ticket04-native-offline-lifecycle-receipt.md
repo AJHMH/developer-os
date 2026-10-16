@@ -89,7 +89,14 @@ The superseded full-suite run was explicitly stopped after the checkpoint source
 follow-up; its partial output is not counted as a pass. A subsequent local invocation omitted the documented
 `AIOS_TEST_PYTHON=/usr/bin/python3` setting and failed to start the expiry
 fixture because `python` is absent on this Mac; that run is not counted as a
-pass. The documented full-suite invocation and hosted evidence remain pending.
+pass. The documented invocation
+`AIOS_TEST_PYTHON=/usr/bin/python3 npm test` passed: 617 tests, 615 passed,
+two platform skips, zero failures, 334.646 seconds. No test assertions or
+production deadlines were relaxed.
+
+[PR #49](https://github.com/AJHMH/developer-os/pull/49) is authored by the
+Software Factory bot with verified bot commits. Hosted checks and current-head
+owner approval remain pending; this receipt does not claim hosted completion.
 
 ## Remaining gates
 
