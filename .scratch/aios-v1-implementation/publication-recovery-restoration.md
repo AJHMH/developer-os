@@ -84,3 +84,15 @@ fast port group (from shard 1 to shard 2); every other assignment stays fixed.
 The previous rebalance had removed the eight-case remote group from shard 1,
 leaving capacity for the smaller signature group. All assertions and limits
 remain unchanged.
+
+
+Factory PR #71 was owner-approved and merged at verified commit
+`dda7ff97b3b5f83ac4af8be62fc531aa7ca4514b`, with the identical reviewed tree
+`42297590c41a13b8692bfe92454dc8ed426f0e8c`. The consumer now adopts this durable
+revision for retained stage timings/failure diagnostics and same-run immutable
+coverage evidence reuse. PR coverage is measured once; main pushes retain
+separate merge-source and reviewed-head evidence. Both approval checks retain
+independent review evaluation and explicitly fail if the evidence producer fails
+or supplies no exact artifact ID. Command limits, tests, coverage policy and
+approval rules remain intact. The fixture/audit permit only the reviewed SHA
+replacement. Hosted consumer behavior still requires validation at this head.

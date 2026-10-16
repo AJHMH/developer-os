@@ -28,7 +28,7 @@ for (const f of files) {
   const original = git("show", "833ce78:" + f);
   if (f === "tests/factory-approval-refresh.test.mjs") {
     const previous = "3f64904a7a71985382fa5d5da29cc0e0610d5d2c";
-    const reviewed = "805c50d54254acd62e2f8f5aa78d0338b6346ce0";
+    const reviewed = "dda7ff97b3b5f83ac4af8be62fc531aa7ca4514b";
     assert.equal(original.split(previous).length - 1, 1);
     assert.equal(
       readFileSync(f, "utf8"),
