@@ -261,19 +261,19 @@ function candidateGit(repository: string, args: string[]): Buffer {
   return result.stdout;
 }
 export function candidateSource(repository: string, expected?: string) {
-  // status may run clean/process filters. Inspect local configuration without
-  // following includes before any working-tree observation can start a helper.
-  const configuration = ["--local", "--worktree"].flatMap((scope) =>
-    candidateGit(repository, [
-      "config",
-      scope,
-      "--no-includes",
-      "--null",
-      "--list",
-    ])
-      .toString()
-      .split("\0"),
-  );
+  // status may run clean/process filters. Reject helper/include declarations
+  // before any working-tree observation can start a helper.
+  // candidateGit excludes system/global configuration and ambient GIT_* input.
+  // The complete list retains local and worktree declarations (even overridden
+  // ones), plus our fixed command options; includes remain disabled.
+  const configuration = candidateGit(repository, [
+    "config",
+    "--no-includes",
+    "--null",
+    "--list",
+  ])
+    .toString()
+    .split("\0");
   if (
     configuration.some((entry) =>
       /^(?:filter\..+\.(?:clean|smudge|process)|include(?:if\..+)?\.path)\n/i.test(
@@ -283,9 +283,17 @@ export function candidateSource(repository: string, expected?: string) {
   )
     throw Error("Unreviewed Git helpers are forbidden");
 
-  const top = candidateGit(repository, ["rev-parse", "--show-toplevel"])
+  const identity = candidateGit(repository, [
+    "rev-parse",
+    "--show-toplevel",
+    "HEAD",
+  ])
     .toString()
-    .trim();
+    .trimEnd();
+  // Split at the final delimiter so an embedded newline in the root survives.
+  const separator = identity.lastIndexOf("\n");
+  const top = identity.slice(0, separator).trim();
+  const revision = identity.slice(separator + 1);
   if (
     (process.platform === "win32"
       ? realpathSync.native(top).toLowerCase()
@@ -295,9 +303,6 @@ export function candidateSource(repository: string, expected?: string) {
       : realpathSync.native(repository))
   )
     throw Error("Changed Git worktree root");
-  const revision = candidateGit(repository, ["rev-parse", "HEAD"])
-    .toString()
-    .trim();
   if (
     !/^[a-f0-9]{40}$/.test(revision) ||
     (expected && expected !== revision) ||
