@@ -1,7 +1,7 @@
 # Concurrent CLI admission baseline repair
 
-Status: implementation and focused regressions pass; complete local and hosted
-validation remain required. The owner authorized this separate repair on
+Status: implementation and complete local validation pass; final-head hosted
+validation and review remain required. The owner authorized this separate repair on
 16 October 2026 after PR #52's macOS check failed. It does not resolve the
 separate Linux runtime or Windows storage investigations, or qualify Issue 04.
 
@@ -94,12 +94,31 @@ and failure seams, not production-only test hooks.
 - Temporary stack probes were confined to ignored compiled output or a private
   baseline copy. Rebuilding removed them; no debug instrumentation remains in
   production source, tests or compiled output.
-- Complete local suite, final two-axis review, signed bot commit, hosted checks
-  and current-head human approval remain required before readiness.
+- Initial two-axis review found zero Spec or hard Standards findings. One test
+  readability finding replaced a negative duration sentinel with explicit named
+  case data. All 13 scenarios passed again under Node 24.21.0 with their timings
+  and assertions preserved. This adds no production behavior change.
+- The first complete local invocation lacked sandbox loopback permission.
+  An independent listener probe returned `EPERM` from `listen`; callback/expiry
+  fixture failures made that invocation unsuitable for repository validation.
+  Its output is retained at `/private/tmp/macos-admission-full-suite.log`.
+  The uniquely verified temporary-Node runner and its descendants were stopped
+  before the unchanged network-enabled invocation began. Those callback
+  fixtures passed in the replacement invocation. No assertion was relaxed.
+- Complete local validation with loopback permission passed on Node 24.21.0:
+  630 tests, 628 passed, two existing platform skips, zero failures, in 305.205 s.
+  Source production code matches reviewed commit `2d2d6de`; the named-case
+  readability follow-up preserves the exact test timings/assertions and also
+  passed all 13 focused cases. Final-head review and hosted checks remain
+  required before readiness. Commits use the verified Software Factory App.
+- Type checking, formatting and the original-test preservation audit pass. The
+  sole test-tree change is the new 13-case file; all original tests are byte-for-
+  byte unchanged. All 21 owner reports match their recorded SHA256 inventory.
 
 The 21 preexisting owner reports must remain byte-identical. Main is still at
 `04a911e`; neither this branch nor a successful local test changes main's checks.
 Linux's retained allowance remains 40 active minutes/one diagnostic repair cycle;
 Windows remains 24 active minutes. Charge this separate macOS repair 20 active
-minutes and one repair cycle conservatively; initial implementation and CI waits
-are excluded. Remaining macOS allowance: 40 active minutes or two cycles.
+minutes and two repair cycles conservatively; initial implementation and CI waits
+are excluded. Remaining macOS allowance: 40 active minutes or one cycle. The second cycle
+addresses the review readability finding; the first covers the baseline repair.

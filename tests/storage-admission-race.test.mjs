@@ -217,25 +217,38 @@ test("a linked SQLite sidecar is refused on every platform", (t) => {
 
 import { DatabaseSync } from "node:sqlite";
 import { Worker } from "node:worker_threads";
-for (const holdMs of [100, 6000, -100])
-  test(
-    holdMs === 100
-      ? "a brief writer between migration and WAL configuration still queues the next request"
-      : holdMs === 6000
-        ? "persistent journal contention refuses within the existing five-second lock budget"
-        : "a busy storage result returned after its lock budget refuses without a new retry",
-    async (t) => {
-      const f = fixture(t),
-        ledger = join(f.state, "deliveries.sqlite");
-      // Published SQLite intake may still use its default rollback journal.
-      const previous = new DatabaseSync(ledger);
-      previous.exec("PRAGMA journal_mode=DELETE;");
-      previous.close();
-      const signal = new Int32Array(new SharedArrayBuffer(4));
-      const worker = new Worker(
-        new URL(
-          "data:text/javascript," +
-            encodeURIComponent(`
+for (const { name, holdMs, delayBusyErrorMs, expectQueued } of [
+  {
+    name: "a brief writer between migration and WAL configuration still queues the next request",
+    holdMs: 100,
+    delayBusyErrorMs: 0,
+    expectQueued: true,
+  },
+  {
+    name: "persistent journal contention refuses within the existing five-second lock budget",
+    holdMs: 6000,
+    delayBusyErrorMs: 0,
+    expectQueued: false,
+  },
+  {
+    name: "a busy storage result returned after its lock budget refuses without a new retry",
+    holdMs: 100,
+    delayBusyErrorMs: 5010,
+    expectQueued: false,
+  },
+])
+  test(name, async (t) => {
+    const f = fixture(t),
+      ledger = join(f.state, "deliveries.sqlite");
+    // Published SQLite intake may still use its default rollback journal.
+    const previous = new DatabaseSync(ledger);
+    previous.exec("PRAGMA journal_mode=DELETE;");
+    previous.close();
+    const signal = new Int32Array(new SharedArrayBuffer(4));
+    const worker = new Worker(
+      new URL(
+        "data:text/javascript," +
+          encodeURIComponent(`
     import {DatabaseSync} from 'node:sqlite';
     import {workerData,parentPort} from 'node:worker_threads';
     const signal=new Int32Array(workerData.signal);
@@ -249,82 +262,86 @@ for (const holdMs of [100, 6000, -100])
       db.exec('COMMIT');
     } finally {db.close();}
   `),
-        ),
-        {
-          workerData: {
-            ledger,
-            signal: signal.buffer,
-            holdMs: Math.abs(holdMs),
-          },
+      ),
+      {
+        workerData: {
+          ledger,
+          signal: signal.buffer,
+          holdMs,
         },
+      },
+    );
+    const closed = new Promise((resolve, reject) => {
+      worker.on("error", reject);
+      worker.on("exit", (code) =>
+        code === 0 ? resolve() : reject(Error("Writer fixture failed")),
       );
-      const closed = new Promise((resolve, reject) => {
-        worker.on("error", reject);
-        worker.on("exit", (code) =>
-          code === 0 ? resolve() : reject(Error("Writer fixture failed")),
-        );
-      });
-      await new Promise((resolve, reject) => {
-        worker.once("message", resolve);
-        worker.once("error", reject);
-      });
-      const original = DatabaseSync.prototype.exec;
-      let interposed = false;
-      t.mock.method(DatabaseSync.prototype, "exec", function (sql) {
-        if (!interposed && /PRAGMA\s+journal_mode\s*=/i.test(sql)) {
-          interposed = true;
-          Atomics.store(signal, 0, 1);
-          Atomics.notify(signal, 0);
-          while (Atomics.load(signal, 0) !== 2) {
-            if (Atomics.wait(signal, 0, 1, 5000) === "timed-out")
-              throw Error("Writer did not acquire fixture lock");
-          }
+    });
+    await new Promise((resolve, reject) => {
+      worker.once("message", resolve);
+      worker.once("error", reject);
+    });
+    const original = DatabaseSync.prototype.exec;
+    let interposed = false;
+    t.mock.method(DatabaseSync.prototype, "exec", function (sql) {
+      if (!interposed && /PRAGMA\s+journal_mode\s*=/i.test(sql)) {
+        interposed = true;
+        Atomics.store(signal, 0, 1);
+        Atomics.notify(signal, 0);
+        while (Atomics.load(signal, 0) !== 2) {
+          if (Atomics.wait(signal, 0, 1, 5000) === "timed-out")
+            throw Error("Writer did not acquire fixture lock");
         }
-        try {
-          return Reflect.apply(original, this, [sql]);
-        } catch (error) {
-          if (holdMs < 0 && /PRAGMA\s+journal_mode\s*=/i.test(sql))
-            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5010);
-          throw error;
-        }
-      });
-      let queued, failure;
-      const started = performance.now();
-      let elapsedMs;
+      }
       try {
-        queued = f.controller.start({
-          repository: f.repository,
-          request: "Second synthetic feature",
-        });
+        return Reflect.apply(original, this, [sql]);
       } catch (error) {
-        failure = error;
-      } finally {
-        elapsedMs = performance.now() - started;
-        t.mock.restoreAll();
-        await closed;
+        if (delayBusyErrorMs && /PRAGMA\s+journal_mode\s*=/i.test(sql))
+          Atomics.wait(
+            new Int32Array(new SharedArrayBuffer(4)),
+            0,
+            0,
+            delayBusyErrorMs,
+          );
+        throw error;
       }
-      assert.equal(interposed, true);
-      if (holdMs === 100) {
-        assert.ifError(failure);
-        assert.equal(queued.phase, "queued");
-        assert.equal(queued.ownership.held, false);
-      } else {
-        assert.equal(failure?.errcode, 5);
-        assert.ok(
-          elapsedMs >= 4500 && elapsedMs < 6000,
-          `Refused after ${elapsedMs} ms`,
-        );
-        assert.equal(f.controller.list().deliveries.length, 1);
-      }
-      assert.deepEqual(
-        f.controller
-          .list()
-          .deliveries.filter((d) => d.ownership.held)
-          .map((d) => d.id),
-        [f.owner.id],
+    });
+    let queued, failure;
+    const started = performance.now();
+    let elapsedMs;
+    try {
+      queued = f.controller.start({
+        repository: f.repository,
+        request: "Second synthetic feature",
+      });
+    } catch (error) {
+      failure = error;
+    } finally {
+      elapsedMs = performance.now() - started;
+      t.mock.restoreAll();
+      await closed;
+    }
+    assert.equal(interposed, true);
+    if (expectQueued) {
+      assert.ifError(failure);
+      assert.equal(queued.phase, "queued");
+      assert.equal(queued.ownership.held, false);
+    } else {
+      assert.equal(failure?.errcode, 5);
+      assert.ok(
+        elapsedMs >= 4500 && elapsedMs < 6000,
+        `Refused after ${elapsedMs} ms`,
       );
-    },
-  );
+      assert.equal(f.controller.list().deliveries.length, 1);
+    }
+    assert.deepEqual(
+      f.controller
+        .list()
+        .deliveries.filter((d) => d.ownership.held)
+        .map((d) => d.id),
+      [f.owner.id],
+    );
+  });
 
 for (const failureKind of ["sqlite-readonly", "unclassified-storage"]) {
   test(`${failureKind} failure refuses admission without retrying journal configuration`, (t) => {
