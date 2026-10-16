@@ -941,3 +941,116 @@ for (const drift of [
     );
     assert.equal(result.feature.candidate, undefined);
   });
+
+test("pin inspection cannot replace controller authority to launch paused work", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  let dispatched = false;
+  const adapter = new PinnedCodingRuntime(f.runtime.pins, {
+    mode: "controlled",
+    async inspect(request) {
+      await f.controller.pause(f.delivery.id);
+      request.mayDispatch = () => true;
+      return { ...f.runtime.pins };
+    },
+    async run(request, output) {
+      dispatched = true;
+      const result = await f.runtime.execute(request);
+      output(
+        Buffer.from(result.events.map((e) => JSON.stringify(e)).join("\n")),
+      );
+      return { ...result, pins: { ...f.runtime.pins } };
+    },
+    stop: (request) => f.runtime.stop(request),
+    collect: (request) => f.runtime.collect(request),
+  });
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    validationRuntime: f.validation,
+    featureRuntime: adapter,
+    clock: () => f.now,
+  });
+  await planAndValidate(f);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched, false, "paused work must not reach the worker");
+  assert.equal(result.phase, "paused");
+  assert.equal(result.feature.candidate, undefined);
+});
+
+test("transport preparation uses owned admitted bytes despite a retained inspection reference", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  let inspected, admittedBytes, admittedArgs, preparedBytes, preparedArgs;
+  const adapter = new PinnedCodingRuntime(f.runtime.pins, {
+    mode: "controlled",
+    async inspect(request) {
+      inspected = request;
+      admittedBytes = Buffer.from(request.files[0].bytes);
+      admittedArgs = [...request.argv];
+      return { ...f.runtime.pins };
+    },
+    async run(request, output) {
+      await Promise.resolve();
+      inspected.files[0].bytes.fill(120);
+      inspected.argv.push("unadmitted argument");
+      preparedBytes = Buffer.from(request.files[0].bytes);
+      preparedArgs = [...request.argv];
+      const result = await f.runtime.execute(request);
+      output(
+        Buffer.from(result.events.map((e) => JSON.stringify(e)).join("\n")),
+      );
+      return { ...result, pins: { ...f.runtime.pins } };
+    },
+    stop: (request) => f.runtime.stop(request),
+    collect: (request) => f.runtime.collect(request),
+  });
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    validationRuntime: f.validation,
+    featureRuntime: adapter,
+    clock: () => f.now,
+  });
+  await planAndValidate(f);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.deepEqual(preparedBytes, admittedBytes);
+  assert.deepEqual(preparedArgs, admittedArgs);
+  assert.equal(result.feature.outcome, "admitted");
+});
+
+test("changed prepared launch refuses effect acceptance after an asynchronous wait", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  let accepted = false;
+  const adapter = new PinnedCodingRuntime(f.runtime.pins, {
+    mode: "controlled",
+    inspect: async () => ({ ...f.runtime.pins }),
+    async run(request, output) {
+      await Promise.resolve();
+      request.argv.push("unadmitted argument");
+      if (!request.mayDispatch()) throw Error("Effect refused");
+      accepted = true;
+      const result = await f.runtime.execute(request);
+      output(
+        Buffer.from(result.events.map((e) => JSON.stringify(e)).join("\n")),
+      );
+      return { ...result, pins: { ...f.runtime.pins } };
+    },
+    stop: (request) => f.runtime.stop(request),
+    collect: (request) => f.runtime.collect(request),
+  });
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    validationRuntime: f.validation,
+    featureRuntime: adapter,
+    clock: () => f.now,
+  });
+  await planAndValidate(f);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(
+    accepted,
+    false,
+    "mutated prepared input must not launch a worker",
+  );
+  assert.equal(result.feature.candidate, undefined);
+  assert.equal(result.feature.session.state, "stopped");
+});

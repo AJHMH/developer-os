@@ -96,6 +96,14 @@ admitted file bytes/digest, and baseline-refresh payloads across asynchronous pi
 inspection before any worker dispatch. This is controlled integration groundwork,
 not an installed native coding transport or completed production admission.
 
+The next slice preserves controller callback authority across inspection and gives
+transport preparation its own admitted argument/file/pin snapshot. Guarded
+dispatch/checkpoint callbacks check that snapshot around fresh authorization;
+stream and result acceptance also reject drift. A retained inspection reference
+cannot rewrite prepared bytes. The native transport still must call the guard and
+independently remeasure pins at its actual effects. See the
+[dispatch-authority receipt](../ticket04-dispatch-authority-receipt.md).
+
 The owner-authorized unrelated relay baseline repair merged as verified bot
 commit `f96b8f0` in [PR #41](https://github.com/AJHMH/developer-os/pull/41), after
 all checks and current-head owner approval passed. Its six relay tests and full

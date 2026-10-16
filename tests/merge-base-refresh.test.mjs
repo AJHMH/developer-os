@@ -137,3 +137,38 @@ test("coding failure after a passed advanced baseline remains retryable within c
   assert.equal(d.repair.attempts.at(-1).outcome, "passed");
   assert.equal(f.merges.length, 0);
 });
+
+test("pinned refresh preparation owns both admitted baseline manifests", async (t) => {
+  const { f, next } = await advanced(t);
+  f.git("-c", "core.autocrlf=false", "merge", "--ff-only", next);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const runtime = f.runtime;
+  let inspected, preparedFrom, preparedTo;
+  f.runtime = new PinnedCodingRuntime(runtime.pins, {
+    mode: "controlled",
+    async inspect(request) {
+      inspected = request;
+      return { ...runtime.pins };
+    },
+    async run(request, output) {
+      await Promise.resolve();
+      inspected.baseRefresh.from.files[0].bytes.fill(120);
+      inspected.baseRefresh.to.files[0].bytes.fill(120);
+      preparedFrom = request.baseRefresh.from.files[0].bytes.toString();
+      preparedTo = request.baseRefresh.to.files[0].bytes.toString();
+      assert.equal(request.mayDispatch(), true);
+      const result = await runtime.execute(request);
+      output(
+        Buffer.from(result.events.map((e) => JSON.stringify(e)).join("\n")),
+      );
+      return { ...result, pins: { ...runtime.pins } };
+    },
+    stop: (request) => runtime.stop(request),
+    collect: (request) => runtime.collect(request),
+  });
+  f.controller = f.reopenMerge();
+  const result = await f.controller.refreshMergeBase(f.delivery.id);
+  assert.equal(preparedFrom, "<h1>Contact</h1>\n");
+  assert.equal(preparedTo, "<h1>Updated main</h1>\n");
+  assert.equal(result.repair.attempts.at(-1).outcome, "passed");
+});
