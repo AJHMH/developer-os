@@ -18,6 +18,8 @@ the deadline wins before its normal await. Existing success/denial behavior and
 the two-second deadline remain intact. This establishes the resource leak and
 refusal cleanup defect; hosted coverage must independently validate the repair.
 
-All six relay tests pass (74 ms); build and typecheck pass. The full suite is
-running separately, with its log at `/private/tmp/relay-deadline-full-suite.log`.
+At the initial repair checkpoint, all six relay tests passed (74 ms), build and
+typecheck passed, and the full suite had started separately. Its log is local at
+`/private/tmp/relay-deadline-full-suite.log`; final validation is recorded in the
+repair PR. Standards and Spec review found no actionable issues.
 No threshold, test selection, worker policy or production admission is relaxed.
