@@ -462,6 +462,42 @@ export interface IsolatedCodingTransport {
   stop: FeatureRuntime["stop"];
   collect: FeatureRuntime["collect"];
 }
+/** Bind the admitted core launch data across asynchronous pin inspection.
+ * The digest is local dispatch fencing, never a qualification or credential. */
+function codingLaunchBinding(request: CodingRequest): string {
+  const manifest = (files: CodingRequest["files"]) =>
+    files.map(({ path, bytes, executable }) => ({
+      path,
+      sha256: candidateDigest(bytes),
+      executable,
+    }));
+  return candidateDigest(
+    JSON.stringify({
+      operationId: request.operationId,
+      fence: request.fence,
+      state: request.state,
+      intent: request.intent,
+      threadId: request.threadId,
+      branch: request.branch,
+      sourceRevision: request.sourceRevision,
+      inputSha256: request.inputSha256,
+      pins: request.pins,
+      argv: request.argv,
+      allowanceMs: request.allowanceMs,
+      files: manifest(request.files),
+      baseRefresh: request.baseRefresh && {
+        from: {
+          revision: request.baseRefresh.from.revision,
+          files: manifest(request.baseRefresh.from.files),
+        },
+        to: {
+          revision: request.baseRefresh.to.revision,
+          files: manifest(request.baseRefresh.to.files),
+        },
+      },
+    }),
+  );
+}
 /** Executable pinned CLI adapter; the transport owns the independently qualified
  * isolation boundary. This controlled adapter never proves native compatibility. */
 export class PinnedCodingRuntime implements FeatureRuntime {
@@ -477,10 +513,12 @@ export class PinnedCodingRuntime implements FeatureRuntime {
   }
   async execute(request: CodingRequest): Promise<CodingResult> {
     const expected = JSON.stringify(this.pins);
+    const admittedLaunch = codingLaunchBinding(request);
     if (
       this.transport.mode !== "controlled" ||
       JSON.stringify(request.pins) !== expected ||
       JSON.stringify(await this.transport.inspect(request)) !== expected ||
+      codingLaunchBinding(request) !== admittedLaunch ||
       !request.mayDispatch()
     )
       throw Error("Coding executable or authority changed");

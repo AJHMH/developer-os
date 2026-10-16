@@ -879,3 +879,65 @@ test("source admission resolves root identity but still refuses a linked workspa
   );
   assert.throws(() => candidateSource(alias), /ordinary/);
 });
+
+for (const drift of [
+  "command arguments",
+  "input bytes",
+  "input digest",
+  "baseline refresh",
+])
+  test(`pinned coding launch refuses ${drift} drift after inspection before worker dispatch`, async (t) => {
+    const f = codingFixture(t);
+    const { PinnedCodingRuntime } = await import(
+      "../dist/feature-candidate.js"
+    );
+    let inspected = false;
+    let dispatched = 0;
+    const adapter = new PinnedCodingRuntime(f.runtime.pins, {
+      mode: "controlled",
+      async inspect(request) {
+        inspected = true;
+        if (drift === "command arguments")
+          request.argv.splice(
+            1,
+            0,
+            "--config",
+            "mcp_servers.unapproved.enabled=true",
+          );
+        if (drift === "input bytes")
+          request.files[0].bytes = Buffer.from("changed after admission");
+        if (drift === "input digest") request.inputSha256 = "f".repeat(64);
+        if (drift === "baseline refresh")
+          request.baseRefresh = {
+            from: { revision: request.sourceRevision, files: request.files },
+            to: { revision: "e".repeat(40), files: request.files },
+          };
+        return { ...f.runtime.pins };
+      },
+      async run(request, output) {
+        dispatched++;
+        const result = await f.runtime.execute(request);
+        output(
+          Buffer.from(result.events.map((e) => JSON.stringify(e)).join("\n")),
+        );
+        return { ...result, pins: { ...f.runtime.pins } };
+      },
+      stop: (request) => f.runtime.stop(request),
+      collect: (request) => f.runtime.collect(request),
+    });
+    f.controller = new DeliveryController(f.state, f.options, {
+      featurePlanner: f.criteria,
+      validationRuntime: f.validation,
+      featureRuntime: adapter,
+      clock: () => f.now,
+    });
+    await planAndValidate(f);
+    const result = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(inspected, true);
+    assert.equal(
+      dispatched,
+      0,
+      "changed launch data must not reach the worker",
+    );
+    assert.equal(result.feature.candidate, undefined);
+  });
