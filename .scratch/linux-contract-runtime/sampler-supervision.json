@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "diagnosticOnly": true,
+  "runId": 38953090240,
+  "sourceRevision": "40ae8a9156e72dfaef8cf25bf204b371fabea9e7",
+  "originalSourceRevision": "1e9e502d5e5e4d7e426eb8ae4d2eef649fde0d11",
+  "originalSamplerSha256": "1f8e25c4f9e85d6e77f67a367d5241184a1e2782a5194014f53a51d24eb33387",
+  "red": {
+    "expectation": "red",
+    "elapsedMs": 2138,
+    "supervisionPreserved": false
+  },
+  "green": {
+    "expectation": "green",
+    "elapsedMs": 4138,
+    "supervisionPreserved": true
+  }
+}

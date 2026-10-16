@@ -1,0 +1,3551 @@
+{
+  "schemaVersion": 1,
+  "diagnosticOnly": true,
+  "sourceRevision": "1e9e502d5e5e4d7e426eb8ae4d2eef649fde0d11",
+  "runId": 38952644530,
+  "observation": 2,
+  "factoryRevision": "dda7ff97b3b5f83ac4af8be62fc531aa7ca4514b",
+  "result": {
+    "operation": "validate",
+    "outcome": "passed",
+    "profile": {
+      "id": "node-24-typescript-cli",
+      "language": "node",
+      "nodeVersion": "24",
+      "runtimeVersion": "24.x"
+    },
+    "workloadId": "developer-os",
+    "revision": "1e9e502d5e5e4d7e426eb8ae4d2eef649fde0d11",
+    "workingTreeDirty": false,
+    "contractDigest": "dcca5aa45f65d25a9b9b4c50805eef08ac3e10ca224b21c2ff95483aba45248a",
+    "workingDirectory": "/home/runner/work/developer-os/developer-os/consumer",
+    "results": [
+      {
+        "capability": "install",
+        "required": true,
+        "reason": "Command completed successfully.",
+        "status": "passed",
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "terminationFailed": false,
+        "startedAt": "2026-10-16T19:08:18.292Z",
+        "finishedAt": "2026-10-16T19:08:18.822Z",
+        "stdout": "\nadded 4 packages, and audited 5 packages in 461ms\n\n1 package is looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+        "stderr": "",
+        "truncated": false
+      },
+      {
+        "capability": "validate",
+        "required": true,
+        "reason": "Command completed successfully.",
+        "status": "passed",
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "terminationFailed": false,
+        "startedAt": "2026-10-16T19:08:18.822Z",
+        "finishedAt": "2026-10-16T19:08:24.876Z",
+        "stdout": "\n> developer-os@0.1.0 typecheck\n> tsc --noEmit\n\n\n> developer-os@0.1.0 format:check\n> prettier --check src tests scripts package.json tsconfig.json README.md\n\nChecking formatting...\nAll matched files use Prettier code style!\n",
+        "stderr": "",
+        "truncated": false
+      },
+      {
+        "capability": "test",
+        "required": true,
+        "reason": "Command completed successfully.",
+        "status": "passed",
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "terminationFailed": false,
+        "startedAt": "2026-10-16T19:08:24.876Z",
+        "finishedAt": "2026-10-16T19:09:47.157Z",
+        "stdout": "\n> developer-os@0.1.0 test\n> npm run build && node --test --test-concurrency=4\n\n\n> developer-os@0.1.0 build\n> tsc\n\n\u2714 host authorization binds issued client, exact callback, nonce and PKCE before returning validated credentials (68.523413ms)\n\u2714 returning authorization retains issued client and refuses replacement by another verified identity (101.872148ms)\n\u2714 authorization refuses a signed token with invalid issuer (124.9161ms)\n\u2714 authorization refuses a signed token with invalid audience (64.511076ms)\n\u2714 authorization refuses a signed token with invalid nonce (89.042725ms)\n\u2714 authorization refuses a signed token with invalid expiry (63.139228ms)\n\u2714 authorization refuses a signed token with invalid notBefore (120.343073ms)\n\u2714 authorization refuses state callback before any token exchange (85.442081ms)\n\u2714 authorization refuses duplicate callback before any token exchange (94.117857ms)\n\u2714 authorization refuses denied callback before any token exchange (91.589316ms)\n\u2714 authorization refuses redirect callback before any token exchange (35.466213ms)\n\u2714 authorization refuses client callback before any token exchange (38.61783ms)\n\u2714 identity-only consent returns an explicit plan usage refusal (21.872041ms)\n\u2714 authorization rejects a forged signature without disclosing exchanged credentials (140.190729ms)\n\u2714 returning account accepts its exact identity without exposing tokens in browser hints (120.784433ms)\n\u2714 authorization reports a safe failure stage without provider credential details (62.000882ms)\n\u2714 authorization accepts its issued client as a singleton audience array (153.172361ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[]} (123.979397ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_other\"]} (79.781785ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_fixture\",\"oaiapp_other\"]} (92.398204ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_fixture\",\"oaiapp_fixture\"]} (22.68403ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_fixture\"],\"azp\":\"oaiapp_other\"} (115.728087ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":\"oaiapp_fixture\",\"azp\":\"oaiapp_other\"} (47.093801ms)\n\u2714 separate darwin authorization completes a local callback with a verified synthetic account and stores only through its host adapter (136.53ms)\n\u2714 separate win32 authorization completes a local callback with a verified synthetic account and stores only through its host adapter (158.053749ms)\n\u2714 separate authorization refuses unsupported hosts before opening storage or browser (1.621645ms)\n\u2714 separate authorization refuses a selected host account that is absent from the fixture vault (6.662074ms)\n\u2714 separate authorization refuses malformed selected IDs and mismatched stored identities (6.352686ms)\n\u2714 separate authorization closes its local listener when browser launch is refused (6.789597ms)\n\u2714 separate authentication preparation preserves a stable host registration without credentials or delivery authority (404.699648ms)\n\u2714 candidate and ledger owned authentication paths refuse preparation without creating files (338.39578ms)\n\u2714 authorization refuses a malformed selected account before preparing external storage (139.729853ms)\n\u2714 authentication setup refuses existing shared storage without changing its permissions (157.102663ms)\n\ufe63 macOS authentication setup refuses extended ACL access without rewriting existing storage (0.797969ms) # macOS ACL observation\n\ufe63 Windows preparation refuses permissive retained registration without rewriting it (0.760526ms) # Windows ACL observation\n\u2714 host auth status returns only eligibility metadata without granting inference (1.883393ms)\n\u2714 expiry, short remaining lifetime and missing scope require separate sign-in (0.632295ms)\n\u2714 malformed or mismatched protected accounts expose no secret diagnostics (3.994553ms)\n\u2714 malformed selection and unsupported hosts refuse before opening protected storage (0.214537ms)\n\u2714 public auth-status refuses missing registration without creating storage or opening authorization (173.25092ms)\n\u2714 read-only macOS account storage refuses missing deployment without writing or compiling (8.188581ms)\n\u2714 auth status supports independent Apple silicon inspection and refuses malformed encoding or clock (0.53537ms)\n\u2714 cleanup refuses worktree changes at effect acceptance (2333.047063ms)\n\u2714 cleanup refuses policy changes at effect acceptance (1595.816193ms)\n\u2714 cleanup refuses pause changes at effect acceptance (1588.847733ms)\n\u2714 cleanup refuses binding changes at effect acceptance (1630.135876ms)\n\u2714 actual local conditional deletion rejects a tip race after inspection (2122.292686ms)\n\u2714 actual remote conditional deletion rejects a tip race after inspection (1701.695786ms)\n\u2714 inventory cannot omit either main tip or report a different local main as complete (2033.774831ms)\n\u2714 case-folded or Unicode-equivalent branch namespace collisions refuse the whole plan (1490.873833ms)\n\u2714 malformed, duplicate, incomplete and wrong-repository inventories never dispatch and never retain private transport text (1886.714781ms)\n\u2714 new eligible branches discovered at final inventory block completion until an explicit new plan (2107.221317ms)\n\u2714 recovery fences the original cleanup runner before it can continue later deletions (1796.21919ms)\n\u2714 late unavailable operation observations cannot overwrite a newer completion (1606.151084ms)\n\u2714 failed current-main checks revoke completion without deleting additional branches (1349.134942ms)\n\u2714 cleanup refuses local-tip changes at effect acceptance (1649.942185ms)\n\u2714 cleanup refuses remote-tip changes at effect acceptance (1710.654725ms)\n\u2714 cleanup refuses protection changes at effect acceptance (1613.532596ms)\n\u2714 cleanup rejects a different or unavailable canonical checkout without deleting branches (1624.026035ms)\n\u2714 untrusted PR linkage fields cannot qualify deletion or persist arbitrary transport values (1801.77316ms)\n\u2714 unavailable operation and final inventories retain outcomes until read-only recovery can verify completion (1910.122248ms)\n\u2714 partial local success and remote refusal persist independently; recovery never retries a deletion (2191.086855ms)\n\u2714 lost accepted receipts reconcile deletion without repeating merge, PR creation or deletion (1610.8598ms)\n\u2714 uncertain deletion fences delayed senders, prevents sync/release and recovers without redispatch (1633.707704ms)\n\u2714 remote main advancement after accepted deletion records the outcome but blocks completion (1443.265712ms)\n\u2714 cancelled cleanup remains cancelled during read-only recovery (1442.191205ms)\n\u2714 cleanup inventories unrelated local/remote tips, retains exclusions and completes only the controlled delivery (2086.638861ms)\n\u2714 local and remote tips are evaluated independently and newer local commits are preserved (1465.040911ms)\n\u2714 squash and rebase linkage qualifies only the exact current tip, preserving newer tips and ambiguous results (1654.452937ms)\n\u2714 unknown integration and unsupported conditional authority block instead of deleting blindly (1195.473335ms)\n\u2714 CLI refuses native cleanup authority (1217.451449ms)\n\u2714 CLI rejects misplaced host options and incomplete online artifact configuration (396.468168ms)\n\u2714 CLI validates selected auth identity before opening browser or native auth storage (273.501819ms)\n\u2714 CLI constructs the pinned dependency runtime before refusing a missing delivery (133.7039ms)\n\u2714 synthetic expiry arms after slow client setup and interrupts a confirmed body read (6689.328143ms)\n\u2139 expiry-phase python-started 0.0s\nexpiry-phase starting-child 0.0s\nexpiry-phase server-ready 3.306s\nexpiry-phase connecting-first-request 5.107s\nexpiry-phase first-request-accepted 5.11s\nexpiry-phase body-read-pending 5.11s\nexpiry-phase expiry-armed 5.111s\nexpiry-phase child-exited 6.631s\n\n\u2714 expiry arming cannot extend a lease or alter a gateway grant (54.983516ms)\n\u2714 supported darwin host refuses unpinned, linked and candidate-owned executables (158.803584ms)\n\u2714 supported win32 host refuses unpinned, linked and candidate-owned executables (85.835074ms)\n\u2714 subscription reader requests only read-only account and limit observations and hashes account identity (7.041624ms)\n\u2714 subscription reader supports the legacy limits response without fabricating absent windows (1.240621ms)\n\u2714 subscription reader refuses malformed without returning private diagnostics (1.156262ms)\n\u2714 subscription reader refuses oversized without returning private diagnostics (0.803776ms)\n\u2714 subscription reader refuses transport-error without returning private diagnostics (0.734064ms)\n\u2714 subscription reader refuses rpc-error without returning private diagnostics (0.763652ms)\n\u2714 subscription reader refuses api-account without returning private diagnostics (0.622ms)\n\u2714 subscription reader refuses invalid-limits without returning private diagnostics (0.571721ms)\n\u2714 subscription reader refuses invalid-email without returning private diagnostics (1.02031ms)\n\u2714 subscription reader refuses stdin-error without returning private diagnostics (0.600801ms)\n\u2714 subscription reader refuses a relative executable without launching a transport (0.320998ms)\n\u2714 subscription reader handles a null modern-limit inventory through the legacy response (0.512402ms)\n\u2714 subscription reader refuses a missing limit bucket rather than returning fabricated usage (0.648383ms)\n\u2714 owner approval merges only the validated head and records main without claiming delivery completion (970.642951ms)\n\u2714 merge rechecks approvals, conversations and trusted checks instead of using cached readiness (1579.288707ms)\n\u2714 head/base races, unsupported conditions and protection revocation never dispatch a merge (2345.251057ms)\n\u2714 policy revocation and cancellation between observation and dispatch fence the merge (1169.842529ms)\n\u2714 native CLI refuses merge and reconciliation without qualified adapters (1363.858023ms)\n\u2714 remote changes after observation cannot pass conditional effect acceptance (2114.465145ms)\n\u2714 revoked onboarding authority after the remote observation prevents dispatch (1074.461119ms)\n\u2714 repository ownership queues later requests and is retained across restart and independent repositories (17.333584ms)\n\u2714 pause, resume and cancel preserve work and require an explicit safe release before advancing the queue (27.282281ms)\n\u2714 qualified controlled worker dispatch has explicit durable identity and cannot be duplicated (25.97712ms)\n\u2714 pause fences a late accepted worker response and preserves the explicit session for recovery (32.262491ms)\n\u2714 crash after worker acceptance reconciles exact sessions and blocked/cancelled work never auto-dispatches (45.703039ms)\n\u2714 public CLI pause/resume/cancel/release/recover address explicit delivery IDs and preserve blocked state (1370.594616ms)\n\u2714 competing CLI processes admit exactly one owner for the same repository (202.179547ms)\n\u2714 an abruptly exited runner is fenced and stopped by exact identity before fresh work is permitted (162.935895ms)\n\u2714 a hung worker observation times out to uncertainty without redispatch (26.065172ms)\n\u2714 verified clones of one canonical repository share delivery ownership (15.247901ms)\n\u2714 dispatch rechecks current onboarding and cannot reuse stale ready evidence (13.726913ms)\n\u2714 repeated admission cannot adopt a changed owner policy pin (15.574976ms)\n\u2714 resuming a paused queued request acquires a safely released empty repository (21.047307ms)\n\u2714 missing qualification and mismatched worker receipts cannot authorize dispatch or release (28.740079ms)\n\u2714 explicit resume retains sandbox and worker identity with a new fenced operation (47.194619ms)\n\u2714 legacy intake ledger migration preserves requests and assigns conservative ownership through public status (11.119828ms)\n\u2714 resuming a released paused owner queues behind the current repository owner (35.043898ms)\n\u2714 subscription threshold requires fresh owner approval, grants one run and never overrides exhaustion (35.56826ms)\n\u2714 missing usage requires approval and monitoring preserves uncertain shutdown without leaking provider errors (24.118616ms)\n\u2714 a feature request has durable blocked status without touching the repository (251.268248ms)\n\u2714 malformed requests create no delivery and leave the target untouched (921.806874ms)\n\u2714 status and request evidence retain useful context without credential canaries (577.693425ms)\n\u2714 delivery state cannot be placed inside the target repository (128.195641ms)\n\u2714 linked artifact storage cannot redirect a request into the target repository (142.690873ms)\n\u2714 authorization schemes do not leave their credential in request evidence (292.613098ms)\n\u2714 qualification, task and usage CLI aliases dispatch to their controller operations (850.483304ms)\n\u2714 owner review reruns only the two original consumer approval jobs and never grants approval (151.668485ms)\n\u2714 inspection is read-only and returns only bounded identifiers (135.965038ms)\n\u2714 refresh refuses fork before any mutation (137.356109ms)\n\u2714 refresh refuses stale head before any mutation (161.880441ms)\n\u2714 refresh refuses stale base before any mutation (157.46226ms)\n\u2714 refresh refuses wrong target before any mutation (142.420255ms)\n\u2714 refresh refuses closed PR before any mutation (131.675152ms)\n\u2714 refresh refuses bot caller before any mutation (136.605286ms)\n\u2714 refresh refuses unauthorized caller before any mutation (141.718911ms)\n\u2714 refresh refuses self caller before any mutation (134.205876ms)\n\u2714 refresh refuses unauthorized triggering actor before any mutation (147.90523ms)\n\u2714 refresh refuses forged workflow identity before any mutation (129.973737ms)\n\u2714 refresh refuses forged observer path before any mutation (131.802532ms)\n\u2714 refresh refuses unfinished observer before any mutation (131.714906ms)\n\u2714 refresh refuses forged event title before any mutation (125.220166ms)\n\u2714 refresh refuses unapproved policy before any mutation (133.839927ms)\n\u2714 refresh refuses altered policy body before any mutation (124.549689ms)\n\u2714 refresh refuses changed adoption workflow before any mutation (135.4405ms)\n\u2714 refresh refuses missing original run before any mutation (135.49447ms)\n\u2714 refresh refuses incomplete run inventory before any mutation (133.040009ms)\n\u2714 refresh refuses wrong original event before any mutation (133.140481ms)\n\u2714 refresh refuses wrong original head before any mutation (139.306356ms)\n\u2714 refresh refuses wrong original workflow before any mutation (135.07399ms)\n\u2714 refresh refuses missing original job before any mutation (121.295121ms)\n\u2714 refresh refuses incomplete job inventory before any mutation (133.214881ms)\n\u2714 refresh refuses ambiguous original job before any mutation (138.79387ms)\n\u2714 refresh refuses wrong job head before any mutation (129.75669ms)\n\u2714 refresh refuses wrong job run before any mutation (135.267845ms)\n\u2714 refresh refuses missing permission before any mutation (129.134504ms)\n\u2714 refresh refuses head drift before dispatch before any mutation (132.655931ms)\n\u2714 refresh refuses review drift before dispatch before any mutation (136.067148ms)\n\u2714 refresh refuses permission revoked before dispatch before any mutation (137.609619ms)\n\u2714 refresh refuses API failure before any mutation (127.749218ms)\n\u2714 a dismissal refreshes previously successful approval jobs (140.61895ms)\n\u2714 a replay skips jobs evaluated after the review event (130.151674ms)\n\u2714 timestamp ties are refreshed conservatively (144.118993ms)\n\u2714 a failed second request preserves confirmed and unconfirmed dispatch evidence (145.924565ms)\n\u2714 head drift between requests blocks the second mutation (139.345325ms)\n\u2714 inspection refuses drift before producing trusted outputs (123.514089ms)\n\u2714 wrong approved distribution and duplicate arguments cannot request a rerun (73.683269ms)\n\u2714 refresh refuses duplicate run IDs without mutation (132.645441ms)\n\u2714 refresh refuses duplicate job IDs without mutation (126.320196ms)\n\u2714 refresh refuses changed approved distribution without mutation (76.121011ms)\n\u2714 refresh refuses oversized API response without mutation (170.204379ms)\n\u2714 refresh refuses job never settles without mutation (177.60916ms)\n\u2714 running approval jobs settle within one shared bounded wait before refresh (137.738629ms)\n\u2714 permission revoked between requests blocks further dispatch (143.627099ms)\n\u2714 shared consumer run settles and uses new attempt job IDs before the second rerun (140.537227ms)\n\u2714 dispatch waits for unrelated original jobs even when approval jobs are already completed (118.97489ms)\n\u2714 old completed run metadata cannot release the next rerun before its new attempt is visible (129.034898ms)\n\u2714 an original workflow that never completes blocks every rerun within the wait budget (164.622799ms)\n\u2714 temporary empty job inventory during attempt creation waits before sibling refresh (135.397915ms)\n\u2714 job inventory missing throughout the new-attempt wait blocks the second request (192.427642ms)\n\u2714 serial refresh bounds a slow prerequisite at 200 seconds (179.926119ms)\n\u2714 serial refresh bounds a slow prerequisite at 500 seconds (201.177011ms)\n\u2714 ordinary requests retain observable criteria and verification across restart without approval (54.123028ms)\n\u2714 a stopped isolated coding result becomes a source-bound candidate without editing main or enabling delivery (291.906934ms)\n\u2714 owner policy drift while collecting output cannot admit a candidate (207.730931ms)\n\u2714 pause charges only active coding time and verifies shutdown before acknowledging the control (175.580583ms)\n\u2714 exhaustion persists across restart and only an explicit owner extension permits the same session to resume (344.316561ms)\n\u2714 material ambiguity blocks coding without creating a branch (46.252461ms)\n\u2714 unsafe traversal output stays refused after verified shutdown (229.495111ms)\n\u2714 unsafe Git hooks output stays refused after verified shutdown (220.722315ms)\n\u2714 unsafe links output stays refused after verified shutdown (227.430389ms)\n\u2714 unsafe reparse or symbolic output output stays refused after verified shutdown (234.620132ms)\n\u2714 unsafe concurrent output output stays refused after verified shutdown (208.417592ms)\n\u2714 coding uses its persisted allowance rather than the short observation deadline (242.185109ms)\n\u2714 partial output inventory cannot stand in for an exact candidate tree (209.818805ms)\n\u2714 repository clean filters never execute on the trusted host during source admission (59.435698ms)\n\u2714 the initial coding allowance is declared at request submission and retained by planning (44.286534ms)\n\u2714 the explicit Codex session survives a worker failure before a terminal result (173.287223ms)\n\u2714 an explicit owner clarification resolves a material planning blocker without resetting the request (36.028276ms)\n\u2714 worktree-scoped clean filters cannot execute on the trusted host (61.024635ms)\n\u2714 restart with a changed coding binding cannot acknowledge the old worker's shutdown (174.941059ms)\n\u2714 concurrent material clarifications cannot replace an already retained owner answer (38.111383ms)\n\u2714 the pinned coding adapter consumes coalesced CLI JSON and preserves the explicit session (230.406364ms)\n\u2714 output cannot claim both a file and its descendant as ordinary files (218.120547ms)\n\u2714 the pinned adapter refuses an independently measured executable mismatch before dispatch (167.158619ms)\n\u2714 source admission recognizes equivalent native and Git worktree root spellings (44.881736ms)\n\u2714 source admission preserves a line break inside the canonical repository root (46.525138ms)\n\u25b6 source admission refuses include declarations in both local and worktree scopes\n  \u2714 --local (49.792202ms)\n  \u2714 --worktree (45.616133ms)\n\u2714 source admission refuses include declarations in both local and worktree scopes (97.466118ms)\n\u2714 source admission refuses a nested workspace claiming its parent repository identity (36.84144ms)\n\u2714 unsafe planner results and unavailable integrations never create feature authority (38.140765ms)\n\u2714 planning and clarification preserve owner controls across delayed responses (146.143348ms)\n\u2714 changed policy, dirty source, and changed pins block further coding (343.060693ms)\n\u2714 coding cancel verifies shutdown and preserves controls (185.974338ms)\n\u2714 coding recover verifies shutdown and preserves controls (178.06643ms)\n\u2714 unavailable coding clock NaN prevents admission and consumes the allowance conservatively (413.644301ms)\n\u2714 unavailable coding clock -1 prevents admission and consumes the allowance conservatively (406.638467ms)\n\u2714 collection operation drift refuses candidate admission (187.526484ms)\n\u2714 collection policy drift refuses candidate admission (186.135294ms)\n\u2714 collection branch drift refuses candidate admission (228.172759ms)\n\u2714 collection source drift refuses candidate admission (205.723327ms)\n\u2714 collection pause drift refuses candidate admission (217.606166ms)\n\u2714 structured CLI events accept supported items and reject malformed or cross-session transcripts (1.302716ms)\n\u2714 CLI rejects invalid feature controls and preserves explicit initial budgets (1615.835723ms)\n\u2714 pinned stream adapter refuses frame before admission (169.281722ms)\n\u2714 pinned stream adapter refuses oversized before admission (171.044878ms)\n\u2714 pinned stream adapter refuses missing-session before admission (157.004596ms)\n\u2714 pinned stream adapter refuses terminal-order before admission (162.838547ms)\n\u2714 pinned stream adapter refuses result-pins before admission (168.666689ms)\n\u2714 pinned stream adapter refuses checkpoint before admission (169.774951ms)\n\u2714 source admission resolves root identity but still refuses a linked workspace (41.157561ms)\n\u2714 pinned coding launch refuses command arguments drift after inspection before worker dispatch (155.290047ms)\n\u2714 pinned coding launch refuses input bytes drift after inspection before worker dispatch (163.178206ms)\n\u2714 pinned coding launch refuses input digest drift after inspection before worker dispatch (161.81883ms)\n\u2714 pinned coding launch refuses baseline refresh drift after inspection before worker dispatch (153.842136ms)\n\u2714 pin inspection cannot replace controller authority to launch paused work (162.065506ms)\n\u2714 transport preparation uses owned admitted bytes despite a retained inspection reference (213.161265ms)\n\u2714 changed prepared launch refuses effect acceptance after an asynchronous wait (157.398991ms)\n\u2714 unchanged-main validation retains revision-bound check evidence across ledger reopening (152.765723ms)\n\u2714 coding requires unchanged-main evidence and candidate checks bind the admitted manifest (359.144729ms)\n\u2714 required failure evidence blocks coding and one successful retry cannot conceal it (255.714516ms)\n\u2714 required missing evidence blocks coding and one successful retry cannot conceal it (232.032555ms)\n\u2714 required pending evidence blocks coding and one successful retry cannot conceal it (243.063986ms)\n\u2714 required skipped evidence blocks coding and one successful retry cannot conceal it (239.159328ms)\n\u2714 required neutral evidence blocks coding and one successful retry cannot conceal it (230.689836ms)\n\u2714 required cancelled evidence blocks coding and one successful retry cannot conceal it (230.36252ms)\n\u2714 only externally declared exception and flake policy permit incomplete results or a passing diagnostic (189.230977ms)\n\u2714 a hung isolated check times out, blocks overlap until descendant recovery, and retains the failed attempt (201.66758ms)\n\u2714 validation policy drift cannot produce current passing evidence (118.552951ms)\n\u2714 validation environment drift cannot produce current passing evidence (122.48414ms)\n\u2714 validation source drift cannot produce current passing evidence (104.221168ms)\n\u2714 validation candidate drift cannot produce current passing evidence (324.045101ms)\n\u2714 feature E2E requirements cannot silently fall back to a worker without synthetic infrastructure (41.227969ms)\n\u2714 owner policy must declare PR and main checks with trusted publishers (40.913508ms)\n\u2714 CLI validation commands reach the controlled-adapter gate without accepting repository executors (340.042849ms)\n\u2714 an unchanged tree on a new main revision still needs a fresh baseline (146.963278ms)\n\u2714 changed validation environment cannot reuse an earlier baseline to start coding (130.959216ms)\n\u2714 validation pause fences late success and stops descendants before acknowledging (100.131659ms)\n\u2714 validation cancel fences late success and stops descendants before acknowledging (101.863743ms)\n\u2714 formatting output changes invalidate the exact candidate even when all check results claim success (279.774768ms)\n\u2714 untrusted publisher results remain incomplete after verified shutdown (79.854081ms)\n\u2714 untrusted revision results remain incomplete after verified shutdown (80.320475ms)\n\u2714 untrusted environment results remain incomplete after verified shutdown (78.639805ms)\n\u2714 untrusted missing results remain incomplete after verified shutdown (83.994611ms)\n\u2714 untrusted artifact results remain incomplete after verified shutdown (99.214655ms)\n\u2714 candidate package-script additions are refused before validation dispatch (264.437543ms)\n\u2714 declared browser/database acceptance uses matching synthetic infrastructure (340.606955ms)\n\u2714 main moving during environment inspection prevents coding dispatch (170.82423ms)\n\u2714 protected validation input bytes is refused before execution (246.562324ms)\n\u2714 protected validation input deletion is refused before execution (271.453084ms)\n\u2714 protected validation input mode is refused before execution (265.043934ms)\n\u2714 qualification records explicit not-run evidence and blocks launch when no runtime or policy is configured (15.034761ms)\n\u2714 controlled canary evidence binds qualification to exact host/runtime/policy but cannot establish live readiness (16.768871ms)\n\u2714 qualified launch sends only fresh admitted files and effective mountless microVM policy to the runtime (32.666581ms)\n\u2714 unsafe effective policy or client-only termination cannot qualify agent launch or shutdown (47.650396ms)\n\u2714 candidate authority files, credential-looking input and linked source files are not admitted (36.562855ms)\n\u2714 missing and stale canary observations remain not-run and policy changes invalidate readiness (13.213468ms)\n\u2714 hard links and directory links cannot introduce external files into the workspace (19.495013ms)\n\u2714 raw proxy credentials and publication endpoints cannot enter a model-only policy (6.710239ms)\n\u2714 publication and host-local destinations cannot be declared as inference or dependency endpoints (57.892687ms)\n\u2714 a runtime cannot substitute the admitted workspace or initial manifest before launch (52.107313ms)\n\u2714 merged delivery requires trusted main E2E before main verification, without completing delivery (1133.295368ms)\n\u2714 unavailable main observation reaches its persisted deadline across restart (1170.467383ms)\n\u2714 returning main revisions retain failures rather than laundering a rerun into green (1132.284742ms)\n\u2714 changed observation binding revokes previously verified main (1117.795044ms)\n\u2714 main advancement discards green authority and uses the original wait deadline (1135.71486ms)\n\u2714 missing, untrusted, partial and incorrectly linked main evidence cannot authorize progression (1281.610489ms)\n\u2714 interrupted observations recover and late responses cannot overwrite newer verified main (1132.075815ms)\n\u2714 pause and cancel during main observation retain evidence without progressing (1152.992334ms)\n\u2714 default main wait is one hour and neither restart nor clock rollback renews it (1134.006034ms)\n\u2714 CLI and undeclared main workflows refuse monitoring without authority (1272.834575ms)\n\u2714 shorter declared main deadlines apply even while observations are unavailable (1114.397995ms)\n\u2714 binding errors and clock rollback cannot erase a terminal main timeout (1172.385529ms)\n\u2714 a timely short check leaves the longer check its full allowance during an observation (1062.820044ms)\n\u2714 pause retains a clock-rollback timeout discovered by an in-flight observation (1221.702719ms)\n\u2714 failed, incomplete, untrusted and advanced-main checks cannot authorize synchronization (1359.795775ms)\n\u2714 post-effect remote drift cannot report alignment and never rewrites the synchronized local revision (1340.563252ms)\n\u2714 unavailable final observation retains an uncertain attempt until read-only reconciliation (1314.362139ms)\n\u2714 cancellation fences a delayed effect and read-only recovery preserves cancellation (1446.261922ms)\n\u2714 changed observation binding before intent refuses the dispatch (1270.923036ms)\n\u2714 synchronization rechecks dirty at the conditional effect boundary (1395.546528ms)\n\u2714 synchronization rechecks head at the conditional effect boundary (1303.495222ms)\n\u2714 synchronization rechecks remote at the conditional effect boundary (1366.126733ms)\n\u2714 synchronization rechecks policy at the conditional effect boundary (1365.578745ms)\n\u2714 synchronization rechecks binding at the conditional effect boundary (1270.251666ms)\n\u2714 synchronization rechecks pause at the conditional effect boundary (1311.307849ms)\n\u2714 lost accepted result is reconciled from actual refs without another write (1360.445826ms)\n\u2714 uncertain in-flight effects block retry and ownership release, then recover without redispatch (1471.656915ms)\n\u2714 late failed recovery cannot overwrite a newer observation for the same operation (1461.989922ms)\n\u2714 candidate hooks, filters and included configuration cannot execute during synchronization (1268.160569ms)\n\u2714 verified main synchronizes a clean feature checkout and retains evidence across restart without completing delivery (1459.461751ms)\n\u2714 dirty tracked, untracked, ignored and staged work prevents synchronization without changing bytes (1446.597378ms)\n\u2714 ahead and divergent local history is preserved rather than rewritten (1300.186636ms)\n\u2714 unsafe identity, checkout, incomplete observations and active other worktrees refuse effects (1561.173565ms)\n\u2714 remote advancement invalidates green checks and requires newly verified main (1420.15751ms)\n\u2714 CLI synchronization refuses without native adapters (1316.125331ms)\n\u2714 advanced main is revalidated and integrated through bounded repair before signed publication and renewed approval (2125.153095ms)\n\u2714 unsafe local main and exhausted refresh allowance preserve the candidate and never merge (1213.212392ms)\n\u2714 coding failure after a passed advanced baseline remains retryable within cumulative allowance (1497.91896ms)\n\u2714 pinned refresh preparation owns both admitted baseline manifests (1397.125456ms)\n\u2714 lost merge receipt survives restart and reconciles accepted PR/main linkage without another write (1202.452349ms)\n\u2714 unproven absence never retries while quiescent absence permits a new freshly gated attempt (1411.989383ms)\n\u2714 pause during dispatch fences new effects but retains an accepted merge without resuming delivery (1173.038079ms)\n\u2714 a competing controller recovering a pre-dispatch intent prevents the original controller from merging (995.623599ms)\n\u2714 wrong merge linkage and changed adapter bindings cannot settle uncertain effects (944.035647ms)\n\u2714 a remote head race after observation is rejected by the conditional effect and never lands the raced candidate (917.832325ms)\n\u2714 late advanced-base observation cannot overwrite a newer controller's merged outcome (1086.610614ms)\n\u2714 synthetic model relay verifies bounded transport and denial paths without live credentials (44.547333ms)\n\u2714 synthetic relay closes its peers and can repeat with fresh capabilities (25.057733ms)\n\u2714 synthetic relay refuses invalid content, body, authorization, tunnels and upgrades (19.887833ms)\n\u2714 model grant uses an exact capability and destroys tracked requests on revocation (0.554091ms)\n\u2714 completed synthetic relay qualification releases its deadline instead of firing during later work (10.665539ms)\n\u2714 synthetic relay deadline still refuses qualification and releases pending work (8.927231ms)\n\u2714 native acceptance steps finish in order and receive the supplied arguments (188.094714ms)\n\u2714 a concurrent runner using an aliased state path refuses before launching a step (677.879829ms)\n\u2714 a failed step stops the run and releases its lock for a retry (175.421242ms)\n\u2714 interruption retains the lock and refuses a later run (140.135186ms)\n\u2714 Codex task diagnostics expose only bounded counts, never raw task identities (2.776641ms)\n\u2714 native diagnostics refuse malformed known fields and strip arbitrary private metadata (2.413669ms)\n\u2714 native enrollment cannot bind candidate-owned authority or candidate pin files (431.680394ms)\n\u2714 native CLI rejects malformed machine selection without modifying an existing delivery (158.794956ms)\n\u2714 native host observations expose prerequisites without qualifying worker isolation or persisting diagnostic details (16.875252ms)\n\u2714 an admitted synthetic round trip retains bindings and collects only after verified stop (102.778279ms)\n\u2714 independent descendant census survives collection and controller restart without raw management data (52.107896ms)\n\u2714 timed-out dispatch is fenced before collection and late starts lose authority (58.465631ms)\n\u2714 reopening with the matching driver can reconcile uncertainty without collecting or redispatching (53.228769ms)\n\u2714 a ledger outage during shutdown preserves a dispatched session for explicit recovery (63.74284ms)\n\u2714 unknown stop observations retain ownership and forbid collection across restart (47.602801ms)\n\u2714 pause during dispatch stops the canary and prevents output import (36.551692ms)\n\u2714 unsafe paths, secret input and linked entries refuse dispatch (244.38755ms)\n\u2714 changed output snapshots, links, secrets and stale receipts never enter evidence (251.377369ms)\n\u2714 a fresh worker with weakened effective controls is stopped without collection (34.165158ms)\n\u2714 the native CLI records refused admission without dispatch or production readiness (231.305836ms)\n\u2714 intake records unknown onboarding prerequisites without enabling delivery (15.982371ms)\n\u2714 verified owner policy and boundary evidence establish onboarding but cannot enable execution (13.27937ms)\n\u2714 a saved remote discrepancy blocks onboarding and preserves the policy snapshot (11.075513ms)\n\u2714 candidate policy and request-supplied evidence cannot relax onboarding (5.188879ms)\n\u2714 unreachable inspection and signing configuration alone stay unknown without leaking errors (15.693787ms)\n\u2714 known local identity conflict remains visible when live evidence is unavailable (7.490798ms)\n\u2714 CLI accepts external owner policy and reports a real saved remote mismatch without rewriting it (175.292709ms)\n\u2714 a candidate-controlled directory link cannot select an external owner policy (10.142415ms)\n\u2714 a repository alias cannot hide candidate-controlled policy redirection (8.288089ms)\n\u2714 online synthetic dispatch requires trusted authentication and records separate access proof without enabling production (55.196161ms)\n\u2714 low and unknown usage consume one account/window/run grant and exhaustion preserves work (114.160702ms)\n\u2714 account/window change and exhausted foreground checks revoke without authorizing subsequent traffic (122.877445ms)\n\u2714 uncertain shutdown blocks restart, release and qualification until recovery observes revocation (60.915663ms)\n\u2714 an active synthetic run cannot receive a replacement usage grant (39.291503ms)\n\u2714 pause revokes a pending online run and concurrently attempted dispatch cannot overlap (56.497179ms)\n\u2714 recovery clears the online shutdown blocker after independently verified stop (31.765714ms)\n\u2714 public foreground usage polling stops an exhausted online canary and preserves its request (38.205042ms)\n\u2714 an unknown-usage approval cannot move to a newly endorsed account (24.172158ms)\n\u2714 operator-pinned npm artifact dispatch admits exact bytes and refuses candidate policy, redirects and changed artifacts (127.409863ms)\n\u2714 inference dispatch requires approval of its exact prepared plan even with healthy usage, and consumes it before provider effects (48.108667ms)\n\u2714 an exact inference plan that expires during qualification cannot be dispatched (36.341389ms)\n\u2714 Windows positive mediation permits only synthetic online controls and keeps production disabled (29.500955ms)\n\u2714 synthetic windows site task validates only inside its worker and imports after verified shutdown (60.174786ms)\n\u2714 synthetic macos site task validates only inside its worker and imports after verified shutdown (51.752084ms)\n\u2714 native online access refuses a dispatched request when owner authorization is denied (21.722015ms)\n\u2714 a matching dedicated Windows VM admits only an offline probe and records durable bindings (91.523206ms)\n\u2714 qualification records revocable synthetic relay proof without granting live authority (40.976277ms)\n\u2714 changed bindings, host shares, management access and weaker hosts revoke offline admission (152.472939ms)\n\u2714 raw observation errors and unknown native controls cannot become admission or durable secrets (24.489682ms)\n\u2714 candidate pin policies and CLI adapter misuse refuse admission without dispatch (163.042035ms)\n\u2714 candidate-supplied Codex cannot provide authentication capability evidence (33.585413ms)\n\u2714 independent Apple-silicon AppleHV evidence admits an offline probe without qualifying production (43.421959ms)\n\u2714 macOS admission refuses Intel, older Darwin, implicit providers and conflicting share intent (152.00466ms)\n\u2714 any changed macOS binding or incomplete effective control revokes admission and cannot inherit Windows proof (347.256972ms)\n\u2714 public qualification records synthetic credential isolation, endpoint, delivery-capability, and gateway proofs without enabling production (226.63061ms)\n\u2714 native inference starts its one-shot gateway lease only after bound isolation and always revokes it (111.110618ms)\n\u2714 trusted darwin observations select the explicit provider and refuse unsafe configuration (8.956395ms)\n\u2714 native darwin observation transports bound host data and refuses uncertain runtime results (4.795008ms)\n\u2714 trusted win32 observations select the explicit provider and refuse unsafe configuration (9.66884ms)\n\u2714 native win32 observation transports bound host data and refuses uncertain runtime results (3.415543ms)\n\u2714 unsupported hosts and Intel Macs cannot select a native provider (0.752082ms)\n\u2714 Intel Macs cannot select AppleHV (1.365828ms)\n\u2714 native worker refuses dispatch when the controller authorization callback denies it (1.014767ms)\n\u2714 native model-frame transport returns only binding-matched bounded frames (2.165866ms)\n\u2714 native darwin isolation uses a synthetic host process and model-only gateway capability (68.334081ms)\n\u2714 native win32 isolation uses a synthetic host process and model-only gateway capability (64.639658ms)\n\u2714 generated native management freezes direct wait failures before successful or failed cleanup (91.23509ms)\n\u2714 Native Codex launch constrains thread pools and audits the exact environment (102.880142ms)\n\u2714 Native Codex task-headroom gate waits for idle workers and refuses exhausted budgets (110.36882ms)\n\u2714 native fixed task enforces staging, dispatch authority and exact stopped collection bindings (9.200033ms)\n\u2714 native darwin management deadline remains bounded (1.517902ms)\n\u2714 native win32 management deadline remains bounded (1.486558ms)\n\u2714 host positive-control fixture refuses an unbounded lifetime before starting (0.536655ms)\n\u2714 guest command budgets keep Mac scheduling bounded and Windows unchanged (76.994392ms)\n\u2714 native relay observes coalesced readiness and acceptance frames on both hosts (146.564227ms)\n\u2714 Mac relay permits observed exec scheduling delay while retaining the network deadline (4224.424038ms)\n\u2714 Mac completed turn waits for headroom before opening persisted history (92.810346ms)\n\u2714 Mac resume may finish after headroom waits without extending the Windows protocol window (78.613793ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: valid (5.011119ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: wrong-capability (1.95338ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: wrong-delivery (1.468505ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: duplicate (7.629956ms)\n\u2714 effective isolation checks bound exec and refuse transport failures (83.904176ms)\n\u2714 native credential denials are bounded and fail closed on transport errors (124.397871ms)\n\u2714 native stop cannot mistake a timed-out engine query for an absent container (91.66431ms)\n\u2714 stale head cannot pass required PR checks (897.616899ms)\n\u2714 spoofed publisher cannot pass required PR checks (710.347353ms)\n\u2714 spoofed workflow cannot pass required PR checks (711.889511ms)\n\u2714 skipped cannot pass required PR checks (695.974157ms)\n\u2714 neutral cannot pass required PR checks (708.271967ms)\n\u2714 cancelled cannot pass required PR checks (726.771588ms)\n\u2714 pending cannot pass required PR checks (798.404173ms)\n\u2714 missing checks poll at a bounded rate and retain the declared deadline across restart (796.808253ms)\n\u2714 default CI deadline, unavailable clock and observations all fail closed (710.430857ms)\n\u2714 malformed pending timestamp cannot persist untrusted response fields (717.838529ms)\n\u2714 declared long CI deadlines survive downtime beyond the default hour (771.611166ms)\n\u2714 terminal checks completing after the declared deadline cannot pass (734.347903ms)\n\u2714 reopening during timeout reconciliation cannot erase the durable timeout verdict (1028.502671ms)\n\u2714 trusted failed checks use cumulative repair and republish conditionally to the same PR (1648.937854ms)\n\u2714 a paused observation retains its result without advancing or consuming repair allowance (908.46883ms)\n\u2714 real signed repair updates the existing branch and preserves the PR identity (2089.89849ms)\n\u2714 exact-head trusted PR checks advance only to independent review and survive restart (923.495228ms)\n\u2714 a passing retry preserves failure and blocks unexplained intermittency (1064.921623ms)\n\u2714 owner exceptions and flake policy apply only to trusted evidence (981.059123ms)\n\u2714 unknown rerun acceptance survives restart and late dispatch remains fenced (1027.75436ms)\n\u2714 new remote head and incomplete history invalidate previously passing evidence (1013.967106ms)\n\u2714 timed-out diagnostic recovery resolves acceptance without reopening checks or writes (962.617663ms)\n\u2714 runtime drift fences diagnostic dispatch and observation admission (919.053239ms)\n\u2714 a stale concurrent observation cannot overwrite newer failure evidence (897.956435ms)\n\u2714 CLI refuses hosted monitoring without a trusted adapter and missing workflow declarations block (970.148686ms)\n\u2714 split identity adapter verifies a real signed Git tree and leaves the source checkout untouched (1125.099916ms)\n\u2714 a conflicting existing remote branch blocks the split adapter before push (800.855643ms)\n\u2714 environment drift before publication dispatch performs no signing (366.985498ms)\n\u2714 lost publication authority stops after signing without scheduling a push (529.339612ms)\n\u2714 cancel preserves a possibly accepted push and read-only recovery cannot create a PR (696.19023ms)\n\u2714 signing unavailable refuses publication before any effect (350.607604ms)\n\u2714 push denied refuses publication before any effect (315.367474ms)\n\u2714 App credentials reused for signing refuses publication before any effect (316.080208ms)\n\u2714 broad App permissions refuses publication before any effect (313.368424ms)\n\u2714 wrong repository refuses publication before any effect (327.361773ms)\n\u2714 wrong App refuses publication before any effect (310.714781ms)\n\u2714 multiple approvers refuses publication before any effect (314.646747ms)\n\u2714 concurrent publication calls reserve only one signing operation (935.942434ms)\n\u2714 changed signing keys or adapter binding cannot resume partial publication (681.20077ms)\n\u2714 an old publisher cannot block a new execution after its pending signing is reconciled (886.144474ms)\n\u2714 candidate artifact tampering blocks all publication effects (311.984109ms)\n\u2714 publication intent is durable before dispatch and the CLI installs no native publisher (952.549179ms)\n\u2714 push rejects mismatched evidence {\"githubVerified\":false} (698.913682ms)\n\u2714 push rejects mismatched evidence {\"publisher\":\"factory[bot]\"} (655.97906ms)\n\u2714 push rejects mismatched evidence {\"repository\":\"wrong/repo\"} (660.76036ms)\n\u2714 push rejects mismatched evidence {\"commit\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (654.229592ms)\n\u2714 createPullRequest rejects mismatched evidence {\"author\":\"aaron-howard\"} (809.248156ms)\n\u2714 createPullRequest rejects mismatched evidence {\"head\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (793.902016ms)\n\u2714 createPullRequest rejects mismatched evidence {\"base\":\"other\"} (795.339893ms)\n\u2714 createPullRequest rejects mismatched evidence {\"approver\":\"other\"} (825.346603ms)\n\u2714 sign rejects mismatched evidence {\"localVerified\":false} (557.653777ms)\n\u2714 sign rejects mismatched evidence {\"tree\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (513.548973ms)\n\u2714 sign rejects mismatched evidence {\"signer\":\"factory[bot]\"} (528.426136ms)\n\u2714 sign rejects mismatched evidence {\"parent\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (504.821179ms)\n\u2714 split identity ports refuse mismatched repositories and revoked dispatch before writes (3.439272ms)\n\u2714 split Git port rechecks signing and reuses an already accepted exact remote commit (1.594738ms)\n\u2714 split PR port refuses changed remote evidence and unproven absence without creation (0.664791ms)\n\u2714 split PR port preserves uncertainty after a creation whose acceptance cannot be observed (0.404193ms)\n\u2714 remote head changed after push blocks App creation (930.88443ms)\n\u2714 separate ports cannot bind different repositories (329.948162ms)\n\u2714 pause immediately before split adapter sign prevents dispatch (494.097042ms)\n\u2714 pause immediately before split adapter push prevents dispatch (653.650269ms)\n\u2714 pause immediately before split adapter createPullRequest prevents dispatch (897.210926ms)\n\u2714 split ports reconcile lost sign acceptance without duplicating the effect (1078.000819ms)\n\u2714 split ports reconcile lost push acceptance without duplicating the effect (1071.950262ms)\n\u2714 split ports reconcile lost pr acceptance without duplicating the effect (981.754791ms)\n\u2714 split ports retry signing only after quiescent absence and retain refusal evidence (1206.713352ms)\n\u2714 existing matching App PR is retained without creating another (898.93ms)\n\u2714 unknown push observation before write blocks continuation (760.949304ms)\n\u2714 unknown push observation after write blocks continuation (769.449112ms)\n\u2714 unknown pr observation before write blocks continuation (895.661529ms)\n\u2714 unknown pr observation after write blocks continuation (946.811011ms)\n\u2714 independently changed local signature blocks push (679.246248ms)\n\u2714 a validated candidate is signed and pushed by Git identity then proposed by the separate App identity (853.682731ms)\n\u2714 unknown push acceptance is reconciled after restart without another push (918.334708ms)\n\u2714 partial PR acceptance is recovered with its original author and head and never duplicated (828.908117ms)\n\u2714 paused accepted signing is retained but cannot schedule push until explicit resume (904.393593ms)\n\u2714 a timeout fences late dispatch and requires proven quiescent absence before retry (531.856825ms)\n\u2714 a repair batch uses the admitted candidate, revalidates it and retains separate durable usage (550.38933ms)\n\u2714 failed batches consume three cycles across restart and only an owner extension permits another (1114.791322ms)\n\u2714 local revalidation reaches the exact 60-minute boundary and cannot report success (493.81804ms)\n\u2714 pause during repair charges active editing but excludes pause and prevents late admission (365.719491ms)\n\u2714 restart preserves active usage and blocks overlap until uncertain descendants stop (378.20173ms)\n\u2714 a last check returning success at the deadline cannot admit exhausted repair evidence (520.340943ms)\n\u2714 repair cannot weaken protected validation files or overwrite the retained candidate (386.311479ms)\n\u2714 baseline failures and unvalidated candidates cannot start repair or consume cycles (220.029913ms)\n\u2714 owner extensions reject active or unexhausted repairs and malformed amounts (503.559251ms)\n\u2714 findings are bounded untrusted text, never extension or control authority (294.409296ms)\n\u2714 CLI exposes repair and rejects invalid extension options without installing a native runtime (553.52669ms)\n\u2714 the remaining repair deadline stops a hung local check before its longer declared timeout (479.078941ms)\n\u2714 cancel during local revalidation charges that time and cannot authorize a late success (451.924573ms)\n\u2714 an unchanged repair still revalidates once and retains the unexplained original failure (489.496012ms)\n\u2714 interrupted final inspection cannot strand validation or attach old evidence to a new repair (705.84852ms)\n\u2714 straightforward review repairs use cumulative allowance and require verified publication before resolving (2401.485956ms)\n\u2714 disputed, conflicting and unassessed findings cannot expand scope, credentials or allowance (1580.734086ms)\n\u2714 new review findings and restarted repairs cannot reset cumulative cycle limits (3751.321991ms)\n\u2714 unknown conversation resolution is reconciled after restart even when checks fail, without late writes (2404.9368ms)\n\u2714 changed review thread content invalidates verification and cannot be resolved (1886.954526ms)\n\u2714 stale concurrent review observations cannot replace a newer dismissal (1131.550845ms)\n\u2714 runtime drift and pause fence a prepared conversation resolution (1999.774822ms)\n\u2714 only quiescent absence permits another explicit resolution attempt (1912.367489ms)\n\u2714 a concurrent disputed reassessment fences resolution of unchanged thread content (1770.399712ms)\n\u2714 current-head owner review authorizes the next merge gate without a chat approval (1033.484346ms)\n\u2714 bot, self, stale, dismissed, revoked and incomplete review evidence cannot authorize merge (3989.272854ms)\n\u2714 approval waits survive years and restart without a deadline or repair charge (1368.45688ms)\n\u2714 new failing checks revoke retained owner approval and do not grant a review repair budget (1014.152099ms)\n\u2714 malformed review history and unbound assessments preserve no raw provider fields (1050.653315ms)\n\u2714 CLI refuses review operations without native authority and never submits owner approval (1059.104518ms)\n\u2714 eligible owner can approve an App PR after configured owner signing and publication (820.759222ms)\n\u2714 future-dated owner approval cannot become current authority (714.403836ms)\n\u2714 macos qualification and status expose owner-state positive mediation without authorizing inference (60.200354ms)\n\u2714 windows qualification and status expose owner-state positive mediation without authorizing inference (45.990393ms)\n\u2714 host gateway refuses stale, mismatched, revoked and replayed grants (6.970539ms)\n\u2714 host gateway validates fixed request shape and selected account before provider access (3.675049ms)\n\u2714 host gateway consumes a provider attempt on refusal and bounds returned bytes (1.636273ms)\n\u2714 host gateway refuses malformed response event ordering and message metadata (8.533826ms)\n\u2714 host gateway accepts bounded reasoning and the supported structured text shape (2.383925ms)\n\u2714 acceptance requires all nine live Windows gates and every retained session stopped (1.623721ms)\n\ufe63 Windows host storage works without PowerShell modules or cmdlets (1.482451ms) # SKIP\n\u2714 Windows new-file creation preserves existing registration and replacement collisions (10.418513ms)\n\u2714 Windows protected store scopes synthetic encryption and verifies create/replace before readback (5.204188ms)\n\u2714 Windows protected store rejects changed files and sanitizes host encryption refusals (3.839922ms)\n\u2714 Windows protected store refuses malformed host output and changed readback (1.626948ms)\n\u2714 Windows protected storage refuses path drift and cleans failed replacement without changing retained bytes (3.390402ms)\n\u2714 Windows protected storage refuses unsupported architectures and uses only the fixed OS executable fallback (2.05578ms)\n\u2714 Windows storage timeout refuses initialization and checks without retry or writes (1.288854ms)\n\u2714 public qualification report identifies fixed-worker evidence without claiming complete-controller qualification (96.458247ms)\n\u2714 Windows controls qualification requires a trusted runtime and cannot be supplied by candidate evidence (8.384129ms)\n\u2714 Windows report needs measured supplemental controls and refuses a missing stopped lifecycle session (45.301796ms)\n\u2714 public Windows controls qualifier binds stopped observations and rejects native source drift (78.342704ms)\n\u2714 public report binds a controlled Windows observation but leaves native gates blocked (29.906023ms)\n\u2714 public CLI emits the same report and refuses a weakened Windows observation (177.660994ms)\n\u2714 a positively admitted macOS binding cannot satisfy the Windows report (31.434193ms)\n\u2714 an unqualified delivery reports unavailable evidence without making assumptions (7.320835ms)\n\u2714 report validates each Windows binding field and effective control (36.421658ms)\n\u2714 report accepts complete controlled evidence while retaining production blockers (31.820564ms)\n\u2714 Windows report binds task validation evidence and refuses altered output or worker versions (25.827492ms)\n\u2714 native Windows controls coordinate synthetic boundary denial, revoked sender and killed-controller recovery (254.373544ms)\n{\"windowsBoundaryRefusal\":\"authority\"}\n\u2714 native Windows controls refuse allowed-stage boundary evidence and still stop the worker (109.676527ms)\n\u2714 native Windows controls refuse unknown-stage boundary evidence and still stop the worker (105.331368ms)\n\u2714 native Windows controls refuse challenge boundary evidence and still stop the worker (107.169213ms)\n\u2714 native Windows controls refuse denial boundary evidence and still stop the worker (106.852073ms)\n\u2714 public Mac report requires independent AppleHV evidence and cannot inherit Windows admission (80.338022ms)\n\u2714 Mac controls exercise boundary denial and exact orphan shutdown through AppleHV (227.045756ms)\n\u2714 Mac completion assertion rejects Windows evidence and active retained sessions (3.642195ms)\n\u2714 unavailable Mac qualification retains its intended target across controller restart (11.473841ms)\n\u2714 Windows preparation stops at the inference approval boundary and keeps per-step arguments separate (4.506383ms)\n\u2714 inference and online approvals are mandatory and forwarded only to their own stage (1.619793ms)\n\u2714 a refused prerequisite stops later stages and never retries (0.534573ms)\n\u2714 planning is portable and starts no child or state lock even without approval (0.3134ms)\n\u2714 operator manifests reject script drift and embedded approvals before execution (62.221088ms)\n\u2714 real child stages share the canonical acceptance lock and stop on script drift (419.336209ms)\n\u2714 changed shutdown pins fence import and redispatch until exact-session recovery (192.021884ms)\n\u2714 pin drift after shutdown observation refuses collection dispatch (194.241405ms)\n\u2714 pin drift during asynchronous collection cannot admit worker output (193.183312ms)\n\u2714 native coding transport stays outside controlled production admission (2.5931ms)\n\u25b6 native inspection independently binds each supported host and the guest executable\n  \u2714 darwin (9.737845ms)\n  \u2714 win32 (3.615249ms)\n\u2714 native inspection independently binds each supported host and the guest executable (14.345408ms)\n\u2714 native launch transfers only data, streams bounded output and stops before collection (16.019988ms)\n\u2714 transported management executes launch, revocation and stable collection against external Linux fixtures (1145.284595ms)\n\u2714 unsafe native inputs and unsupported authority paths refuse before VM effects (2.440294ms)\n\u2714 revocation during preparation stops the exact session without releasing Codex (3.737515ms)\n\u25b6 retained launch mutations and malformed streams cannot bypass native shutdown\n  \u2714 mutation (4.335914ms)\n  \u2714 stream (4.42602ms)\n  \u2714 checkpoint (3.729281ms)\n  \u2714 pins (3.394855ms)\n\u2714 retained launch mutations and malformed streams cannot bypass native shutdown (17.905701ms)\n\u25b6 collection refuses unsafe bytes, paths and changed native binding\n  \u2714 path (1.612291ms)\n  \u2714 bytes (1.377095ms)\n  \u2714 pins (1.387595ms)\n  \u2714 shape (2.863924ms)\n  \u2714 shutdown (0.73094ms)\n\u2714 collection refuses unsafe bytes, paths and changed native binding (8.726317ms)\n\u2714 native management persists a revocation before a delayed first dispatch (482.706ms)\n\u2714 unsafe effective native networking is refused before worker start (501.50222ms)\n\u2714 native orphan evidence blocks collection until independent exact-session recovery (1128.326812ms)\n\u2714 stopped native collection refuses linked output and preserves the workspace (724.804547ms)\n\u2714 missing independent native lease refuses Codex release and still stops the worker (491.247903ms)\n\u2714 native polling emits only newly observed bytes across running and unchanged polls (203.908941ms)\n\u2714 rewritten native log prefixes refuse completion and still stop the exact worker (106.285664ms)\n\u25b6 native process failures and forged observation bindings refuse inspection\n  \u2714 json (1.112254ms)\n  \u2714 oversized (7.10324ms)\n  \u2714 session (0.664306ms)\n  \u2714 executable (0.733059ms)\n  \u2714 binding (0.782715ms)\n\u2714 native process failures and forged observation bindings refuse inspection (11.193068ms)\n\u2714 a stalled native management process is terminated at the observation deadline (1.471521ms)\n\u2714 changed initial native pins refuse before any staging or worker effect (1.239156ms)\n\u2714 revocation during host preparation refuses the guest management effect (3.426422ms)\n\u2714 native observations do not cap the engine private database at the stream byte limit (585.281389ms)\n\u2714 native management refuses oversized stdout while preserving the observation limit (175.438007ms)\n\u2714 native management refuses oversized stderr while preserving the observation limit (119.907702ms)\n\u2714 native management kills and reaps a stalled command when its unchanged deadline expires (111.59344ms)\n\u2714 native exact-session recovery tolerates independently observed collected timer units (551.436896ms)\n\u2714 native polling does not exhaust the manager timer start-rate allowance (1629.187684ms)\n\u2714 unverified native timer cleanup blocks collection: unavailable (525.677488ms)\n\u2714 unverified native timer cleanup blocks collection: malformed (526.495677ms)\n\u2714 unverified native timer cleanup blocks collection: pending-job (522.087227ms)\n\u2714 unverified native timer cleanup blocks collection: stop-unavailable (529.250546ms)\n\u2714 checkpoint refusal after native polling reports a gated stop and preserves recovery (553.436049ms)\n\u2139 tests 617\n\u2139 suites 0\n\u2139 pass 614\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 3\n\u2139 todo 0\n\u2139 duration_ms 78203.466088\n",
+        "stderr": "",
+        "truncated": false
+      },
+      {
+        "capability": "build",
+        "required": true,
+        "reason": "Command completed successfully.",
+        "status": "passed",
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "terminationFailed": false,
+        "startedAt": "2026-10-16T19:09:47.157Z",
+        "finishedAt": "2026-10-16T19:09:50.842Z",
+        "stdout": "\n> developer-os@0.1.0 build\n> tsc\n\n",
+        "stderr": "",
+        "truncated": false
+      }
+    ]
+  },
+  "host": {
+    "schemaVersion": 1,
+    "diagnosticOnly": true,
+    "node": "v24.21.0",
+    "architecture": "x64",
+    "parallelism": 4,
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "samples": [
+      {
+        "elapsedMs": 0.27468999999999255,
+        "cpu": [
+          2351,
+          1,
+          1252,
+          10310,
+          1158,
+          0,
+          33,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 1.49,
+              "avg60": 2.23,
+              "avg300": 0.68,
+              "total": 2479990
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 6.33,
+              "avg60": 5.08,
+              "avg300": 1.38,
+              "total": 4528489
+            },
+            "full": {
+              "avg10": 6.07,
+              "avg60": 4.73,
+              "avg300": 1.29,
+              "total": 4193838
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 36386000,
+          "user_usec": 23527000,
+          "system_usec": 12859000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12410680,
+          "MemAvailable:": 14817192,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 2003.2934710000002,
+        "cpu": [
+          2706,
+          1,
+          1295,
+          10701,
+          1160,
+          0,
+          33,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 1.76,
+              "avg60": 2.26,
+              "avg300": 0.7,
+              "total": 2554209
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 5.18,
+              "avg60": 4.91,
+              "avg300": 1.37,
+              "total": 4533684
+            },
+            "full": {
+              "avg10": 4.97,
+              "avg60": 4.57,
+              "avg300": 1.28,
+              "total": 4197983
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 40373000,
+          "user_usec": 27086000,
+          "system_usec": 13287000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12190688,
+          "MemAvailable:": 14597484,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 4005.2273099999998,
+        "cpu": [
+          3113,
+          1,
+          1314,
+          11065,
+          1167,
+          0,
+          33,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 1.99,
+              "avg60": 2.28,
+              "avg300": 0.71,
+              "total": 2600603
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 4.42,
+              "avg60": 4.78,
+              "avg300": 1.37,
+              "total": 4561187
+            },
+            "full": {
+              "avg10": 4.07,
+              "avg60": 4.42,
+              "avg300": 1.27,
+              "total": 4213552
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 44638000,
+          "user_usec": 31152000,
+          "system_usec": 13486000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12116864,
+          "MemAvailable:": 14524960,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 6007.032693,
+        "cpu": [
+          3509,
+          1,
+          1334,
+          11441,
+          1168,
+          0,
+          34,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 2.17,
+              "avg60": 2.3,
+              "avg300": 0.73,
+              "total": 2669266
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 3.62,
+              "avg60": 4.62,
+              "avg300": 1.36,
+              "total": 4563589
+            },
+            "full": {
+              "avg10": 3.33,
+              "avg60": 4.28,
+              "avg300": 1.26,
+              "total": 4215852
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 48810000,
+          "user_usec": 35117000,
+          "system_usec": 13693000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12178704,
+          "MemAvailable:": 14587112,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 8007.303584,
+        "cpu": [
+          3898,
+          1,
+          1361,
+          11821,
+          1169,
+          0,
+          34,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 2.32,
+              "avg60": 2.33,
+              "avg300": 0.75,
+              "total": 2732671
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.96,
+              "avg60": 4.47,
+              "avg300": 1.35,
+              "total": 4566315
+            },
+            "full": {
+              "avg10": 2.73,
+              "avg60": 4.14,
+              "avg300": 1.25,
+              "total": 4218559
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 52956000,
+          "user_usec": 38999000,
+          "system_usec": 13957000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12232760,
+          "MemAvailable:": 14642632,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 10009.292037,
+        "cpu": [
+          4431,
+          1,
+          1374,
+          12062,
+          1174,
+          0,
+          35,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 2.8,
+              "avg60": 2.41,
+              "avg300": 0.77,
+              "total": 2909191
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.43,
+              "avg60": 4.33,
+              "avg300": 1.34,
+              "total": 4580442
+            },
+            "full": {
+              "avg10": 2.23,
+              "avg60": 4,
+              "avg300": 1.24,
+              "total": 4230826
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 58435000,
+          "user_usec": 44336000,
+          "system_usec": 14099000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12091252,
+          "MemAvailable:": 14569252,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 12012.290267999999,
+        "cpu": [
+          5057,
+          1,
+          1460,
+          12146,
+          1176,
+          0,
+          36,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 6.64,
+              "avg60": 3.12,
+              "avg300": 0.93,
+              "total": 3659041
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 1.98,
+              "avg60": 4.18,
+              "avg300": 1.33,
+              "total": 4595279
+            },
+            "full": {
+              "avg10": 1.83,
+              "avg60": 3.87,
+              "avg300": 1.23,
+              "total": 4234409
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 65561000,
+          "user_usec": 50590000,
+          "system_usec": 14971000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12305972,
+          "MemAvailable:": 14787528,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 14013.242558,
+        "cpu": [
+          5515,
+          1,
+          1760,
+          12169,
+          1184,
+          0,
+          39,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 13.41,
+              "avg60": 4.46,
+              "avg300": 1.23,
+              "total": 4457687
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 1.81,
+              "avg60": 4.08,
+              "avg300": 1.33,
+              "total": 4644606
+            },
+            "full": {
+              "avg10": 1.49,
+              "avg60": 3.74,
+              "avg300": 1.22,
+              "total": 4256353
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 1
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 1
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 73173000,
+          "user_usec": 55169000,
+          "system_usec": 18004000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12329548,
+          "MemAvailable:": 14818312,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 16015.470131999999,
+        "cpu": [
+          5805,
+          1,
+          2202,
+          12205,
+          1205,
+          0,
+          44,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 16.05,
+              "avg60": 5.23,
+              "avg300": 1.41,
+              "total": 4942755
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.2,
+              "avg60": 4.08,
+              "avg300": 1.35,
+              "total": 4727958
+            },
+            "full": {
+              "avg10": 1.58,
+              "avg60": 3.69,
+              "avg300": 1.23,
+              "total": 4311802
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 13
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 6
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 80536000,
+          "user_usec": 58075000,
+          "system_usec": 22461000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12363844,
+          "MemAvailable:": 14860212,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 18016.325162,
+        "cpu": [
+          6098,
+          1,
+          2641,
+          12245,
+          1220,
+          0,
+          48,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 17.67,
+              "avg60": 5.87,
+              "avg300": 1.57,
+              "total": 5458992
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.35,
+              "avg60": 4.04,
+              "avg300": 1.36,
+              "total": 4786434
+            },
+            "full": {
+              "avg10": 1.66,
+              "avg60": 3.63,
+              "avg300": 1.23,
+              "total": 4350563
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 17
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 10
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 87911000,
+          "user_usec": 61006000,
+          "system_usec": 26905000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12379156,
+          "MemAvailable:": 14881560,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 20016.813168,
+        "cpu": [
+          6393,
+          1,
+          3053,
+          12305,
+          1239,
+          0,
+          53,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 19.18,
+              "avg60": 6.53,
+              "avg300": 1.74,
+              "total": 6002159
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.46,
+              "avg60": 4.01,
+              "avg300": 1.37,
+              "total": 4861880
+            },
+            "full": {
+              "avg10": 1.72,
+              "avg60": 3.58,
+              "avg300": 1.24,
+              "total": 4400860
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 20
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 13
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 95020000,
+          "user_usec": 63950000,
+          "system_usec": 31070000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12410740,
+          "MemAvailable:": 14919152,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 22017.235835,
+        "cpu": [
+          6711,
+          1,
+          3431,
+          12383,
+          1251,
+          0,
+          58,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 20.78,
+              "avg60": 7.24,
+              "avg300": 1.92,
+              "total": 6464959
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.38,
+              "avg60": 3.94,
+              "avg300": 1.38,
+              "total": 4906738
+            },
+            "full": {
+              "avg10": 1.59,
+              "avg60": 3.49,
+              "avg300": 1.24,
+              "total": 4433793
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 22
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 15
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 102026000,
+          "user_usec": 67128000,
+          "system_usec": 34898000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12426824,
+          "MemAvailable:": 14938672,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 24018.237782,
+        "cpu": [
+          6972,
+          1,
+          3767,
+          12554,
+          1266,
+          0,
+          62,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 19,
+              "avg60": 7.36,
+              "avg300": 1.98,
+              "total": 6702758
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.31,
+              "avg60": 3.88,
+              "avg300": 1.38,
+              "total": 4951083
+            },
+            "full": {
+              "avg10": 1.66,
+              "avg60": 3.44,
+              "avg300": 1.24,
+              "total": 4471986
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 23
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 17
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 108038000,
+          "user_usec": 69746000,
+          "system_usec": 38292000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12480748,
+          "MemAvailable:": 14996428,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 26019.221358,
+        "cpu": [
+          7203,
+          1,
+          4126,
+          12728,
+          1283,
+          0,
+          66,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 17.73,
+              "avg60": 7.51,
+              "avg300": 2.05,
+              "total": 6919994
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.25,
+              "avg60": 3.81,
+              "avg300": 1.39,
+              "total": 5011550
+            },
+            "full": {
+              "avg10": 1.72,
+              "avg60": 3.4,
+              "avg300": 1.25,
+              "total": 4518705
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 29
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 22
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 113988000,
+          "user_usec": 72050000,
+          "system_usec": 41938000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12479368,
+          "MemAvailable:": 14998948,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 28019.832319,
+        "cpu": [
+          7522,
+          1,
+          4407,
+          12897,
+          1297,
+          0,
+          69,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 16.33,
+              "avg60": 7.59,
+              "avg300": 2.11,
+              "total": 7166799
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.2,
+              "avg60": 3.75,
+              "avg300": 1.39,
+              "total": 5054893
+            },
+            "full": {
+              "avg10": 1.77,
+              "avg60": 3.35,
+              "avg300": 1.25,
+              "total": 4556434
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 29
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 22
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 120013000,
+          "user_usec": 75239000,
+          "system_usec": 44774000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12457384,
+          "MemAvailable:": 14979256,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 30021.220022999998,
+        "cpu": [
+          8032,
+          1,
+          4640,
+          12934,
+          1307,
+          0,
+          72,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 18.45,
+              "avg60": 8.26,
+              "avg300": 2.28,
+              "total": 7856170
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 1.99,
+              "avg60": 3.66,
+              "avg300": 1.39,
+              "total": 5098208
+            },
+            "full": {
+              "avg10": 1.63,
+              "avg60": 3.27,
+              "avg300": 1.25,
+              "total": 4582477
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 29
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 22
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 127466000,
+          "user_usec": 80343000,
+          "system_usec": 47123000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12530004,
+          "MemAvailable:": 15054900,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 32023.259901999998,
+        "cpu": [
+          8455,
+          1,
+          4940,
+          12976,
+          1324,
+          0,
+          76,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 20.72,
+              "avg60": 9,
+              "avg300": 2.48,
+              "total": 8434364
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 1.99,
+              "avg60": 3.61,
+              "avg300": 1.39,
+              "total": 5166932
+            },
+            "full": {
+              "avg10": 1.52,
+              "avg60": 3.2,
+              "avg300": 1.25,
+              "total": 4628171
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 30
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 23
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 134739000,
+          "user_usec": 84570000,
+          "system_usec": 50169000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12436520,
+          "MemAvailable:": 14964924,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 34025.220930999996,
+        "cpu": [
+          8817,
+          1,
+          5290,
+          13020,
+          1352,
+          0,
+          84,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 21.49,
+              "avg60": 9.53,
+              "avg300": 2.63,
+              "total": 8943218
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.35,
+              "avg60": 3.62,
+              "avg300": 1.41,
+              "total": 5273046
+            },
+            "full": {
+              "avg10": 1.78,
+              "avg60": 3.19,
+              "avg300": 1.26,
+              "total": 4701404
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 32
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 25
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 141934000,
+          "user_usec": 88187000,
+          "system_usec": 53747000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12469336,
+          "MemAvailable:": 15001392,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 36025.569752999996,
+        "cpu": [
+          9185,
+          1,
+          5601,
+          13090,
+          1382,
+          0,
+          93,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 21.77,
+              "avg60": 9.97,
+              "avg300": 2.77,
+              "total": 9422140
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 3.01,
+              "avg60": 3.7,
+              "avg300": 1.44,
+              "total": 5383011
+            },
+            "full": {
+              "avg10": 2.18,
+              "avg60": 3.22,
+              "avg300": 1.28,
+              "total": 4781276
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 32
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 25
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 148812000,
+          "user_usec": 91868000,
+          "system_usec": 56944000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12519772,
+          "MemAvailable:": 15055068,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 38027.247883,
+        "cpu": [
+          9571,
+          1,
+          5942,
+          13138,
+          1397,
+          0,
+          97,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 22.89,
+              "avg60": 10.56,
+              "avg300": 2.95,
+              "total": 10016306
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 3.01,
+              "avg60": 3.68,
+              "avg300": 1.45,
+              "total": 5443474
+            },
+            "full": {
+              "avg10": 2.15,
+              "avg60": 3.18,
+              "avg300": 1.29,
+              "total": 4820588
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 34
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 27
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 156123000,
+          "user_usec": 95729000,
+          "system_usec": 60394000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12478288,
+          "MemAvailable:": 15015432,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 40029.233654999996,
+        "cpu": [
+          9850,
+          1,
+          6369,
+          13193,
+          1416,
+          0,
+          104,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 23.64,
+              "avg60": 11.1,
+              "avg300": 3.11,
+              "total": 10530477
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 3.01,
+              "avg60": 3.65,
+              "avg300": 1.46,
+              "total": 5517578
+            },
+            "full": {
+              "avg10": 2.12,
+              "avg60": 3.14,
+              "avg300": 1.29,
+              "total": 4871766
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 37
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 30
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 163258000,
+          "user_usec": 98525000,
+          "system_usec": 64733000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12492876,
+          "MemAvailable:": 15031872,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 42031.558103999996,
+        "cpu": [
+          10148,
+          1,
+          6781,
+          13253,
+          1430,
+          0,
+          109,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.06,
+              "avg60": 11.58,
+              "avg300": 3.27,
+              "total": 11115960
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 3,
+              "avg60": 3.63,
+              "avg300": 1.47,
+              "total": 5576161
+            },
+            "full": {
+              "avg10": 2.1,
+              "avg60": 3.1,
+              "avg300": 1.3,
+              "total": 4910320
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 40
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 33
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 170425000,
+          "user_usec": 101509000,
+          "system_usec": 68916000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12501368,
+          "MemAvailable:": 15041368,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 44033.920672,
+        "cpu": [
+          10438,
+          1,
+          7209,
+          13307,
+          1443,
+          0,
+          113,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.96,
+              "avg60": 12.15,
+              "avg300": 3.44,
+              "total": 11657068
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.82,
+              "avg60": 3.58,
+              "avg300": 1.48,
+              "total": 5626468
+            },
+            "full": {
+              "avg10": 1.9,
+              "avg60": 3.03,
+              "avg300": 1.29,
+              "total": 4944933
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 42
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 35
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 177641000,
+          "user_usec": 104404000,
+          "system_usec": 73237000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12534576,
+          "MemAvailable:": 15075932,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 46035.261181,
+        "cpu": [
+          10717,
+          1,
+          7638,
+          13367,
+          1457,
+          0,
+          119,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 25.15,
+              "avg60": 12.61,
+              "avg300": 3.6,
+              "total": 12183505
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.67,
+              "avg60": 3.53,
+              "avg300": 1.48,
+              "total": 5679114
+            },
+            "full": {
+              "avg10": 1.73,
+              "avg60": 2.96,
+              "avg300": 1.29,
+              "total": 4981453
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 46
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 39
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 184778000,
+          "user_usec": 107192000,
+          "system_usec": 77586000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12550260,
+          "MemAvailable:": 15092696,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 48037.213798,
+        "cpu": [
+          11001,
+          1,
+          8064,
+          13426,
+          1473,
+          0,
+          124,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 25.3,
+              "avg60": 13.05,
+              "avg300": 3.75,
+              "total": 12693668
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.55,
+              "avg60": 3.48,
+              "avg300": 1.49,
+              "total": 5739825
+            },
+            "full": {
+              "avg10": 1.6,
+              "avg60": 2.9,
+              "avg300": 1.29,
+              "total": 5023559
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 48
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 42
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 191927000,
+          "user_usec": 110035000,
+          "system_usec": 81892000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12529756,
+          "MemAvailable:": 15072716,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 50040.225684,
+        "cpu": [
+          11315,
+          1,
+          8453,
+          13499,
+          1484,
+          0,
+          129,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 25.43,
+              "avg60": 13.47,
+              "avg300": 3.9,
+              "total": 13171021
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.45,
+              "avg60": 3.43,
+              "avg300": 1.49,
+              "total": 5783473
+            },
+            "full": {
+              "avg10": 1.67,
+              "avg60": 2.87,
+              "avg300": 1.29,
+              "total": 5054221
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 50
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 43
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 199001000,
+          "user_usec": 113172000,
+          "system_usec": 85829000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12535684,
+          "MemAvailable:": 15078708,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 52041.29027,
+        "cpu": [
+          11739,
+          1,
+          8727,
+          13567,
+          1503,
+          0,
+          134,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.99,
+              "avg60": 13.78,
+              "avg300": 4.03,
+              "total": 13737973
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.18,
+              "avg60": 3.35,
+              "avg300": 1.49,
+              "total": 5856638
+            },
+            "full": {
+              "avg10": 1.55,
+              "avg60": 2.81,
+              "avg300": 1.29,
+              "total": 5103926
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 51
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 44
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 206031000,
+          "user_usec": 117408000,
+          "system_usec": 88623000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12532904,
+          "MemAvailable:": 15076384,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 54043.214489,
+        "cpu": [
+          12149,
+          1,
+          8993,
+          13657,
+          1519,
+          0,
+          141,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 25.53,
+              "avg60": 14.25,
+              "avg300": 4.2,
+              "total": 14154317
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.51,
+              "avg60": 3.37,
+              "avg300": 1.5,
+              "total": 5917068
+            },
+            "full": {
+              "avg10": 1.63,
+              "avg60": 2.78,
+              "avg300": 1.3,
+              "total": 5148025
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 52
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 45
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 212857000,
+          "user_usec": 121508000,
+          "system_usec": 91349000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12541412,
+          "MemAvailable:": 15085684,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 56045.22171,
+        "cpu": [
+          12386,
+          1,
+          9343,
+          13834,
+          1536,
+          0,
+          147,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 22.9,
+              "avg60": 14.14,
+              "avg300": 4.25,
+              "total": 14377165
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.42,
+              "avg60": 3.32,
+              "avg300": 1.51,
+              "total": 5967219
+            },
+            "full": {
+              "avg10": 1.7,
+              "avg60": 2.76,
+              "avg300": 1.3,
+              "total": 5191895
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 53
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 46
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 218793000,
+          "user_usec": 123883000,
+          "system_usec": 94910000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12542692,
+          "MemAvailable:": 15087204,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 58045.961052,
+        "cpu": [
+          12696,
+          1,
+          9679,
+          13959,
+          1549,
+          0,
+          151,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 20.74,
+              "avg60": 14.04,
+              "avg300": 4.29,
+              "total": 14711414
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.34,
+              "avg60": 3.28,
+              "avg300": 1.51,
+              "total": 6007668
+            },
+            "full": {
+              "avg10": 1.75,
+              "avg60": 2.73,
+              "avg300": 1.31,
+              "total": 5224979
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 54
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 47
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 225290000,
+          "user_usec": 126981000,
+          "system_usec": 98309000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12540736,
+          "MemAvailable:": 15085980,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 60047.245746,
+        "cpu": [
+          13001,
+          1,
+          10082,
+          14016,
+          1566,
+          0,
+          155,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 21.87,
+              "avg60": 14.46,
+              "avg300": 4.45,
+              "total": 15247120
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.28,
+              "avg60": 3.24,
+              "avg300": 1.51,
+              "total": 6074936
+            },
+            "full": {
+              "avg10": 1.61,
+              "avg60": 2.67,
+              "avg300": 1.3,
+              "total": 5271048
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 56
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 50
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 232421000,
+          "user_usec": 130036000,
+          "system_usec": 102385000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12547988,
+          "MemAvailable:": 15093532,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 62048.248413,
+        "cpu": [
+          13324,
+          1,
+          10476,
+          14070,
+          1581,
+          0,
+          160,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 22.62,
+              "avg60": 14.84,
+              "avg300": 4.59,
+              "total": 15803647
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.41,
+              "avg60": 3.23,
+              "avg300": 1.52,
+              "total": 6133076
+            },
+            "full": {
+              "avg10": 1.68,
+              "avg60": 2.65,
+              "avg300": 1.31,
+              "total": 5310941
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 59
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 52
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 239631000,
+          "user_usec": 133262000,
+          "system_usec": 106369000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12602908,
+          "MemAvailable:": 15149048,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 64050.246198,
+        "cpu": [
+          13631,
+          1,
+          10882,
+          14124,
+          1596,
+          0,
+          166,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 23.41,
+              "avg60": 15.24,
+              "avg300": 4.75,
+              "total": 16334910
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.33,
+              "avg60": 3.19,
+              "avg300": 1.53,
+              "total": 6191324
+            },
+            "full": {
+              "avg10": 1.56,
+              "avg60": 2.6,
+              "avg300": 1.31,
+              "total": 5351327
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 61
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 54
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 246825000,
+          "user_usec": 136333000,
+          "system_usec": 110492000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12564368,
+          "MemAvailable:": 15110340,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 66052.270589,
+        "cpu": [
+          13938,
+          1,
+          11298,
+          14173,
+          1611,
+          0,
+          170,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.06,
+              "avg60": 15.62,
+              "avg300": 4.9,
+              "total": 16854438
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.27,
+              "avg60": 3.15,
+              "avg300": 1.53,
+              "total": 6250214
+            },
+            "full": {
+              "avg10": 1.46,
+              "avg60": 2.54,
+              "avg300": 1.3,
+              "total": 5390825
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 64
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 58
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 254086000,
+          "user_usec": 139397000,
+          "system_usec": 114689000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12557796,
+          "MemAvailable:": 15104096,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 68052.92242700001,
+        "cpu": [
+          14269,
+          1,
+          11689,
+          14221,
+          1622,
+          0,
+          174,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.23,
+              "avg60": 15.93,
+              "avg300": 5.04,
+              "total": 17407660
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.22,
+              "avg60": 3.11,
+              "avg300": 1.53,
+              "total": 6297096
+            },
+            "full": {
+              "avg10": 1.37,
+              "avg60": 2.49,
+              "avg300": 1.3,
+              "total": 5421406
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 69
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 62
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 261358000,
+          "user_usec": 142718000,
+          "system_usec": 118640000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12597268,
+          "MemAvailable:": 15143808,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 70052.74685800001,
+        "cpu": [
+          14564,
+          1,
+          12099,
+          14282,
+          1638,
+          0,
+          179,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.73,
+              "avg60": 16.29,
+              "avg300": 5.19,
+              "total": 17936435
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.36,
+              "avg60": 3.11,
+              "avg300": 1.54,
+              "total": 6359715
+            },
+            "full": {
+              "avg10": 1.49,
+              "avg60": 2.48,
+              "avg300": 1.31,
+              "total": 5465064
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 71
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 64
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 268444000,
+          "user_usec": 145663000,
+          "system_usec": 122781000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12594288,
+          "MemAvailable:": 15140672,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 72053.21098,
+        "cpu": [
+          14879,
+          1,
+          12491,
+          14340,
+          1656,
+          0,
+          185,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 25.14,
+              "avg60": 16.64,
+              "avg300": 5.34,
+              "total": 18476797
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.48,
+              "avg60": 3.1,
+              "avg300": 1.55,
+              "total": 6427228
+            },
+            "full": {
+              "avg10": 1.58,
+              "avg60": 2.46,
+              "avg300": 1.31,
+              "total": 5512236
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 72
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 65
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 275582000,
+          "user_usec": 148816000,
+          "system_usec": 126766000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12594984,
+          "MemAvailable:": 15142180,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 74054.49003100001,
+        "cpu": [
+          15194,
+          1,
+          12896,
+          14391,
+          1672,
+          0,
+          191,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.93,
+              "avg60": 16.88,
+              "avg300": 5.47,
+              "total": 18964007
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.57,
+              "avg60": 3.1,
+              "avg300": 1.56,
+              "total": 6490382
+            },
+            "full": {
+              "avg10": 1.65,
+              "avg60": 2.45,
+              "avg300": 1.32,
+              "total": 5555205
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 75
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 68
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 282838000,
+          "user_usec": 151961000,
+          "system_usec": 130877000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12574452,
+          "MemAvailable:": 15121660,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 76055.309454,
+        "cpu": [
+          15531,
+          1,
+          13284,
+          14434,
+          1688,
+          0,
+          195,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 24.58,
+              "avg60": 17.08,
+              "avg300": 5.59,
+              "total": 19450098
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.65,
+              "avg60": 3.1,
+              "avg300": 1.58,
+              "total": 6550200
+            },
+            "full": {
+              "avg10": 1.72,
+              "avg60": 2.43,
+              "avg300": 1.32,
+              "total": 5598049
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 77
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 70
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 290139000,
+          "user_usec": 155335000,
+          "system_usec": 134804000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12578380,
+          "MemAvailable:": 15125352,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 78056.206802,
+        "cpu": [
+          15902,
+          1,
+          13619,
+          14497,
+          1704,
+          0,
+          201,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 25.2,
+              "avg60": 17.44,
+              "avg300": 5.74,
+              "total": 19985363
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.71,
+              "avg60": 3.09,
+              "avg300": 1.58,
+              "total": 6613345
+            },
+            "full": {
+              "avg10": 1.77,
+              "avg60": 2.42,
+              "avg300": 1.33,
+              "total": 5640904
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 73
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 297247000,
+          "user_usec": 159043000,
+          "system_usec": 138204000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12560204,
+          "MemAvailable:": 15107192,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 80058.21072,
+        "cpu": [
+          16228,
+          1,
+          13914,
+          14647,
+          1718,
+          0,
+          205,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 23.53,
+              "avg60": 17.39,
+              "avg300": 5.81,
+              "total": 20198170
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.58,
+              "avg60": 3.06,
+              "avg300": 1.59,
+              "total": 6663982
+            },
+            "full": {
+              "avg10": 1.63,
+              "avg60": 2.37,
+              "avg300": 1.32,
+              "total": 5678474
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 73
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 303493000,
+          "user_usec": 162297000,
+          "system_usec": 141196000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12558152,
+          "MemAvailable:": 15105664,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 82059.266313,
+        "cpu": [
+          16564,
+          1,
+          14169,
+          14830,
+          1730,
+          0,
+          209,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 20.72,
+              "avg60": 17.08,
+              "avg300": 5.82,
+              "total": 20358476
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.29,
+              "avg60": 2.99,
+              "avg300": 1.58,
+              "total": 6699731
+            },
+            "full": {
+              "avg10": 1.51,
+              "avg60": 2.32,
+              "avg300": 1.32,
+              "total": 5709027
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 74
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 309442000,
+          "user_usec": 165658000,
+          "system_usec": 143784000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12529256,
+          "MemAvailable:": 15076820,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 84060.43896900001,
+        "cpu": [
+          16740,
+          1,
+          14253,
+          15359,
+          1734,
+          0,
+          212,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 17.51,
+              "avg60": 16.62,
+              "avg300": 5.8,
+              "total": 20385222
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 2.06,
+              "avg60": 2.92,
+              "avg300": 1.58,
+              "total": 6712766
+            },
+            "full": {
+              "avg10": 1.42,
+              "avg60": 2.28,
+              "avg300": 1.32,
+              "total": 5720213
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 74
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 312083000,
+          "user_usec": 167421000,
+          "system_usec": 144662000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12518884,
+          "MemAvailable:": 15066108,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 86061.829026,
+        "cpu": [
+          16835,
+          1,
+          14280,
+          16031,
+          1736,
+          0,
+          214,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 14.33,
+              "avg60": 16.08,
+              "avg300": 5.76,
+              "total": 20390941
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 1.68,
+              "avg60": 2.83,
+              "avg300": 1.57,
+              "total": 6721199
+            },
+            "full": {
+              "avg10": 1.16,
+              "avg60": 2.2,
+              "avg300": 1.31,
+              "total": 5727206
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 74
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 313316000,
+          "user_usec": 168368000,
+          "system_usec": 144948000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12585612,
+          "MemAvailable:": 15132876,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 88064.046348,
+        "cpu": [
+          16995,
+          1,
+          14320,
+          16624,
+          1738,
+          0,
+          216,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 11.74,
+              "avg60": 15.55,
+              "avg300": 5.72,
+              "total": 20398762
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 1.38,
+              "avg60": 2.73,
+              "avg300": 1.56,
+              "total": 6732161
+            },
+            "full": {
+              "avg10": 0.95,
+              "avg60": 2.13,
+              "avg300": 1.3,
+              "total": 5736408
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 74
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 315342000,
+          "user_usec": 169972000,
+          "system_usec": 145370000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12618452,
+          "MemAvailable:": 15165696,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 90064.44910700001,
+        "cpu": [
+          17299,
+          1,
+          14356,
+          17077,
+          1739,
+          0,
+          218,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 9.79,
+              "avg60": 15.08,
+              "avg300": 5.69,
+              "total": 20451164
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 1.13,
+              "avg60": 2.64,
+              "avg300": 1.55,
+              "total": 6735534
+            },
+            "full": {
+              "avg10": 0.78,
+              "avg60": 2.06,
+              "avg300": 1.29,
+              "total": 5739227
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 74
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 318759000,
+          "user_usec": 173012000,
+          "system_usec": 145747000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12428912,
+          "MemAvailable:": 14976164,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 92066.22027600001,
+        "cpu": [
+          17714,
+          1,
+          14365,
+          17451,
+          1739,
+          0,
+          218,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 8.56,
+              "avg60": 14.68,
+              "avg300": 5.67,
+              "total": 20491680
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 0.92,
+              "avg60": 2.56,
+              "avg300": 1.54,
+              "total": 6735574
+            },
+            "full": {
+              "avg10": 0.63,
+              "avg60": 1.99,
+              "avg300": 1.28,
+              "total": 5739253
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 74
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 322995000,
+          "user_usec": 177161000,
+          "system_usec": 145834000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12332248,
+          "MemAvailable:": 14879500,
+          "SwapFree:": 3145724
+        }
+      },
+      {
+        "elapsedMs": 92615.638682,
+        "cpu": [
+          17818,
+          1,
+          14371,
+          17559,
+          1740,
+          0,
+          218,
+          0,
+          0,
+          0
+        ],
+        "pressure": {
+          "cpu": {
+            "some": {
+              "avg10": 8.56,
+              "avg60": 14.68,
+              "avg300": 5.67,
+              "total": 20504513
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 0
+            }
+          },
+          "io": {
+            "some": {
+              "avg10": 0.92,
+              "avg60": 2.56,
+              "avg300": 1.54,
+              "total": 6738228
+            },
+            "full": {
+              "avg10": 0.63,
+              "avg60": 1.99,
+              "avg300": 1.28,
+              "total": 5741304
+            }
+          },
+          "memory": {
+            "some": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 80
+            },
+            "full": {
+              "avg10": 0,
+              "avg60": 0,
+              "avg300": 0,
+              "total": 74
+            }
+          }
+        },
+        "cgroupCpu": {
+          "usage_usec": 324095000,
+          "user_usec": 178199000,
+          "system_usec": 145896000,
+          "nr_periods": 0,
+          "nr_throttled": 0,
+          "throttled_usec": 0
+        },
+        "memoryKiB": {
+          "MemFree:": 12694656,
+          "MemAvailable:": 15241908,
+          "SwapFree:": 3145724
+        }
+      }
+    ]
+  }
+}
