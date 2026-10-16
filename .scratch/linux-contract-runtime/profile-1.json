@@ -1,0 +1,2533 @@
+{
+  "schemaVersion": 1,
+  "diagnosticOnly": true,
+  "sourceRevision": "79344111908fb00b6c4870a08b93645d638ffecb",
+  "runId": 38950583306,
+  "factoryRevision": "dda7ff97b3b5f83ac4af8be62fc531aa7ca4514b",
+  "command": "npm test",
+  "timeoutSeconds": 120,
+  "result": {
+    "status": "passed",
+    "exitCode": 0,
+    "signal": null,
+    "timedOut": false,
+    "terminationFailed": false,
+    "startedAt": "2026-10-16T18:52:02.558Z",
+    "finishedAt": "2026-10-16T18:53:44.775Z",
+    "stdout": "\n> developer-os@0.1.0 test\n> npm run build && node --test --test-concurrency=4\n\n\n> developer-os@0.1.0 build\n> tsc\n\n\u2714 host authorization binds issued client, exact callback, nonce and PKCE before returning validated credentials (65.731137ms)\n\u2714 returning authorization retains issued client and refuses replacement by another verified identity (103.985857ms)\n\u2714 authorization refuses a signed token with invalid issuer (79.17002ms)\n\u2714 authorization refuses a signed token with invalid audience (27.524997ms)\n\u2714 authorization refuses a signed token with invalid nonce (158.420579ms)\n\u2714 authorization refuses a signed token with invalid expiry (37.076338ms)\n\u2714 authorization refuses a signed token with invalid notBefore (65.713613ms)\n\u2714 authorization refuses state callback before any token exchange (55.92999ms)\n\u2714 authorization refuses duplicate callback before any token exchange (28.669792ms)\n\u2714 authorization refuses denied callback before any token exchange (26.956152ms)\n\u2714 authorization refuses redirect callback before any token exchange (134.561048ms)\n\u2714 authorization refuses client callback before any token exchange (29.861007ms)\n\u2714 identity-only consent returns an explicit plan usage refusal (168.92786ms)\n\u2714 authorization rejects a forged signature without disclosing exchanged credentials (120.429442ms)\n\u2714 returning account accepts its exact identity without exposing tokens in browser hints (108.773344ms)\n\u2714 authorization reports a safe failure stage without provider credential details (43.164286ms)\n\u2714 authorization accepts its issued client as a singleton audience array (60.044168ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[]} (138.675524ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_other\"]} (80.260366ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_fixture\",\"oaiapp_other\"]} (58.40084ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_fixture\",\"oaiapp_fixture\"]} (78.153905ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":[\"oaiapp_fixture\"],\"azp\":\"oaiapp_other\"} (33.74384ms)\n\u2714 authorization refuses an untrusted audience or authorized party {\"aud\":\"oaiapp_fixture\",\"azp\":\"oaiapp_other\"} (65.672764ms)\n\u2714 separate darwin authorization completes a local callback with a verified synthetic account and stores only through its host adapter (169.619672ms)\n\u2714 separate win32 authorization completes a local callback with a verified synthetic account and stores only through its host adapter (208.077303ms)\n\u2714 separate authorization refuses unsupported hosts before opening storage or browser (2.012965ms)\n\u2714 separate authorization refuses a selected host account that is absent from the fixture vault (3.176563ms)\n\u2714 separate authorization refuses malformed selected IDs and mismatched stored identities (4.487255ms)\n\u2714 separate authorization closes its local listener when browser launch is refused (4.738154ms)\n\u2714 separate authentication preparation preserves a stable host registration without credentials or delivery authority (397.77781ms)\n\u2714 candidate and ledger owned authentication paths refuse preparation without creating files (348.321182ms)\n\u2714 authorization refuses a malformed selected account before preparing external storage (166.857907ms)\n\u2714 authentication setup refuses existing shared storage without changing its permissions (149.91512ms)\n\ufe63 macOS authentication setup refuses extended ACL access without rewriting existing storage (0.572802ms) # macOS ACL observation\n\ufe63 Windows preparation refuses permissive retained registration without rewriting it (0.40102ms) # Windows ACL observation\n\u2714 host auth status returns only eligibility metadata without granting inference (4.024209ms)\n\u2714 expiry, short remaining lifetime and missing scope require separate sign-in (0.607847ms)\n\u2714 malformed or mismatched protected accounts expose no secret diagnostics (1.717594ms)\n\u2714 malformed selection and unsupported hosts refuse before opening protected storage (0.257001ms)\n\u2714 public auth-status refuses missing registration without creating storage or opening authorization (166.556728ms)\n\u2714 read-only macOS account storage refuses missing deployment without writing or compiling (3.971901ms)\n\u2714 auth status supports independent Apple silicon inspection and refuses malformed encoding or clock (1.124604ms)\n\u2714 cleanup refuses worktree changes at effect acceptance (2325.860951ms)\n\u2714 cleanup refuses policy changes at effect acceptance (3079.224711ms)\n\u2714 cleanup refuses pause changes at effect acceptance (2096.770502ms)\n\u2714 cleanup refuses binding changes at effect acceptance (2065.082743ms)\n\u2714 actual local conditional deletion rejects a tip race after inspection (2105.591386ms)\n\u2714 actual remote conditional deletion rejects a tip race after inspection (3188.002259ms)\n\u2714 inventory cannot omit either main tip or report a different local main as complete (2202.472831ms)\n\u2714 case-folded or Unicode-equivalent branch namespace collisions refuse the whole plan (2966.54878ms)\n\u2714 malformed, duplicate, incomplete and wrong-repository inventories never dispatch and never retain private transport text (2477.767323ms)\n\u2714 new eligible branches discovered at final inventory block completion until an explicit new plan (2700.156609ms)\n\u2714 recovery fences the original cleanup runner before it can continue later deletions (3242.809874ms)\n\u2714 late unavailable operation observations cannot overwrite a newer completion (2094.788804ms)\n\u2714 failed current-main checks revoke completion without deleting additional branches (1757.259237ms)\n\u2714 cleanup refuses local-tip changes at effect acceptance (2160.570984ms)\n\u2714 cleanup refuses remote-tip changes at effect acceptance (2188.528849ms)\n\u2714 cleanup refuses protection changes at effect acceptance (2141.300435ms)\n\u2714 cleanup rejects a different or unavailable canonical checkout without deleting branches (2074.095643ms)\n\u2714 untrusted PR linkage fields cannot qualify deletion or persist arbitrary transport values (2390.496137ms)\n\u2714 unavailable operation and final inventories retain outcomes until read-only recovery can verify completion (2588.972409ms)\n\u2714 partial local success and remote refusal persist independently; recovery never retries a deletion (2830.467821ms)\n\u2714 lost accepted receipts reconcile deletion without repeating merge, PR creation or deletion (2145.006373ms)\n\u2714 uncertain deletion fences delayed senders, prevents sync/release and recovers without redispatch (2218.47066ms)\n\u2714 remote main advancement after accepted deletion records the outcome but blocks completion (1902.767348ms)\n\u2714 cancelled cleanup remains cancelled during read-only recovery (2056.964479ms)\n\u2714 cleanup inventories unrelated local/remote tips, retains exclusions and completes only the controlled delivery (2757.051696ms)\n\u2714 local and remote tips are evaluated independently and newer local commits are preserved (1995.576619ms)\n\u2714 squash and rebase linkage qualifies only the exact current tip, preserving newer tips and ambiguous results (2289.030527ms)\n\u2714 unknown integration and unsupported conditional authority block instead of deleting blindly (1599.92466ms)\n\u2714 CLI refuses native cleanup authority (2081.739768ms)\n\u2714 CLI rejects misplaced host options and incomplete online artifact configuration (462.897293ms)\n\u2714 CLI validates selected auth identity before opening browser or native auth storage (288.260281ms)\n\u2714 CLI constructs the pinned dependency runtime before refusing a missing delivery (167.819988ms)\n\u2714 synthetic expiry arms after slow client setup and interrupts a confirmed body read (6671.424671ms)\n\u2139 expiry-phase python-started 0.0s\nexpiry-phase starting-child 0.0s\nexpiry-phase server-ready 3.285s\nexpiry-phase connecting-first-request 5.085s\nexpiry-phase first-request-accepted 5.088s\nexpiry-phase body-read-pending 5.089s\nexpiry-phase expiry-armed 5.089s\nexpiry-phase child-exited 6.607s\n\n\u2714 expiry arming cannot extend a lease or alter a gateway grant (50.970718ms)\n\u2714 supported darwin host refuses unpinned, linked and candidate-owned executables (175.104885ms)\n\u2714 supported win32 host refuses unpinned, linked and candidate-owned executables (106.520575ms)\n\u2714 subscription reader requests only read-only account and limit observations and hashes account identity (8.826548ms)\n\u2714 subscription reader supports the legacy limits response without fabricating absent windows (1.724418ms)\n\u2714 subscription reader refuses malformed without returning private diagnostics (1.459841ms)\n\u2714 subscription reader refuses oversized without returning private diagnostics (1.601475ms)\n\u2714 subscription reader refuses transport-error without returning private diagnostics (1.000471ms)\n\u2714 subscription reader refuses rpc-error without returning private diagnostics (1.00565ms)\n\u2714 subscription reader refuses api-account without returning private diagnostics (0.782894ms)\n\u2714 subscription reader refuses invalid-limits without returning private diagnostics (0.993668ms)\n\u2714 subscription reader refuses invalid-email without returning private diagnostics (1.39539ms)\n\u2714 subscription reader refuses stdin-error without returning private diagnostics (0.971638ms)\n\u2714 subscription reader refuses a relative executable without launching a transport (0.377165ms)\n\u2714 subscription reader handles a null modern-limit inventory through the legacy response (0.722582ms)\n\u2714 subscription reader refuses a missing limit bucket rather than returning fabricated usage (0.804956ms)\n\u2714 owner approval merges only the validated head and records main without claiming delivery completion (1233.606272ms)\n\u2714 merge rechecks approvals, conversations and trusted checks instead of using cached readiness (2056.703237ms)\n\u2714 head/base races, unsupported conditions and protection revocation never dispatch a merge (3614.223078ms)\n\u2714 policy revocation and cancellation between observation and dispatch fence the merge (1542.571822ms)\n\u2714 native CLI refuses merge and reconciliation without qualified adapters (1649.33131ms)\n\u2714 remote changes after observation cannot pass conditional effect acceptance (2864.565122ms)\n\u2714 revoked onboarding authority after the remote observation prevents dispatch (1297.224976ms)\n\u2714 repository ownership queues later requests and is retained across restart and independent repositories (24.937778ms)\n\u2714 pause, resume and cancel preserve work and require an explicit safe release before advancing the queue (45.698356ms)\n\u2714 qualified controlled worker dispatch has explicit durable identity and cannot be duplicated (41.450529ms)\n\u2714 pause fences a late accepted worker response and preserves the explicit session for recovery (57.475065ms)\n\u2714 crash after worker acceptance reconciles exact sessions and blocked/cancelled work never auto-dispatches (75.487269ms)\n\u2714 public CLI pause/resume/cancel/release/recover address explicit delivery IDs and preserve blocked state (1609.237784ms)\n\u2714 competing CLI processes admit exactly one owner for the same repository (224.033886ms)\n\u2714 an abruptly exited runner is fenced and stopped by exact identity before fresh work is permitted (183.224764ms)\n\u2714 a hung worker observation times out to uncertainty without redispatch (28.556849ms)\n\u2714 verified clones of one canonical repository share delivery ownership (11.77314ms)\n\u2714 dispatch rechecks current onboarding and cannot reuse stale ready evidence (13.35708ms)\n\u2714 repeated admission cannot adopt a changed owner policy pin (15.35604ms)\n\u2714 resuming a paused queued request acquires a safely released empty repository (36.313278ms)\n\u2714 missing qualification and mismatched worker receipts cannot authorize dispatch or release (41.992149ms)\n\u2714 explicit resume retains sandbox and worker identity with a new fenced operation (53.133021ms)\n\u2714 legacy intake ledger migration preserves requests and assigns conservative ownership through public status (12.879085ms)\n\u2714 resuming a released paused owner queues behind the current repository owner (36.25528ms)\n\u2714 subscription threshold requires fresh owner approval, grants one run and never overrides exhaustion (63.415227ms)\n\u2714 missing usage requires approval and monitoring preserves uncertain shutdown without leaking provider errors (35.44056ms)\n\u2714 a feature request has durable blocked status without touching the repository (339.2506ms)\n\u2714 malformed requests create no delivery and leave the target untouched (1151.845568ms)\n\u2714 status and request evidence retain useful context without credential canaries (657.890635ms)\n\u2714 delivery state cannot be placed inside the target repository (160.989438ms)\n\u2714 linked artifact storage cannot redirect a request into the target repository (161.14745ms)\n\u2714 authorization schemes do not leave their credential in request evidence (324.031531ms)\n\u2714 qualification, task and usage CLI aliases dispatch to their controller operations (972.282599ms)\n\u2714 owner review reruns only the two original consumer approval jobs and never grants approval (206.330652ms)\n\u2714 inspection is read-only and returns only bounded identifiers (164.924543ms)\n\u2714 refresh refuses fork before any mutation (164.710672ms)\n\u2714 refresh refuses stale head before any mutation (169.269938ms)\n\u2714 refresh refuses stale base before any mutation (165.690141ms)\n\u2714 refresh refuses wrong target before any mutation (160.727406ms)\n\u2714 refresh refuses closed PR before any mutation (158.207674ms)\n\u2714 refresh refuses bot caller before any mutation (164.970417ms)\n\u2714 refresh refuses unauthorized caller before any mutation (152.348939ms)\n\u2714 refresh refuses self caller before any mutation (158.290919ms)\n\u2714 refresh refuses unauthorized triggering actor before any mutation (157.318479ms)\n\u2714 refresh refuses forged workflow identity before any mutation (155.217499ms)\n\u2714 refresh refuses forged observer path before any mutation (153.834135ms)\n\u2714 refresh refuses unfinished observer before any mutation (159.947895ms)\n\u2714 refresh refuses forged event title before any mutation (161.699802ms)\n\u2714 refresh refuses unapproved policy before any mutation (184.116253ms)\n\u2714 refresh refuses altered policy body before any mutation (150.210194ms)\n\u2714 refresh refuses changed adoption workflow before any mutation (156.426506ms)\n\u2714 refresh refuses missing original run before any mutation (157.915793ms)\n\u2714 refresh refuses incomplete run inventory before any mutation (155.483281ms)\n\u2714 refresh refuses wrong original event before any mutation (151.256837ms)\n\u2714 refresh refuses wrong original head before any mutation (157.757773ms)\n\u2714 refresh refuses wrong original workflow before any mutation (153.712705ms)\n\u2714 refresh refuses missing original job before any mutation (168.304206ms)\n\u2714 refresh refuses incomplete job inventory before any mutation (166.371389ms)\n\u2714 refresh refuses ambiguous original job before any mutation (161.781054ms)\n\u2714 refresh refuses wrong job head before any mutation (164.774099ms)\n\u2714 refresh refuses wrong job run before any mutation (166.656636ms)\n\u2714 refresh refuses missing permission before any mutation (158.712328ms)\n\u2714 refresh refuses head drift before dispatch before any mutation (155.609503ms)\n\u2714 refresh refuses review drift before dispatch before any mutation (159.323169ms)\n\u2714 refresh refuses permission revoked before dispatch before any mutation (162.069697ms)\n\u2714 refresh refuses API failure before any mutation (161.587056ms)\n\u2714 a dismissal refreshes previously successful approval jobs (168.199884ms)\n\u2714 a replay skips jobs evaluated after the review event (171.793367ms)\n\u2714 timestamp ties are refreshed conservatively (168.266885ms)\n\u2714 a failed second request preserves confirmed and unconfirmed dispatch evidence (172.619686ms)\n\u2714 head drift between requests blocks the second mutation (171.291068ms)\n\u2714 inspection refuses drift before producing trusted outputs (156.567265ms)\n\u2714 wrong approved distribution and duplicate arguments cannot request a rerun (101.55306ms)\n\u2714 refresh refuses duplicate run IDs without mutation (157.92129ms)\n\u2714 refresh refuses duplicate job IDs without mutation (164.251176ms)\n\u2714 refresh refuses changed approved distribution without mutation (92.269774ms)\n\u2714 refresh refuses oversized API response without mutation (190.213927ms)\n\u2714 refresh refuses job never settles without mutation (200.42995ms)\n\u2714 running approval jobs settle within one shared bounded wait before refresh (170.788999ms)\n\u2714 permission revoked between requests blocks further dispatch (148.305963ms)\n\u2714 shared consumer run settles and uses new attempt job IDs before the second rerun (180.066195ms)\n\u2714 dispatch waits for unrelated original jobs even when approval jobs are already completed (161.303705ms)\n\u2714 old completed run metadata cannot release the next rerun before its new attempt is visible (151.512638ms)\n\u2714 an original workflow that never completes blocks every rerun within the wait budget (204.248785ms)\n\u2714 temporary empty job inventory during attempt creation waits before sibling refresh (170.530519ms)\n\u2714 job inventory missing throughout the new-attempt wait blocks the second request (249.349885ms)\n\u2714 serial refresh bounds a slow prerequisite at 200 seconds (206.919406ms)\n\u2714 serial refresh bounds a slow prerequisite at 500 seconds (252.863314ms)\n\u2714 ordinary requests retain observable criteria and verification across restart without approval (58.59697ms)\n\u2714 a stopped isolated coding result becomes a source-bound candidate without editing main or enabling delivery (370.465269ms)\n\u2714 owner policy drift while collecting output cannot admit a candidate (267.889544ms)\n\u2714 pause charges only active coding time and verifies shutdown before acknowledging the control (234.363304ms)\n\u2714 exhaustion persists across restart and only an explicit owner extension permits the same session to resume (437.728036ms)\n\u2714 material ambiguity blocks coding without creating a branch (55.934822ms)\n\u2714 unsafe traversal output stays refused after verified shutdown (286.96845ms)\n\u2714 unsafe Git hooks output stays refused after verified shutdown (302.579001ms)\n\u2714 unsafe links output stays refused after verified shutdown (274.759133ms)\n\u2714 unsafe reparse or symbolic output output stays refused after verified shutdown (272.071525ms)\n\u2714 unsafe concurrent output output stays refused after verified shutdown (285.99921ms)\n\u2714 coding uses its persisted allowance rather than the short observation deadline (288.365706ms)\n\u2714 partial output inventory cannot stand in for an exact candidate tree (280.243192ms)\n\u2714 repository clean filters never execute on the trusted host during source admission (78.706083ms)\n\u2714 the initial coding allowance is declared at request submission and retained by planning (55.874761ms)\n\u2714 the explicit Codex session survives a worker failure before a terminal result (222.365984ms)\n\u2714 an explicit owner clarification resolves a material planning blocker without resetting the request (58.25697ms)\n\u2714 worktree-scoped clean filters cannot execute on the trusted host (80.324114ms)\n\u2714 restart with a changed coding binding cannot acknowledge the old worker's shutdown (248.068917ms)\n\u2714 concurrent material clarifications cannot replace an already retained owner answer (49.890797ms)\n\u2714 the pinned coding adapter consumes coalesced CLI JSON and preserves the explicit session (284.583054ms)\n\u2714 output cannot claim both a file and its descendant as ordinary files (291.665348ms)\n\u2714 the pinned adapter refuses an independently measured executable mismatch before dispatch (212.625626ms)\n\u2714 source admission recognizes equivalent native and Git worktree root spellings (61.528606ms)\n\u2714 source admission preserves a line break inside the canonical repository root (66.994553ms)\n\u25b6 source admission refuses include declarations in both local and worktree scopes\n  \u2714 --local (59.575852ms)\n  \u2714 --worktree (68.976285ms)\n\u2714 source admission refuses include declarations in both local and worktree scopes (129.486455ms)\n\u2714 source admission refuses a nested workspace claiming its parent repository identity (46.236487ms)\n\u2714 unsafe planner results and unavailable integrations never create feature authority (54.621484ms)\n\u2714 planning and clarification preserve owner controls across delayed responses (183.458414ms)\n\u2714 changed policy, dirty source, and changed pins block further coding (429.787652ms)\n\u2714 coding cancel verifies shutdown and preserves controls (228.983409ms)\n\u2714 coding recover verifies shutdown and preserves controls (245.622561ms)\n\u2714 unavailable coding clock NaN prevents admission and consumes the allowance conservatively (461.670263ms)\n\u2714 unavailable coding clock -1 prevents admission and consumes the allowance conservatively (457.109085ms)\n\u2714 collection operation drift refuses candidate admission (271.110705ms)\n\u2714 collection policy drift refuses candidate admission (280.177951ms)\n\u2714 collection branch drift refuses candidate admission (313.794086ms)\n\u2714 collection source drift refuses candidate admission (280.086003ms)\n\u2714 collection pause drift refuses candidate admission (280.101829ms)\n\u2714 structured CLI events accept supported items and reject malformed or cross-session transcripts (1.386914ms)\n\u2714 CLI rejects invalid feature controls and preserves explicit initial budgets (1906.098475ms)\n\u2714 pinned stream adapter refuses frame before admission (206.362874ms)\n\u2714 pinned stream adapter refuses oversized before admission (212.114625ms)\n\u2714 pinned stream adapter refuses missing-session before admission (203.822334ms)\n\u2714 pinned stream adapter refuses terminal-order before admission (220.337797ms)\n\u2714 pinned stream adapter refuses result-pins before admission (225.790369ms)\n\u2714 pinned stream adapter refuses checkpoint before admission (212.145643ms)\n\u2714 source admission resolves root identity but still refuses a linked workspace (56.368678ms)\n\u2714 pinned coding launch refuses command arguments drift after inspection before worker dispatch (207.035252ms)\n\u2714 pinned coding launch refuses input bytes drift after inspection before worker dispatch (211.395782ms)\n\u2714 pinned coding launch refuses input digest drift after inspection before worker dispatch (205.688167ms)\n\u2714 pinned coding launch refuses baseline refresh drift after inspection before worker dispatch (203.690282ms)\n\u2714 pin inspection cannot replace controller authority to launch paused work (209.63096ms)\n\u2714 transport preparation uses owned admitted bytes despite a retained inspection reference (294.260572ms)\n\u2714 changed prepared launch refuses effect acceptance after an asynchronous wait (215.047689ms)\n\u2714 unchanged-main validation retains revision-bound check evidence across ledger reopening (187.687764ms)\n\u2714 coding requires unchanged-main evidence and candidate checks bind the admitted manifest (438.736563ms)\n\u2714 required failure evidence blocks coding and one successful retry cannot conceal it (309.941439ms)\n\u2714 required missing evidence blocks coding and one successful retry cannot conceal it (306.248302ms)\n\u2714 required pending evidence blocks coding and one successful retry cannot conceal it (321.409825ms)\n\u2714 required skipped evidence blocks coding and one successful retry cannot conceal it (302.635409ms)\n\u2714 required neutral evidence blocks coding and one successful retry cannot conceal it (286.662141ms)\n\u2714 required cancelled evidence blocks coding and one successful retry cannot conceal it (307.567343ms)\n\u2714 only externally declared exception and flake policy permit incomplete results or a passing diagnostic (242.188442ms)\n\u2714 a hung isolated check times out, blocks overlap until descendant recovery, and retains the failed attempt (257.902182ms)\n\u2714 validation policy drift cannot produce current passing evidence (156.961651ms)\n\u2714 validation environment drift cannot produce current passing evidence (158.524215ms)\n\u2714 validation source drift cannot produce current passing evidence (139.980147ms)\n\u2714 validation candidate drift cannot produce current passing evidence (409.136781ms)\n\u2714 feature E2E requirements cannot silently fall back to a worker without synthetic infrastructure (60.550248ms)\n\u2714 owner policy must declare PR and main checks with trusted publishers (60.936847ms)\n\u2714 CLI validation commands reach the controlled-adapter gate without accepting repository executors (393.831885ms)\n\u2714 an unchanged tree on a new main revision still needs a fresh baseline (191.362351ms)\n\u2714 changed validation environment cannot reuse an earlier baseline to start coding (174.670548ms)\n\u2714 validation pause fences late success and stops descendants before acknowledging (110.529596ms)\n\u2714 validation cancel fences late success and stops descendants before acknowledging (126.818305ms)\n\u2714 formatting output changes invalidate the exact candidate even when all check results claim success (362.905266ms)\n\u2714 untrusted publisher results remain incomplete after verified shutdown (137.313926ms)\n\u2714 untrusted revision results remain incomplete after verified shutdown (127.5342ms)\n\u2714 untrusted environment results remain incomplete after verified shutdown (134.744384ms)\n\u2714 untrusted missing results remain incomplete after verified shutdown (133.683791ms)\n\u2714 untrusted artifact results remain incomplete after verified shutdown (143.105917ms)\n\u2714 candidate package-script additions are refused before validation dispatch (354.736659ms)\n\u2714 declared browser/database acceptance uses matching synthetic infrastructure (436.83107ms)\n\u2714 main moving during environment inspection prevents coding dispatch (221.413527ms)\n\u2714 protected validation input bytes is refused before execution (347.362663ms)\n\u2714 protected validation input deletion is refused before execution (321.840441ms)\n\u2714 protected validation input mode is refused before execution (341.309489ms)\n\u2714 qualification records explicit not-run evidence and blocks launch when no runtime or policy is configured (23.32083ms)\n\u2714 controlled canary evidence binds qualification to exact host/runtime/policy but cannot establish live readiness (28.634885ms)\n\u2714 qualified launch sends only fresh admitted files and effective mountless microVM policy to the runtime (51.111145ms)\n\u2714 unsafe effective policy or client-only termination cannot qualify agent launch or shutdown (56.827533ms)\n\u2714 candidate authority files, credential-looking input and linked source files are not admitted (60.385518ms)\n\u2714 missing and stale canary observations remain not-run and policy changes invalidate readiness (21.929025ms)\n\u2714 hard links and directory links cannot introduce external files into the workspace (37.995462ms)\n\u2714 raw proxy credentials and publication endpoints cannot enter a model-only policy (13.505632ms)\n\u2714 publication and host-local destinations cannot be declared as inference or dependency endpoints (65.671072ms)\n\u2714 a runtime cannot substitute the admitted workspace or initial manifest before launch (83.216768ms)\n\u2714 merged delivery requires trusted main E2E before main verification, without completing delivery (1599.301213ms)\n\u2714 unavailable main observation reaches its persisted deadline across restart (1470.515503ms)\n\u2714 returning main revisions retain failures rather than laundering a rerun into green (1408.332761ms)\n\u2714 changed observation binding revokes previously verified main (1498.261521ms)\n\u2714 main advancement discards green authority and uses the original wait deadline (1425.04914ms)\n\u2714 missing, untrusted, partial and incorrectly linked main evidence cannot authorize progression (1621.330225ms)\n\u2714 interrupted observations recover and late responses cannot overwrite newer verified main (1478.286173ms)\n\u2714 pause and cancel during main observation retain evidence without progressing (1494.528568ms)\n\u2714 default main wait is one hour and neither restart nor clock rollback renews it (1497.540416ms)\n\u2714 CLI and undeclared main workflows refuse monitoring without authority (1662.770735ms)\n\u2714 shorter declared main deadlines apply even while observations are unavailable (1568.982311ms)\n\u2714 binding errors and clock rollback cannot erase a terminal main timeout (1433.880982ms)\n\u2714 a timely short check leaves the longer check its full allowance during an observation (1603.538768ms)\n\u2714 pause retains a clock-rollback timeout discovered by an in-flight observation (1670.792112ms)\n\u2714 failed, incomplete, untrusted and advanced-main checks cannot authorize synchronization (1756.736622ms)\n\u2714 post-effect remote drift cannot report alignment and never rewrites the synchronized local revision (1731.994093ms)\n\u2714 unavailable final observation retains an uncertain attempt until read-only reconciliation (1671.869621ms)\n\u2714 cancellation fences a delayed effect and read-only recovery preserves cancellation (1805.670837ms)\n\u2714 changed observation binding before intent refuses the dispatch (1613.585363ms)\n\u2714 synchronization rechecks dirty at the conditional effect boundary (1753.779977ms)\n\u2714 synchronization rechecks head at the conditional effect boundary (1658.582419ms)\n\u2714 synchronization rechecks remote at the conditional effect boundary (1715.156982ms)\n\u2714 synchronization rechecks policy at the conditional effect boundary (1677.799919ms)\n\u2714 synchronization rechecks binding at the conditional effect boundary (1703.12007ms)\n\u2714 synchronization rechecks pause at the conditional effect boundary (1716.76294ms)\n\u2714 lost accepted result is reconciled from actual refs without another write (1805.594631ms)\n\u2714 uncertain in-flight effects block retry and ownership release, then recover without redispatch (1927.497095ms)\n\u2714 late failed recovery cannot overwrite a newer observation for the same operation (1894.657376ms)\n\u2714 candidate hooks, filters and included configuration cannot execute during synchronization (1750.072892ms)\n\u2714 verified main synchronizes a clean feature checkout and retains evidence across restart without completing delivery (1837.330991ms)\n\u2714 dirty tracked, untracked, ignored and staged work prevents synchronization without changing bytes (1848.78997ms)\n\u2714 ahead and divergent local history is preserved rather than rewritten (1690.185057ms)\n\u2714 unsafe identity, checkout, incomplete observations and active other worktrees refuse effects (1999.895476ms)\n\u2714 remote advancement invalidates green checks and requires newly verified main (1873.219427ms)\n\u2714 CLI synchronization refuses without native adapters (1744.136277ms)\n\u2714 advanced main is revalidated and integrated through bounded repair before signed publication and renewed approval (2756.408533ms)\n\u2714 unsafe local main and exhausted refresh allowance preserve the candidate and never merge (1573.203121ms)\n\u2714 coding failure after a passed advanced baseline remains retryable within cumulative allowance (1965.078273ms)\n\u2714 pinned refresh preparation owns both admitted baseline manifests (1891.873431ms)\n\u2714 lost merge receipt survives restart and reconciles accepted PR/main linkage without another write (1622.099266ms)\n\u2714 unproven absence never retries while quiescent absence permits a new freshly gated attempt (1709.615151ms)\n\u2714 pause during dispatch fences new effects but retains an accepted merge without resuming delivery (1544.550271ms)\n\u2714 a competing controller recovering a pre-dispatch intent prevents the original controller from merging (1509.377123ms)\n\u2714 wrong merge linkage and changed adapter bindings cannot settle uncertain effects (1266.895733ms)\n\u2714 a remote head race after observation is rejected by the conditional effect and never lands the raced candidate (1225.160562ms)\n\u2714 late advanced-base observation cannot overwrite a newer controller's merged outcome (1412.013357ms)\n\u2714 synthetic model relay verifies bounded transport and denial paths without live credentials (55.965661ms)\n\u2714 synthetic relay closes its peers and can repeat with fresh capabilities (25.455625ms)\n\u2714 synthetic relay refuses invalid content, body, authorization, tunnels and upgrades (25.960919ms)\n\u2714 model grant uses an exact capability and destroys tracked requests on revocation (0.783245ms)\n\u2714 completed synthetic relay qualification releases its deadline instead of firing during later work (14.136727ms)\n\u2714 synthetic relay deadline still refuses qualification and releases pending work (9.934539ms)\n\u2714 native acceptance steps finish in order and receive the supplied arguments (217.567011ms)\n\u2714 a concurrent runner using an aliased state path refuses before launching a step (713.748114ms)\n\u2714 a failed step stops the run and releases its lock for a retry (218.627351ms)\n\u2714 interruption retains the lock and refuses a later run (167.505975ms)\n\u2714 Codex task diagnostics expose only bounded counts, never raw task identities (3.12343ms)\n\u2714 native diagnostics refuse malformed known fields and strip arbitrary private metadata (1.297597ms)\n\u2714 native enrollment cannot bind candidate-owned authority or candidate pin files (464.71643ms)\n\u2714 native CLI rejects malformed machine selection without modifying an existing delivery (171.001596ms)\n\u2714 native host observations expose prerequisites without qualifying worker isolation or persisting diagnostic details (19.026605ms)\n\u2714 an admitted synthetic round trip retains bindings and collects only after verified stop (122.869885ms)\n\u2714 independent descendant census survives collection and controller restart without raw management data (63.240769ms)\n\u2714 timed-out dispatch is fenced before collection and late starts lose authority (61.959857ms)\n\u2714 reopening with the matching driver can reconcile uncertainty without collecting or redispatching (69.087407ms)\n\u2714 a ledger outage during shutdown preserves a dispatched session for explicit recovery (69.43132ms)\n\u2714 unknown stop observations retain ownership and forbid collection across restart (50.902326ms)\n\u2714 pause during dispatch stops the canary and prevents output import (54.434094ms)\n\u2714 unsafe paths, secret input and linked entries refuse dispatch (269.480035ms)\n\u2714 changed output snapshots, links, secrets and stale receipts never enter evidence (280.817301ms)\n\u2714 a fresh worker with weakened effective controls is stopped without collection (50.542396ms)\n\u2714 the native CLI records refused admission without dispatch or production readiness (254.090629ms)\n\u2714 intake records unknown onboarding prerequisites without enabling delivery (22.1259ms)\n\u2714 verified owner policy and boundary evidence establish onboarding but cannot enable execution (10.402731ms)\n\u2714 a saved remote discrepancy blocks onboarding and preserves the policy snapshot (14.740387ms)\n\u2714 candidate policy and request-supplied evidence cannot relax onboarding (8.715931ms)\n\u2714 unreachable inspection and signing configuration alone stay unknown without leaking errors (17.275336ms)\n\u2714 known local identity conflict remains visible when live evidence is unavailable (10.207683ms)\n\u2714 CLI accepts external owner policy and reports a real saved remote mismatch without rewriting it (204.706272ms)\n\u2714 a candidate-controlled directory link cannot select an external owner policy (10.553705ms)\n\u2714 a repository alias cannot hide candidate-controlled policy redirection (9.059877ms)\n\u2714 online synthetic dispatch requires trusted authentication and records separate access proof without enabling production (74.392007ms)\n\u2714 low and unknown usage consume one account/window/run grant and exhaustion preserves work (151.527392ms)\n\u2714 account/window change and exhausted foreground checks revoke without authorizing subsequent traffic (141.317157ms)\n\u2714 uncertain shutdown blocks restart, release and qualification until recovery observes revocation (71.897683ms)\n\u2714 an active synthetic run cannot receive a replacement usage grant (56.652333ms)\n\u2714 pause revokes a pending online run and concurrently attempted dispatch cannot overlap (75.586475ms)\n\u2714 recovery clears the online shutdown blocker after independently verified stop (55.733806ms)\n\u2714 public foreground usage polling stops an exhausted online canary and preserves its request (47.818034ms)\n\u2714 an unknown-usage approval cannot move to a newly endorsed account (30.482193ms)\n\u2714 operator-pinned npm artifact dispatch admits exact bytes and refuses candidate policy, redirects and changed artifacts (170.682307ms)\n\u2714 inference dispatch requires approval of its exact prepared plan even with healthy usage, and consumes it before provider effects (66.314947ms)\n\u2714 an exact inference plan that expires during qualification cannot be dispatched (34.993891ms)\n\u2714 Windows positive mediation permits only synthetic online controls and keeps production disabled (38.43268ms)\n\u2714 synthetic windows site task validates only inside its worker and imports after verified shutdown (80.408819ms)\n\u2714 synthetic macos site task validates only inside its worker and imports after verified shutdown (60.553037ms)\n\u2714 native online access refuses a dispatched request when owner authorization is denied (18.064136ms)\n\u2714 a matching dedicated Windows VM admits only an offline probe and records durable bindings (96.799064ms)\n\u2714 qualification records revocable synthetic relay proof without granting live authority (42.635549ms)\n\u2714 changed bindings, host shares, management access and weaker hosts revoke offline admission (190.364379ms)\n\u2714 raw observation errors and unknown native controls cannot become admission or durable secrets (31.491522ms)\n\u2714 candidate pin policies and CLI adapter misuse refuse admission without dispatch (197.91737ms)\n\u2714 candidate-supplied Codex cannot provide authentication capability evidence (34.486593ms)\n\u2714 independent Apple-silicon AppleHV evidence admits an offline probe without qualifying production (53.772188ms)\n\u2714 macOS admission refuses Intel, older Darwin, implicit providers and conflicting share intent (156.288491ms)\n\u2714 any changed macOS binding or incomplete effective control revokes admission and cannot inherit Windows proof (429.486468ms)\n\u2714 public qualification records synthetic credential isolation, endpoint, delivery-capability, and gateway proofs without enabling production (262.380602ms)\n\u2714 native inference starts its one-shot gateway lease only after bound isolation and always revokes it (137.08323ms)\n\u2714 trusted darwin observations select the explicit provider and refuse unsafe configuration (8.191366ms)\n\u2714 native darwin observation transports bound host data and refuses uncertain runtime results (8.162532ms)\n\u2714 trusted win32 observations select the explicit provider and refuse unsafe configuration (7.966085ms)\n\u2714 native win32 observation transports bound host data and refuses uncertain runtime results (5.808928ms)\n\u2714 unsupported hosts and Intel Macs cannot select a native provider (0.875878ms)\n\u2714 Intel Macs cannot select AppleHV (1.442367ms)\n\u2714 native worker refuses dispatch when the controller authorization callback denies it (0.754822ms)\n\u2714 native model-frame transport returns only binding-matched bounded frames (2.776672ms)\n\u2714 native darwin isolation uses a synthetic host process and model-only gateway capability (72.938979ms)\n\u2714 native win32 isolation uses a synthetic host process and model-only gateway capability (61.855343ms)\n\u2714 generated native management freezes direct wait failures before successful or failed cleanup (116.188969ms)\n\u2714 Native Codex launch constrains thread pools and audits the exact environment (123.04143ms)\n\u2714 Native Codex task-headroom gate waits for idle workers and refuses exhausted budgets (125.402003ms)\n\u2714 native fixed task enforces staging, dispatch authority and exact stopped collection bindings (9.90476ms)\n\u2714 native darwin management deadline remains bounded (1.78068ms)\n\u2714 native win32 management deadline remains bounded (1.556621ms)\n\u2714 host positive-control fixture refuses an unbounded lifetime before starting (0.580396ms)\n\u2714 guest command budgets keep Mac scheduling bounded and Windows unchanged (103.880754ms)\n\u2714 native relay observes coalesced readiness and acceptance frames on both hosts (182.966519ms)\n\u2714 Mac relay permits observed exec scheduling delay while retaining the network deadline (4235.821838ms)\n\u2714 Mac completed turn waits for headroom before opening persisted history (113.415892ms)\n\u2714 Mac resume may finish after headroom waits without extending the Windows protocol window (103.461719ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: valid (4.823199ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: wrong-capability (4.367903ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: wrong-delivery (2.439732ms)\n\u2714 gateway activation follows a bound request after slow VM preparation: duplicate (3.198131ms)\n\u2714 effective isolation checks bound exec and refuse transport failures (94.097939ms)\n\u2714 native credential denials are bounded and fail closed on transport errors (146.316305ms)\n\u2714 native stop cannot mistake a timed-out engine query for an absent container (102.509211ms)\n\u2714 stale head cannot pass required PR checks (1223.709549ms)\n\u2714 spoofed publisher cannot pass required PR checks (957.537465ms)\n\u2714 spoofed workflow cannot pass required PR checks (928.865473ms)\n\u2714 skipped cannot pass required PR checks (945.517306ms)\n\u2714 neutral cannot pass required PR checks (953.377428ms)\n\u2714 cancelled cannot pass required PR checks (1110.273715ms)\n\u2714 pending cannot pass required PR checks (1073.40446ms)\n\u2714 missing checks poll at a bounded rate and retain the declared deadline across restart (1058.57677ms)\n\u2714 default CI deadline, unavailable clock and observations all fail closed (928.149427ms)\n\u2714 malformed pending timestamp cannot persist untrusted response fields (952.469669ms)\n\u2714 declared long CI deadlines survive downtime beyond the default hour (992.767786ms)\n\u2714 terminal checks completing after the declared deadline cannot pass (1081.359009ms)\n\u2714 reopening during timeout reconciliation cannot erase the durable timeout verdict (1303.771867ms)\n\u2714 trusted failed checks use cumulative repair and republish conditionally to the same PR (2162.250377ms)\n\u2714 a paused observation retains its result without advancing or consuming repair allowance (1247.487586ms)\n\u2714 real signed repair updates the existing branch and preserves the PR identity (2702.7865ms)\n\u2714 exact-head trusted PR checks advance only to independent review and survive restart (1097.377324ms)\n\u2714 a passing retry preserves failure and blocks unexplained intermittency (1424.020488ms)\n\u2714 owner exceptions and flake policy apply only to trusted evidence (1276.363037ms)\n\u2714 unknown rerun acceptance survives restart and late dispatch remains fenced (1369.841565ms)\n\u2714 new remote head and incomplete history invalidate previously passing evidence (1336.922832ms)\n\u2714 timed-out diagnostic recovery resolves acceptance without reopening checks or writes (1235.466673ms)\n\u2714 runtime drift fences diagnostic dispatch and observation admission (1167.67574ms)\n\u2714 a stale concurrent observation cannot overwrite newer failure evidence (1161.329923ms)\n\u2714 CLI refuses hosted monitoring without a trusted adapter and missing workflow declarations block (1226.660068ms)\n\u2714 split identity adapter verifies a real signed Git tree and leaves the source checkout untouched (1491.498693ms)\n\u2714 a conflicting existing remote branch blocks the split adapter before push (1039.415067ms)\n\u2714 environment drift before publication dispatch performs no signing (464.782286ms)\n\u2714 lost publication authority stops after signing without scheduling a push (667.283666ms)\n\u2714 cancel preserves a possibly accepted push and read-only recovery cannot create a PR (896.487871ms)\n\u2714 signing unavailable refuses publication before any effect (460.741674ms)\n\u2714 push denied refuses publication before any effect (429.287331ms)\n\u2714 App credentials reused for signing refuses publication before any effect (407.493946ms)\n\u2714 broad App permissions refuses publication before any effect (404.369339ms)\n\u2714 wrong repository refuses publication before any effect (412.950364ms)\n\u2714 wrong App refuses publication before any effect (401.85399ms)\n\u2714 multiple approvers refuses publication before any effect (412.62154ms)\n\u2714 concurrent publication calls reserve only one signing operation (1196.205734ms)\n\u2714 changed signing keys or adapter binding cannot resume partial publication (865.758419ms)\n\u2714 an old publisher cannot block a new execution after its pending signing is reconciled (1153.265635ms)\n\u2714 candidate artifact tampering blocks all publication effects (395.005558ms)\n\u2714 publication intent is durable before dispatch and the CLI installs no native publisher (1164.276391ms)\n\u2714 push rejects mismatched evidence {\"githubVerified\":false} (916.855539ms)\n\u2714 push rejects mismatched evidence {\"publisher\":\"factory[bot]\"} (829.549213ms)\n\u2714 push rejects mismatched evidence {\"repository\":\"wrong/repo\"} (835.841004ms)\n\u2714 push rejects mismatched evidence {\"commit\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (832.09457ms)\n\u2714 createPullRequest rejects mismatched evidence {\"author\":\"aaron-howard\"} (1022.477483ms)\n\u2714 createPullRequest rejects mismatched evidence {\"head\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (1024.072702ms)\n\u2714 createPullRequest rejects mismatched evidence {\"base\":\"other\"} (1018.969916ms)\n\u2714 createPullRequest rejects mismatched evidence {\"approver\":\"other\"} (994.239019ms)\n\u2714 sign rejects mismatched evidence {\"localVerified\":false} (704.434424ms)\n\u2714 sign rejects mismatched evidence {\"tree\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (651.654497ms)\n\u2714 sign rejects mismatched evidence {\"signer\":\"factory[bot]\"} (647.677933ms)\n\u2714 sign rejects mismatched evidence {\"parent\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"} (653.715307ms)\n\u2714 split identity ports refuse mismatched repositories and revoked dispatch before writes (3.897185ms)\n\u2714 split Git port rechecks signing and reuses an already accepted exact remote commit (0.672688ms)\n\u2714 split PR port refuses changed remote evidence and unproven absence without creation (0.88263ms)\n\u2714 split PR port preserves uncertainty after a creation whose acceptance cannot be observed (0.398034ms)\n\u2714 remote head changed after push blocks App creation (1217.32176ms)\n\u2714 separate ports cannot bind different repositories (396.896703ms)\n\u2714 pause immediately before split adapter sign prevents dispatch (628.548843ms)\n\u2714 pause immediately before split adapter push prevents dispatch (836.980993ms)\n\u2714 pause immediately before split adapter createPullRequest prevents dispatch (1085.892682ms)\n\u2714 split ports reconcile lost sign acceptance without duplicating the effect (1373.244093ms)\n\u2714 split ports reconcile lost push acceptance without duplicating the effect (1340.730453ms)\n\u2714 split ports reconcile lost pr acceptance without duplicating the effect (1213.864772ms)\n\u2714 split ports retry signing only after quiescent absence and retain refusal evidence (1464.188216ms)\n\u2714 existing matching App PR is retained without creating another (1166.141309ms)\n\u2714 unknown push observation before write blocks continuation (900.397075ms)\n\u2714 unknown push observation after write blocks continuation (943.631016ms)\n\u2714 unknown pr observation before write blocks continuation (1136.927902ms)\n\u2714 unknown pr observation after write blocks continuation (1165.688666ms)\n\u2714 independently changed local signature blocks push (894.612049ms)\n\u2714 a validated candidate is signed and pushed by Git identity then proposed by the separate App identity (1057.746874ms)\n\u2714 unknown push acceptance is reconciled after restart without another push (1164.312932ms)\n\u2714 partial PR acceptance is recovered with its original author and head and never duplicated (1049.031984ms)\n\u2714 paused accepted signing is retained but cannot schedule push until explicit resume (1173.374334ms)\n\u2714 a timeout fences late dispatch and requires proven quiescent absence before retry (678.752621ms)\n\u2714 a repair batch uses the admitted candidate, revalidates it and retains separate durable usage (639.794873ms)\n\u2714 failed batches consume three cycles across restart and only an owner extension permits another (1401.770384ms)\n\u2714 local revalidation reaches the exact 60-minute boundary and cannot report success (658.043941ms)\n\u2714 pause during repair charges active editing but excludes pause and prevents late admission (496.705537ms)\n\u2714 restart preserves active usage and blocks overlap until uncertain descendants stop (461.846494ms)\n\u2714 a last check returning success at the deadline cannot admit exhausted repair evidence (628.190209ms)\n\u2714 repair cannot weaken protected validation files or overwrite the retained candidate (504.299518ms)\n\u2714 baseline failures and unvalidated candidates cannot start repair or consume cycles (285.706465ms)\n\u2714 owner extensions reject active or unexhausted repairs and malformed amounts (628.478782ms)\n\u2714 findings are bounded untrusted text, never extension or control authority (353.147138ms)\n\u2714 CLI exposes repair and rejects invalid extension options without installing a native runtime (692.410415ms)\n\u2714 the remaining repair deadline stops a hung local check before its longer declared timeout (575.77817ms)\n\u2714 cancel during local revalidation charges that time and cannot authorize a late success (603.050758ms)\n\u2714 an unchanged repair still revalidates once and retains the unexplained original failure (619.906499ms)\n\u2714 interrupted final inspection cannot strand validation or attach old evidence to a new repair (870.594162ms)\n\u2714 straightforward review repairs use cumulative allowance and require verified publication before resolving (2993.796475ms)\n\u2714 disputed, conflicting and unassessed findings cannot expand scope, credentials or allowance (2042.995424ms)\n\u2714 new review findings and restarted repairs cannot reset cumulative cycle limits (4605.910938ms)\n\u2714 unknown conversation resolution is reconciled after restart even when checks fail, without late writes (3035.026569ms)\n\u2714 changed review thread content invalidates verification and cannot be resolved (2379.528461ms)\n\u2714 stale concurrent review observations cannot replace a newer dismissal (1375.088435ms)\n\u2714 runtime drift and pause fence a prepared conversation resolution (2453.170264ms)\n\u2714 only quiescent absence permits another explicit resolution attempt (2596.650083ms)\n\u2714 a concurrent disputed reassessment fences resolution of unchanged thread content (2231.942574ms)\n\u2714 current-head owner review authorizes the next merge gate without a chat approval (1275.586569ms)\n\u2714 bot, self, stale, dismissed, revoked and incomplete review evidence cannot authorize merge (5011.091754ms)\n\u2714 approval waits survive years and restart without a deadline or repair charge (1658.135817ms)\n\u2714 new failing checks revoke retained owner approval and do not grant a review repair budget (1280.004774ms)\n\u2714 malformed review history and unbound assessments preserve no raw provider fields (1319.041966ms)\n\u2714 CLI refuses review operations without native authority and never submits owner approval (1293.658017ms)\n\u2714 eligible owner can approve an App PR after configured owner signing and publication (918.048066ms)\n\u2714 future-dated owner approval cannot become current authority (824.66695ms)\n\u2714 macos qualification and status expose owner-state positive mediation without authorizing inference (76.900685ms)\n\u2714 windows qualification and status expose owner-state positive mediation without authorizing inference (70.756812ms)\n\u2714 host gateway refuses stale, mismatched, revoked and replayed grants (6.121658ms)\n\u2714 host gateway validates fixed request shape and selected account before provider access (4.380203ms)\n\u2714 host gateway consumes a provider attempt on refusal and bounds returned bytes (1.473476ms)\n\u2714 host gateway refuses malformed response event ordering and message metadata (9.588759ms)\n\u2714 host gateway accepts bounded reasoning and the supported structured text shape (2.38476ms)\n\u2714 acceptance requires all nine live Windows gates and every retained session stopped (1.975104ms)\n\ufe63 Windows host storage works without PowerShell modules or cmdlets (1.516857ms) # SKIP\n\u2714 Windows new-file creation preserves existing registration and replacement collisions (10.264455ms)\n\u2714 Windows protected store scopes synthetic encryption and verifies create/replace before readback (5.148844ms)\n\u2714 Windows protected store rejects changed files and sanitizes host encryption refusals (3.806713ms)\n\u2714 Windows protected store refuses malformed host output and changed readback (2.280264ms)\n\u2714 Windows protected storage refuses path drift and cleans failed replacement without changing retained bytes (3.608868ms)\n\u2714 Windows protected storage refuses unsupported architectures and uses only the fixed OS executable fallback (1.421859ms)\n\u2714 Windows storage timeout refuses initialization and checks without retry or writes (1.743881ms)\n\u2714 public qualification report identifies fixed-worker evidence without claiming complete-controller qualification (99.373882ms)\n\u2714 Windows controls qualification requires a trusted runtime and cannot be supplied by candidate evidence (10.508148ms)\n\u2714 Windows report needs measured supplemental controls and refuses a missing stopped lifecycle session (44.96886ms)\n\u2714 public Windows controls qualifier binds stopped observations and rejects native source drift (86.385962ms)\n\u2714 public report binds a controlled Windows observation but leaves native gates blocked (36.409897ms)\n\u2714 public CLI emits the same report and refuses a weakened Windows observation (185.018298ms)\n\u2714 a positively admitted macOS binding cannot satisfy the Windows report (46.904189ms)\n\u2714 an unqualified delivery reports unavailable evidence without making assumptions (9.329056ms)\n\u2714 report validates each Windows binding field and effective control (54.658646ms)\n\u2714 report accepts complete controlled evidence while retaining production blockers (44.609951ms)\n\u2714 Windows report binds task validation evidence and refuses altered output or worker versions (39.199864ms)\n\u2714 native Windows controls coordinate synthetic boundary denial, revoked sender and killed-controller recovery (299.302547ms)\n{\"windowsBoundaryRefusal\":\"authority\"}\n\u2714 native Windows controls refuse allowed-stage boundary evidence and still stop the worker (116.37849ms)\n\u2714 native Windows controls refuse unknown-stage boundary evidence and still stop the worker (124.806378ms)\n\u2714 native Windows controls refuse challenge boundary evidence and still stop the worker (116.406589ms)\n\u2714 native Windows controls refuse denial boundary evidence and still stop the worker (120.281402ms)\n\u2714 public Mac report requires independent AppleHV evidence and cannot inherit Windows admission (86.816753ms)\n\u2714 Mac controls exercise boundary denial and exact orphan shutdown through AppleHV (257.659351ms)\n\u2714 Mac completion assertion rejects Windows evidence and active retained sessions (2.293427ms)\n\u2714 unavailable Mac qualification retains its intended target across controller restart (15.891351ms)\n\u2714 Windows preparation stops at the inference approval boundary and keeps per-step arguments separate (3.455142ms)\n\u2714 inference and online approvals are mandatory and forwarded only to their own stage (2.51296ms)\n\u2714 a refused prerequisite stops later stages and never retries (0.52403ms)\n\u2714 planning is portable and starts no child or state lock even without approval (0.33676ms)\n\u2714 operator manifests reject script drift and embedded approvals before execution (79.529143ms)\n\u2714 real child stages share the canonical acceptance lock and stop on script drift (461.179924ms)\n\u2714 changed shutdown pins fence import and redispatch until exact-session recovery (275.315095ms)\n\u2714 pin drift after shutdown observation refuses collection dispatch (243.332666ms)\n\u2714 pin drift during asynchronous collection cannot admit worker output (232.527672ms)\n\u2714 native coding transport stays outside controlled production admission (3.772685ms)\n\u25b6 native inspection independently binds each supported host and the guest executable\n  \u2714 darwin (11.297045ms)\n  \u2714 win32 (2.799174ms)\n\u2714 native inspection independently binds each supported host and the guest executable (15.143068ms)\n\u2714 native launch transfers only data, streams bounded output and stops before collection (13.132067ms)\n\u2714 transported management executes launch, revocation and stable collection against external Linux fixtures (1328.767825ms)\n\u2714 unsafe native inputs and unsupported authority paths refuse before VM effects (2.550149ms)\n\u2714 revocation during preparation stops the exact session without releasing Codex (3.982457ms)\n\u25b6 retained launch mutations and malformed streams cannot bypass native shutdown\n  \u2714 mutation (5.555419ms)\n  \u2714 stream (5.090726ms)\n  \u2714 checkpoint (4.153735ms)\n  \u2714 pins (3.499354ms)\n\u2714 retained launch mutations and malformed streams cannot bypass native shutdown (19.23912ms)\n\u25b6 collection refuses unsafe bytes, paths and changed native binding\n  \u2714 path (1.571679ms)\n  \u2714 bytes (1.658482ms)\n  \u2714 pins (1.249547ms)\n  \u2714 shape (2.792752ms)\n  \u2714 shutdown (0.986716ms)\n\u2714 collection refuses unsafe bytes, paths and changed native binding (9.150081ms)\n\u2714 native management persists a revocation before a delayed first dispatch (521.41196ms)\n\u2714 unsafe effective native networking is refused before worker start (554.363142ms)\n\u2714 native orphan evidence blocks collection until independent exact-session recovery (1190.223476ms)\n\u2714 stopped native collection refuses linked output and preserves the workspace (763.119816ms)\n\u2714 missing independent native lease refuses Codex release and still stops the worker (523.160129ms)\n\u2714 native polling emits only newly observed bytes across running and unchanged polls (205.737385ms)\n\u2714 rewritten native log prefixes refuse completion and still stop the exact worker (105.954223ms)\n\u25b6 native process failures and forged observation bindings refuse inspection\n  \u2714 json (1.055772ms)\n  \u2714 oversized (5.565666ms)\n  \u2714 session (0.881437ms)\n  \u2714 executable (1.02767ms)\n  \u2714 binding (1.099674ms)\n\u2714 native process failures and forged observation bindings refuse inspection (10.546361ms)\n\u2714 a stalled native management process is terminated at the observation deadline (1.758815ms)\n\u2714 changed initial native pins refuse before any staging or worker effect (1.619115ms)\n\u2714 revocation during host preparation refuses the guest management effect (4.070006ms)\n\u2714 native observations do not cap the engine private database at the stream byte limit (706.353875ms)\n\u2714 native management refuses oversized stdout while preserving the observation limit (144.244554ms)\n\u2714 native management refuses oversized stderr while preserving the observation limit (127.766903ms)\n\u2714 native management kills and reaps a stalled command when its unchanged deadline expires (119.878828ms)\n\u2714 native exact-session recovery tolerates independently observed collected timer units (609.385953ms)\n\u2714 native polling does not exhaust the manager timer start-rate allowance (1707.460486ms)\n\u2714 unverified native timer cleanup blocks collection: unavailable (563.812598ms)\n\u2714 unverified native timer cleanup blocks collection: malformed (576.950061ms)\n\u2714 unverified native timer cleanup blocks collection: pending-job (574.989846ms)\n\u2714 unverified native timer cleanup blocks collection: stop-unavailable (552.254792ms)\n\u2714 checkpoint refusal after native polling reports a gated stop and preserves recovery (605.318939ms)\n\u2139 tests 617\n\u2139 suites 0\n\u2139 pass 614\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 3\n\u2139 todo 0\n\u2139 duration_ms 97628.870992\n",
+    "stderr": "",
+    "truncated": false
+  },
+  "processes": [
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup.test.mjs",
+      "elapsedMs": 10860.545693,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1944,
+          "totalMs": 7767.628540000031,
+          "maxMs": 28.66045699999995
+        },
+        "node": {
+          "count": 1,
+          "totalMs": 192.28503199999977,
+          "maxMs": 192.28503199999977
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "cli-guardrails.test.mjs",
+      "elapsedMs": 953.4187919999999,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 6,
+          "totalMs": 910.2212850000001,
+          "maxMs": 165.1594520000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 98.97750699999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 96.217081,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 100.411382,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 86.532438,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 93.84116700000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 110.377936,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "codex-endpoint.test.mjs",
+      "elapsedMs": 6757.171415,
+      "completed": true,
+      "families": {
+        "python": {
+          "count": 2,
+          "totalMs": 6718.598262,
+          "maxMs": 6668.135054
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "codex-mediation-refusal.test.mjs",
+      "elapsedMs": 338.788508,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "codex-usage.test.mjs",
+      "elapsedMs": 64.913625,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "conditional-merge.test.mjs",
+      "elapsedMs": 14363.794765,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 2441,
+          "totalMs": 9690.84778500001,
+          "maxMs": 16.836589999999887
+        },
+        "node": {
+          "count": 3,
+          "totalMs": 465.3900509999985,
+          "maxMs": 157.01255499999934
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "controls.test.mjs",
+      "elapsedMs": 2721.9634260000003,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 11,
+          "totalMs": 1761.7479190000004,
+          "maxMs": 167.234056
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 104.07182300000002,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 93.68134600000002,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 114.715563,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 106.336343,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "delivery.test.mjs",
+      "elapsedMs": 3810.753656,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 23,
+          "totalMs": 3741.581233000001,
+          "maxMs": 189.05782499999987
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.706279,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 115.78737499999998,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 107.07864599999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.37600999999998,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 102.00107,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 100.30701699999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 109.592997,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 102.116436,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.72134199999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 105.166619,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 132.96840699999998,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 100.53125899999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 112.6796,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 137.00624,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 135.17953699999998,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 132.793135,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "factory-approval-refresh.test.mjs",
+      "elapsedMs": 9240.253006,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 220,
+          "totalMs": 1468.931395000002,
+          "maxMs": 13.65397800000028
+        },
+        "node": {
+          "count": 55,
+          "totalMs": 7376.417061000005,
+          "maxMs": 222.282013
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 100.142489,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 105.81645999999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 106.96982299999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 21.333838000000014,
+          "maxMs": 7.277446000000012
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 110.56235699999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 76.358102,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.591651000000006,
+          "maxMs": 6.141956999999998
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 109.085663,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 73.603287,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.605115999999995,
+          "maxMs": 6.337913
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 115.232744,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 70.76936900000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 16.220372999999995,
+          "maxMs": 6.560527999999998
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "feature-candidate.test.mjs",
+      "elapsedMs": 13710.620272999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1497,
+          "totalMs": 6844.451187000027,
+          "maxMs": 16.474898999999823
+        },
+        "node": {
+          "count": 12,
+          "totalMs": 1872.7478550000014,
+          "maxMs": 170.60163900000043
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.000288,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 72.029728,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.953642000000016,
+          "maxMs": 5.669858000000005
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 91.47755600000002,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 78.38463200000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 17.510233,
+          "maxMs": 6.641991000000004
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 100.819321,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 73.182998,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.952238999999999,
+          "maxMs": 6.919671000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.37755100000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 71.159215,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 17.326397000000007,
+          "maxMs": 6.390300999999994
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 105.535943,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 69.41930199999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.583850999999989,
+          "maxMs": 5.472293999999998
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 94.00654800000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 71.131665,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.124700999999995,
+          "maxMs": 6.629925
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 107.205643,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 72.991887,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 19.61192900000001,
+          "maxMs": 8.177283000000003
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 99.28932599999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 73.740053,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.694579999999995,
+          "maxMs": 5.2120279999999966
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 112.344676,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 72.50107700000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.942483999999993,
+          "maxMs": 6.427459999999996
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 106.89780400000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 72.511418,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 17.089158999999995,
+          "maxMs": 6.303961000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 104.63185200000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 70.664819,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.019404000000009,
+          "maxMs": 6.307020000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.73888099999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 87.82033899999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 21.082935000000006,
+          "maxMs": 7.63358199999999
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "isolated-validation.test.mjs",
+      "elapsedMs": 8147.396534,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 953,
+          "totalMs": 4275.730431000011,
+          "maxMs": 14.868066999999883
+        },
+        "node": {
+          "count": 2,
+          "totalMs": 318.64671999999973,
+          "maxMs": 165.35798799999975
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 65.99955,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 16.239881000000004,
+          "maxMs": 7.046368000000008
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 70.716012,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.203097000000007,
+          "maxMs": 5.204128000000004
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 75.42139399999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.03371099999999,
+          "maxMs": 5.509864
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 74.32203299999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.048474999999996,
+          "maxMs": 6.276040000000002
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 71.239082,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.884643000000004,
+          "maxMs": 4.765512000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 73.47803,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 17.149272000000003,
+          "maxMs": 6.831406000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 74.219796,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.660575999999992,
+          "maxMs": 7.1854960000000005
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 84.14884599999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 16.206370999999997,
+          "maxMs": 6.7986
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 78.40918099999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 17.048721000000015,
+          "maxMs": 7.472618000000004
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.85609400000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 76.785464,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.612704999999991,
+          "maxMs": 6.1982499999999945
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.72734899999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 78.68863300000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.286012,
+          "maxMs": 5.192247000000002
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 96.76468499999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 76.04273899999998,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.991782000000008,
+          "maxMs": 6.400842000000004
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 70.379382,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.743247999999994,
+          "maxMs": 5.7696400000000025
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 75.56714600000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 12.696475,
+          "maxMs": 4.3733
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 75.707953,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.180099000000006,
+          "maxMs": 5.326600999999997
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 80.159865,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.384718000000014,
+          "maxMs": 5.144629000000002
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 80.816554,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.364490000000004,
+          "maxMs": 5.681618999999998
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 85.208401,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.07406000000001,
+          "maxMs": 5.336487000000005
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 84.92849,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.298257000000007,
+          "maxMs": 4.975655000000003
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 83.429348,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.679352999999992,
+          "maxMs": 4.917767999999995
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 90.30041799999998,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.713769999999997,
+          "maxMs": 5.793010000000002
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 90.64342400000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.022756999999999,
+          "maxMs": 5.412048999999996
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 75.65970200000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.758106000000005,
+          "maxMs": 5.661377000000002
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 17.007905,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 76.85281400000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.442191999999991,
+          "maxMs": 4.974664999999995
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 79.16456500000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.023266000000007,
+          "maxMs": 5.234110000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 106.146949,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 14.203809,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 102.99938199999998,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 14.484651000000014,
+          "maxMs": 5.446963000000004
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.82500000000002,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 114.530865,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 12.383049,
+          "maxMs": 4.892589999999998
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 88.686375,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 12.924456000000006,
+          "maxMs": 4.411549999999998
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 71.978724,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 12.617634999999993,
+          "maxMs": 4.567791999999997
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 105.65944900000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.716912999999998,
+          "maxMs": 6.685346000000003
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 77.350121,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.620321999999994,
+          "maxMs": 5.478894999999994
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 77.85307699999998,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 12.186278999999999,
+          "maxMs": 4.424030999999999
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 123.78829600000002,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.491840999999987,
+          "maxMs": 5.201326999999999
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 83.680466,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.452985999999996,
+          "maxMs": 6.000976000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 165.514084,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 15.047468000000002,
+          "maxMs": 5.529133999999999
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "isolation.test.mjs",
+      "elapsedMs": 549.98204,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 123.493194,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 13.206674,
+          "maxMs": 5.19238
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 169.992527,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3,
+          "totalMs": 12.278834000000003,
+          "maxMs": 5.270065000000002
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "main-checks.test.mjs",
+      "elapsedMs": 21575.456828,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 3598,
+          "totalMs": 14656.228502999906,
+          "maxMs": 13.867639000000054
+        },
+        "node": {
+          "count": 1,
+          "totalMs": 152.67363899999873,
+          "maxMs": 152.67363899999873
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "main-sync-admission.test.mjs",
+      "elapsedMs": 8691.500908999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1437,
+          "totalMs": 5974.452861999986,
+          "maxMs": 28.50224400000002
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 105.96579499999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 95.556396,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 97.03839500000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 98.32071700000002,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 92.31596300000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.73066,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 99.18445399999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 105.143642,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 104.24987800000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "main-sync-recovery.test.mjs",
+      "elapsedMs": 17714.777854,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 2993,
+          "totalMs": 12535.228452000008,
+          "maxMs": 30.035382999998546
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 104.4759,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 106.17928,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 102.08387199999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "main-sync.test.mjs",
+      "elapsedMs": 11123.663771000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1826,
+          "totalMs": 7780.856759000009,
+          "maxMs": 29.58832799999982
+        },
+        "node": {
+          "count": 1,
+          "totalMs": 175.89426300000014,
+          "maxMs": 175.89426300000014
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 102314.28225,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 102177.12744400001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 4385.780509,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 4245.310995,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "auth-broker.test.mjs",
+      "elapsedMs": 1914.686328,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "auth-host.test.mjs",
+      "elapsedMs": 508.995331,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "auth-setup.test.mjs",
+      "elapsedMs": 1102.340494,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 6,
+          "totalMs": 1052.196278,
+          "maxMs": 234.82381
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "auth-status.test.mjs",
+      "elapsedMs": 309.870297,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 1,
+          "totalMs": 164.356471,
+          "maxMs": 164.356471
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 99.73801999999998,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "merge-base-refresh.test.mjs",
+      "elapsedMs": 8314.100867,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1393,
+          "totalMs": 5549.9773069999765,
+          "maxMs": 12.24333200000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 95.72526900000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 146.528635,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup-authority.test.mjs",
+      "elapsedMs": 9702.679270999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1468,
+          "totalMs": 6182.691308000001,
+          "maxMs": 31.235852000000023
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 97.41211900000002,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup-cas.test.mjs",
+      "elapsedMs": 5413.062497999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 720,
+          "totalMs": 3075.8025720000082,
+          "maxMs": 24.848251000000346
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.971837,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 113.396887,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 94.485924,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup-inventory.test.mjs",
+      "elapsedMs": 10481.219458,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1591,
+          "totalMs": 6732.173194000036,
+          "maxMs": 27.326686999999993
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 96.23677900000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 113.24144100000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "merge-recovery.test.mjs",
+      "elapsedMs": 10402.548574,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1877,
+          "totalMs": 7112.877466999975,
+          "maxMs": 15.733712000000196
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "model-relay.test.mjs",
+      "elapsedMs": 198.037159,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "native-acceptance-runner.test.mjs",
+      "elapsedMs": 1343.800636,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 159.68936,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 52.57215399999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 1.160580000000003,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 563.0418900000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 506.439015,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 3.5687830000000034,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup-lifecycle.test.mjs",
+      "elapsedMs": 7208.7847870000005,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1044,
+          "totalMs": 4312.666512000009,
+          "maxMs": 47.674511000000166
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 47.788194999999995,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 1.028804000000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 57.078253,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 1.9747930000000053,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 59.897316,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 1.1905360000000016,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 60.407368,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 3.7369890000000012,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "native-diagnostics.test.mjs",
+      "elapsedMs": 33.95980699999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "native-podman-options.test.mjs",
+      "elapsedMs": 748.669281,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 4,
+          "totalMs": 613.288931,
+          "maxMs": 157.17161500000003
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 93.034235,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 95.446157,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 103.200692,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "native-qualification.test.mjs",
+      "elapsedMs": 123.38547200000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 94.18622100000002,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "offline-canary.test.mjs",
+      "elapsedMs": 1457.5579970000001,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 1,
+          "totalMs": 245.33697099999995,
+          "maxMs": 245.33697099999995
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "onboarding.test.mjs",
+      "elapsedMs": 427.834451,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 4,
+          "totalMs": 20.689626999999973,
+          "maxMs": 7.486337999999989
+        },
+        "node": {
+          "count": 1,
+          "totalMs": 180.04714299999998,
+          "maxMs": 180.04714299999998
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 123.73058600000002,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 2,
+          "totalMs": 8.686667999999997,
+          "maxMs": 4.4591939999999965
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "online-access.test.mjs",
+      "elapsedMs": 1284.656871,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 187.745171,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "online-native.test.mjs",
+      "elapsedMs": 52.080729,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "podman-admission.test.mjs",
+      "elapsedMs": 1591.8879479999998,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 1,
+          "totalMs": 160.61408899999992,
+          "maxMs": 160.61408899999992
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "podman-platform.test.mjs",
+      "elapsedMs": 5844.39526,
+      "completed": true,
+      "families": {
+        "python": {
+          "count": 13,
+          "totalMs": 5421.849367,
+          "maxMs": 4233.6733
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "pr-checks-admission.test.mjs",
+      "elapsedMs": 7318.561973,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1379,
+          "totalMs": 4923.664738999994,
+          "maxMs": 14.922522000000015
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 98.30767099999998,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "pr-checks-deadline.test.mjs",
+      "elapsedMs": 6426.179498,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1242,
+          "totalMs": 4309.58296399999,
+          "maxMs": 9.578594000000521
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "pr-checks-repair.test.mjs",
+      "elapsedMs": 6239.165542000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1064,
+          "totalMs": 4209.543072999997,
+          "maxMs": 25.987975000000006
+        },
+        "ssh-keygen": {
+          "count": 1,
+          "totalMs": 7.688166999999794,
+          "maxMs": 7.688166999999794
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "pr-checks.test.mjs",
+      "elapsedMs": 11419.062167,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1959,
+          "totalMs": 7555.925312000008,
+          "maxMs": 10.86181199999919
+        },
+        "node": {
+          "count": 1,
+          "totalMs": 156.37723899999946,
+          "maxMs": 156.37723899999946
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-adapter.test.mjs",
+      "elapsedMs": 4667.820086000001,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 750,
+          "totalMs": 3049.172054999998,
+          "maxMs": 25.721731999999975
+        },
+        "ssh-keygen": {
+          "count": 2,
+          "totalMs": 19.544123000000013,
+          "maxMs": 12.750368999999978
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-authority.test.mjs",
+      "elapsedMs": 3038.920161,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 413,
+          "totalMs": 1671.0941880000012,
+          "maxMs": 10.81844000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-recovery.test.mjs",
+      "elapsedMs": 4881.3489739999995,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 805,
+          "totalMs": 3059.852330000003,
+          "maxMs": 11.625523000000157
+        },
+        "node": {
+          "count": 1,
+          "totalMs": 157.85155600000053,
+          "maxMs": 157.85155600000053
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-remote-evidence.test.mjs",
+      "elapsedMs": 7600.37768,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1336,
+          "totalMs": 5027.023959999983,
+          "maxMs": 12.06565799999953
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-signature.test.mjs",
+      "elapsedMs": 2764.149996,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 452,
+          "totalMs": 1686.1176650000027,
+          "maxMs": 11.207621999999986
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.30364399999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-signatures-port-refusal.test.mjs",
+      "elapsedMs": 44.66275400000001,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-split-dispatch-fencing.test.mjs",
+      "elapsedMs": 4267.067284999999,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 727,
+          "totalMs": 2748.955120000004,
+          "maxMs": 9.633820000000014
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-split-lost-acceptance.test.mjs",
+      "elapsedMs": 6674.680336,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1231,
+          "totalMs": 4535.248124999999,
+          "maxMs": 14.963860000000068
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.704725,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication-split-unknown-observation.test.mjs",
+      "elapsedMs": 5151.612609,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 931,
+          "totalMs": 3397.4266010000056,
+          "maxMs": 16.476971999999478
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "publication.test.mjs",
+      "elapsedMs": 5232.910078,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 901,
+          "totalMs": 3363.9086679999896,
+          "maxMs": 12.10713399999986
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "repair.test.mjs",
+      "elapsedMs": 9539.627899,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1299,
+          "totalMs": 5020.320368999995,
+          "maxMs": 10.035558999999921
+        },
+        "node": {
+          "count": 2,
+          "totalMs": 320.3668080000007,
+          "maxMs": 166.49029700000028
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "review-repair.test.mjs",
+      "elapsedMs": 9767.629584,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1785,
+          "totalMs": 6580.359930000009,
+          "maxMs": 9.444479000000001
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "review-resolution.test.mjs",
+      "elapsedMs": 14182.05762,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 2706,
+          "totalMs": 9690.506120000045,
+          "maxMs": 10.642281000000366
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "review.test.mjs",
+      "elapsedMs": 13698.793015,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 2686,
+          "totalMs": 9123.817791999994,
+          "maxMs": 12.38999600000011
+        },
+        "node": {
+          "count": 3,
+          "totalMs": 395.2080880000012,
+          "maxMs": 141.34985000000052
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 97.20639299999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 112.270769,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "subscription-decision.test.mjs",
+      "elapsedMs": 244.72596,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "subscription-gateway.test.mjs",
+      "elapsedMs": 60.684299,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "windows-acceptance-report.test.mjs",
+      "elapsedMs": 31.538897999999996,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "windows-auth-store.test.mjs",
+      "elapsedMs": 137.973552,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "windows-qualification-report.test.mjs",
+      "elapsedMs": 1897.6503599999999,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 1,
+          "totalMs": 147.24255899999997,
+          "maxMs": 147.24255899999997
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 94.50083599999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "windows-qualification-runner.test.mjs",
+      "elapsedMs": 582.8092849999999,
+      "completed": true,
+      "families": {
+        "node": {
+          "count": 1,
+          "totalMs": 69.357576,
+          "maxMs": 69.357576
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 19.498069,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 102.58340399999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.623828,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 101.98412199999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "worker-coding-lifecycle.test.mjs",
+      "elapsedMs": 860.063212,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 99,
+          "totalMs": 395.9609789999994,
+          "maxMs": 12.589635000000015
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "worker-native-coding.test.mjs",
+      "elapsedMs": 11627.157175,
+      "completed": true,
+      "families": {
+        "python3": {
+          "count": 138,
+          "totalMs": 10125.591013999994,
+          "maxMs": 196.764496
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup-races.test.mjs",
+      "elapsedMs": 6626.743622,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1109,
+          "totalMs": 4692.042591000003,
+          "maxMs": 26.033890000000156
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 90.30040199999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 84.30001299999999,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "node-process",
+      "elapsedMs": 85.573043,
+      "completed": true,
+      "families": {}
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup-refusal.test.mjs",
+      "elapsedMs": 7179.720684,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 1238,
+          "totalMs": 5107.618546000013,
+          "maxMs": 28.36528999999973
+        }
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "diagnosticOnly": true,
+      "file": "branch-cleanup-state-recovery.test.mjs",
+      "elapsedMs": 11270.28947,
+      "completed": true,
+      "families": {
+        "git": {
+          "count": 2008,
+          "totalMs": 7970.575576999972,
+          "maxMs": 25.310152999999445
+        }
+      }
+    }
+  ]
+}
