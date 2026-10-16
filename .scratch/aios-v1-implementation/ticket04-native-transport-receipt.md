@@ -66,7 +66,30 @@ exercise both supported host descriptions, unsupported input, mutation/revocatio
 pin drift, malformed output and uncertain shutdown. POSIX guest simulation is
 explicitly skipped on Windows; Windows/macOS native qualification stays open.
 
-Final validation and review results are recorded below before PR publication.
+Build, typecheck, formatting and whitespace checks pass. The focused suite passes
+24 tests; focused transport coverage is 98.27% lines (V8 does not independently
+measure the embedded Python branches). The full suite passes 590 tests:
+588 passed, two platform skips, zero failures, in 438.8 seconds. Its retained
+local log is `/private/tmp/ticket04-native-full-suite.log`. The external simulator
+and targeted refusals provide behavioral evidence beyond coverage percentage.
+
+All 65 pre-existing test files remain byte-for-byte unchanged against starting
+main, and all 21 owner snapshot hashes remain unchanged and unstaged. The retained
+audit is `/private/tmp/ticket04-native-preservation-audit.json`. A single appended
+test file leaves every existing round-robin shard assignment unchanged.
+
+Both required review axes report zero actionable findings: Standards 0, Spec 0.
+The review compares starting main to verified bot commit `94f03e9`.
+
+A read-only inspection through the existing `aios-macos-noshare` management path
+also succeeded using the actual new transport: Codex 0.161.0 ARM64 artifact
+`0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7`,
+policy `8c4ef569ecf45aa57515a4e7ab5ac6e936fd63a7129868d137224e9423727d86`,
+and binding `edbdf5f5182d750f50c51bf06b703b8817280db2a7bbce29735d15bf1239c700`.
+It did not start a container, change enrollment, open provider credentials or send
+inference. This proves only that fresh read-only native pin observation succeeded;
+launch, mounts, timers, execution, collection and both-host qualification remain
+unproven. `productionEnabled` remained false.
 
 ## Remaining production gates
 
