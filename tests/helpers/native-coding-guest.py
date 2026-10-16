@@ -1,7 +1,7 @@
 """External Linux/Podman simulator; executes the transported Python program.
 No VM, provider, owner credentials or real qualification is involved.
 """
-import sys, os, json, pathlib, subprocess, hashlib, types
+import sys, os, json, pathlib, subprocess, hashlib, types, fcntl
 root = pathlib.Path(sys.argv[1])
 os.environ['HOME'] = str(root)
 state_path = root / 'engine.json'
@@ -15,6 +15,7 @@ exec(source.split('\n', 2)[0] + '\n' + source.split('\n', 2)[1], namespace)
 request = namespace['R']
 artifact = root / '.local/state/aios-offline-v1/codex-0.161.0'
 artifact.parent.mkdir(parents=True, exist_ok=True)
+artifact.parent.chmod(0o700)
 artifact.write_bytes(b'synthetic-pinned-artifact')
 artifact.chmod(0o700)
 # Substitute a fixture artifact pin in the external guest request/observation.
@@ -38,6 +39,15 @@ def read_text(path, *args, **kwargs):
 pathlib.Path.read_text = read_text
 pathlib.Path.exists = lambda path: True if str(path).startswith('/sys/fs/cgroup/') else real_exists(path)
 pathlib.Path.rglob = lambda path, pattern: [path / 'cgroup.procs'] if str(path).startswith('/sys/fs/cgroup/') else real_rglob(path, pattern)
+
+real_flock = fcntl.flock
+def flock(fd, mode):
+    expected = artifact.parent / 'lock'
+    observed = os.fstat(fd.fileno() if hasattr(fd, 'fileno') else fd)
+    target = expected.stat() if expected.exists() else None
+    state.setdefault('sharedManagementLocks', []).append(bool(target and (observed.st_dev, observed.st_ino) == (target.st_dev, target.st_ino)))
+    return real_flock(fd, mode)
+fcntl.flock = flock
 
 def run(args, **kwargs):
     args=[os.path.basename(args[0]),*args[1:]]

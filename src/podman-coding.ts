@@ -186,7 +186,9 @@ if R['action']=='inspect':
  binding=snapshot()
 else:
  directory(root)
- lockfd=os.open(root+'/lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+ sharedManagement=os.path.expanduser('~/.local/state/aios-offline-v1')
+ directory(sharedManagement)
+ lockfd=os.open(sharedManagement+'/lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
  with os.fdopen(lockfd,'w') as lock:
   fcntl.flock(lock,fcntl.LOCK_EX)
   owner=root+'/authority.json'

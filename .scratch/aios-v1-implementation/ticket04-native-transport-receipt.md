@@ -84,12 +84,28 @@ The review compares starting main to verified bot commit `94f03e9`.
 A read-only inspection through the existing `aios-macos-noshare` management path
 also succeeded using the actual new transport: Codex 0.161.0 ARM64 artifact
 `0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7`,
-policy `8c4ef569ecf45aa57515a4e7ab5ac6e936fd63a7129868d137224e9423727d86`,
+policy `352bd8a9a98ff6fe7127feded78320a4a45b788b5c9aed9ecc1e9216db0d0769`,
 and binding `edbdf5f5182d750f50c51bf06b703b8817280db2a7bbce29735d15bf1239c700`.
 It did not start a container, change enrollment, open provider credentials or send
 inference. This proves only that fresh read-only native pin observation succeeded;
 launch, mounts, timers, execution, collection and both-host qualification remain
 unproven. `productionEnabled` remained false.
+
+## Shared management lock follow-up
+
+Final integration review found that a separate new-transport lock could race the
+fixed-worker driver's dedicated-VM admission. The new transport now uses the
+existing `aios-offline-v1/lock` for all mutating management commands, while keeping
+its authority records and worker mounts separate. No fixed-worker authority or
+credential is reused.
+
+A public transport regression compares the actual locked descriptor's device/inode
+with the existing management lock. It failed before the correction and passes
+afterward. All 24 focused tests, build, typecheck and formatting pass. Read-only
+native inspection was repeated successfully; the policy digest above reflects
+this correction. The original 590-test full run predates this follow-up. The final
+full suite is repeated into `/private/tmp/ticket04-native-final-full-suite.log`;
+its result and hosted checks are recorded on the PR without changing its head.
 
 ## Remaining production gates
 

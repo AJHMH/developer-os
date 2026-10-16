@@ -275,6 +275,11 @@ test(
     });
     assert.equal(collected.files[0].bytes.toString(), "after\n");
     const state = JSON.parse(realReadFileSync(`${root}/engine.json`, "utf8"));
+    assert.ok(state.sharedManagementLocks.length > 0);
+    assert.ok(
+      state.sharedManagementLocks.every(Boolean),
+      "all effects share the existing fixed-worker management lock",
+    );
     const create = state.commands.find((args) => args[1] === "create");
     assert.ok(create.includes("--network=none"));
     assert.ok(create.includes("--read-only"));
