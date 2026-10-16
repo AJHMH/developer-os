@@ -5,17 +5,14 @@ on:
 permissions:
   contents: read
 jobs:
-  profile:
+  supervision:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
-    strategy:
-      fail-fast: false
-      matrix:
-        observation: [1, 2]
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+          fetch-depth: 0
           path: consumer
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -27,14 +24,16 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci --ignore-scripts
-        working-directory: consumer
-      - run: npm ci --ignore-scripts
         working-directory: factory
-      - name: Run original test command under original Factory deadline
-        run: node consumer/.scratch/linux-contract-runtime/profile-host.mjs factory consumer evidence
+      - name: Prove original refusal then repaired deadline supervision
+        run: |
+          mkdir evidence
+          git -C consumer show 1e9e502d5e5e4d7e426eb8ae4d2eef649fde0d11:.scratch/linux-contract-runtime/profile-host.mjs > evidence/old-sampler.mjs
+          node consumer/.scratch/linux-contract-runtime/verify-supervision.mjs factory evidence/old-sampler.mjs red > evidence/red.json
+          node consumer/.scratch/linux-contract-runtime/verify-supervision.mjs factory consumer/.scratch/linux-contract-runtime/profile-host.mjs green > evidence/green.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: linux-host-profile-${{ matrix.observation }}-${{ github.sha }}
+          name: sampler-supervision-${{ github.sha }}
           path: evidence
           if-no-files-found: error

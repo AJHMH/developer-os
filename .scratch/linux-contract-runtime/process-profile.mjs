@@ -62,6 +62,7 @@ function flush(completed) {
     JSON.stringify({
       schemaVersion: 1,
       diagnosticOnly: true,
+      snapshotFailed,
       file: file ? basename(file) : "node-process",
       elapsedMs: performance.now() - started,
       completed,
@@ -78,5 +79,17 @@ function flush(completed) {
     }),
   );
 }
-setInterval(() => flush(false), 2000).unref();
-process.on("exit", () => flush(true));
+let snapshotFailed = false;
+let timer;
+function safeFlush(completed) {
+  try {
+    flush(completed);
+  } catch {
+    snapshotFailed = true;
+    clearInterval(timer);
+    // Never terminate the process that owns Factory's command deadline.
+  }
+}
+timer = setInterval(() => safeFlush(false), 2000);
+timer.unref();
+process.on("exit", () => safeFlush(true));

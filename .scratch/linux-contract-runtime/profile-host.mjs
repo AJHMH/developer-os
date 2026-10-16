@@ -112,29 +112,40 @@ function sample() {
   );
 }
 sample();
-const timer = setInterval(sample, 2000);
+let diagnosticSamplingFailed = false;
+const timer = setInterval(safeSample, 2000);
 timer.unref();
+function safeSample() {
+  try {
+    sample();
+  } catch {
+    diagnosticSamplingFailed = true;
+    clearInterval(timer);
+  }
+}
+let result;
 try {
-  const result = await runContract(resolve(consumer, "factory-contract.yaml"));
-  writeFileSync(
-    resolve(output, "result.json"),
-    JSON.stringify(result, null, 2),
-  );
-  console.log(
-    JSON.stringify(
-      result.results.map(
-        ({ capability, status, timedOut, startedAt, finishedAt }) => ({
-          capability,
-          status,
-          timedOut,
-          startedAt,
-          finishedAt,
-        }),
-      ),
-    ),
-  );
-  process.exitCode = result.outcome === "passed" ? 0 : 1;
+  result = await runContract(resolve(consumer, "factory-contract.yaml"));
 } finally {
   clearInterval(timer);
-  sample();
+  safeSample();
 }
+writeFileSync(
+  resolve(output, "result.json"),
+  JSON.stringify({ ...result, diagnosticSamplingFailed }, null, 2),
+);
+console.log(
+  JSON.stringify(
+    result.results.map(
+      ({ capability, status, timedOut, startedAt, finishedAt }) => ({
+        capability,
+        status,
+        timedOut,
+        startedAt,
+        finishedAt,
+      }),
+    ),
+  ),
+);
+process.exitCode =
+  result.outcome === "passed" && !diagnosticSamplingFailed ? 0 : 1;
