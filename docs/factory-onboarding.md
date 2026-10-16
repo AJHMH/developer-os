@@ -2,7 +2,7 @@
 
 Developer OS is an implemented Factory consumer alongside `AJHMH/profile-page`, using the `node-24-typescript-cli` profile. Consumer adoption was merged; full certification remains unverified in retained evidence.
 
-`factory.lock.yaml` and both reusable calls currently pin distribution 1.1.0 at `3f64904a7a71985382fa5d5da29cc0e0610d5d2c`. This supersedes the earlier PR #68 pin. The independent GitHub variable must match; its current remote value was not re-read in this documentation audit. [Hosted approval-refresh evidence](../.scratch/factory-approval-refresh/hosted-validation-20261014.md) records successful adoption, CodeQL and native CI at its recorded revision.
+`factory.lock.yaml` and both reusable calls pin distribution 1.1.0 at `b8fd86097527b20118bf277219d67c72825d05c1`, adopting merged Software Factory PR #72. Required contract commands now retain bounded numeric resource diagnostics under their existing deadlines and process supervision. The historical Linux timeout remains unexplained. The independently selected GitHub variable must match this revision; the adoption receipt records its verified selection. Earlier hosted receipts below describe their recorded revisions.
 
 Native CI runs typecheck, formatting, all tests and build on Node 24. CodeQL scans
 the full TypeScript CLI and GitHub Actions at the exact source revision. The
