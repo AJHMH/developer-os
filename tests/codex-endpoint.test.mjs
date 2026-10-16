@@ -3,16 +3,20 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { codexEndpointFixture } from "../dist/codex-endpoint.js";
 
-test("synthetic expiry arms after slow client setup and interrupts a confirmed body read", () => {
+test("synthetic expiry arms after slow client setup and interrupts a confirmed body read", (t) => {
   const result = spawnSync(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
       String.raw`
 import sys,subprocess,json,socket,time,tempfile,threading,queue
+origin=time.monotonic()
+def phase(name):print("expiry-phase "+name+" "+str(round(time.monotonic()-origin,3))+"s",file=sys.stderr,flush=True)
+phase("python-started")
 source="import time,socket; time.sleep(3.2)\ndef forbidden_dns(*args):raise RuntimeError('loopback fixture must not resolve hostnames')\nsocket.getfqdn=forbidden_dns\n"+sys.stdin.read();identity='expiry-fixture';cap='synthetic'
 reserve=socket.socket();reserve.bind(('127.0.0.1',0));port=reserve.getsockname()[1];reserve.close()
 errors=tempfile.TemporaryFile()
+phase('starting-child')
 p=subprocess.Popen([sys.executable,'-u','-c',source],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=errors,bufsize=0)
 sockets=[];events=queue.Queue()
 def read_events():
@@ -32,7 +36,9 @@ header=('POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer
 try:
  control({'port':port,'deliveryId':identity,'capability':cap,'budget':2,'ttl':60,'armable':True,'gateway':False})
  assert event()=={'ready':True,'deliveryId':identity}
+ phase('server-ready')
  time.sleep(1.8) # Reproduces setup latency longer than the old 1.5-second grant.
+ phase('connecting-first-request')
  first=socket.create_connection(('127.0.0.1',port));sockets.append(first);first.settimeout(3);first.sendall(header+body)
  response=b''
  while True:
@@ -41,12 +47,16 @@ try:
   response+=chunk
  assert response.startswith(b'HTTP/1.1 200 ')
  assert event()['accepted']==1
+ phase('first-request-accepted')
  slow=socket.create_connection(('127.0.0.1',port));sockets.append(slow);slow.settimeout(3);slow.sendall(header+body[:-1])
  assert event()=={'bodyReadPending':True,'deliveryId':identity}
+ phase('body-read-pending')
  started=time.monotonic();control({'action':'arm-expiry','deliveryId':identity})
  assert event()=={'expiryArmed':True,'deliveryId':identity}
+ phase('expiry-armed')
  time.sleep(0.5);control({'action':'arm-expiry','deliveryId':identity}) # Cannot extend.
  p.wait(timeout=2.1)
+ phase('child-exited')
  assert p.returncode==0
  try:assert slow.recv(4096)==b''
  except ConnectionResetError:pass # Windows reports abrupt process-exit closure as RST.
@@ -60,7 +70,14 @@ print('pending read interrupted without extending grant')
     ],
     { input: codexEndpointFixture, encoding: "utf8", timeout: 20000 },
   );
-  assert.equal(result.status, 0, result.stderr);
+  t.diagnostic(result.stderr);
+  assert.equal(
+    result.status,
+    0,
+    JSON.stringify({ error: result.error?.code, signal: result.signal }) +
+      "\n" +
+      result.stderr,
+  );
   assert.equal(
     result.stdout.trim(),
     "pending read interrupted without extending grant",
