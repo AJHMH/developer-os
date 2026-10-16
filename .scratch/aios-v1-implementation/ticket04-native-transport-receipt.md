@@ -107,6 +107,26 @@ this correction. The original 590-test full run predates this follow-up. The fin
 full suite is repeated into `/private/tmp/ticket04-native-final-full-suite.log`;
 its result and hosted checks are recorded on the PR without changing its head.
 
+## Hosted branch-coverage follow-up
+
+The shared-lock head's full local suite passed: 590 tests, 588 passed, two platform
+skips, zero failures (369.0 seconds). Hosted run `38921509400` passed every test and
+instrumentation stage, but the unchanged policy correctly refused changed branch
+coverage of 111/125 (88.8%, below 90%) and a slight global branch decrease
+(91.0329% versus 91.0628%). The dependent approval checks therefore blocked despite
+the owner's current-head GitHub approval. This was a measured coverage gap, not
+an instrumentation timeout. The failed coverage artifacts and stage timings are
+retained by GitHub; local copies are `/private/tmp/pr46-coverage-diagnostics`.
+
+The focused public-transport coverage command reproduced the gap at 88.98% and
+failed its 90% threshold. Additional tests cover incremental/unchanged polls,
+rewritten prefixes, malformed/oversized/forged native observations, process timeout,
+initial pin drift and revocation during host preparation. All 35 focused tests
+pass, with 100% transport lines/functions and 94.07% branches, also passing a
+stricter local 92% branch check. These additions change no production code, prior
+assertions, workflow, collector, deadline, approval rule or coverage threshold.
+Hosted validation of the new head must still pass before the PR is ready.
+
 ## Remaining production gates
 
 Issue 04 remains `ready-for-agent`, not completed. Explicit native thread resume

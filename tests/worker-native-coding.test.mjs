@@ -55,6 +55,7 @@ import { resolve } from "node:path";
 function nativeHost(t, respond, platform = "darwin") {
   const requests = [],
     programs = [];
+  const processEffects = { kills: 0 };
   t.mock.method(os, "platform", () => platform);
   t.mock.method(os, "arch", () => (platform === "darwin" ? "arm64" : "x64"));
   t.mock.method(os, "release", () =>
@@ -102,7 +103,9 @@ function nativeHost(t, respond, platform = "darwin") {
     const child = new EventEmitter();
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
-    child.kill = () => {};
+    child.kill = () => {
+      processEffects.kills++;
+    };
     child.stdin = new Writable({
       write(bytes, _encoding, done) {
         const source = bytes.toString();
@@ -117,7 +120,15 @@ function nativeHost(t, respond, platform = "darwin") {
         queueMicrotask(() => {
           try {
             const response = respond(request, source);
-            child.stdout.emit("data", Buffer.from(JSON.stringify(response)));
+            if (response.hang) return;
+            child.stderr.emit(
+              "data",
+              Buffer.from("synthetic guest diagnostic"),
+            );
+            child.stdout.emit(
+              "data",
+              Buffer.from(response.rawOutput ?? JSON.stringify(response)),
+            );
             child.emit("close", response.processFailure ? 1 : 0);
           } catch (error) {
             child.emit("error", error);
@@ -134,7 +145,7 @@ function nativeHost(t, respond, platform = "darwin") {
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  return { requests, programs };
+  return { requests, programs, processEffects };
 }
 const session = {
   operationId: "12345678-1234-4234-8234-123456789abc",
@@ -596,3 +607,186 @@ test(
     assert.equal((await transport.stop(session)).remainingProcesses, 0);
   },
 );
+
+test("native polling emits only newly observed bytes across running and unchanged polls", async (t) => {
+  let polls = 0;
+  const first = '{"type":"thread.started","thread_id":"synthetic-thread"}\n';
+  const last = '{"type":"turn.failed"}\n';
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+    ...(r.action === "poll"
+      ? {
+          running: ++polls < 3,
+          exitCode: 1,
+          output: Buffer.from(polls < 3 ? first : first + last).toString(
+            "base64",
+          ),
+        }
+      : {}),
+    ...(r.action === "stop" ? { stopped: true, remainingProcesses: 0 } : {}),
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const request = await launchRequest(transport, { allowanceMs: 5000 });
+  const chunks = [];
+  assert.equal(
+    (await transport.run(request, (bytes) => chunks.push(bytes.toString())))
+      .exitCode,
+    1,
+  );
+  assert.deepEqual(
+    chunks,
+    [first, last],
+    "unchanged polls cannot duplicate events",
+  );
+  assert.equal(polls, 3);
+  assert.equal(fixture.requests.filter((r) => r.action === "stop").length, 1);
+});
+
+test("rewritten native log prefixes refuse completion and still stop the exact worker", async (t) => {
+  let polls = 0;
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+    ...(r.action === "poll"
+      ? {
+          running: ++polls === 1,
+          exitCode: 0,
+          output: Buffer.from(
+            polls === 1 ? "original\n" : "replacement\n",
+          ).toString("base64"),
+        }
+      : {}),
+    ...(r.action === "stop" ? { stopped: true, remainingProcesses: 0 } : {}),
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const request = await launchRequest(transport, { allowanceMs: 5000 });
+  await assert.rejects(
+    transport.run(request, () => {}),
+    /Native coding stream changed/,
+  );
+  assert.deepEqual(
+    fixture.requests.find((r) => r.action === "stop").session,
+    session,
+  );
+});
+
+test("native process failures and forged observation bindings refuse inspection", async (t) => {
+  for (const failure of [
+    "json",
+    "oversized",
+    "session",
+    "executable",
+    "binding",
+  ])
+    await t.test(failure, async (t) => {
+      const fixture = nativeHost(t, (r) => ({
+        session: r.session,
+        binding: observation,
+        cliSha256: r.cliSha256,
+        ...(failure === "json" ? { rawOutput: "{" } : {}),
+        ...(failure === "oversized"
+          ? { rawOutput: "x".repeat(8 * 1024 * 1024 + 1) }
+          : {}),
+        ...(failure === "session"
+          ? { session: { ...r.session, fence: 99 } }
+          : {}),
+        ...(failure === "executable" ? { cliSha256: "0".repeat(64) } : {}),
+        ...(failure === "binding" ? { binding: null } : {}),
+      }));
+      const transport = new NativePodmanCodingTransport(
+        "aios-test",
+        "a".repeat(64),
+      );
+      await assert.rejects(transport.inspect(session));
+      assert.equal(fixture.requests.length, 1);
+      if (failure === "oversized")
+        assert.equal(fixture.processEffects.kills, 1);
+    });
+});
+
+test("a stalled native management process is terminated at the observation deadline", async (t) => {
+  const fixture = nativeHost(t, () => ({ hang: true }));
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const pending = transport.inspect(session);
+  const refusal = assert.rejects(
+    pending,
+    /Native coding observation timed out/,
+  );
+  t.mock.timers.tick(45000);
+  await refusal;
+  assert.equal(fixture.processEffects.kills, 1);
+  assert.equal(fixture.requests.length, 1);
+});
+
+test("changed initial native pins refuse before any staging or worker effect", async (t) => {
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const request = await launchRequest(transport);
+  request.pins.policySha256 = "0".repeat(64);
+  await assert.rejects(
+    transport.run(request, () => {}),
+    /Native coding authority changed/,
+  );
+  assert.equal(
+    fixture.requests.every((r) => r.action === "inspect"),
+    true,
+  );
+});
+
+test("revocation during host preparation refuses the guest management effect", async (t) => {
+  let allowed = true;
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+    ...(r.action === "stop" ? { stopped: true, remainingProcesses: 0 } : {}),
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const request = await launchRequest(transport, {
+    mayDispatch: () => allowed,
+  });
+  let versions = 0;
+  t.mock.method(childProcess, "spawnSync", () => {
+    if (++versions === 2) allowed = false;
+    return {
+      status: 0,
+      stdout: JSON.stringify({ Client: { Version: "6.1.1" } }),
+    };
+  });
+  syncBuiltinESMExports();
+  await assert.rejects(
+    transport.run(request, () => {}),
+    /Native coding authority changed/,
+  );
+  assert.equal(
+    fixture.requests.some((r) => r.action === "prepare"),
+    false,
+  );
+  assert.equal(
+    fixture.requests.some((r) => r.action === "stop"),
+    true,
+  );
+});
