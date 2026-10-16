@@ -16,7 +16,7 @@ Use the [implementation reference](../../docs/implementation-status.md) for evid
 | [01: Submit a feature request and inspect durable delivery status](issues/01-durable-request-status.md) | None | 1, 2, 33, 49, 50 |
 | [02: Report repository onboarding readiness without changing setup](issues/02-onboarding-readiness.md) | 1 | 5, 6, 7, 8 |
 | [03: Queue, pause, cancel and recover repository-owned deliveries](issues/03-ownership-pause-recovery.md) | 1 | 9, 10, 34, 35, 36, 37 |
-| [04: Launch an isolated worker with a fail-closed qualification gate](issues/04-isolated-worker-gate.md) | 2, 3 | 12, 13, 14, 15 |
+| [04: Launch an isolated worker with a fail-closed qualification gate](issues/04-isolated-worker-gate.md) | None — 02/03 satisfied | 12, 13, 14, 15 |
 | [05: Implement a bounded feature and safely admit the worker result](issues/05-bounded-feature-candidate.md) | 4 | 3, 4, 11, 30, 31, 37 |
 | [06: Validate baseline and candidate behavior inside isolation](issues/06-isolated-validation.md) | 5 | 16, 17, 18, 19, 20, 21, 22, 23 |
 | [07: Repair validation findings within persisted allowances](issues/07-bounded-validation-repair.md) | 6 | 30, 31 |
