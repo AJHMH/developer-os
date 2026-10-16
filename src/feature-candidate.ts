@@ -611,11 +611,28 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     codingTurn(execution, launch.threadId);
     return execution;
   }
-  stop(session: CodingSession) {
-    return this.transport.stop(session);
+  private async inspectSession(session: CodingSession): Promise<void> {
+    const observed = await this.transport.inspect(session);
+    if (
+      this.transport.mode !== "controlled" ||
+      JSON.stringify(observed) !== JSON.stringify(this.pins)
+    )
+      throw Error("Coding management binding changed");
   }
-  collect(session: CodingSession) {
-    return this.transport.collect(session);
+  async stop(session: CodingSession) {
+    const binding = Object.freeze(structuredClone(session));
+    // Always attempt exact-session shutdown, even when execution pins changed.
+    // A receipt only becomes trusted after a fresh independent observation.
+    const receipt = { ...(await this.transport.stop(binding)) };
+    await this.inspectSession(binding);
+    return receipt;
+  }
+  async collect(session: CodingSession) {
+    const binding = Object.freeze(structuredClone(session));
+    await this.inspectSession(binding);
+    const receipt = await this.transport.collect(binding);
+    await this.inspectSession(binding);
+    return receipt;
   }
 }
 

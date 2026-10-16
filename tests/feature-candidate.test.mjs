@@ -506,7 +506,8 @@ test("the pinned adapter refuses an independently measured executable mismatch b
   const result = await f.controller.codeFeature(f.delivery.id);
   assert.equal(dispatched, false);
   assert.equal(result.feature.candidate, undefined);
-  assert.equal(result.feature.session.state, "stopped");
+  assert.equal(result.feature.session.state, "uncertain");
+  assert.equal(result.blocker.code, "UNCERTAIN_SESSION");
 });
 
 test("source admission recognizes equivalent native and Git worktree root spellings", async (t) => {
@@ -896,6 +897,7 @@ for (const drift of [
     const adapter = new PinnedCodingRuntime(f.runtime.pins, {
       mode: "controlled",
       async inspect(request) {
+        if (!("argv" in request)) return { ...f.runtime.pins };
         inspected = true;
         if (drift === "command arguments")
           request.argv.splice(
@@ -949,6 +951,7 @@ test("pin inspection cannot replace controller authority to launch paused work",
   const adapter = new PinnedCodingRuntime(f.runtime.pins, {
     mode: "controlled",
     async inspect(request) {
+      if (!("argv" in request)) return { ...f.runtime.pins };
       await f.controller.pause(f.delivery.id);
       request.mayDispatch = () => true;
       return { ...f.runtime.pins };
@@ -984,6 +987,7 @@ test("transport preparation uses owned admitted bytes despite a retained inspect
   const adapter = new PinnedCodingRuntime(f.runtime.pins, {
     mode: "controlled",
     async inspect(request) {
+      if (!("argv" in request)) return { ...f.runtime.pins };
       inspected = request;
       admittedBytes = Buffer.from(request.files[0].bytes);
       admittedArgs = [...request.argv];
