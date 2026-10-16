@@ -246,3 +246,11 @@ termination, assertions, coverage or approval requirements. Its reviewed head wa
 The historical timeout is still unexplained. Required-run results now provide the
 missing numeric observation boundary; a passing run remains healthy-host evidence,
 not historical causal proof. The external probe workflow remains removed.
+
+The independent repository variable `FACTORY_DISTRIBUTION_REVISION` was selected
+and read back at `b8fd86097527b20118bf277219d67c72825d05c1` on 16 October 2026,
+after Factory's merged-main checks passed. Exact committed consumer inspection at
+`571c8c4` passed: lock, reusable calls, runtime, profile and policy pack matched
+that independently selected immutable distribution; no workload commands ran in
+inspect mode. Consumer type checking, formatting and both review axes passed.
+Hosted validation of the final follow-up head remains required.
