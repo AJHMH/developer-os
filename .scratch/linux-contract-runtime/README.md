@@ -232,3 +232,17 @@ used because this comparison made no validation/review fix. The earlier one-cycl
 count remains. CI waiting is excluded. This is still PARTIAL; the missing evidence
 is a resource/process trace from an actually failing Linux contract execution.
 Passing more healthy hosts alone cannot close that gap.
+
+## Required-command diagnostic adoption
+
+PR #52 merged as `e406288`; its main checks passed and local main was synced.
+Because a merged PR cannot receive new commits, adoption continues in a separate
+follow-up PR. Merged Software Factory PR #72 revision
+`b8fd86097527b20118bf277219d67c72825d05c1` adds bounded in-memory resource
+counters to actual required command execution, without changing command deadlines,
+termination, assertions, coverage or approval requirements. Its reviewed head was
+`c6a4025`; the independently selected consumer variable must match the merged pin.
+
+The historical timeout is still unexplained. Required-run results now provide the
+missing numeric observation boundary; a passing run remains healthy-host evidence,
+not historical causal proof. The external probe workflow remains removed.
