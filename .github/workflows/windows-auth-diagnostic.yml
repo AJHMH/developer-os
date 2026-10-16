@@ -1,0 +1,27 @@
+name: Temporary cold auth diagnosis
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  cold-sample:
+    if: github.head_ref == 'codex/windows-cold-auth-diagnosis'
+    name: Cold auth diagnostic sample (${{ matrix.sample }}/4)
+    runs-on: windows-latest
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: node --test --test-concurrency=1 --test-name-pattern="^separate darwin authorization completes|^Windows host storage works without PowerShell" tests/auth-host.test.mjs tests/windows-auth-store.test.mjs
