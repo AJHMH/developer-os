@@ -2,7 +2,17 @@
 
 Developer OS is an implemented Factory consumer alongside `AJHMH/profile-page`, using the `node-24-typescript-cli` profile. Consumer adoption was merged; full certification remains unverified in retained evidence.
 
-`factory.lock.yaml` and both reusable calls pin distribution 1.1.0 at `b8fd86097527b20118bf277219d67c72825d05c1`, adopting merged Software Factory PR #72. Required contract commands now retain bounded numeric resource diagnostics under their existing deadlines and process supervision. The historical Linux timeout remains unexplained. The independently selected GitHub variable must match this revision; the adoption receipt records its verified selection. Earlier hosted receipts below describe their recorded revisions.
+`factory.lock.yaml`, both reusable calls and the approval-refresh tool select
+Factory `26c641d207c0754eeb2037679d944cebe62977ff` (Factory PR #74).
+Factory PR #74 received owner review and merged. Set the
+independently approved `FACTORY_DISTRIBUTION_REVISION` to the reviewed revision
+before the consumer upgrade can pass adoption inspection. The new certification
+path retains the successful exact-head PR package and gate reports, checks that
+the merged tree and baseline match, and rechecks live approvals and protection.
+Native CI, CodeQL and Factory adoption run on PRs; merging to main does not repeat
+them. Certification stays an explicit dispatch using the PR head and its producer
+run ID, with no consumer build or test execution. See the
+[rollout record](../.scratch/pr-evidence-certification/spec.md).
 
 Native CI runs typecheck, formatting, all tests and build on Node 24. CodeQL scans
 the full TypeScript CLI and GitHub Actions at the exact source revision. The

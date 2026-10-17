@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 const repository = "AJHMH/developer-os";
-const factoryRevision = "b9ddb90de815b68787e741bb2c8118e7b6a784d9";
+const factoryRevision = "26c641d207c0754eeb2037679d944cebe62977ff";
 // Immutable blob from the independently approved Factory policy at that revision.
 const policyBlob = "164c8371ce4239120a554203bed3448877fe1684";
 const jobNames = [
