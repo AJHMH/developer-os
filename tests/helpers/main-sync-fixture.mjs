@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { DeliveryController } from "../../dist/controller.js";
 import { mainSyncControls } from "../../dist/main-sync.js";
 import { mergeFixture } from "./merge-fixture.mjs";
+import { observedFixturePush } from "./git-phase-evidence.mjs";
 
 export async function syncFixture(t) {
   const f = await mergeFixture(t);
@@ -22,7 +23,11 @@ export async function syncFixture(t) {
   });
   f.run = (args, cwd = f.repository, input) => {
     const started = performance.now();
-    const result = spawnSync(
+    const native =
+      process.platform === "win32" && args[0] === "push"
+        ? observedFixturePush
+        : spawnSync;
+    const result = native(
       "git",
       [
         "-c",
