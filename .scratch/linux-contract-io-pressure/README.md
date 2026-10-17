@@ -93,3 +93,36 @@ immutable setup-node/upload-artifact pins. Those official action SHAs are now
 pinned, with syntax and YAML checks repeated. Charge ten additional active minutes
 for this comparison preparation and one review-fix cycle: ten active minutes and
 one repair cycle remain. CI waiting is excluded.
+
+## Native comparison results and cleanup
+
+Verified App source d2cab635773c2db43fac9336f2565ab8f66ef4ca, diagnostic run
+38998846680: both hosts completed successfully. All contract stages passed.
+
+| Host order | Disk test seconds | Memory test seconds | Disk I/O some | Memory I/O some |
+| --- | ---: | ---: | ---: | ---: |
+| Disk first | 100.047 | 93.264 | 3.01% | 0.01% |
+| Memory first | 102.166 | 99.819 | 2.58% | 0.03% |
+
+Memory-backed fixtures improved elapsed time by 6.8 and 2.3 seconds respectively;
+these healthy observations did not reproduce the failure. Near-zero I/O pressure
+on tmpfs does not eliminate most of the healthy runtime. The failed host's 38.22%
+I/O-pressure observation therefore remains a significant association requiring
+failed-host process/device attribution. No historical causal diagnosis or reliable
+minimized red reproduction is established. No production/test repair is proposed.
+
+The structured file retains all stage resource samples and artifact fingerprints,
+without raw child output or credentials. Full workflow artifacts retain the
+original complete results. Both private mounts were removed by successful final
+workflow cleanup steps. The temporary workflow is removed from the final tree;
+no required workflow, normal test, production file or contract changes.
+
+A useful next boundary is bounded per-process/device I/O attribution during an
+actual failing required run. Another healthy-host loop alone cannot supply that.
+Any shared Factory diagnostic extension requires a separately reviewed proposal;
+no additional unchanged-main replay is authorized by default. Windows shard 2's
+two separate failures and the original Windows Git push cause remain unresolved.
+
+Charge five additional active minutes for result analysis and cleanup: five active
+minutes and one repair cycle remain. CI waiting is excluded. The evidence remains
+PARTIAL. Required checks must still pass without waiver before main is green.
