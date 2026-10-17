@@ -166,6 +166,9 @@ def effective(c,live):
 def path_ok(path):
  parts=path.split('/')
  return bool(path) and '\\' not in path and ':' not in path and all(p and p not in ['.','..'] and not re.search(r'[\x00-\x1f\x7f]',p) and not re.search(r'[. ]$',p) and not re.match(r'^(\.git|\.env(\..*)?|\.ssh|\.gnupg|\.aws|\.codex|\.agents|\.claude|\.npmrc|\.mcp\.json|sbxenv\.ya?ml)$',p,re.I) and not re.search(r'\.(pem|key|p12|pfx)$',p,re.I) and not re.match(r'^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)',p,re.I) for p in parts)
+def require_timers():
+ for suffix in ['-lease.timer','-deadline.timer']:
+  if command(['systemctl','--user','is-active',R['name']+suffix]).strip()!=b'active': fail()
 def lease(start=False):
  unit=R['name']+'-lease'
  remaining=record['deadline']-time.monotonic()
@@ -177,12 +180,13 @@ def lease(start=False):
   for name,seconds in [(unit,min(remaining,30)),(R['name']+'-deadline',remaining)]:
    command(['systemd-run','--user','--unit='+name,'--on-active='+str(seconds)+'s','--timer-property=AccuracySec=100ms','/usr/bin/podman','kill','--signal','KILL',R['name']])
  else:
+  # Never renew a missing/expired lease or continue without the fixed deadline.
+  require_timers()
   # Avoid the manager's start-rate limit; do not weaken it or the 30s lease.
   renew=time.monotonic()-record['leaseRenewedAt']>=10
   if renew: command(['systemctl','--user','restart',unit+'.timer'])
- if command(['systemctl','--user','is-active',unit+'.timer']).strip()!=b'active': fail()
- if start and command(['systemctl','--user','is-active',R['name']+'-deadline.timer']).strip()!=b'active': fail()
  if start or renew:
+  require_timers()
   record['leaseRenewedAt']=time.monotonic();save(recordPath,record)
 def timer_state(unit):
  lines=command(['systemctl','--user','show',unit,'--property=LoadState,ActiveState,Job']).decode('ascii').splitlines()

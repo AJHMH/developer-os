@@ -505,6 +505,37 @@ const posixGuest = {
       : false,
 };
 
+for (const timer of ["deadline", "lease"])
+  for (const state of ["missing", "inactive", "failed"])
+    test(
+      `native timer loss after launch stops before output: ${timer} ${state}`,
+      posixGuest,
+      async (t) => {
+        const { transport, read } = guestFixture(t, {
+          keepRunning: true,
+          stopAfterPolls: 3,
+          loseTimerAfterLaunch: timer,
+          advanceAfterLaunch: 11,
+          ...(state === "missing" ? {} : { timerLossState: state }),
+        });
+        const request = await launchRequest(transport, { allowanceMs: 60000 });
+        const output = [];
+        await assert.rejects(
+          transport.run(request, (bytes) => output.push(bytes)),
+        );
+        assert.deepEqual(output, []);
+        assert.equal(read().alive, false);
+        assert.equal(
+          read().commands.some(
+            (args) => args[0] === "systemctl" && args[2] === "restart",
+          ),
+          false,
+        );
+        assert.equal((await transport.stop(session)).remainingProcesses, 0);
+        assert.equal((await transport.collect(session)).complete, true);
+      },
+    );
+
 test(
   "native management persists a revocation before a delayed first dispatch",
   posixGuest,

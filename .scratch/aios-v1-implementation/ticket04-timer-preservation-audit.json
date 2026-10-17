@@ -1,0 +1,10 @@
+{
+  "base": "7aba7fb64101a9461363fbaa66729158fde161af",
+  "existingFiles": 85,
+  "byteIdentical": 83,
+  "additiveOnly": [
+    "tests/helpers/native-coding-guest.py",
+    "tests/worker-native-coding.test.mjs"
+  ],
+  "removedExistingTestLines": 0
+}

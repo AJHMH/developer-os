@@ -1,6 +1,6 @@
 # 04: Launch an isolated worker with a fail-closed qualification gate
 
-**Status:** ready-for-agent — implementation partial; paused on an unexplained Windows baseline timeout; production qualification pending
+**Status:** ready-for-agent — implementation partial; resumed by owner; production qualification pending
 
 **What to build:** Run a pinned dedicated Podman worker for admitted feature work
 only after fresh, version-bound host, workspace, model-only authentication,
@@ -11,10 +11,14 @@ launch; there is no host/shared-runtime fallback.
 and [03: ownership and recovery](03-ownership-pause-recovery.md) are completed
 prerequisites, not current blockers.
 
-**Current validation blocker:** The unrelated cold Windows storage timeout remains
-unexplained. Main's diagnostic follow-up is green, but successful samples and a
-historical unchanged-source rerun do not resolve the earlier failure. Further
-Issue 04 implementation is paused under the approved baseline-failure rule;
+**Current baseline and historical failures:** Before this continuation, local and
+GitHub main were synchronized at `7aba7fb64101a9461363fbaa66729158fde161af`.
+All 25 main check results completed successfully or were explicitly non-applicable;
+the Developer OS CI, Factory validation and CodeQL workflows passed. The owner
+then explicitly requested resuming Issue 04. Earlier Windows storage and Linux
+contract timeouts remain unexplained; this passing observation neither fixes
+nor waives those historical failures. A new baseline failure stops further
+implementation and requires separate authorization before unrelated repair.
 02/03 remain completed. See the
 [Windows phase diagnosis](../../windows-ci-storage-startup/phase-profile-20261016.md).
 
@@ -98,6 +102,15 @@ criteria are satisfied. Production dispatch remains disabled until then. Complet
 platform delivery qualification (15–16) and the observed pilot (17) remain separate.
 
 ## Current implementation work
+
+The resumed slice continuously verifies both independent native timers while a
+worker is running, including before renewing its lease. Loss of the fixed deadline
+or a missing/inactive/failed lease stops the run before accepting output; renewal
+cannot revive a lease that was already observed inactive. Existing durations,
+renewal cadence and shutdown/collection requirements remain unchanged. Simulator
+evidence is implementation validation only; independent native timer expiry and
+controller-loss qualification remain open. See the
+[timer continuity receipt](../ticket04-native-timer-continuity-receipt.md).
 
 The first remaining slice implements general coding launch-data binding at the
 existing public controller/observation seam. It refuses changes to arguments,
