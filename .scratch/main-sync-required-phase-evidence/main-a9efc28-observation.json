@@ -1,0 +1,8043 @@
+{
+  "run": 38994377121,
+  "revision": "a9efc28df8e48977da336cc890edd90dfc40062f",
+  "records": [
+    {
+      "operation": "push",
+      "elapsedMs": 428,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.02037
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.008615
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.065008,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.0076
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.004836,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000206,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000713,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.046112,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.046129,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.057635,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007432
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.07234,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.072357,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.084539,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007285
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007418
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.031283,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.031303,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.042784,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.066814,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.066829,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.078191,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.00835
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.9e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.029625,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.02964,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.047927,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.314335,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.314356,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.359542,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.294441,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.364285,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.402482,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.402505,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 347,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.02029
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007821
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.060498,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007721
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000968,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000242,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000752,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.022423,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.022441,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.03344,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007285
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.038175,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.038193,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.049639,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007931
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007911
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.02405,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.024064,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.034802,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.064059,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.064081,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.075083,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.00862
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025383,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.025399,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.037459,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.241818,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.241842,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.283165,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.221592,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.287195,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.322882,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.322905,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 319,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 30508,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.021542
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007292
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.056497,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007649
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001024,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.00044,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.021898,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.021952,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.033531,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.008084
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.021978,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.021993,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.034307,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007799
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.006998
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.020795,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.020809,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.031771,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.056328,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.056342,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.067609,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008155
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.8e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025101,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.025122,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.040522,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.217063,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.217079,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.256187,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.199445,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.259602,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.295211,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.295226,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 182,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 11895,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.021554
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007858
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.057198,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.008441
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 1.4e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.024578,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.024592,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.041786,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.069354,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.069371,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.107882,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.050744,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.111248,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.158828,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.158841,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 376,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31361,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.021515
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007664
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.054688,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.008505
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000735,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000188,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000622,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.022442,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.022455,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.034222,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.008296
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.076496,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.076512,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.08841,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.006996
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.006998
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.020409,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.020423,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.031803,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.055344,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.055358,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.066252,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008207
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 2.8e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.024313,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.024327,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.04831,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.273943,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.273964,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.31258,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.257747,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.316667,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.352321,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.352335,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 335,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.022761
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007442
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.055957,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007903
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001208,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000247,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000652,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.023484,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.023502,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.034552,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007654
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.037553,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.03757,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.049318,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007115
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007751
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.023803,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.023824,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.035276,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.063171,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.063185,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.0745,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007955
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.4e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.023368,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.023382,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.037111,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.229208,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.229228,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.268663,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.211872,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.27196,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.312152,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.312168,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 435,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.024
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007416
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.057004,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007869
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000678,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000182,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000717,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.023276,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.023294,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.035056,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007957
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.110764,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.110781,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.122883,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007405
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.010044
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.029729,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.02975,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.043506,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.067455,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.067474,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.079544,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.0103
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.02934,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.029364,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.044458,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.315917,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.315938,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.359658,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.302609,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.365914,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.405576,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.405595,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 1562,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.14546
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.006792
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.070707,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.006862
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001074,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000266,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000671,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.021116,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.021129,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.032234,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.006646
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.813583,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.813605,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.825473,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007176
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.006781
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.025087,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.025102,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.035802,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.059007,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.059021,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.070222,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008627
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.4e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.028018,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.028033,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.041031,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 1.256717,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 1.256736,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 1.312047,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 1.240381,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 1.315313,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 1.538777,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 1.538792,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 338,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.02168
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007936
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.057508,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.008413
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000693,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000182,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000686,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.026952,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.026965,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.038703,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007178
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.0367,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.036715,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.049007,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007726
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.0074
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.020844,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.020857,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.032475,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.057475,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.05749,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.068754,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007333
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.4e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.022401,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.022415,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.03707,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.226809,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.226825,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.26793,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.210313,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.272122,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.312866,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.312882,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 338,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.022158
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007573
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.060325,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.008195
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001609,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000443,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000907,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.024259,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.024278,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.036992,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.008341
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.040109,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.040126,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.05224,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007836
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007385
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.021558,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.02158,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.033384,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.059872,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.059886,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.07116,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008111
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.023128,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.023142,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.036875,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.232634,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.232657,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.271755,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.210121,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.275216,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.31222,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.31224,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 342,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.021591
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007902
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.059762,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007728
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000925,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 7.6e-05,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000506,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.022656,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.022674,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.034471,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007455
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.029146,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.029165,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.040786,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.008823
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.006613
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.02017,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.020185,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.030953,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.056188,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.056202,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.066893,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007856
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.9e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025108,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.025124,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.045143,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.231266,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.231286,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.273714,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.213095,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.276965,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.316604,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.316619,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 342,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.020757
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007538
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.059559,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007917
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001008,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000339,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000826,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.026092,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.026121,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.038793,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.009281
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.044031,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.044046,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.057189,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.008487
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.008331
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.022264,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.022279,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.034503,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.058437,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.058457,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.070381,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007984
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.023445,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.02346,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.035398,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.237912,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.237932,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.278983,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.21938,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.282952,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.318707,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.318721,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 349,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.022425
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007443
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.055566,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.008069
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001201,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000258,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000621,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.023949,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.023962,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.03531,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007474
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.040689,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.040708,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.053953,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.009646
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.008109
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.022728,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.022742,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.035362,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.065398,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.065413,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.077564,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007089
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.022314,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.022328,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.033995,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.241851,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.241873,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.281269,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.224287,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.284658,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.325131,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.325153,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 360,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.022444
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.008428
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.060424,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.0069
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001089,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000267,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000944,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.024847,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.024869,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.03677,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.008853
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.059709,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.059723,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.073476,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.008636
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007679
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.021787,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.021801,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.033506,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.05739,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.057404,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.069355,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007495
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.022995,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.023014,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.036584,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.250427,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.250447,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.293574,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.233099,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.298046,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.335249,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.335263,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 331,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31683,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.020321
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.008729
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.062861,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.009228
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001389,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000276,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.00068,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.025119,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.025136,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.038831,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.00812
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.038513,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.03853,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.050621,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007111
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007554
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.022196,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.022209,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.032714,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.056563,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.056582,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.067754,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008908
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.6e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.026595,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.02661,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.037798,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.230394,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.230412,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.271022,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.207158,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.273972,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.307768,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.307783,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 340,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.019403
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007068
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.054137,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.009418
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000725,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000188,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000657,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.023049,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.023063,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.034782,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007464
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.050035,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.05005,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.061567,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007799
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007793
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.021046,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.02106,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.032712,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.056237,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.056251,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.067229,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007004
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.7e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.022088,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.022112,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.042229,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.242601,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.242617,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.280687,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.226466,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.284592,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.317646,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.317661,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 344,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.019175
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007674
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.05744,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007635
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001219,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.00024,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000719,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.02185,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.021863,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.032933,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.00718
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.036398,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.036428,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.048243,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007384
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007267
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.021451,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.021464,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.03202,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.055108,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.055122,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.065953,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008931
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.027332,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.027348,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.049395,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.247309,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.24733,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.28648,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.227776,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.289524,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.322064,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.32208,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 353,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.025645
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.00781
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.059262,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007743
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000782,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000187,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000763,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.022101,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.022115,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.033267,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.008182
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.04586,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.045875,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.058717,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007377
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007799
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.025113,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.025133,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.036758,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.060809,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.060823,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.072274,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007967
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.4e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025293,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.025313,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.038225,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.236726,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.236747,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.276244,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.216879,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.280967,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.323457,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.323478,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 346,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.022765
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.008934
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.061116,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007035
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001108,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000239,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000704,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.021892,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.021905,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.03398,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.008869
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.042046,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.042066,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.054613,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.008792
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.008353
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.025274,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.025288,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.036839,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.06675,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.066772,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.080612,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008115
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025531,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.025551,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.037678,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.242057,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.242076,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.281672,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.219455,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.28515,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.322297,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.32232,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 342,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.0218
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.009201
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.06214,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007765
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000679,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000181,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000646,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.026739,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.026754,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.038812,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007739
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.038171,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.038187,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.050485,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.008025
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.00844
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.024651,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.02467,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.036056,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.061619,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.061634,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.074059,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008058
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025248,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.025268,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.036461,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.23559,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.235613,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.276474,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.214229,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.280669,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.317355,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.317369,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 374,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31685,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.021773
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007179
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.05795,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.008101
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001317,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.00049,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001013,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.024688,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.024705,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.036821,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007378
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.042323,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.042341,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.055378,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007539
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007723
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.027866,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.02788,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.039469,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.063683,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.063704,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.075114,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008958
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.030794,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.03081,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.052173,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.267223,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.267238,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.307951,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.249073,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.311063,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.349247,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.349262,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 341,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.022747
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007855
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.057814,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007192
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.00073,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000229,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000818,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.021115,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.021136,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.032887,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007108
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.036546,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.036562,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.048986,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.008247
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.007811
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.022568,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.022585,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.033365,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.058247,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.05827,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.069932,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008528
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.9e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.026722,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.026737,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.048411,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.231668,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.23169,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.271998,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.214127,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.27595,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.317594,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.317608,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 334,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.023074
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007549
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.055661,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007857
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001029,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000243,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.023294,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.023311,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.035054,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007019
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.040675,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.040693,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.052875,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007647
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.0078
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.024733,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.024755,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.036819,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.061487,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.061502,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.073586,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007465
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.4e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.02347,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.023484,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.038057,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.230219,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.230239,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.269362,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.212538,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.272324,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.309255,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.30927,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 338,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31684,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.020725
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.009125
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.061962,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.007448
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001117,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000239,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000743,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.022681,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.0227,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.034593,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007791
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.033583,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.033602,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.045246,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.00795
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.006633
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.024634,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.02465,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.035252,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.059787,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.059801,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.07086,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.008181
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.4e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.026483,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.026498,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.037466,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.234454,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.23447,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.277654,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.21461,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.280726,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.314393,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.314409,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 366,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31360,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.022629
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007225
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.056784,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.01162
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000851,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000231,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.001107,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.029613,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.029632,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.053967,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.009046
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.043949,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.043974,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.065886,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.007058
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.006969
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.020484,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.020499,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.032637,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.055432,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.055446,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.067682,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.007126
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.5e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025286,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.025308,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.0502,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.2577,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.257716,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.297468,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.240592,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.302349,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.3417,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.341714,
+          "code": 0
+        }
+      ]
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 396,
+      "timeoutMs": 5000,
+      "status": 0,
+      "cleanupFailed": false,
+      "traceAvailable": true,
+      "bytesRead": 31685,
+      "truncated": false,
+      "malformedLines": 0,
+      "events": [
+        {
+          "event": "start",
+          "process": 0,
+          "t_abs": 0.027867
+        },
+        {
+          "event": "cmd_name",
+          "process": 0,
+          "command": "push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 1,
+          "t_abs": 0.007524
+        },
+        {
+          "event": "cmd_name",
+          "process": 1,
+          "command": "receive-pack"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.061468,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_enter",
+          "process": 0,
+          "category": "transport_push"
+        },
+        {
+          "event": "child_start",
+          "process": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 2,
+          "t_abs": 0.009437
+        },
+        {
+          "event": "cmd_name",
+          "process": 2,
+          "command": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.00188,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.00048,
+          "category": "pack-objects"
+        },
+        {
+          "event": "region_enter",
+          "process": 2,
+          "category": "pack-objects"
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 2,
+          "t_rel": 0.000815,
+          "category": "pack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 2,
+          "t_abs": 0.029408,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 2,
+          "t_abs": 0.029426,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.042831,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 3,
+          "t_abs": 0.007396
+        },
+        {
+          "event": "cmd_name",
+          "process": 3,
+          "command": "unpack-objects"
+        },
+        {
+          "event": "exit",
+          "process": 3,
+          "t_abs": 0.068993,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 3,
+          "t_abs": 0.069013,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.081105,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 1
+        },
+        {
+          "event": "start",
+          "process": 4,
+          "t_abs": 0.006801
+        },
+        {
+          "event": "cmd_name",
+          "process": 4,
+          "command": "other"
+        },
+        {
+          "event": "child_start",
+          "process": 4,
+          "child_id": 0
+        },
+        {
+          "event": "start",
+          "process": 5,
+          "t_abs": 0.006884
+        },
+        {
+          "event": "cmd_name",
+          "process": 5,
+          "command": "other"
+        },
+        {
+          "event": "exit",
+          "process": 5,
+          "t_abs": 0.020526,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 5,
+          "t_abs": 0.02054,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 4,
+          "t_rel": 0.03182,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "exit",
+          "process": 4,
+          "t_abs": 0.053949,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 4,
+          "t_abs": 0.053973,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.064816,
+          "code": 0,
+          "child_id": 1
+        },
+        {
+          "event": "child_start",
+          "process": 1,
+          "child_id": 2
+        },
+        {
+          "event": "start",
+          "process": 6,
+          "t_abs": 0.00713
+        },
+        {
+          "event": "cmd_name",
+          "process": 6,
+          "command": "other"
+        },
+        {
+          "event": "region_enter",
+          "process": 6,
+          "category": "other"
+        },
+        {
+          "event": "region_leave",
+          "process": 6,
+          "t_rel": 1.9e-05,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 6,
+          "t_abs": 0.025867,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 6,
+          "t_abs": 0.02589,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 1,
+          "t_rel": 0.052307,
+          "code": 0,
+          "child_id": 2
+        },
+        {
+          "event": "exit",
+          "process": 1,
+          "t_abs": 0.283829,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 1,
+          "t_abs": 0.283845,
+          "code": 0
+        },
+        {
+          "event": "child_exit",
+          "process": 0,
+          "t_rel": 0.324062,
+          "code": 0,
+          "child_id": 0
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.261461,
+          "category": "transport_push"
+        },
+        {
+          "event": "region_leave",
+          "process": 0,
+          "t_rel": 0.327034,
+          "category": "other"
+        },
+        {
+          "event": "exit",
+          "process": 0,
+          "t_abs": 0.368106,
+          "code": 0
+        },
+        {
+          "event": "atexit",
+          "process": 0,
+          "t_abs": 0.368122,
+          "code": 0
+        }
+      ]
+    }
+  ],
+  "diagnosticOnly": true
+}
