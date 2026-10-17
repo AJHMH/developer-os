@@ -1,0 +1,198 @@
+{
+  "status": "PARTIAL",
+  "source": "d1b3cc840de4cbd6dc75032474db45fee4951c2a",
+  "baseline": "a9efc28df8e48977da336cc890edd90dfc40062f",
+  "factoryRevision": "b8fd86097527b20118bf277219d67c72825d05c1",
+  "runs": [
+    {
+      "label": "green-main",
+      "run": 38994377357,
+      "stages": [
+        {
+          "phase": "head-install",
+          "status": "passed",
+          "durationMs": 725,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "head-build",
+          "status": "passed",
+          "durationMs": 4013,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "base-install",
+          "status": "passed",
+          "durationMs": 573,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "base-build",
+          "status": "passed",
+          "durationMs": 4051,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "unit-tests",
+          "status": "passed",
+          "durationMs": 89639,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": true,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "integration-tests",
+          "status": "passed",
+          "durationMs": 2239,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "head-instrumentation",
+          "status": "passed",
+          "durationMs": 97040,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": true,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "base-instrumentation",
+          "status": "passed",
+          "durationMs": 100469,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": true,
+          "resourceDiagnosticsPresent": false
+        }
+      ]
+    },
+    {
+      "label": "failed-pr61",
+      "run": 38996294286,
+      "stages": [
+        {
+          "phase": "head-install",
+          "status": "passed",
+          "durationMs": 577,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "head-build",
+          "status": "passed",
+          "durationMs": 2982,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "base-install",
+          "status": "passed",
+          "durationMs": 427,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "base-build",
+          "status": "passed",
+          "durationMs": 2966,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "unit-tests",
+          "status": "failed",
+          "durationMs": 120009,
+          "exitCode": null,
+          "signal": "SIGKILL",
+          "timedOut": true,
+          "terminationFailed": false,
+          "truncated": true,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "integration-tests",
+          "status": "passed",
+          "durationMs": 2331,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": false,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "head-instrumentation",
+          "status": "passed",
+          "durationMs": 114711,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "terminationFailed": false,
+          "truncated": true,
+          "resourceDiagnosticsPresent": false
+        },
+        {
+          "phase": "base-instrumentation",
+          "status": "failed",
+          "durationMs": 120013,
+          "exitCode": null,
+          "signal": "SIGKILL",
+          "timedOut": true,
+          "terminationFailed": false,
+          "truncated": true,
+          "resourceDiagnosticsPresent": false
+        }
+      ]
+    }
+  ],
+  "normalSourceDiffEmpty": true,
+  "rootCause": "unknown"
+}
