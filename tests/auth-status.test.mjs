@@ -35,7 +35,12 @@ const inspect = (value, selected = id) =>
     arch: "x64",
     now: () => 70000,
     registration: () => ({ hostId: account.hostId }),
-    readAccount: () => Buffer.from(JSON.stringify(value)).toString("base64"),
+    vault: () => ({
+      read: () => Buffer.from(JSON.stringify(value)).toString("base64"),
+      write: () => {
+        throw Error("read-only");
+      },
+    }),
   });
 test("host auth status returns only eligibility metadata without granting inference", () => {
   const result = inspect(account);
@@ -88,7 +93,7 @@ test("malformed selection and unsupported hosts refuse before opening protected 
       reads++;
       throw Error("synthetic-private");
     },
-    readAccount: () => {
+    vault: () => {
       reads++;
       throw Error("synthetic-private");
     },
@@ -207,7 +212,12 @@ test("auth status supports independent Apple silicon inspection and refuses malf
     platform: "darwin",
     arch: "arm64",
     registration: () => ({ hostId: account.hostId }),
-    readAccount: () => Buffer.from(JSON.stringify(account)).toString("base64"),
+    vault: () => ({
+      read: () => Buffer.from(JSON.stringify(account)).toString("base64"),
+      write: () => {
+        throw Error("read-only");
+      },
+    }),
     now: () => 70000,
   };
   assert.equal(
@@ -218,7 +228,12 @@ test("auth status supports independent Apple silicon inspection and refuses malf
     assert.equal(
       inspectSubscriptionAuth("/auth", "/repo", "/state", id, {
         ...adapters,
-        readAccount: () => encoded,
+        vault: () => ({
+          read: () => encoded,
+          write: () => {
+            throw Error("read-only");
+          },
+        }),
       }).status,
       "unavailable",
     );

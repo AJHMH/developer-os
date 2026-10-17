@@ -1,21 +1,25 @@
-import { subscriptionGatewayVersion } from "./subscription-gateway.js";
-import { nativeProbeDiagnostic } from "./native-diagnostics.js";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
-import { podmanMachine, podmanCommand } from "./podman-platform.js";
-import { NativePodmanDriver, codexWorkerSha256 } from "./podman-native.js";
+import { isAbsolute, resolve } from "node:path";
 import { inspectCodexMediation } from "./codex-mediation.js";
 import type {
   Delivery,
   WorkerAdapter,
-  WorkerSession,
   WorkerReceipt,
+  WorkerSession,
 } from "./controller.js";
+import { validEffectiveControls, validHostBinding } from "./host-target.js";
+import { nativeProbeDiagnostic } from "./native-diagnostics.js";
+import { pathContains } from "./path-containment.js";
+import { NativePodmanDriver, codexWorkerSha256 } from "./podman-native.js";
+import { podmanCommand, podmanMachine } from "./podman-platform.js";
+import { stampQualificationVersions } from "./qualification-versions.js";
 import {
   unavailableQualification,
   type WorkerQualification,
 } from "./qualification.js";
+import { subscriptionGatewayVersion } from "./subscription-gateway.js";
+import { codexProbeStages } from "./vm-management.js";
 
 export interface PodmanObservation {
   binding: Record<string, unknown>;
@@ -71,11 +75,7 @@ function ordinary(path: string): string {
   return realpathSync(path);
 }
 function inside(parent: string, child: string): boolean {
-  const rel = relative(realpathSync(parent), child);
-  return (
-    rel === "" ||
-    (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
-  );
+  return pathContains(realpathSync(parent), child);
 }
 /** Read-only prerequisites cannot establish effective isolation. */
 function observeHost(machine: string): PodmanObservation {
@@ -135,6 +135,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
       authorityDirectory,
     );
     report.mode = this.options.mode ?? "live";
+    report.runtimeVersions = stampQualificationVersions();
     report.blockers = [
       "Production worker execution and inference remain disabled; offline admission does not establish isolation qualification.",
     ];
@@ -213,41 +214,11 @@ export class PodmanHostAdapter implements WorkerAdapter {
         if (!binding[key] || binding[key] !== policy.binding[key])
           throw Error("Changed binding");
       if (
-        !(
-          (binding.platform === "win32" &&
-            binding.arch === "x64" &&
-            binding.provider === "hyperv" &&
-            /^10\.0\.(\d+)$/.test(binding.osVersion!) &&
-            Number(binding.osVersion!.split(".")[2]) >= 22000) ||
-          (binding.platform === "darwin" &&
-            binding.arch === "arm64" &&
-            binding.provider === "applehv" &&
-            /^\d+\.\d+\.\d+$/.test(binding.osVersion!) &&
-            Number(binding.osVersion!.split(".")[0]) >= 23)
-        ) ||
-        binding.machine !== this.options.machine ||
-        !/^aios-[a-z0-9-]+$/.test(binding.machine!) ||
-        !/^[a-f0-9]{64}$/.test(binding.hostId!) ||
-        !/^[a-f0-9]{64}$/.test(binding.vmImageSha256!) ||
-        !/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(binding.template!) ||
-        !/^\d+\.\d+\.\d+$/.test(binding.engineVersion!) ||
-        !/^\d+\.\d+\.\d+$/.test(binding.workerVersion!)
+        !validHostBinding(binding) ||
+        binding.machine !== this.options.machine
       )
         throw Error("Unsupported binding");
-      if (
-        effective.hypervisor !== true ||
-        effective.dedicated !== true ||
-        effective.managementExposed !== false ||
-        effective.rootful !== false ||
-        effective.network !== "none" ||
-        effective.readOnly !== true ||
-        effective.user !== "65534:65534" ||
-        effective.noNewPrivileges !== true ||
-        !Array.isArray(effective.mounts) ||
-        effective.mounts.length !== 0 ||
-        !Array.isArray(effective.capabilities) ||
-        effective.capabilities.length !== 0
-      )
+      if (!validEffectiveControls(effective))
         throw Error("Unsafe effective policy");
       report.bindingSha256 = digest(
         JSON.stringify(bindingKeys.map((key) => [key, binding[key]])),
@@ -344,50 +315,9 @@ export class PodmanHostAdapter implements WorkerAdapter {
               report.subscriptionMediation.modelFrameTransport = "passed";
             if (
               typeof observed.codex?.blockedStage === "string" &&
-              [
-                "codex-binding",
-                "codex-binary",
-                "codex-create",
-                "codex-copy",
-                "codex-version",
-                "codex-credential-denials",
-                "codex-initialize",
-                "codex-account-read",
-                "codex-start-task-budget",
-                "codex-resume-task-budget",
-                "codex-relay-task-budget",
-                "codex-explicit-resume",
-                "codex-resume-persistence",
-                "codex-persistence-read-error",
-                "codex-persistence-thread",
-                "codex-persistence-history",
-                "codex-resume-exit",
-                "codex-resume-kill",
-                "codex-resume-wait",
-                "codex-resume-status",
-                "codex-resume-census",
-                "codex-resume-initialize",
-                "codex-resume-account",
-                "codex-resume-history",
-                "codex-resume-rollout",
-                "codex-resume-permission",
-                "codex-resume-not-found",
-                "codex-process-exited",
-                "codex-process-audit",
-                "codex-relay-shutdown",
-                "codex-post-binding",
-                "codex-process-privileges",
-                "codex-process-environment",
-                "codex-relay-start",
-                "codex-relay-denials",
-                "codex-relay-turn",
-                "codex-relay-revocation",
-                "codex-relay-revoke-event",
-                "codex-relay-revoke-denial",
-                "codex-relay-peer-response",
-                "codex-relay-peer-count",
-                "codex-relay-expiry",
-              ].includes(observed.codex.blockedStage)
+              (codexProbeStages as readonly string[]).includes(
+                observed.codex.blockedStage,
+              )
             ) {
               report.subscriptionMediation.workerBlocker =
                 observed.codex.blockedStage;

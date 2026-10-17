@@ -1,16 +1,27 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
+import {
+  gatewayMarker,
+  gatewayRequest,
+  matchesInferenceRequest,
+  syntheticGatewayResponse,
+} from "./inference-contract.js";
+import {
+  accountEligibility,
+  inferenceWindowMs,
+  subscriptionAccountId,
+} from "./subscription-account.js";
+export {
+  gatewayMarker,
+  gatewayRequest,
+  syntheticGatewayResponse,
+} from "./inference-contract.js";
 
 export const subscriptionGatewayVersion = createHash("sha256")
   .update(readFileSync(new URL(import.meta.url)))
+  .update(readFileSync(new URL("./inference-contract.js", import.meta.url)))
+  .update(readFileSync(new URL("./subscription-account.js", import.meta.url)))
   .digest("hex");
-export const gatewayMarker = "AIOS model-only inference complete";
-export const gatewayRequest = JSON.stringify({
-  model: "gpt-6.1-sol",
-  input: [{ role: "user", content: `Say exactly: ${gatewayMarker}` }],
-  store: false,
-  stream: true,
-});
 
 export interface GatewayApproval {
   readonly runId: string;
@@ -102,7 +113,7 @@ export class HostSubscriptionGateway {
       approval.unknownUsageApproved !== true ||
       !Number.isSafeInteger(approval.expiresAt) ||
       approval.expiresAt <= Date.now() ||
-      approval.expiresAt > Date.now() + 30_000
+      approval.expiresAt > Date.now() + inferenceWindowMs
     )
       throw Error("Invalid host inference approval");
   }
@@ -131,68 +142,15 @@ export class HostSubscriptionGateway {
       Buffer.byteLength(raw) > 65536
     )
       throw Error("Gateway refused");
-    let value: any;
-    try {
-      value = JSON.parse(raw);
-    } catch {
-      throw Error("Gateway refused");
-    }
-    if (
-      value.model !== "gpt-6.1-sol" ||
-      value.stream !== true ||
-      value.store !== false ||
-      !Array.isArray(value.input) ||
-      !Array.isArray(value.tools ?? [])
-    )
-      throw Error("Gateway refused");
-    const users = value.input.filter((item: any) => item?.role === "user");
-    const text = (item: any) =>
-      typeof item.content === "string"
-        ? item.content
-        : Array.isArray(item.content) &&
-            item.content.length === 1 &&
-            item.content[0]?.type === "input_text"
-          ? item.content[0].text
-          : undefined;
-    // Codex may send environment/user context before the turn. None is forwarded.
-    if (
-      users.length < 1 ||
-      text(users.at(-1)) !== `Say exactly: ${gatewayMarker}` ||
-      value.input.some(
-        (item: any) =>
-          !["message", "additional_tools", undefined].includes(item?.type) ||
-          !["user", "developer", "system"].includes(item?.role),
-      ) ||
-      (value.tools ?? []).some(
-        (tool: any) =>
-          tool?.type !== "function" ||
-          typeof tool.name !== "string" ||
-          tool.name.startsWith("mcp__"),
-      )
-    )
-      throw Error("Gateway refused");
+    if (!matchesInferenceRequest(raw)) throw Error("Gateway refused");
     // Reserve before credential access: failures cannot retry or refresh.
     this.used = true;
     this.phase = "account-validation";
     const account = this.account();
     if (
-      hash(
-        JSON.stringify([
-          account.issuer,
-          account.clientId,
-          account.subject,
-          account.hostId,
-        ]),
-      ) !== a.accountId ||
-      account.issuer !== "https://auth.openai.com" ||
+      subscriptionAccountId(account) !== a.accountId ||
       account.hostId !== a.hostId ||
-      account.planUsageAuthorized !== true ||
-      !account.scopes.includes("resource.invoke") ||
-      !account.scopes.includes("chatgpt.tokens.use.direct") ||
-      !Number.isSafeInteger(account.expiresAt) ||
-      account.expiresAt <= a.expiresAt ||
-      typeof account.accessToken !== "string" ||
-      !account.accessToken
+      !accountEligibility(account, Date.now(), a.expiresAt).eligible
     )
       throw Error("Gateway refused");
     let abort!: () => void;
@@ -514,396 +472,4 @@ export function subscriptionResponses(
     }
     return Buffer.concat(chunks);
   };
-}
-
-export function syntheticGatewayResponse(): Buffer {
-  const item = {
-    id: "msg_aios_fixture",
-    type: "message",
-    role: "assistant",
-    status: "completed",
-    content: [{ type: "output_text", text: gatewayMarker, annotations: [] }],
-  };
-  const response = {
-    id: "resp_aios_fixture",
-    object: "response",
-    status: "completed",
-    model: "gpt-6.1-sol",
-    output: [item],
-  };
-  const events = [
-    {
-      type: "response.created",
-      response: { ...response, status: "in_progress", output: [] },
-    },
-    {
-      type: "response.output_item.added",
-      output_index: 0,
-      item: { ...item, status: "in_progress", content: [] },
-    },
-    {
-      type: "response.content_part.added",
-      item_id: item.id,
-      output_index: 0,
-      content_index: 0,
-      part: { type: "output_text", text: "", annotations: [] },
-    },
-    {
-      type: "response.output_text.delta",
-      item_id: item.id,
-      output_index: 0,
-      content_index: 0,
-      delta: gatewayMarker,
-    },
-    {
-      type: "response.output_text.done",
-      item_id: item.id,
-      output_index: 0,
-      content_index: 0,
-      text: gatewayMarker,
-    },
-    {
-      type: "response.content_part.done",
-      item_id: item.id,
-      output_index: 0,
-      content_index: 0,
-      part: item.content[0],
-    },
-    { type: "response.output_item.done", output_index: 0, item },
-    { type: "response.completed", response },
-  ];
-  return Buffer.from(
-    events
-      .map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`)
-      .join(""),
-  );
-}
-
-export function syntheticGatewayAccount(): GatewayAccount {
-  return {
-    issuer: "https://auth.openai.com",
-    clientId: "synthetic-client",
-    subject: "synthetic-subject",
-    hostId: "urn:uuid:00000000-0000-4000-8000-000000000021",
-    planUsageAuthorized: true,
-    scopes: ["resource.invoke", "chatgpt.tokens.use.direct"],
-    expiresAt: Date.now() + 60000,
-    accessToken: randomBytes(32).toString("hex"),
-  };
-}
-export function syntheticGatewayApproval(
-  deliveryId: string,
-  account: GatewayAccount,
-): GatewayApproval {
-  return {
-    runId: deliveryId,
-    deliveryId,
-    accountId: hash(
-      JSON.stringify([
-        account.issuer,
-        account.clientId,
-        account.subject,
-        account.hostId,
-      ]),
-    ),
-    hostId: account.hostId,
-    requestSha256: hash(gatewayRequest),
-    expiresAt: Date.now() + 30000,
-    unknownUsageApproved: true,
-  };
-}
-
-export async function hostGatewayCanary(): Promise<"passed" | "not-run"> {
-  const account = syntheticGatewayAccount(),
-    delivery = "00000000-0000-4000-8000-000000000021";
-  let calls = 0,
-    reads = 0;
-  const gateway = new HostSubscriptionGateway(
-    syntheticGatewayApproval(delivery, account),
-    () => {
-      reads++;
-      return account;
-    },
-    subscriptionResponses(async (url, options) => {
-      if (
-        url !== "https://api.openai.com/v1/responses" ||
-        options?.method !== "POST" ||
-        options.redirect !== "error" ||
-        (options.headers as Record<string, string>).authorization !==
-          `Bearer ${account.accessToken}` ||
-        options.body !== gatewayRequest ||
-        options.signal?.aborted
-      )
-        throw Error();
-      calls++;
-      return new Response(
-        syntheticGatewayResponse()
-          .toString()
-          .split("\n")
-          .map((line) => {
-            if (!line.startsWith("data: ")) return line;
-            const event = JSON.parse(line.slice(6));
-            if (event.type === "response.completed") event.response.output = [];
-            return "data: " + JSON.stringify(event);
-          })
-          .join("\n"),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
-    }),
-  );
-  const deny = async (id: string, cap: string, body: string) => {
-    try {
-      await gateway.respond(id, cap, body);
-      return false;
-    } catch {
-      return true;
-    }
-  };
-  try {
-    if (
-      !(await deny(
-        "00000000-0000-4000-8000-000000000022",
-        gateway.capability,
-        gatewayRequest,
-      )) ||
-      !(await deny(delivery, "0".repeat(64), gatewayRequest)) ||
-      !(await deny(
-        delivery,
-        gateway.capability,
-        JSON.stringify({
-          ...JSON.parse(gatewayRequest),
-          tools: [{ type: "function", name: "mcp__owner" }],
-        }),
-      )) ||
-      calls !== 0 ||
-      reads !== 0
-    )
-      throw Error();
-    // Ignored developer context/tools cannot alter the independently fixed upstream body.
-    const contextual = JSON.parse(gatewayRequest);
-    contextual.input.unshift({
-      role: "developer",
-      type: "additional_tools",
-      tools: [{ type: "function", name: "shell" }],
-    });
-    contextual.input.unshift({
-      role: "developer",
-      content: "Synthetic context must be discarded",
-    });
-    const returned = await gateway.respond(
-      delivery,
-      gateway.capability,
-      JSON.stringify(contextual),
-    );
-    if (!returned.equals(syntheticGatewayResponse())) throw Error();
-    // Controlled protocol mutations run through the same public qualification canary.
-    const events = syntheticGatewayResponse()
-      .toString()
-      .split("\n")
-      .filter((line) => line.startsWith("data: "))
-      .map((line) => JSON.parse(line.slice(6)));
-    const variants: { events: any[]; accepted: boolean }[] = [
-      { events, accepted: true },
-      {
-        events: events.map((e) =>
-          e.type === "response.completed"
-            ? {
-                ...e,
-                response: {
-                  ...e.response,
-                  output: [{ type: "reasoning", summary: [] }],
-                },
-              }
-            : e,
-        ),
-        accepted: true,
-      },
-    ];
-    for (const type of [
-      "response.created",
-      "response.output_item.added",
-      "response.content_part.added",
-      "response.output_text.delta",
-      "response.output_text.done",
-      "response.content_part.done",
-      "response.output_item.done",
-      "response.completed",
-    ])
-      variants.push({
-        events: events.filter((e) => e.type !== type),
-        accepted: false,
-      });
-    for (const field of ["item_id", "output_index", "content_index"])
-      variants.push({
-        events: events.map((e) =>
-          e.type === "response.output_text.done"
-            ? { ...e, [field]: field === "item_id" ? "wrong-item" : 1 }
-            : e,
-        ),
-        accepted: false,
-      });
-    for (const type of [
-      "response.output_text.done",
-      "response.content_part.done",
-      "response.output_item.done",
-      "response.completed",
-    ]) {
-      const changed = structuredClone(events);
-      const e = changed.find((e) => e.type === type);
-      if (type === "response.output_text.done") e.text = "wrong";
-      if (type === "response.content_part.done") e.part.text = "wrong";
-      if (type === "response.output_item.done")
-        e.item.content[0].text = "wrong";
-      if (type === "response.completed")
-        e.response.output[0].content[0].text = "wrong";
-      variants.push({ events: changed, accepted: false });
-      variants.push({
-        events: events.flatMap((e) => (e.type === type ? [e, e] : [e])),
-        accepted: false,
-      });
-    }
-    variants.push({
-      events: [
-        ...events,
-        events.find((e) => e.type === "response.output_text.delta"),
-      ],
-      accepted: false,
-    });
-    variants.push({
-      events: events.map((e) =>
-        e.type === "response.output_item.added"
-          ? { ...e, item: { ...e.item, type: "function_call" } }
-          : e,
-      ),
-      accepted: false,
-    });
-    variants.push({
-      events: events.map((e) =>
-        e.type === "response.completed"
-          ? { ...e, response: { ...e.response, status: "incomplete" } }
-          : e,
-      ),
-      accepted: false,
-    });
-    variants.push({
-      events: events.map((e) =>
-        e.type === "response.completed"
-          ? { ...e, response: { ...e.response, error: { code: "synthetic" } } }
-          : e,
-      ),
-      accepted: false,
-    });
-    for (const variant of variants) {
-      const probe = new HostSubscriptionGateway(
-        syntheticGatewayApproval(delivery, account),
-        () => account,
-        async () =>
-          Buffer.from(
-            variant.events
-              .map((e) => "data: " + JSON.stringify(e) + "\n\n")
-              .join(""),
-          ),
-      );
-      let accepted = false;
-      try {
-        accepted = (
-          await probe.respond(delivery, probe.capability, gatewayRequest)
-        ).equals(syntheticGatewayResponse());
-      } catch {
-        /* Fixed refusal is the expected negative verdict. */
-      } finally {
-        probe.revoke();
-      }
-      if (accepted !== variant.accepted) throw Error();
-    }
-
-    if (
-      Number(calls) !== 1 ||
-      Number(reads) !== 1 ||
-      !(await deny(delivery, gateway.capability, gatewayRequest))
-    )
-      throw Error();
-    for (const changed of [
-      { ...account, subject: "another-owner" },
-      { ...account, expiresAt: Date.now() - 1 },
-      { ...account, scopes: ["openid"] },
-    ]) {
-      let leaked = false;
-      const deniedAccount = new HostSubscriptionGateway(
-        syntheticGatewayApproval(delivery, account),
-        () => changed,
-        async () => {
-          leaked = true;
-          return syntheticGatewayResponse();
-        },
-      );
-      let refused = false;
-      try {
-        await deniedAccount.respond(
-          delivery,
-          deniedAccount.capability,
-          gatewayRequest,
-        );
-      } catch {
-        refused = true;
-      } finally {
-        deniedAccount.revoke();
-      }
-      if (!refused || leaked) throw Error();
-    }
-    const malformed = new HostSubscriptionGateway(
-      syntheticGatewayApproval(delivery, account),
-      () => account,
-      subscriptionResponses(
-        async () =>
-          new Response("{}", {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          }),
-      ),
-    );
-    let malformedRefused = false;
-    try {
-      await malformed.respond(delivery, malformed.capability, gatewayRequest);
-    } catch {
-      malformedRefused = true;
-    } finally {
-      malformed.revoke();
-    }
-    if (
-      !malformedRefused ||
-      malformed.observation.providerAttempts !== 1 ||
-      malformed.observation.phase !== "response-validation"
-    )
-      throw Error();
-    let started!: () => void;
-    const pending = new Promise<void>((resolve) => {
-      started = resolve;
-    });
-    const inflight = new HostSubscriptionGateway(
-      syntheticGatewayApproval(delivery, account),
-      () => account,
-      async (_token, _body, signal) => {
-        started();
-        await new Promise<void>((resolve) =>
-          signal.addEventListener("abort", () => resolve(), { once: true }),
-        );
-        return syntheticGatewayResponse();
-      },
-    );
-    const response = inflight
-      .respond(delivery, inflight.capability, gatewayRequest)
-      .then(
-        () => false,
-        () => true,
-      );
-    await pending;
-    inflight.revoke();
-    if (!(await response)) throw Error();
-    return "passed";
-  } catch {
-    return "not-run";
-  } finally {
-    gateway.revoke();
-  }
 }

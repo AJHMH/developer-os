@@ -1,32 +1,47 @@
-import { windowsAuthStore } from "./windows-auth-store.js";
 import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
+import type { Delivery } from "./controller.js";
+import { modelRelayVersion } from "./model-relay.js";
+import { pathContains } from "./path-containment.js";
+import {
+  assertOwnerControlledStorage,
+  assertPrivateAuthStorage,
+  assertStorageMetadata,
+} from "./private-storage.js";
 import {
   gatewayRequest,
   subscriptionGatewayVersion,
 } from "./subscription-gateway.js";
-import { modelRelayVersion } from "./model-relay.js";
-import {
-  assertPrivateAuthStorage,
-  assertOwnerControlledStorage,
-} from "./subscription-auth.js";
-import type { Delivery } from "./controller.js";
 
 const hash = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
+const decisionSourceVersion = hash(
+  Buffer.concat([
+    readFileSync(new URL(import.meta.url)),
+    readFileSync(new URL("./podman-native.js", import.meta.url)),
+    readFileSync(new URL("./vm-management.js", import.meta.url)),
+    readFileSync(new URL("./host-target.js", import.meta.url)),
+    readFileSync(new URL("./gateway-canary.js", import.meta.url)),
+    readFileSync(new URL("./codex-app-server.js", import.meta.url)),
+    readFileSync(new URL("./private-storage.js", import.meta.url)),
+    readFileSync(new URL("./path-containment.js", import.meta.url)),
+  ]),
+);
+export interface SubscriptionDecisionPins {
+  sourceVersion: string;
+  repository: string;
+  bindingSha256: string;
+  policySha256: string;
+  files: { path: string; sha256: string }[];
+  directories: { path: string; access: "private" | "readable" }[];
+}
 const hex = (value: unknown) =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 const uuid = (value: unknown) =>
   typeof value === "string" &&
   /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
-const within = (root: string, path: string) => {
-  const rel = relative(root, path);
-  return (
-    rel === "" ||
-    (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))
-  );
-};
+const within = pathContains;
 
 export function subscriptionDecisionScope(binding?: Record<string, string>) {
   if (
@@ -54,6 +69,7 @@ export function projectSubscriptionDecision(
     mediation = q?.subscriptionMediation;
   if (!q || !mediation) return delivery;
   delete mediation.mechanismDecision;
+  delete mediation.decisionPins;
   try {
     const repository = realpathSync(delivery.repository);
     const binding = q.offlineAdmission?.binding;
@@ -66,8 +82,11 @@ export function projectSubscriptionDecision(
       binding.arch === "arm64" &&
       binding.provider === "applehv";
     if (!windows && !macos) throw Error();
-    if (windows && process.platform === "win32") windowsAuthStore(state);
     assertPrivateAuthStorage(state, "directory");
+    const files = new Map<string, string>(),
+      directories = new Map<string, "private" | "readable">([
+        [state, "private"],
+      ]);
     const read = (
       path: string,
       parentAccess: "private" | "readable" = "private",
@@ -85,9 +104,14 @@ export function projectSubscriptionDecision(
         parentAccess,
       );
       assertPrivateAuthStorage(path, "file", 65536);
-      if (windows && process.platform === "win32")
-        windowsAuthStore(resolve(path, ".."), [path]);
-      return readFileSync(path);
+      const bytes = readFileSync(path);
+      files.set(path, hash(bytes));
+      const parent = resolve(path, "..");
+      directories.set(
+        parent,
+        directories.get(parent) === "private" ? "private" : parentAccess,
+      );
+      return bytes;
     };
     if (within(repository, realpathSync(state))) throw Error();
     const recordPath = join(
@@ -153,6 +177,14 @@ export function projectSubscriptionDecision(
       bindingSha256: r.bindingSha256,
       inferenceAuthorized: false,
     };
+    mediation.decisionPins = {
+      sourceVersion: decisionSourceVersion,
+      repository,
+      bindingSha256: r.bindingSha256,
+      policySha256: r.policySha256,
+      files: [...files].map(([path, sha256]) => ({ path, sha256 })),
+      directories: [...directories].map(([path, access]) => ({ path, access })),
+    };
     mediation.nextAction =
       "The pinned supported-host fixed-request mediation mechanism has positive evidence. Its approval is consumed; production delivery remains disabled. Implement and qualify separate online dispatch, dependency access and usage/re-dispatch gates before feature delivery.";
     q.ready = false;
@@ -160,5 +192,55 @@ export function projectSubscriptionDecision(
   } catch {
     /* Missing, untrusted or drifted evidence grants no positive decision. */
   }
+  return delivery;
+}
+
+/** Read-only verification of a persisted qualification snapshot. It checks source,
+ * binding and evidence pins, not credentials or ACLs. Every dispatch path performs
+ * explicit qualification again before using host authority. */
+export function verifySubscriptionDecision(delivery: Delivery): Delivery {
+  const q = delivery.qualification,
+    mediation = q?.subscriptionMediation,
+    decision = mediation?.mechanismDecision,
+    pins = mediation?.decisionPins;
+  if (!mediation || !decision) return delivery;
+  try {
+    if (
+      !pins ||
+      pins.sourceVersion !== decisionSourceVersion ||
+      realpathSync(delivery.repository) !== pins.repository ||
+      q?.offlineAdmission?.allowed !== true ||
+      q.bindingSha256 !== pins.bindingSha256 ||
+      q.policySha256 !== pins.policySha256 ||
+      decision.bindingSha256 !== pins.bindingSha256 ||
+      decision.scope !==
+        subscriptionDecisionScope(q.offlineAdmission.binding) ||
+      decision.requestSha256 !== hash(gatewayRequest) ||
+      decision.gatewayVersion !== subscriptionGatewayVersion ||
+      mediation.workerExecutableSha256 !== decision.workerExecutableSha256 ||
+      decision.inferenceAuthorized !== false
+    )
+      throw Error();
+    for (const directory of pins.directories) {
+      if (realpathSync(directory.path) !== resolve(directory.path))
+        throw Error();
+      assertStorageMetadata(
+        directory.path,
+        "directory",
+        4096,
+        directory.access,
+      );
+    }
+    for (const file of pins.files) {
+      if (realpathSync(file.path) !== resolve(file.path)) throw Error();
+      assertStorageMetadata(file.path, "file", 65536);
+      if (hash(readFileSync(file.path)) !== file.sha256) throw Error();
+    }
+  } catch {
+    delete mediation.mechanismDecision;
+    delete mediation.decisionPins;
+  }
+  q!.ready = false;
+  q!.liveReady = false;
   return delivery;
 }

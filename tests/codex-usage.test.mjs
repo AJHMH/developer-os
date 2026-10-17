@@ -1,3 +1,4 @@
+import { writeFileSync, unlinkSync } from "node:fs";
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
 import { createHash } from "node:crypto";
@@ -8,7 +9,18 @@ import { PassThrough } from "node:stream";
 import { test } from "node:test";
 import { codexSubscriptionReader } from "../dist/codex-usage.js";
 
+const fixtureBytes = "synthetic pinned Codex fixture";
+const fakeExecutable = {
+  path: resolve("synthetic-codex"),
+  sha256: createHash("sha256").update(fixtureBytes).digest("hex"),
+};
 function transport(t, mode, limits) {
+  writeFileSync(fakeExecutable.path, fixtureBytes, { mode: 0o700 });
+  t.after(() => {
+    try {
+      unlinkSync(fakeExecutable.path);
+    } catch {}
+  });
   const messages = [];
   let killed = false;
   t.mock.method(childProcess, "spawn", (executable, args, options) => {
@@ -21,6 +33,7 @@ function transport(t, mode, limits) {
     child.kill = () => {
       killed = true;
       child.emit("exit", 0);
+      child.emit("close", 0);
     };
     child.stdin.on("data", (bytes) => {
       const request = JSON.parse(bytes.toString());
@@ -92,7 +105,7 @@ test("subscription reader requests only read-only account and limit observations
       },
     },
   });
-  const report = await codexSubscriptionReader(resolve("synthetic-codex"))();
+  const report = await codexSubscriptionReader(fakeExecutable)();
   assert.equal(report.authMode, "chatgpt");
   assert.equal(
     report.accountId,
@@ -126,7 +139,7 @@ test("subscription reader supports the legacy limits response without fabricatin
       secondary: null,
     },
   });
-  const report = await codexSubscriptionReader(resolve("synthetic-codex"))();
+  const report = await codexSubscriptionReader(fakeExecutable)();
   assert.equal(report.exhausted, false);
   assert.deepEqual(report.windows, [
     { id: "codex:primary", usedPercent: 12, resetsAt: 2000000000 },
@@ -156,10 +169,7 @@ for (const mode of [
               },
       },
     });
-    assert.equal(
-      await codexSubscriptionReader(resolve("synthetic-codex"))(),
-      undefined,
-    );
+    assert.equal(await codexSubscriptionReader(fakeExecutable)(), undefined);
     assert.equal(fake.stopped(), true);
   });
 }
@@ -179,7 +189,7 @@ test("subscription reader handles a null modern-limit inventory through the lega
       secondary: { usedPercent: 8, resetsAt: 2000000000 },
     },
   });
-  const report = await codexSubscriptionReader(resolve("synthetic-codex"))();
+  const report = await codexSubscriptionReader(fakeExecutable)();
   assert.deepEqual(report.windows, [
     { id: "codex:secondary", usedPercent: 8, resetsAt: 2000000000 },
   ]);
@@ -187,8 +197,5 @@ test("subscription reader handles a null modern-limit inventory through the lega
 
 test("subscription reader refuses a missing limit bucket rather than returning fabricated usage", async (t) => {
   transport(t, "valid", { rateLimitsByLimitId: { missing: null } });
-  assert.equal(
-    await codexSubscriptionReader(resolve("synthetic-codex"))(),
-    undefined,
-  );
+  assert.equal(await codexSubscriptionReader(fakeExecutable)(), undefined);
 });

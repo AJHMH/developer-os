@@ -19,12 +19,17 @@ export interface UsageReport {
 export type SubscriptionReader = () => Promise<
   SubscriptionObservation | undefined
 >;
+const unknownAccountScope = (account: string) =>
+  createHash("sha256")
+    .update(JSON.stringify({ account, windows: "unknown" }))
+    .digest("hex");
 export function assessSubscription(
   observation: SubscriptionObservation | undefined,
+  now = Date.now(),
 ): UsageReport {
   const report: UsageReport = {
     checkId: randomUUID(),
-    checkedAt: new Date().toISOString(),
+    checkedAt: new Date(now).toISOString(),
     decision: "approval-required",
     remainingPercent: null,
     scope: "unknown",
@@ -35,11 +40,7 @@ export function assessSubscription(
     observation.accountId
   ) {
     report.accountId = observation.accountId;
-    report.scope = createHash("sha256")
-      .update(
-        JSON.stringify({ account: observation.accountId, windows: "unknown" }),
-      )
-      .digest("hex");
+    report.scope = unknownAccountScope(observation.accountId);
   }
   if (observation?.authMode === "chatgpt" && observation.exhausted === true)
     report.decision = "exhausted";
@@ -49,7 +50,7 @@ export function assessSubscription(
     typeof observation.accountId !== "string" ||
     !observation.accountId ||
     !Number.isFinite(Date.parse(observation.observedAt)) ||
-    Math.abs(Date.now() - Date.parse(observation.observedAt)) > 60000 ||
+    !fresh(observation.observedAt, now) ||
     !Array.isArray(observation.windows) ||
     !observation.windows.length ||
     typeof observation.exhausted !== "boolean" ||
@@ -62,7 +63,7 @@ export function assessSubscription(
         window.usedPercent < 0 ||
         window.usedPercent > 100 ||
         !Number.isSafeInteger(window.resetsAt) ||
-        window.resetsAt <= Date.now() / 1000,
+        window.resetsAt <= now / 1000,
     ) ||
     new Set(observation.windows.map((window) => window.id)).size !==
       observation.windows.length
@@ -88,4 +89,88 @@ export function assessSubscription(
         ? "approval-required"
         : "ready";
   return report;
+}
+
+const usageFreshnessMs = 60_000;
+function fresh(at: string, now: number): boolean {
+  const age = now - Date.parse(at);
+  return Number.isFinite(age) && age >= 0 && age <= usageFreshnessMs;
+}
+
+/** Owns observation assessment and one-operation owner allowances. The gate is
+ * stateless: callers persist returned reports inside their existing transaction. */
+export class UsageApprovalGate {
+  constructor(private readonly clock: () => number = Date.now) {}
+
+  observe(
+    observation: SubscriptionObservation | undefined,
+    previous?: UsageReport,
+    endorsedAccount?: string,
+  ): UsageReport {
+    const report = assessSubscription(observation, this.clock());
+    if (report.scope === "unknown" && endorsedAccount) {
+      report.accountId = endorsedAccount;
+      report.scope = unknownAccountScope(endorsedAccount);
+    }
+    if (
+      previous?.approval?.scope === report.scope &&
+      report.decision !== "exhausted"
+    )
+      report.approval = structuredClone(previous.approval);
+    return report;
+  }
+
+  approve(
+    usage: UsageReport | undefined,
+    checkId: string,
+  ): UsageReport | undefined {
+    const now = this.clock();
+    if (
+      !usage ||
+      usage.checkId !== checkId ||
+      usage.decision !== "approval-required" ||
+      !fresh(usage.checkedAt, now)
+    )
+      return undefined;
+    return {
+      ...structuredClone(usage),
+      approval: { scope: usage.scope, at: new Date(now).toISOString() },
+    };
+  }
+
+  permits(
+    usage: UsageReport | undefined,
+    operation: {
+      operationId?: string;
+      accountId?: string;
+      scope?: string;
+    } = {},
+  ): boolean {
+    const now = this.clock();
+    return Boolean(
+      usage &&
+        fresh(usage.checkedAt, now) &&
+        (operation.scope === undefined || usage.scope === operation.scope) &&
+        (operation.accountId === undefined ||
+          !usage.accountId ||
+          usage.accountId === operation.accountId) &&
+        (usage.decision === "ready" ||
+          (usage.decision === "approval-required" &&
+            usage.approval?.scope === usage.scope &&
+            usage.approval.operationId === operation.operationId &&
+            fresh(usage.approval.at, now))),
+    );
+  }
+
+  bind(
+    usage: UsageReport | undefined,
+    operationId: string,
+  ): UsageReport | undefined {
+    if (!operationId || !this.permits(usage)) return undefined;
+    const report = structuredClone(usage!);
+    if (report.decision === "approval-required")
+      report.approval!.operationId = operationId;
+    else delete report.approval;
+    return report;
+  }
 }

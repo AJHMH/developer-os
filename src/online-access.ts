@@ -1,14 +1,15 @@
-import type { UsageReport } from "./subscription.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { UsageApprovalGate, type UsageReport } from "./subscription.js";
 
 /** Fixed synthetic routing policy. No URL, redirect, proxy, repository script or
  * provider credential is accepted from a worker. Model and dependency grants
  * have distinct destinations and capabilities; neither authorizes the other. */
 export const onlinePolicyVersion = createHash("sha256")
   .update(readFileSync(new URL(import.meta.url)))
-  .update(readFileSync(new URL("./controller.js", import.meta.url)))
+  .update(readFileSync(new URL("./session-lifecycle.js", import.meta.url)))
   .update(readFileSync(new URL("./subscription.js", import.meta.url)))
+  .update(readFileSync(new URL("./inference-contract.js", import.meta.url)))
   .digest("hex");
 export interface OnlineDependency {
   registry: "https://registry.npmjs.org";
@@ -100,17 +101,9 @@ export function onlineUsagePermits(
   usage: UsageReport | undefined,
   plan: OnlinePlan,
 ): boolean {
-  return Boolean(
-    usage &&
-      usage.scope === plan.usageScope &&
-      (!usage.accountId || usage.accountId === plan.accountId) &&
-      Date.now() - Date.parse(usage.checkedAt) >= 0 &&
-      Date.now() - Date.parse(usage.checkedAt) <= 60000 &&
-      (usage.decision === "ready" ||
-        (usage.decision === "approval-required" &&
-          usage.approval?.operationId === plan.runId &&
-          usage.approval.scope === usage.scope &&
-          Date.now() - Date.parse(usage.approval.at) >= 0 &&
-          Date.now() - Date.parse(usage.approval.at) <= 60000)),
-  );
+  return new UsageApprovalGate().permits(usage, {
+    operationId: plan.runId,
+    accountId: plan.accountId,
+    scope: plan.usageScope,
+  });
 }

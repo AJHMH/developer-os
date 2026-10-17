@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
+import { pathContains } from "./path-containment.js";
 import { redact } from "./redaction.js";
 
 export const prerequisites = {
@@ -115,12 +116,7 @@ export interface OnboardingReport {
   checklist: { requirement: Requirement; action: string }[];
 }
 function outside(repository: string, path: string): boolean {
-  const difference = relative(repository, path);
-  return (
-    difference === ".." ||
-    difference.startsWith(`..${sep}`) ||
-    isAbsolute(difference)
-  );
+  return !pathContains(repository, path);
 }
 function loadPolicy(
   repository: string,

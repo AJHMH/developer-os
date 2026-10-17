@@ -1,8 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { podmanMachine } from "./podman-platform.js";
-import { NativePodmanDriver } from "./podman-native.js";
+import { syntheticRelayContract } from "./inference-contract.js";
 import {
   onlinePolicyVersion,
   type OnlineAccessRuntime,
@@ -10,6 +9,8 @@ import {
   type OnlineProof,
   type OnlineStop,
 } from "./online-access.js";
+import { NativePodmanDriver } from "./podman-native.js";
+import { podmanMachine } from "./podman-platform.js";
 
 // Management-owned relay enters only the worker network namespace. Its filesystem,
 // credentials, process namespace and capabilities never enter the worker.
@@ -32,7 +33,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    size=int(self.headers.get('Content-Length','0'))
    if revoked or time.monotonic()>R['deadline'] or kind in used or kind is None or self.headers.get('Authorization')!='Bearer '+token or self.headers.get('X-AIOS-Run')!=R['runId'] or self.headers.get('Upgrade') or self.headers.get('Transfer-Encoding') or size<0 or size>1024: return self.reply(403,b'')
    body=self.rfile.read(size)
-   if (kind=='model' and body!=b'{"model":"synthetic","input":"ticket22"}') or (kind=='dependency' and body): return self.reply(403,b'')
+   if (kind=='model' and body!=base64.b64decode(R['contract']['request'])) or (kind=='dependency' and body): return self.reply(403,b'')
    print(json.dumps(dict(kind=kind,runId=R['runId'])),flush=True)
    result=json.loads(sys.stdin.readline())
    if result.get('allowed')!=True: revoked=True;return self.reply(403,b'')
@@ -151,7 +152,7 @@ try:
  class Upstream(http.server.BaseHTTPRequestHandler):
   def log_message(self,*args): pass
   def do_GET(self):
-   body=base64.b64decode(R['dependencyArtifact']['bytes'],validate=True) if self.server.kind=='dependency' and R.get('dependencyArtifact') else b'AIOS synthetic dependency artifact\n' if self.server.kind=='dependency' else b'AIOS synthetic model response\n'
+   body=base64.b64decode(R['dependencyArtifact']['bytes'],validate=True) if self.server.kind=='dependency' and R.get('dependencyArtifact') else base64.b64decode(R['syntheticContract']['dependency']) if self.server.kind=='dependency' else base64.b64decode(R['syntheticContract']['response'])
    self.send_response(200);self.end_headers();self.wfile.write(body)
  for kind in ['model','dependency']:
   server=http.server.HTTPServer(('127.0.0.1',0),Upstream);server.kind=kind
@@ -165,7 +166,7 @@ try:
  proxy=subprocess.Popen(['podman','unshare','nsenter','--net=/proc/'+str(pid)+'/ns/net','python3','-u','-c',base64.b64decode(R['relay']).decode(),j['relayTag']],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
  if R.get('fault')=='after-relay-spawn': os._exit(73)
  j['proxy']=[proxy.pid,ticks(proxy.pid)];save(j)
- proxy.stdin.write((json.dumps(dict(runId=R['runId'],model=model,dependency=dependency,deadline=time.monotonic()+20))+'\n').encode());proxy.stdin.flush()
+ proxy.stdin.write((json.dumps(dict(runId=R['runId'],model=model,dependency=dependency,deadline=time.monotonic()+20,contract=R['syntheticContract']))+'\n').encode());proxy.stdin.flush()
  if json.loads(proxy.stdout.readline())!=dict(ready=True): fail()
  fcntl.flock(lock,fcntl.LOCK_UN)
  bridgeError=[]
@@ -185,7 +186,7 @@ try:
  def request(method,path,token,body=b'',extra='',user='65534:65534'):
   raw=(method+' '+path+' HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+token+'\r\nX-AIOS-Run: '+R['runId']+'\r\nContent-Length: '+str(len(body))+'\r\nConnection: close\r\n'+extra+'\r\n').encode()+body
   return cmd(['podman','exec','-i','--user='+user,worker,'nc','-w','2','127.0.0.1','18084'],raw)
- body=b'{"model":"synthetic","input":"ticket22"}'
+ body=base64.b64decode(R['syntheticContract']['request'])
  for method,url,token,payload,extra in [('POST','/mcp',model,body,''),('POST','http://other.invalid/v1/responses',model,body,''),('CONNECT','host.internal:443',model,b'', ''),('POST','/v1/responses?redirect=other',model,body,''),('POST','/v1/responses',dependency,body,''),('GET','/dependencies/fixture.txt',model,b'', ''),('POST','/v1/responses',model,body,'Upgrade: websocket\r\n'),('POST','/v1/responses',model,b'{}','')]:
   if not request(method,url,token,payload,extra).startswith(b'HTTP/1.1 403 '): fail()
  if not request('POST','/v1/responses',model,body).endswith(before['model']): fail()
@@ -321,6 +322,7 @@ export class NativeOnlineAccess implements OnlineAccessRuntime {
           authority,
           relay: Buffer.from(relay).toString("base64"),
           ...extras,
+          syntheticContract: syntheticRelayContract(),
         }) + "\n",
       );
       let buffer = "",

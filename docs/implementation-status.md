@@ -32,7 +32,11 @@ Factory certification remains open: the repository retains successful adoption/c
 
 ## Architecture decisions
 
-No `docs/adr/` records exist in the checkout, and `git log --all -- docs/adr` contains no entries in the locally available history. ADR templates in agent skills are not repository decisions. Design decisions are retained in [CONTEXT](../CONTEXT.md), the [canonical specification](../.scratch/aios-feature-delivery/spec.md) and [resolved runtime decision](../.scratch/aios-feature-delivery/issues/07-runtime-scope-revision.md). No retrospective ADR was invented by this audit.
+The earlier audit found no repository ADR records. The subsequently authorized
+architecture refactor now records its module, CLI and deletion decisions in
+[ADR 0001](adr/0001-architecture-module-boundaries.md). Historical runtime scope
+remains in [CONTEXT](../CONTEXT.md), the [canonical specification](../.scratch/aios-feature-delivery/spec.md)
+and [resolved runtime decision](../.scratch/aios-feature-delivery/issues/07-runtime-scope-revision.md).
 
 ## Reading historical material
 

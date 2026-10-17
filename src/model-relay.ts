@@ -1,21 +1,23 @@
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   createServer,
   request,
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { readFileSync } from "node:fs";
 
 export const modelRelayVersion = createHash("sha256")
   .update(readFileSync(new URL(import.meta.url)))
   .digest("hex");
 
+const syntheticRelayGrantMs = 30_000;
+
 /** Host-owned grant: revocation is irreversible and aborts active upstream I/O. */
 export class RevocableModelGrant {
   readonly capability = randomBytes(32).toString("hex");
   private readonly cancellation = new AbortController();
-  private readonly deadline = Date.now() + 30_000;
+  private readonly deadline = Date.now() + syntheticRelayGrantMs;
   private readonly active = new Set<ReturnType<typeof request>>();
   get revoked() {
     return this.cancellation.signal.aborted || Date.now() >= this.deadline;

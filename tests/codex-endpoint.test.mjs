@@ -1,3 +1,4 @@
+import { inferenceFixtureContract } from "../dist/inference-contract.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -10,6 +11,7 @@ test("synthetic expiry arms after slow client setup and interrupts a confirmed b
       "-c",
       String.raw`
 import sys,subprocess,json,socket,time,tempfile,threading,queue
+contract=json.loads(sys.stdin.readline())
 origin=time.monotonic()
 def phase(name):print("expiry-phase "+name+" "+str(round(time.monotonic()-origin,3))+"s",file=sys.stderr,flush=True)
 phase("python-started")
@@ -34,7 +36,7 @@ def control(value):p.stdin.write((json.dumps(value)+'\n').encode());p.stdin.flus
 body=json.dumps({'model':'gpt-6.1-sol','store':False,'stream':True,'input':[{'role':'user','content':'Say exactly: AIOS model-only inference complete'}]}).encode()
 header=('POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer '+cap+'\r\nX-AIOS-Delivery: '+identity+'\r\nContent-Type: application/json\r\nContent-Length: '+str(len(body))+'\r\nConnection: close\r\n\r\n').encode()
 try:
- control({'port':port,'deliveryId':identity,'capability':cap,'budget':2,'ttl':60,'armable':True,'gateway':False})
+ control({'port':port,'deliveryId':identity,'capability':cap,'budget':2,'ttl':60,'armable':True,'gateway':False,'contract':contract})
  assert event()=={'ready':True,'deliveryId':identity}
  phase('server-ready')
  time.sleep(1.8) # Reproduces setup latency longer than the old 1.5-second grant.
@@ -68,7 +70,14 @@ finally:
 print('pending read interrupted without extending grant')
 `,
     ],
-    { input: codexEndpointFixture, encoding: "utf8", timeout: 20000 },
+    {
+      input:
+        JSON.stringify(inferenceFixtureContract()) +
+        "\n" +
+        codexEndpointFixture,
+      encoding: "utf8",
+      timeout: 20000,
+    },
   );
   t.diagnostic(result.stderr);
   assert.equal(

@@ -4,16 +4,13 @@ import {
   constants,
   fstatSync,
   lstatSync,
-  mkdirSync,
-  mkdtempSync,
   openSync,
   readFileSync,
   realpathSync,
-  writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { redact } from "./redaction.js";
-import type { WorkerPolicy } from "./sandbox-worker.js";
+
 export function admittedPath(path: string): boolean {
   return Boolean(
     path &&
@@ -51,7 +48,7 @@ function ordinary(path: string, directory: boolean): void {
     throw Error("Only admitted ordinary entries are allowed");
 }
 export function admitFiles(
-  policy: Pick<WorkerPolicy, "files">,
+  policy: { files: { path: string; sha256: string }[] },
   repository: string,
 ): { path: string; bytes: Buffer; executable: boolean }[] {
   const names = new Set<string>();
@@ -101,27 +98,4 @@ export function admitFiles(
       );
     return { path: file.path, bytes, executable: Boolean(before.mode & 0o111) };
   });
-}
-export function materializeWorkspace(
-  policy: WorkerPolicy,
-  repository: string,
-): { path: string; manifestSha256: string } {
-  const files = admitFiles(policy, repository);
-  ordinary(policy.workspaceDirectory, true);
-  const path = mkdtempSync(join(policy.workspaceDirectory, "aios-"));
-  for (const file of files) {
-    const target = join(path, ...file.path.split("/"));
-    mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
-    writeFileSync(target, file.bytes, {
-      flag: "wx",
-      mode: file.executable ? 0o700 : 0o600,
-      flush: true,
-    });
-  }
-  return {
-    path,
-    manifestSha256: createHash("sha256")
-      .update(JSON.stringify(policy.files))
-      .digest("hex"),
-  };
 }

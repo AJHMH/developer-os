@@ -7,7 +7,7 @@ from http.server import HTTPServer,BaseHTTPRequestHandler
 from socketserver import TCPServer
 C=json.loads(sys.stdin.readline()); revoked=threading.Event(); accepted=0; deadline=time.monotonic()+C['ttl']
 armed=False
-marker='AIOS model-only inference complete'
+contract=C['contract'];marker=contract['marker']
 responses=queue.Queue(maxsize=1)
 def emit(value): print(json.dumps(value),flush=True)
 def control():
@@ -55,16 +55,20 @@ class Handler(BaseHTTPRequestHandler):
    body=self.rfile.read(size)
    if len(body)!=size: return self.deny()
    value=json.loads(body)
-   if value.get('model')!='gpt-6.1-sol' or value.get('stream') is not True or value.get('store') is not False: return self.deny()
-   users=[i for i in value.get('input',[]) if i.get('role')=='user']
-   if not any(i.get('content')=='Say exactly: '+marker or any(p.get('text')=='Say exactly: '+marker for p in i.get('content',[]) if isinstance(p,dict)) for i in users): return self.deny()
-   if any(t.get('name','').startswith('mcp__') or t.get('type') not in ['function'] for t in value.get('tools',[])): return self.deny()
+   if not isinstance(value,dict) or value.get('model')!=contract['model'] or value.get('stream') is not True or value.get('store') is not False: return self.deny()
+   items=value.get('input');tools=value.get('tools',[])
+   if not isinstance(items,list) or not isinstance(tools,list): return self.deny()
+   if any(not isinstance(item,dict) or ('type' in item and item['type'] not in contract['inputTypes']) or item.get('role') not in contract['roles'] for item in items): return self.deny()
+   users=[item for item in items if item.get('role')=='user']
+   def text(item):
+    content=item.get('content')
+    if isinstance(content,str): return content
+    if isinstance(content,list) and len(content)==1 and isinstance(content[0],dict) and content[0].get('type')==contract['inputTextType']: return content[0].get('text')
+   if not users or text(users[-1])!=contract['prompt']: return self.deny()
+   if any(not isinstance(tool,dict) or tool.get('type')!=contract['toolType'] or not isinstance(tool.get('name'),str) or tool['name'].startswith(contract['forbiddenToolPrefix']) for tool in tools): return self.deny()
    if revoked.is_set() or time.monotonic()>=deadline or accepted>=C['budget']: return self.deny()
    accepted+=1
-   item={'id':'msg_aios_fixture','type':'message','role':'assistant','status':'completed','content':[{'type':'output_text','text':marker,'annotations':[]}]}
-   response={'id':'resp_aios_fixture','object':'response','status':'completed','model':'gpt-6.1-sol','output':[item],'usage':{'input_tokens':0,'output_tokens':0,'total_tokens':0}}
-   events=[{'type':'response.created','response':{**response,'status':'in_progress','output':[]}}, {'type':'response.output_item.added','output_index':0,'item':{**item,'status':'in_progress','content':[]}}, {'type':'response.content_part.added','item_id':item['id'],'output_index':0,'content_index':0,'part':{'type':'output_text','text':'','annotations':[]}}, {'type':'response.output_text.delta','item_id':item['id'],'output_index':0,'content_index':0,'delta':marker}, {'type':'response.output_text.done','item_id':item['id'],'output_index':0,'content_index':0,'text':marker}, {'type':'response.content_part.done','item_id':item['id'],'output_index':0,'content_index':0,'part':item['content'][0]}, {'type':'response.output_item.done','output_index':0,'item':item}, {'type':'response.completed','response':response}]
-   data=b''.join(('event: '+e['type']+'\ndata: '+json.dumps(e)+'\n\n').encode() for e in events)
+   data=base64.b64decode(contract['responseBase64'],validate=True)
    emit({'accepted':accepted,'deliveryId':C['deliveryId'],'requestSha256':hashlib.sha256(body).hexdigest()})
    if C.get('gateway'):
     emit({'gatewayRequest':base64.b64encode(body).decode(),'deliveryId':C['deliveryId'],'capability':C['capability']})
