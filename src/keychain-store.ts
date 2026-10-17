@@ -1,18 +1,17 @@
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   existsSync,
-  lstatSync,
+  linkSync,
   mkdtempSync,
   readFileSync,
-  linkSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { assertPrivateAuthStorage } from "./subscription-auth.js";
-import { DeliveryError } from "./controller.js";
+import { DeliveryError } from "./errors.js";
+import { assertPrivateAuthStorage } from "./private-storage.js";
 
 const source = `import Foundation
 import Security

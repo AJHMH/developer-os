@@ -2,7 +2,7 @@
 
 ## Implementation scope
 
-This glossary defines the target delivery domain. The implementation currently reaches controlled synchronization, eligible cleanup and completion; native delivery integrations and complete-platform/pilot qualification remain unfinished. Independent fixed Windows/Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), including the audit finding that no repository ADR records exist.
+This glossary defines the target delivery domain. The implementation currently reaches controlled synchronization, eligible cleanup and completion; native delivery integrations and complete-platform/pilot qualification remain unfinished. Independent fixed Windows/Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), and [architecture module decisions](docs/adr/0001-architecture-module-boundaries.md).
 
 
 A developer agent system that carries delegated feature work through validation, pull request review, merge, synchronization, and branch cleanup.
@@ -92,3 +92,20 @@ _Avoid_: Coding worker
 **Implementation allowance**:
 The configurable initial coding time allowance, defaulting to 120 active minutes and distinct from the repair budget. Exhaustion preserves progress and requires an owner extension before further implementation.
 _Avoid_: Repair budget
+
+## Runtime evidence terms
+
+**Usage approval**: Fresh owner authorization for one observed account/window
+scope and at most one operation. It grants no worker, credential or publication authority.
+
+**Session**: A dispatched worker or online operation whose matching receipt must
+prove descendant shutdown. Retained uncertain sessions prevent ownership release.
+
+**Fence**: A monotonically advancing repository generation used with an owner
+identity to reject stale session actions and ownership writes.
+
+**Qualification**: Version-bound evidence for a defined runtime boundary. A
+passing fixed canary does not qualify production delivery or another platform.
+
+**Canary**: A bounded fixed challenge using synthetic inputs, capabilities and
+controlled peers to test a specific boundary without owner credentials/inference.

@@ -1,8 +1,15 @@
-import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { macKeychainStore } from "./keychain-store.js";
-import { windowsAuthStore } from "./windows-auth-store.js";
+import { isAbsolute, join, resolve } from "node:path";
+import {
+  hostCredentialVault,
+  type CredentialVault,
+} from "./credential-vault.js";
+import { pathContains } from "./path-containment.js";
+import {
+  accountEligibility,
+  decodeSubscriptionAccount,
+  validHostRegistration,
+} from "./subscription-account.js";
 import { assertPrivateAuthStorage } from "./subscription-auth.js";
 
 interface AuthStatusAdapters {
@@ -14,7 +21,7 @@ interface AuthStatusAdapters {
     repository: string,
     authority: string,
   ) => { hostId: string };
-  readAccount: (directory: string, accountId: string) => string;
+  vault: (directory: string) => CredentialVault;
 }
 function registration(
   directory: string,
@@ -32,26 +39,14 @@ function registration(
     if (canonical.toLowerCase() !== resolve(path).toLowerCase()) throw Error();
     return canonical;
   });
-  const inside = (parent: string, child: string) => {
-    const r = relative(parent, child);
-    return (
-      r === "" || (r !== ".." && !r.startsWith(`..${sep}`) && !isAbsolute(r))
-    );
-  };
+  const inside = pathContains;
   if (paths.some((a, i) => paths.some((b, j) => i !== j && inside(a, b))))
     throw Error();
   const file = join(directory, "registration.json");
   assertPrivateAuthStorage(directory, "directory");
   assertPrivateAuthStorage(file, "file");
-  if (process.platform === "win32") windowsAuthStore(directory, [file]);
   const record = JSON.parse(readFileSync(file, "utf8"));
-  if (
-    record.schema !== 1 ||
-    record.agentName !== "Developer OS" ||
-    !/^urn:uuid:[a-f0-9-]{36}$/.test(record.hostId) ||
-    Object.keys(record).sort().join(",") !== "agentName,hostId,schema"
-  )
-    throw Error();
+  if (!validHostRegistration(record)) throw Error();
   return record;
 }
 
@@ -66,11 +61,7 @@ export function inspectSubscriptionAuth(
     arch: process.arch,
     now: Date.now,
     registration,
-    readAccount: (directory, id) =>
-      (process.platform === "win32"
-        ? windowsAuthStore(directory)
-        : macKeychainStore(directory, true)
-      ).read(id),
+    vault: (directory) => hostCredentialVault(directory, true),
   },
 ) {
   const denied = {
@@ -90,43 +81,20 @@ export function inspectSubscriptionAuth(
     )
       return denied;
     const host = adapters.registration(directory, repository, authority);
-    const encoded = adapters.readAccount(directory, accountId);
-    if (encoded.length > 349528 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))
-      return denied;
-    const account = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
-    if (
-      account.issuer !== "https://auth.openai.com" ||
-      account.hostId !== host.hostId ||
-      typeof account.subject !== "string" ||
-      typeof account.clientId !== "string" ||
-      createHash("sha256")
-        .update(
-          JSON.stringify([
-            account.issuer,
-            account.clientId,
-            account.subject,
-            account.hostId,
-          ]),
-        )
-        .digest("hex") !== accountId ||
-      !Number.isSafeInteger(account.expiresAt) ||
-      !Array.isArray(account.scopes) ||
-      typeof account.accessToken !== "string" ||
-      !account.accessToken
-    )
-      return denied;
+    const account = decodeSubscriptionAccount(
+      adapters.vault(directory).read(accountId),
+      accountId,
+      host.hostId,
+    );
+    if (!account) return denied;
     const now = adapters.now();
     if (!Number.isSafeInteger(now) || now < 0) return denied;
-    const expired = account.expiresAt <= now;
-    const validForInferenceWindow = account.expiresAt > now + 30000;
-    const requiredScopesPresent = [
-      "resource.invoke",
-      "chatgpt.tokens.use.direct",
-    ].every((scope) => account.scopes.includes(scope));
-    const eligible =
-      validForInferenceWindow &&
-      requiredScopesPresent &&
-      account.planUsageAuthorized === true;
+    const {
+      expired,
+      validForInferenceWindow,
+      requiredScopesPresent,
+      eligible,
+    } = accountEligibility(account, now);
     return {
       status: eligible ? "eligible" : "sign-in-required",
       expired,

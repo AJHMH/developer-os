@@ -1,3 +1,5 @@
+import cp from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { initializeWindowsAuthDirectory } from "../dist/windows-auth-store.js";
 import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import { spawnSync } from "node:child_process";
@@ -151,6 +153,26 @@ for (const target of ["macos", "windows"])
         .mechanismDecision,
       result.qualification.subscriptionMediation.mechanismDecision,
     );
+    const originalSpawn = cp.spawnSync;
+    cp.spawnSync = () => {
+      throw Error("Status/list must not launch credential or ACL observers");
+    };
+    syncBuiltinESMExports();
+    try {
+      assert.equal(
+        c.status(d.id).qualification.subscriptionMediation.mechanismDecision
+          .qualified,
+        true,
+      );
+      assert.equal(
+        c.list().deliveries[0].qualification.subscriptionMediation
+          .mechanismDecision.qualified,
+        true,
+      );
+    } finally {
+      cp.spawnSync = originalSpawn;
+      syncBuiltinESMExports();
+    }
     // A separate owner-controlled readable policy directory is allowed.
     const readablePolicyParent = join(root, "readable-pins");
     mkdirSync(readablePolicyParent, { mode: 0o755 });
@@ -164,6 +186,7 @@ for (const target of ["macos", "windows"])
       recordPath,
       JSON.stringify({ ...record, policyPath: readablePolicy }),
     );
+    await c.qualify(d.id);
     assert.equal(
       c.status(d.id).qualification.subscriptionMediation.mechanismDecision
         .qualified,
@@ -269,7 +292,8 @@ for (const target of ["macos", "windows"])
           0,
         );
         assert.equal(
-          c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+          (await c.qualify(d.id)).qualification.subscriptionMediation
+            .mechanismDecision,
           undefined,
           "A writable Windows authority path must refuse: " + path,
         );
@@ -280,8 +304,8 @@ for (const target of ["macos", "windows"])
           0,
         );
         assert.equal(
-          c.status(d.id).qualification.subscriptionMediation.mechanismDecision
-            .qualified,
+          (await c.qualify(d.id)).qualification.subscriptionMediation
+            .mechanismDecision.qualified,
           true,
         );
       }
@@ -293,10 +317,12 @@ for (const target of ["macos", "windows"])
           0,
         );
         assert.equal(
-          c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+          (await c.qualify(d.id)).qualification.subscriptionMediation
+            .mechanismDecision,
           undefined,
         );
         assert.equal(spawnSync("/bin/chmod", ["-N", path]).status, 0);
+        await c.qualify(d.id);
       }
     }
     writeFileSync(registration, "changed registration");

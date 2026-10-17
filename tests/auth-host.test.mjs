@@ -87,7 +87,7 @@ for (const [platform, arch] of [
       },
     };
     let authorizationUrl;
-    const keychainStore = (directory) => {
+    const credentialVault = (directory) => {
       assert.equal(directory, authDirectory);
       const nativeVault =
         platform === "win32" && process.platform === "win32"
@@ -122,7 +122,7 @@ for (const [platform, arch] of [
       platform,
       arch,
       transport,
-      keychainStore,
+      credentialVault,
     };
 
     if (process.platform === "win32") {
@@ -311,7 +311,7 @@ test("separate authorization refuses unsupported hosts before opening storage or
         platform: "win32",
         arch: "arm64",
         transport: assert.fail,
-        keychainStore: () =>
+        credentialVault: () =>
           assert.fail("unsupported host must not open Keychain"),
       },
     ),
@@ -337,7 +337,7 @@ test("separate authorization refuses a selected host account that is absent from
       signingKeys: async () =>
         assert.fail("missing selection cannot fetch keys"),
     },
-    keychainStore: () => ({
+    credentialVault: () => ({
       read: () => {
         throw Error("synthetic selection is absent");
       },
@@ -376,7 +376,7 @@ test("separate authorization refuses malformed selected IDs and mismatched store
       signingKeys: async () =>
         assert.fail("invalid selection cannot fetch keys"),
     },
-    keychainStore: () => ({
+    credentialVault: () => ({
       read: () => assert.fail("malformed ID must be refused before Keychain"),
       write: () => assert.fail("invalid selection cannot be replaced"),
     }),
@@ -419,7 +419,7 @@ test("separate authorization refuses malformed selected IDs and mismatched store
   );
   const storedAdapters = {
     ...baseAdapters,
-    keychainStore: () => ({
+    credentialVault: () => ({
       read: () => encoded,
       write: () => assert.fail("mismatched identity cannot be replaced"),
     }),
@@ -454,7 +454,7 @@ test("separate authorization closes its local listener when browser launch is re
       exchange: async () => assert.fail("browser refusal cannot exchange"),
       signingKeys: async () => assert.fail("browser refusal cannot fetch keys"),
     },
-    keychainStore: () => ({
+    credentialVault: () => ({
       read: () => assert.fail("first authorization has no selected account"),
       write: () => assert.fail("browser refusal cannot store credentials"),
     }),

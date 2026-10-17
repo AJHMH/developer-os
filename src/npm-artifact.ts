@@ -1,11 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { request } from "node:https";
-import {
-  assertPrivateAuthStorage,
-  assertOwnerControlledStorage,
-} from "./subscription-auth.js";
+import { dirname, isAbsolute, resolve } from "node:path";
 import type {
   OnlineAccessRuntime,
   OnlineDependency,
@@ -13,6 +9,11 @@ import type {
   OnlineProof,
   OnlineStop,
 } from "./online-access.js";
+import { pathContains } from "./path-containment.js";
+import {
+  assertOwnerControlledStorage,
+  assertPrivateAuthStorage,
+} from "./subscription-auth.js";
 
 export type ArtifactReader = (
   url: string,
@@ -79,11 +80,7 @@ export class NpmArtifactRuntime implements OnlineAccessRuntime {
       realpathSync(this.policyPath) !== resolve(this.policyPath)
     )
       throw Error("Invalid artifact policy");
-    const rel = relative(realpathSync(repository), this.policyPath);
-    if (
-      rel === "" ||
-      (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))
-    )
+    if (pathContains(realpathSync(repository), this.policyPath))
       throw Error("Candidate artifact policy refused");
     assertOwnerControlledStorage(
       dirname(this.policyPath),

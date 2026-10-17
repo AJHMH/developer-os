@@ -1,3 +1,7 @@
+import {
+  syntheticGatewayAccount,
+  syntheticGatewayApproval,
+} from "../dist/gateway-canary.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import os from "node:os";
@@ -80,8 +84,6 @@ test("native inference starts its one-shot gateway lease only after bound isolat
 });
 import {
   HostSubscriptionGateway,
-  syntheticGatewayAccount,
-  syntheticGatewayApproval,
   gatewayRequest,
   subscriptionGatewayVersion,
   syntheticGatewayResponse,
@@ -554,7 +556,7 @@ test("generated native management freezes direct wait failures before successful
       String.raw`
 import ast,json,sys,subprocess,time
 program=ast.parse(sys.stdin.read())
-R={'hostBinding':{'platform':'win32'}}
+R={'hostBinding':{'platform':'win32'},'target':{'guestCommandSeconds':15}}
 functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command','freeze_failure']]
 # Exercise the actual emitted exception handler, replacing VM work and cleanup
 # with fixed synthetic subprocess outcomes; no management authority is opened.
@@ -747,10 +749,7 @@ test("native fixed task enforces staging, dispatch authority and exact stopped c
   files[0].bytes.fill(0);
   let failure = false,
     malformed = false;
-  t.mock.method(childProcess, "spawnSync", (_exe, args, options) => {
-    const data = JSON.parse(options.input.split("\n")[1]);
-    assert.equal(options.shell, false);
-    assert.equal(options.windowsHide, true);
+  const manage = (action, data) => {
     assert.deepEqual(data.pins, pins);
     assert.equal(
       Buffer.from(data.files[0].bytes, "base64").toString(),
@@ -760,14 +759,12 @@ test("native fixed task enforces staging, dispatch authority and exact stopped c
       Buffer.from(data.expected, "base64").toString(),
       syntheticSiteOutput,
     );
-    if (failure) return { status: 1, stderr: "private fixture error" };
-    if (malformed) return { status: 0, stdout: "invalid" };
-    return {
-      status: 0,
-      stdout: JSON.stringify({ action: data.action, files: [] }),
-    };
-  });
-  syncBuiltinESMExports();
+    if (failure) throw Error("Synthetic task management refused");
+    if (malformed) throw SyntaxError("Invalid management response");
+    return { action, files: [] };
+  };
+  native.taskExecute = (data) => manage("execute", data);
+  native.taskCollect = (data) => manage("collect", data);
   assert.equal((await task.execute(request)).status, "running");
   assert.equal(dispatches, 1);
   allowed = false;
@@ -818,7 +815,7 @@ test("native fixed task enforces staging, dispatch authority and exact stopped c
 
 for (const [platform, deadline] of [
   ["darwin", 90000],
-  ["win32", 25000],
+  ["win32", 30000],
 ]) {
   test(`native ${platform} management deadline remains bounded`, (t) => {
     const f = hostFixture(t, platform);
@@ -855,7 +852,7 @@ test("guest command budgets keep Mac scheduling bounded and Windows unchanged", 
 import ast,sys,subprocess,time
 program=ast.parse(sys.stdin.read());functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command']]
 for platform,expected in [('darwin',30),('win32',15)]:
- R={'hostBinding':{'platform':platform}};deadlines=[]
+ R={'hostBinding':{'platform':platform},'target':{'guestCommandSeconds':expected}};deadlines=[]
  def run(args,**kw): deadlines.append(kw['timeout']);return subprocess.CompletedProcess(args,0,b'ok',b'')
  subprocess.run=run
  exec(compile(ast.fix_missing_locations(ast.Module(body=functions,type_ignores=[])),'actual-management','exec'))
@@ -896,7 +893,7 @@ select.select=lambda r,w,x,timeout:rawSelect(r,w,x,min(timeout,0.15))
 def inspect(worker):return {'State':{'Pid':123}}
 def fail():raise RuntimeError('lost buffered relay frame')
 for platform in ['win32','darwin']:
- binding={'platform':platform};proxies=[];delivery='fixture'
+ binding={'platform':platform};proxies=[];delivery='fixture';R={'inferenceContract':{}}
  subprocess.Popen=lambda args,**kwargs:rawPopen([sys.executable,'-u','-c',endpointSource],**kwargs)
  exec(compile(ast.fix_missing_locations(ast.Module(body=[relayNode],type_ignores=[])),'actual-management','exec'))
  try:
@@ -963,7 +960,7 @@ class Clock:
 time=Clock()
 def fail():raise RuntimeError('refused')
 for platform,allowed in [('darwin',True),('darwin',False),('win32',True)]:
- binding={'platform':platform};events=[];stage='completed'
+ binding={'platform':platform};events=[];stage='completed';R={'inferenceContract':{'marker':'AIOS model-only inference complete'}}
  def awaitTaskBudget():
   events.append('gate')
   if not allowed:raise RuntimeError('headroom refused')
@@ -1154,7 +1151,7 @@ program=ast.parse(sys.stdin.read())
 nodes=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['command','pod','effective']]
 # The generated management source is wrapped by the host for some actions.
 if not nodes:nodes=[n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name in ['command','pod','effective']]
-R={'hostBinding':{'platform':'darwin'}};engineSocket='/run/user/1000/podman/podman.sock'
+R={'hostBinding':{'platform':'darwin'},'target':{'guestCommandSeconds':30}};engineSocket='/run/user/1000/podman/podman.sock'
 class Path:
  def __init__(self,p):pass
  def read_text(self):return 'NoNewPrivs: 1\nSeccomp: 2\nCapEff: 00000000\n'
@@ -1215,7 +1212,7 @@ def fail():raise RuntimeError('refused')
 exec(compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-management','exec'))
 rawRun=subprocess.run
 with tempfile.TemporaryDirectory() as directory:
- private=directory+'/credential';name='fixture';R={'hostBinding':{'platform':'darwin'},'challenge':{'files':[directory+'/a',directory+'/b',directory+'/c']}}
+ private=directory+'/credential';name='fixture';R={'hostBinding':{'platform':'darwin'},'target':{'guestCommandSeconds':30},'challenge':{'files':[directory+'/a',directory+'/b',directory+'/c']}}
  for readable,transport in [(False,False),(True,False),(False,True)]:
   if readable:pathlib.Path(private).write_text('synthetic')
   elif pathlib.Path(private).exists():pathlib.Path(private).unlink()
@@ -1257,7 +1254,7 @@ nodes=[n for n in branch.body if (isinstance(n,ast.Assign) and any(isinstance(x,
 code=compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-stop-existence','exec');name='fixture'
 def fail():raise RuntimeError('refused')
 for platform,budget in [('darwin',30),('win32',15)]:
- R={'hostBinding':{'platform':platform}}
+ R={'hostBinding':{'platform':platform},'target':{'guestCommandSeconds':budget}}
  for result in [0,1,125,'timeout']:
   def run(args,**kwargs):
    assert kwargs.get('timeout')==budget,'unbounded engine query'

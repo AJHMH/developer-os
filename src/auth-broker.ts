@@ -5,7 +5,11 @@ import {
   verify,
   type JsonWebKey,
 } from "node:crypto";
-import { DeliveryError } from "./controller.js";
+import { DeliveryError } from "./errors.js";
+import {
+  requiredSubscriptionScopes,
+  subscriptionIssuer,
+} from "./subscription-account.js";
 
 export interface SelectedAccount {
   clientId: string;
@@ -45,10 +49,15 @@ export interface ValidatedAccount {
   expiresAt: number;
   planUsageAuthorized: boolean;
 }
-const issuer = "https://auth.openai.com";
+const issuer = subscriptionIssuer;
 const resource = "https://api.openai.com/v1";
-const scopes =
-  "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
+const scopes = [
+  "openid",
+  "profile",
+  "email",
+  "offline_access",
+  ...requiredSubscriptionScopes,
+].join(" ");
 export class AuthorizationFailure extends DeliveryError {
   constructor(stage: string, status?: number) {
     super(
@@ -271,9 +280,9 @@ export class SubscriptionAuthBroker {
         refreshToken: tokens.refresh_token,
         scopes: granted,
         expiresAt: Date.now() + tokens.expires_in * 1000,
-        planUsageAuthorized:
-          granted.includes("chatgpt.tokens.use.direct") &&
-          granted.includes("resource.invoke"),
+        planUsageAuthorized: requiredSubscriptionScopes.every((scope) =>
+          granted.includes(scope),
+        ),
       };
     } catch (error) {
       throw new AuthorizationFailure(

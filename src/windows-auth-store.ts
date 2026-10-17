@@ -9,7 +9,7 @@ import {
   unlinkSync,
 } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
-import { DeliveryError } from "./controller.js";
+import { DeliveryError } from "./errors.js";
 
 const failure = () =>
   new DeliveryError(
@@ -123,10 +123,7 @@ try {
 `;
 
 /** Separate host setup only. Existing files are never overwritten implicitly. */
-export function windowsAuthStore(
-  directory: string,
-  metadataPaths: string[] = [],
-) {
+function windowsStorageAccess(directory: string, metadataPaths: string[] = []) {
   if (
     process.platform !== "win32" ||
     process.arch !== "x64" ||
@@ -213,6 +210,22 @@ export function windowsAuthStore(
     ordinary(path);
     crypt("check", "0".repeat(64), Buffer.alloc(0), [root, path]);
   };
+  return { root, ordinary, crypt, pathFor, create };
+}
+export function assertWindowsPrivateStorage(
+  directory: string,
+  metadataPaths: string[] = [],
+): void {
+  windowsStorageAccess(directory, metadataPaths);
+}
+export function windowsAuthStore(
+  directory: string,
+  metadataPaths: string[] = [],
+) {
+  const { root, ordinary, crypt, pathFor, create } = windowsStorageAccess(
+    directory,
+    metadataPaths,
+  );
   return {
     createRegistration(value: string) {
       if (!value.length || Buffer.byteLength(value) > 4096) throw failure();

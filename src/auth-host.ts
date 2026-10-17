@@ -1,17 +1,22 @@
-import { createHash } from "node:crypto";
-import { macKeychainStore } from "./keychain-store.js";
-import { windowsAuthStore } from "./windows-auth-store.js";
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 import {
-  SubscriptionAuthBroker,
   AuthorizationFailure,
   AuthorizationHttpFailure,
+  SubscriptionAuthBroker,
   type AuthorizationTransport,
   type ValidatedAccount,
 } from "./auth-broker.js";
+import {
+  hostCredentialVault,
+  type CredentialVault,
+} from "./credential-vault.js";
+import { DeliveryError } from "./errors.js";
+import {
+  decodeSubscriptionAccount,
+  subscriptionAccountId,
+} from "./subscription-account.js";
 import { prepareSubscriptionAuth } from "./subscription-auth.js";
-import { DeliveryError } from "./controller.js";
 
 const refusal = (stage = "setup") =>
   new DeliveryError(
@@ -61,23 +66,14 @@ interface AuthorizationHostAdapters {
   platform: NodeJS.Platform;
   arch: string;
   transport: AuthorizationTransport;
-  keychainStore: (directory: string) => ReturnType<typeof macKeychainStore>;
+  credentialVault: (directory: string) => CredentialVault;
 }
 function store(
   account: ValidatedAccount,
-  vault: ReturnType<typeof macKeychainStore>,
+  vault: CredentialVault,
   replace = false,
 ): string {
-  const id = createHash("sha256")
-    .update(
-      JSON.stringify([
-        account.issuer,
-        account.clientId,
-        account.subject,
-        account.hostId,
-      ]),
-    )
-    .digest("hex");
+  const id = subscriptionAccountId(account);
   const encoded = Buffer.from(JSON.stringify(account)).toString("base64");
   vault.write(id, encoded, replace);
   return id;
@@ -95,8 +91,7 @@ export async function authorizeSubscriptionAuth(
     platform: process.platform,
     arch: process.arch,
     transport: openAI,
-    keychainStore:
-      process.platform === "win32" ? windowsAuthStore : macKeychainStore,
+    credentialVault: hostCredentialVault,
   },
 ) {
   if (
@@ -111,32 +106,17 @@ export async function authorizeSubscriptionAuth(
     repository,
     authority,
   );
-  const vault = adapters.keychainStore(dirname(registration.registrationPath));
+  const vault = adapters.credentialVault(
+    dirname(registration.registrationPath),
+  );
   let selected: ValidatedAccount | undefined;
   if (selectedId !== undefined) {
     if (!/^[a-f0-9]{64}$/.test(selectedId)) throw refusal();
     try {
-      selected = JSON.parse(
-        Buffer.from(vault.read(selectedId), "base64").toString("utf8"),
-      );
-      if (
-        !selected ||
-        selected.issuer !== "https://auth.openai.com" ||
-        selected.hostId !== registration.hostId ||
-        typeof selected.subject !== "string" ||
-        typeof selected.clientId !== "string" ||
-        createHash("sha256")
-          .update(
-            JSON.stringify([
-              selected.issuer,
-              selected.clientId,
-              selected.subject,
-              selected.hostId,
-            ]),
-          )
-          .digest("hex") !== selectedId
-      )
+      const encoded = vault.read(selectedId);
+      if (!decodeSubscriptionAccount(encoded, selectedId, registration.hostId))
         throw refusal();
+      selected = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
     } catch {
       throw refusal();
     }

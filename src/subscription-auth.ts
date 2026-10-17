@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   existsSync,
@@ -8,21 +7,20 @@ import {
   realpathSync,
   writeFileSync,
 } from "node:fs";
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-  sep,
-} from "node:path";
-import { DeliveryError } from "./controller.js";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { DeliveryError } from "./errors.js";
+import { pathContains } from "./path-containment.js";
+import { assertPrivateAuthStorage } from "./private-storage.js";
 import { redact } from "./redaction.js";
+import { validHostRegistration } from "./subscription-account.js";
 import {
   initializeWindowsAuthDirectory,
   windowsAuthStore,
 } from "./windows-auth-store.js";
+export {
+  assertOwnerControlledStorage,
+  assertPrivateAuthStorage,
+} from "./private-storage.js";
 
 function canonical(path: string): string {
   const missing: string[] = [];
@@ -41,59 +39,7 @@ function canonical(path: string): string {
   return join(realpathSync(parent), ...missing);
 }
 function inside(parent: string, child: string): boolean {
-  const path = relative(parent, child);
-  return (
-    path === "" ||
-    (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
-  );
-}
-
-/** Host storage must be controlled by the effective owner. macOS extended ACLs
- * can grant access beyond mode bits, so an ACL is refused rather than inferred. */
-export function assertOwnerControlledStorage(
-  path: string,
-  kind: "directory" | "file",
-  maximum = 4096,
-  access: "private" | "readable" = "private",
-) {
-  const entry = lstatSync(path);
-  if (
-    entry.isSymbolicLink() ||
-    (kind === "directory"
-      ? !entry.isDirectory()
-      : !entry.isFile() || entry.nlink !== 1 || entry.size > maximum)
-  )
-    throw Error();
-  if (process.platform !== "win32") {
-    if (
-      !process.geteuid ||
-      entry.uid !== process.geteuid() ||
-      (entry.mode & (access === "private" ? 0o077 : 0o022)) !== 0
-    )
-      throw Error();
-    if (process.platform === "darwin") {
-      const acl = spawnSync("/bin/ls", ["-lde", path], {
-        encoding: "utf8",
-        timeout: 4000,
-        maxBuffer: 8192,
-        env: { PATH: "/usr/bin:/bin" },
-      });
-      if (
-        acl.status !== 0 ||
-        !/^[d-][rwx-]{9}@? /.test(acl.stdout) ||
-        acl.stdout.trim().split("\n").length !== 1
-      )
-        throw Error();
-    }
-  }
-}
-
-export function assertPrivateAuthStorage(
-  path: string,
-  kind: "directory" | "file",
-  maximum = 4096,
-) {
-  assertOwnerControlledStorage(path, kind, maximum, "private");
+  return pathContains(parent, child);
 }
 
 /** Separate owner setup, not worker qualification. This prepares only non-secret
@@ -131,12 +77,10 @@ export function prepareSubscriptionAuth(
     )
       throw Error();
     assertPrivateAuthStorage(target, "directory");
-    if (process.platform === "win32") windowsAuthStore(target);
     const path = join(target, "registration.json");
     let registration: { schema: number; hostId: string; agentName: string };
     if (existsSync(path)) {
       assertPrivateAuthStorage(path, "file");
-      if (process.platform === "win32") windowsAuthStore(target, [path]);
       const entry = lstatSync(path);
       if (
         !entry.isFile() ||
@@ -146,15 +90,7 @@ export function prepareSubscriptionAuth(
       )
         throw Error();
       registration = JSON.parse(readFileSync(path, "utf8"));
-      if (
-        registration.schema !== 1 ||
-        registration.agentName !== "Developer OS" ||
-        !/^urn:uuid:[a-f0-9-]{36}$/.test(registration.hostId) ||
-        Object.keys(registration).some(
-          (key) => !["schema", "hostId", "agentName"].includes(key),
-        )
-      )
-        throw Error();
+      if (!validHostRegistration(registration)) throw Error();
     } else {
       registration = {
         schema: 1,

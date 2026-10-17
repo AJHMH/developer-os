@@ -22,6 +22,13 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci --ignore-scripts
+      - name: Regenerate source navigation and check freshness
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          DO_NOT_TRACK: '1'
+        run: |
+          npx --yes @nanonets/graft@0.16.0 build
+          npx --yes @nanonets/graft@0.16.0 check
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm test

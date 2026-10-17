@@ -1,25 +1,18 @@
 import { spawnSync } from "node:child_process";
-import { arch, homedir, platform, release } from "node:os";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { arch, homedir, platform, release } from "node:os";
 import { join, resolve } from "node:path";
+import { hostTarget, supportsHostOS } from "./host-target.js";
 
 /** Only explicitly supported host/provider pairs. Guest controls are observed separately. */
 export function podmanPlatform() {
-  const windows = platform() === "win32" && arch() === "x64";
-  const mac =
-    platform() === "darwin" &&
-    arch() === "arm64" &&
-    Number(release().split(".")[0]) >= 23;
-  if (!windows && !mac) throw Error("Unsupported native host");
+  const target = hostTarget(platform(), arch());
+  if (!target || !supportsHostOS(target, release()))
+    throw Error("Unsupported native host");
+  const windows = target.platform === "win32";
   return {
-    platform: platform(),
-    arch: arch(),
+    ...target,
     osVersion: release(),
-    provider: windows ? "hyperv" : "applehv",
-    guestArch: windows ? "amd64" : "arm64",
-    imageReference: windows
-      ? "ostree-unverified-registry:quay.io/podman/machine-os:6.0"
-      : "ostree-unverified-registry:quay.io/podman/machine-os:6.1",
     executable: windows
       ? join(homedir(), "AppData", "Local", "Programs", "Podman", "podman.exe")
       : "/opt/podman/bin/podman",
@@ -103,7 +96,7 @@ export function podmanCommand(
     cwd: host.cwd,
     env: host.env,
     encoding: "utf8",
-    timeout: host.platform === "darwin" ? 30000 : 10000,
+    timeout: host.commandMs,
     maxBuffer: 65536,
     shell: false,
     windowsHide: true,

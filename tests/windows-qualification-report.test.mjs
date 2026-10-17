@@ -34,7 +34,7 @@ test("Windows controls qualification requires a trusted runtime and cannot be su
   const f = fixture(t);
   await assert.rejects(
     async () => f.controller.qualifyWindowsControls(f.delivery.id),
-    /trusted Windows controls runtime/i,
+    /trusted host controls runtime/i,
   );
   assert.equal(f.controller.status(f.delivery.id).windowsControls, undefined);
 });
@@ -819,9 +819,10 @@ test("Windows report binds task validation evidence and refuses altered output o
 });
 
 async function nativeControlsScenario(t, refusal, macos = false) {
-  const { NativeWindowsControls, windowsControlNames } = await import(
-    "../dist/windows-controls.js"
+  const { NativeWindowsControls } = await import(
+    "../dist/host-controls-exercise.js"
   );
+  const { windowsControlNames } = await import("../dist/windows-controls.js");
   const fs = (await import("node:fs")).default;
   const cp = (await import("node:child_process")).default;
   const os = (await import("node:os")).default;
@@ -854,6 +855,17 @@ async function nativeControlsScenario(t, refusal, macos = false) {
     machine: f.binding.machine,
     policyPath: join(f.repository, "..", "pins.json"),
     authorityDirectory: f.state,
+    boundaryProbe(r) {
+      if (refusal === "allowed-stage" || refusal === "unknown-stage")
+        throw Error("Boundary refused");
+      return {
+        challenge: refusal === "challenge" ? "wrong" : r.challenge,
+        operationId: r.session.operationId,
+        names: windowsControlNames.slice(0, 3),
+        positiveControls: true,
+        privilegedDenial: refusal !== "denial",
+      };
+    },
     async execute(r) {
       if (revoked.has(r.session.operationId) || !r.mayDispatch())
         throw Error("revoked");
@@ -909,9 +921,10 @@ async function nativeControlsScenario(t, refusal, macos = false) {
     spawn: cp.spawn,
   };
   const special = (path) =>
-    /(?:podman\.exe|aios-report-test\.json)$/.test(String(path));
-  t.mock.method(os, "platform", () => "win32");
-  t.mock.method(os, "arch", () => "x64");
+    /(?:podman(?:\.exe)?|aios-report-test\.json)$/.test(String(path));
+  t.mock.method(os, "platform", () => (macos ? "darwin" : "win32"));
+  t.mock.method(os, "release", () => f.binding.osVersion);
+  t.mock.method(os, "arch", () => (macos ? "arm64" : "x64"));
   t.mock.method(fs, "lstatSync", (p) =>
     special(p)
       ? { isFile: () => true, isSymbolicLink: () => false, nlink: 1, size: 100 }
@@ -928,63 +941,22 @@ async function nativeControlsScenario(t, refusal, macos = false) {
       ? JSON.stringify({
           Name: f.binding.machine,
           Version: 1,
-          HyperVHypervisor: {},
+          ...(macos
+            ? {
+                AppleHypervisor: {
+                  Vfkit: { Rosetta: false, BinaryPath: null },
+                },
+                Rosetta: false,
+                ImportNativeCA: false,
+                Ansible: null,
+                Resources: { USBs: [] },
+              }
+            : { HyperVHypervisor: {} }),
           Mounts: [],
           HostUser: { Rootful: false },
         })
       : originals.read(p, o),
   );
-  t.mock.method(cp, "spawnSync", (_exe, _args, options) => {
-    const r = JSON.parse(options.input.split("\n")[1]);
-    assert.equal(options.shell, false);
-    assert.equal(options.windowsHide, true);
-    assert.equal(options.timeout, macos ? 90000 : 30000);
-    assert.equal(r.platform, macos ? "darwin" : "win32");
-    const deadlineProbe = originals.spawn(
-      process.env.AIOS_TEST_PYTHON ?? "python",
-      [
-        "-c",
-        "import ast,sys,subprocess,json;source=json.loads(sys.stdin.readline());r=json.loads(sys.stdin.readline());node=next(n for n in ast.walk(ast.parse(source)) if isinstance(n,ast.FunctionDef) and n.name=='pod');subprocess.run=lambda args,**kwargs: subprocess.CompletedProcess(args,0,b'ok') if kwargs['timeout']==(30 if r['platform']=='darwin' else 10) else (_ for _ in ()).throw(AssertionError('wrong guest deadline'));exec(compile(ast.fix_missing_locations(ast.Module(body=[node],type_ignores=[])),'actual-controls','exec'));assert pod('probe')==b'ok'",
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    );
-    deadlineProbe.stdin.end(
-      JSON.stringify(
-        Buffer.from(options.input.split("\n")[0], "base64").toString(),
-      ) +
-        "\n" +
-        JSON.stringify(r) +
-        "\n",
-    );
-    guestDeadlineProbes.push(deadlineProbe);
-    if (refusal === "allowed-stage" || refusal === "unknown-stage")
-      return {
-        status: 1,
-        stderr: refusal === "allowed-stage" ? "authority" : "synthetic-private",
-      };
-    return {
-      status: 0,
-      stdout: JSON.stringify({
-        challenge: refusal === "challenge" ? "wrong" : r.challenge,
-        operationId: r.session.operationId,
-        names: windowsControlNames.slice(0, 3),
-        positiveControls: true,
-        privilegedDenial: refusal !== "denial",
-      }),
-    };
-  });
-  const guestDeadlineProbes = [];
-  t.after(async () => {
-    for (const probe of guestDeadlineProbes) {
-      let error = "";
-      probe.stderr.on("data", (chunk) => {
-        error += chunk;
-      });
-      if (probe.exitCode === null)
-        await new Promise((resolve) => probe.once("close", resolve));
-      assert.equal(probe.exitCode, 0, error);
-    }
-  });
   let child;
   t.mock.method(cp, "spawn", (exe, _args, options) => {
     assert.equal(exe, process.execPath);
@@ -1083,7 +1055,7 @@ test("public Mac report requires independent AppleHV evidence and cannot inherit
   );
   await assert.rejects(
     () => mac.controller.qualifyMacosControls(mac.delivery.id),
-    /trusted Windows controls runtime/,
+    /trusted host controls runtime/,
   );
 });
 

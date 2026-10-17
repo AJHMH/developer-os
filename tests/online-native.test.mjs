@@ -79,7 +79,9 @@ test("native online access refuses a dispatched request when owner authorization
   });
   t.mock.method(os, "platform", () => hostPlatform);
   t.mock.method(os, "arch", () => hostArch);
-  t.mock.method(os, "release", () => "27.2.0");
+  t.mock.method(os, "release", () =>
+    hostPlatform === "win32" ? "10.0.26100" : "27.2.0",
+  );
   t.mock.method(os, "homedir", () => "/virtual-home");
   t.mock.method(fs, "lstatSync", () => ({
     isFile: () => true,

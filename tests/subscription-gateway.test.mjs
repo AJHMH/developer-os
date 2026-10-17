@@ -1,10 +1,12 @@
+import {
+  syntheticGatewayAccount,
+  syntheticGatewayApproval,
+} from "../dist/gateway-canary.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   gatewayRequest,
   HostSubscriptionGateway,
-  syntheticGatewayAccount,
-  syntheticGatewayApproval,
   syntheticGatewayResponse,
 } from "../dist/subscription-gateway.js";
 
