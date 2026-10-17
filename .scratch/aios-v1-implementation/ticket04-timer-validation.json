@@ -1,0 +1,94 @@
+{
+  "base": "7aba7fb64101a9461363fbaa66729158fde161af",
+  "node": "24.21.0",
+  "platform": "darwin-arm64",
+  "focused": {
+    "tests": 52,
+    "passed": 52,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "formatCheck": "passed",
+  "reviews": {
+    "standards": 0,
+    "spec": 0
+  },
+  "fullSuite": {
+    "command": "npm test",
+    "timeoutSeconds": 120,
+    "status": "failed",
+    "exitCode": null,
+    "signal": "SIGKILL",
+    "timedOut": true,
+    "terminationFailed": false,
+    "startedAt": "2026-10-17T20:53:39.467Z",
+    "finishedAt": "2026-10-17T20:55:39.477Z",
+    "truncated": false,
+    "environment": "restricted sandbox: local listener creation refused",
+    "failedTestNames": [
+      "✖ separate darwin authorization completes a local callback with a verified synthetic account and stores only through its host adapter (45.293084ms)",
+      "✖ separate win32 authorization completes a local callback with a verified synthetic account and stores only through its host adapter (48.845917ms)",
+      "✖ synthetic expiry arms after slow client setup and interrupts a confirmed body read (79.287833ms)"
+    ]
+  },
+  "baselineComparison": "No new current-main baseline pass or failure is inferred from incomplete probes; hosted main at base passed before work",
+  "qualification": "not-established",
+  "productionEnabled": false,
+  "restrictedBaselineComparison": {
+    "status": "failed",
+    "signal": "SIGKILL",
+    "timedOut": false,
+    "terminationFailed": false,
+    "startedAt": "2026-10-17T20:55:51.468Z",
+    "finishedAt": "2026-10-17T20:56:30.932Z",
+    "classification": "stopped as superseded/incomplete after discovering local listener sandbox restrictions; not valid baseline evidence"
+  },
+  "ownerReportsHashVerified": 21,
+  "hostPermittedContractProbe": {
+    "status": "failed",
+    "exitCode": null,
+    "signal": "SIGKILL",
+    "timedOut": true,
+    "terminationFailed": false,
+    "startedAt": "2026-10-17T20:56:33.178Z",
+    "finishedAt": "2026-10-17T20:58:33.189Z",
+    "truncated": false,
+    "timeoutSeconds": 120,
+    "reportedAssertionFailures": 0,
+    "classification": "Factory contract probe on local macOS; not passing evidence"
+  },
+  "hostPermittedMainProbe": {
+    "status": "failed",
+    "exitCode": null,
+    "signal": "SIGKILL",
+    "timedOut": false,
+    "terminationFailed": false,
+    "startedAt": "2026-10-17T20:58:37.699Z",
+    "finishedAt": "2026-10-17T20:59:07.421Z",
+    "truncated": false,
+    "classification": "stopped as superseded/incomplete after identifying separate macOS profile"
+  },
+  "macosProfile": {
+    "status": "passed",
+    "timeoutSeconds": 600,
+    "source": ".github/workflows/ci.yml validate job",
+    "command": "npm run typecheck && npm run format:check && npm test && npm run build",
+    "dependencies": "existing node_modules, no install repeated",
+    "exitCode": 0,
+    "timedOut": false,
+    "terminationFailed": false,
+    "startedAt": "2026-10-17T20:59:09.132Z",
+    "finishedAt": "2026-10-17T21:04:35.235Z",
+    "durationMs": 326103,
+    "stdoutTruncated": true,
+    "claim": "Declared macOS validation commands passed with existing dependencies; not a hosted Factory contract result"
+  },
+  "ledger": {
+    "directory": "/private/tmp/issue04-native-timer-continuity-ledger",
+    "usedMs": 1320000,
+    "remainingMs": 5880000,
+    "usedCycles": 0,
+    "active": null,
+    "accounting": "Conservative operator-reported active charges; not independently measured time"
+  }
+}

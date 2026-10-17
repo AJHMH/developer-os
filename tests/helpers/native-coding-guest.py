@@ -6,6 +6,8 @@ root = pathlib.Path(sys.argv[1])
 os.environ['HOME'] = str(root)
 state_path = root / 'engine.json'
 state = json.loads(state_path.read_text()) if state_path.exists() else {'commands': [], 'container': None, 'alive': False}
+real_monotonic = time.monotonic
+time.monotonic = lambda: real_monotonic() + state.get('timeOffset', 0)
 real_popen = subprocess.Popen
 real_read = pathlib.Path.read_text
 real_exists = pathlib.Path.exists
@@ -126,6 +128,12 @@ def run(args, **kwargs):
             else: output = json.dumps([c]).encode()
         elif action == 'start': c['State'].update(Running=True, Pid=42, Status='running');state['alive'] = True
         elif action == 'exec':
+            state['timeOffset'] = state.get('timeOffset', 0) + state.get('advanceAfterLaunch', 0)
+            if state.get('loseTimerAfterLaunch'):
+                unit = request['name'] + '-' + state['loseTimerAfterLaunch'] + '.timer'
+                if state.get('timerLossState'):
+                    state['timers'][unit]['active'] = state['timerLossState']
+                else: state['timers'].pop(unit, None)
             # Simulate Codex finishing after the trusted launch marker is released.
             if not state.get('keepRunning'):
                 c['State'].update(Running=False, Pid=0, Status='exited', ExitCode=1)
