@@ -1,0 +1,449 @@
+{
+  "run": 38991544011,
+  "revision": "cfd20c56cdf446664b9ae1b7ccfdd59164312cc9",
+  "diagnosticOnly": true,
+  "git": [
+    {
+      "operation": "push",
+      "elapsedMs": 395,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 219,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 173,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 98,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 99
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 224,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 224,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 196,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 181,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 195,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 257,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 158,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "other",
+      "elapsedMs": 34,
+      "timeoutMs": 5000,
+      "status": 1,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 0
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 222,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 190,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 180,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 236,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 188,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 201,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 5014,
+      "timeoutMs": 5000,
+      "status": null,
+      "signal": "SIGTERM",
+      "errorCode": "ETIMEDOUT",
+      "stderrBytes": 0
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 194,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 192,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 183,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 1384,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 173,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 286,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 107
+    },
+    {
+      "operation": "push",
+      "elapsedMs": 368,
+      "timeoutMs": 5000,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "stderrBytes": 143
+    }
+  ],
+  "storage": [
+    {
+      "stage": "cli-preload",
+      "event": "entered"
+    },
+    {
+      "stage": "initialize-directory",
+      "event": "started"
+    },
+    {
+      "stage": "initialize-directory",
+      "event": "finished",
+      "elapsedMs": 6810,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 725,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 240,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 341,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 238,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "cli-preload",
+      "event": "entered"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 248,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 243,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "cli-preload",
+      "event": "entered"
+    },
+    {
+      "stage": "cli-preload",
+      "event": "entered"
+    },
+    {
+      "stage": "cli-preload",
+      "event": "entered"
+    },
+    {
+      "stage": "initialize-directory",
+      "event": "started"
+    },
+    {
+      "stage": "initialize-directory",
+      "event": "finished",
+      "elapsedMs": 214,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 246,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 222,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 301,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 240,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "cli-preload",
+      "event": "entered"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 259,
+      "status": 0,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    },
+    {
+      "stage": "protected-storage",
+      "event": "started"
+    },
+    {
+      "stage": "protected-storage",
+      "event": "finished",
+      "elapsedMs": 345,
+      "status": 1,
+      "signal": null,
+      "errorCode": null,
+      "threw": false
+    }
+  ]
+}
