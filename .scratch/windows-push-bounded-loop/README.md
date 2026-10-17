@@ -1,6 +1,7 @@
 # Bounded native Windows push reproduction loop
 
-Status: PARTIAL, native observations pending. Main a9efc28 is synchronized and
+Status: PARTIAL. Serial and paired native observations passed; the timeout
+remains unreproduced and no cause-specific repair is established. Main a9efc28 is synchronized and
 passed all native, Factory and CodeQL checks. Its 26 fixture pushes passed; the
 slowest healthy trace spent most extra time inside transport/child completion.
 The earlier actual required failure remains ETIMEDOUT at 5014 ms with no phase
@@ -34,7 +35,7 @@ artifacts remain missing evidence.
 Normal tests, production code, assertions, qualification and all safety checks
 are unchanged. Only newly created synthetic fixture files are removed by existing
 fixture cleanup. Raw traces use the already reviewed per-call cleanup. The
-workflow is temporary and will be removed after both outcomes are reconciled.
+temporary workflow was removed after both outcomes were reconciled.
 
 ## Local controls
 
@@ -107,3 +108,40 @@ Charge twenty further active minutes for paired harness preparation, controls an
 review correction, leaving thirty active minutes and zero repair cycles. CI waits
 remain excluded. The serial and paired native observations remain separately
 revision-bound; results are not pooled as equivalent workloads.
+
+## Paired native results and conclusion
+
+Run 38995970292 at cc93fb94f380879d4f3f17126e68c9114645f319 passed on both native
+hosts. Each worker completed 50 fresh remotes with zero exit status; each host
+therefore completed 100 fresh remotes plus four setup pushes. The parent logs
+retained 104 push traces per host, reconciled against 52 push result records in
+each worker's log. All 208 traces were available, untruncated and parseable, with
+no cleanup failure. Maximum elapsed was 1279/798 ms. Both artifacts were downloaded
+before deleting the temporary workflow.
+
+Git's direct fd-2 trace writes appear in the parent log, not the worker stream
+logs. The worker logs contain original test results and main-sync result metadata;
+the unique worker JSON files contain progress. The pooled native traces cannot
+be attributed to individual workers. This limitation is preserved rather than
+inventing a mapping. Numeric summaries and artifact hashes are retained in
+serial-observations.json and paired-observations.json; complete event arrays
+remain in the named CI artifacts.
+
+Across the separate serial and paired workloads there were 400 successful fresh
+remote pushes plus 12 setup pushes. No original five-second timeout was reproduced.
+The controls prove diagnostic fail-stop behavior, not a causal regression repair.
+Neither healthy workload reproduces the original complete concurrent test-file
+context. A future failed required-run trace remains the decisive missing evidence;
+merged PR 60 now captures those phases on every Windows fixture push. No production
+optimization, flake exception or safety/deadline change is justified here.
+
+The reproduction scripts remain explicitly opt-in under scratch. No normal test,
+production code, required workflow, assertion, coverage threshold or qualification
+gate changed. The temporary workflow is removed. Issue 04's production gates
+remain open. PR 59 was closed independently; it was not reopened or changed.
+
+Charge ten further active minutes for native reconciliation, cleanup and final
+review, leaving twenty active minutes and zero repair cycles. CI waits remain
+excluded, and these values must carry forward. Further cause-specific repair
+requires an explicit repair-cycle extension; a successful rerun cannot close the
+historical defect. No unchanged-source required-CI rerun was requested.
