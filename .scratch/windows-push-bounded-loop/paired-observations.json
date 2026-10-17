@@ -1,0 +1,813 @@
+{
+  "run": 38995970292,
+  "revision": "cc93fb94f380879d4f3f17126e68c9114645f319",
+  "diagnosticOnly": true,
+  "observations": [
+    {
+      "artifact": "windows-push-loop-1-cc93fb94f380879d4f3f17126e68c9114645f319",
+      "summary": {
+        "schemaVersion": 1,
+        "diagnosticOnly": true,
+        "nativeWindows": true,
+        "outcome": "passed",
+        "diagnosticFailed": false,
+        "stopped": false,
+        "workers": [
+          {
+            "id": 1,
+            "code": 0,
+            "workerError": false,
+            "report": {
+              "schemaVersion": 1,
+              "diagnosticOnly": true,
+              "nativeWindows": true,
+              "sourceRevision": "cc93fb94f380879d4f3f17126e68c9114645f319",
+              "runtime": {
+                "node": "v24.21.0",
+                "platform": "win32",
+                "architecture": "x64",
+                "parallelism": 4
+              },
+              "worker": 1,
+              "limit": 50,
+              "completed": 50,
+              "iteration": 50,
+              "stage": "complete",
+              "outcome": "passed",
+              "productionEnabled": false
+            }
+          },
+          {
+            "id": 2,
+            "code": 0,
+            "workerError": false,
+            "report": {
+              "schemaVersion": 1,
+              "diagnosticOnly": true,
+              "nativeWindows": true,
+              "sourceRevision": "cc93fb94f380879d4f3f17126e68c9114645f319",
+              "runtime": {
+                "node": "v24.21.0",
+                "platform": "win32",
+                "architecture": "x64",
+                "parallelism": 4
+              },
+              "worker": 2,
+              "limit": 50,
+              "completed": 50,
+              "iteration": 50,
+              "stage": "complete",
+              "outcome": "passed",
+              "productionEnabled": false
+            }
+          }
+        ]
+      },
+      "parentLogSha256": "1a2343f6fd05caae5a4c29093ee8664ac1cfa9117f6418e21716f86c6e7f39b2",
+      "traceMetrics": {
+        "traceCount": 104,
+        "missing": 0,
+        "truncated": 0,
+        "malformed": 0,
+        "cleanupFailed": 0,
+        "failedPushes": 0,
+        "maxElapsedMs": 1279
+      },
+      "slowestTrace": {
+        "operation": "push",
+        "elapsedMs": 1279,
+        "timeoutMs": 5000,
+        "status": 0,
+        "cleanupFailed": false,
+        "traceAvailable": true,
+        "bytesRead": 31386,
+        "truncated": false,
+        "malformedLines": 0,
+        "events": [
+          {
+            "event": "start",
+            "process": 0,
+            "t_abs": 0.0233
+          },
+          {
+            "event": "cmd_name",
+            "process": 0,
+            "command": "push"
+          },
+          {
+            "event": "region_enter",
+            "process": 0,
+            "category": "other"
+          },
+          {
+            "event": "region_enter",
+            "process": 0,
+            "category": "transport_push"
+          },
+          {
+            "event": "child_start",
+            "process": 0,
+            "child_id": 0
+          },
+          {
+            "event": "start",
+            "process": 1,
+            "t_abs": 0.007596
+          },
+          {
+            "event": "cmd_name",
+            "process": 1,
+            "command": "receive-pack"
+          },
+          {
+            "event": "region_leave",
+            "process": 0,
+            "t_rel": 0.057021,
+            "category": "transport_push"
+          },
+          {
+            "event": "region_enter",
+            "process": 0,
+            "category": "transport_push"
+          },
+          {
+            "event": "child_start",
+            "process": 0,
+            "child_id": 1
+          },
+          {
+            "event": "start",
+            "process": 2,
+            "t_abs": 0.0086
+          },
+          {
+            "event": "cmd_name",
+            "process": 2,
+            "command": "pack-objects"
+          },
+          {
+            "event": "region_enter",
+            "process": 2,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_leave",
+            "process": 2,
+            "t_rel": 0.0008,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_enter",
+            "process": 2,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_leave",
+            "process": 2,
+            "t_rel": 0.000242,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_enter",
+            "process": 2,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_leave",
+            "process": 2,
+            "t_rel": 0.000743,
+            "category": "pack-objects"
+          },
+          {
+            "event": "child_start",
+            "process": 1,
+            "child_id": 0
+          },
+          {
+            "event": "exit",
+            "process": 2,
+            "t_abs": 0.023201,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 2,
+            "t_abs": 0.023224,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 0,
+            "t_rel": 0.037871,
+            "code": 0,
+            "child_id": 1
+          },
+          {
+            "event": "start",
+            "process": 3,
+            "t_abs": 0.009325
+          },
+          {
+            "event": "cmd_name",
+            "process": 3,
+            "command": "unpack-objects"
+          },
+          {
+            "event": "exit",
+            "process": 3,
+            "t_abs": 0.094047,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 3,
+            "t_abs": 0.094063,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 1,
+            "t_rel": 0.10836,
+            "code": 0,
+            "child_id": 0
+          },
+          {
+            "event": "child_start",
+            "process": 1,
+            "child_id": 1
+          },
+          {
+            "event": "start",
+            "process": 4,
+            "t_abs": 0.007946
+          },
+          {
+            "event": "cmd_name",
+            "process": 4,
+            "command": "other"
+          },
+          {
+            "event": "child_start",
+            "process": 4,
+            "child_id": 0
+          },
+          {
+            "event": "start",
+            "process": 5,
+            "t_abs": 0.009096
+          },
+          {
+            "event": "cmd_name",
+            "process": 5,
+            "command": "other"
+          },
+          {
+            "event": "exit",
+            "process": 5,
+            "t_abs": 0.02206,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 5,
+            "t_abs": 0.022074,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 4,
+            "t_rel": 0.034492,
+            "code": 0,
+            "child_id": 0
+          },
+          {
+            "event": "exit",
+            "process": 4,
+            "t_abs": 0.056756,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 4,
+            "t_abs": 0.056772,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 1,
+            "t_rel": 0.067691,
+            "code": 0,
+            "child_id": 1
+          },
+          {
+            "event": "child_start",
+            "process": 1,
+            "child_id": 2
+          },
+          {
+            "event": "start",
+            "process": 6,
+            "t_abs": 0.008863
+          },
+          {
+            "event": "cmd_name",
+            "process": 6,
+            "command": "other"
+          },
+          {
+            "event": "region_enter",
+            "process": 6,
+            "category": "other"
+          },
+          {
+            "event": "region_leave",
+            "process": 6,
+            "t_rel": 1.5e-05,
+            "category": "other"
+          },
+          {
+            "event": "exit",
+            "process": 6,
+            "t_abs": 0.023455,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 6,
+            "t_abs": 0.02347,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 1,
+            "t_rel": 0.039743,
+            "code": 0,
+            "child_id": 2
+          },
+          {
+            "event": "exit",
+            "process": 1,
+            "t_abs": 1.166348,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 1,
+            "t_abs": 1.166363,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 0,
+            "t_rel": 1.206733,
+            "code": 0,
+            "child_id": 0
+          },
+          {
+            "event": "region_leave",
+            "process": 0,
+            "t_rel": 1.149638,
+            "category": "transport_push"
+          },
+          {
+            "event": "region_leave",
+            "process": 0,
+            "t_rel": 1.208732,
+            "category": "other"
+          },
+          {
+            "event": "exit",
+            "process": 0,
+            "t_abs": 1.252437,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 0,
+            "t_abs": 1.252452,
+            "code": 0
+          }
+        ]
+      },
+      "workers": [
+        {
+          "file": "worker-1.tap",
+          "sha256": "265bf103a1aa6a018fad8a2365547ed23b3f0855493137df6d395728c340aa33",
+          "pushCount": 52,
+          "maxElapsedMs": 1279,
+          "failedPushes": 0
+        },
+        {
+          "file": "worker-2.tap",
+          "sha256": "81a2cd0f4ba9f436d7aaad18a785362ddfab099013d43f12dfb9020e5c3f86ce",
+          "pushCount": 52,
+          "maxElapsedMs": 1279,
+          "failedPushes": 0
+        }
+      ]
+    },
+    {
+      "artifact": "windows-push-loop-2-cc93fb94f380879d4f3f17126e68c9114645f319",
+      "summary": {
+        "schemaVersion": 1,
+        "diagnosticOnly": true,
+        "nativeWindows": true,
+        "outcome": "passed",
+        "diagnosticFailed": false,
+        "stopped": false,
+        "workers": [
+          {
+            "id": 1,
+            "code": 0,
+            "workerError": false,
+            "report": {
+              "schemaVersion": 1,
+              "diagnosticOnly": true,
+              "nativeWindows": true,
+              "sourceRevision": "cc93fb94f380879d4f3f17126e68c9114645f319",
+              "runtime": {
+                "node": "v24.21.0",
+                "platform": "win32",
+                "architecture": "x64",
+                "parallelism": 4
+              },
+              "worker": 1,
+              "limit": 50,
+              "completed": 50,
+              "iteration": 50,
+              "stage": "complete",
+              "outcome": "passed",
+              "productionEnabled": false
+            }
+          },
+          {
+            "id": 2,
+            "code": 0,
+            "workerError": false,
+            "report": {
+              "schemaVersion": 1,
+              "diagnosticOnly": true,
+              "nativeWindows": true,
+              "sourceRevision": "cc93fb94f380879d4f3f17126e68c9114645f319",
+              "runtime": {
+                "node": "v24.21.0",
+                "platform": "win32",
+                "architecture": "x64",
+                "parallelism": 4
+              },
+              "worker": 2,
+              "limit": 50,
+              "completed": 50,
+              "iteration": 50,
+              "stage": "complete",
+              "outcome": "passed",
+              "productionEnabled": false
+            }
+          }
+        ]
+      },
+      "parentLogSha256": "2b5e7887954629d9bcbf7d3dfb67e2000f0af44798b7227aa33c529143f7b9df",
+      "traceMetrics": {
+        "traceCount": 104,
+        "missing": 0,
+        "truncated": 0,
+        "malformed": 0,
+        "cleanupFailed": 0,
+        "failedPushes": 0,
+        "maxElapsedMs": 798
+      },
+      "slowestTrace": {
+        "operation": "push",
+        "elapsedMs": 798,
+        "timeoutMs": 5000,
+        "status": 0,
+        "cleanupFailed": false,
+        "traceAvailable": true,
+        "bytesRead": 31385,
+        "truncated": false,
+        "malformedLines": 0,
+        "events": [
+          {
+            "event": "start",
+            "process": 0,
+            "t_abs": 0.514513
+          },
+          {
+            "event": "cmd_name",
+            "process": 0,
+            "command": "push"
+          },
+          {
+            "event": "region_enter",
+            "process": 0,
+            "category": "other"
+          },
+          {
+            "event": "region_enter",
+            "process": 0,
+            "category": "transport_push"
+          },
+          {
+            "event": "child_start",
+            "process": 0,
+            "child_id": 0
+          },
+          {
+            "event": "start",
+            "process": 1,
+            "t_abs": 0.00487
+          },
+          {
+            "event": "cmd_name",
+            "process": 1,
+            "command": "receive-pack"
+          },
+          {
+            "event": "region_leave",
+            "process": 0,
+            "t_rel": 0.036438,
+            "category": "transport_push"
+          },
+          {
+            "event": "region_enter",
+            "process": 0,
+            "category": "transport_push"
+          },
+          {
+            "event": "child_start",
+            "process": 0,
+            "child_id": 1
+          },
+          {
+            "event": "start",
+            "process": 2,
+            "t_abs": 0.00583
+          },
+          {
+            "event": "cmd_name",
+            "process": 2,
+            "command": "pack-objects"
+          },
+          {
+            "event": "region_enter",
+            "process": 2,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_leave",
+            "process": 2,
+            "t_rel": 0.000505,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_enter",
+            "process": 2,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_leave",
+            "process": 2,
+            "t_rel": 0.000112,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_enter",
+            "process": 2,
+            "category": "pack-objects"
+          },
+          {
+            "event": "region_leave",
+            "process": 2,
+            "t_rel": 0.000447,
+            "category": "pack-objects"
+          },
+          {
+            "event": "child_start",
+            "process": 1,
+            "child_id": 0
+          },
+          {
+            "event": "exit",
+            "process": 2,
+            "t_abs": 0.016119,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 2,
+            "t_abs": 0.016129,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 0,
+            "t_rel": 0.024444,
+            "code": 0,
+            "child_id": 1
+          },
+          {
+            "event": "start",
+            "process": 3,
+            "t_abs": 0.005915
+          },
+          {
+            "event": "cmd_name",
+            "process": 3,
+            "command": "unpack-objects"
+          },
+          {
+            "event": "exit",
+            "process": 3,
+            "t_abs": 0.057563,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 3,
+            "t_abs": 0.057579,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 1,
+            "t_rel": 0.068627,
+            "code": 0,
+            "child_id": 0
+          },
+          {
+            "event": "child_start",
+            "process": 1,
+            "child_id": 1
+          },
+          {
+            "event": "start",
+            "process": 4,
+            "t_abs": 0.005251
+          },
+          {
+            "event": "cmd_name",
+            "process": 4,
+            "command": "other"
+          },
+          {
+            "event": "child_start",
+            "process": 4,
+            "child_id": 0
+          },
+          {
+            "event": "start",
+            "process": 5,
+            "t_abs": 0.004476
+          },
+          {
+            "event": "cmd_name",
+            "process": 5,
+            "command": "other"
+          },
+          {
+            "event": "exit",
+            "process": 5,
+            "t_abs": 0.016602,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 5,
+            "t_abs": 0.016612,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 4,
+            "t_rel": 0.024295,
+            "code": 0,
+            "child_id": 0
+          },
+          {
+            "event": "exit",
+            "process": 4,
+            "t_abs": 0.041939,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 4,
+            "t_abs": 0.041949,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 1,
+            "t_rel": 0.05013,
+            "code": 0,
+            "child_id": 1
+          },
+          {
+            "event": "child_start",
+            "process": 1,
+            "child_id": 2
+          },
+          {
+            "event": "start",
+            "process": 6,
+            "t_abs": 0.004737
+          },
+          {
+            "event": "cmd_name",
+            "process": 6,
+            "command": "other"
+          },
+          {
+            "event": "region_enter",
+            "process": 6,
+            "category": "other"
+          },
+          {
+            "event": "region_leave",
+            "process": 6,
+            "t_rel": 1e-05,
+            "category": "other"
+          },
+          {
+            "event": "exit",
+            "process": 6,
+            "t_abs": 0.01531,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 6,
+            "t_abs": 0.01532,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 1,
+            "t_rel": 0.035426,
+            "code": 0,
+            "child_id": 2
+          },
+          {
+            "event": "exit",
+            "process": 1,
+            "t_abs": 0.212667,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 1,
+            "t_abs": 0.21268,
+            "code": 0
+          },
+          {
+            "event": "child_exit",
+            "process": 0,
+            "t_rel": 0.237194,
+            "code": 0,
+            "child_id": 0
+          },
+          {
+            "event": "region_leave",
+            "process": 0,
+            "t_rel": 0.200696,
+            "category": "transport_push"
+          },
+          {
+            "event": "region_leave",
+            "process": 0,
+            "t_rel": 0.238576,
+            "category": "other"
+          },
+          {
+            "event": "exit",
+            "process": 0,
+            "t_abs": 0.766017,
+            "code": 0
+          },
+          {
+            "event": "atexit",
+            "process": 0,
+            "t_abs": 0.76603,
+            "code": 0
+          }
+        ]
+      },
+      "workers": [
+        {
+          "file": "worker-1.tap",
+          "sha256": "7994bab29e6ed7dd9d70334e82ff3109d7a2bec90b34d7c7e489a61f3ab50aa0",
+          "pushCount": 52,
+          "maxElapsedMs": 799,
+          "failedPushes": 0
+        },
+        {
+          "file": "worker-2.tap",
+          "sha256": "bbb00ebbd849eb39d1bf81fc3d4dd3e51275340006015cd713482a48d1321a7c",
+          "pushCount": 52,
+          "maxElapsedMs": 799,
+          "failedPushes": 0
+        }
+      ]
+    }
+  ]
+}

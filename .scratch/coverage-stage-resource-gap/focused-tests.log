@@ -1,0 +1,24 @@
+✔ coverage at exact global boundaries with fully covered changed code passes (287.883166ms)
+✔ inadequate global, changed-code, branch coverage and decreases block the required gate (2114.79725ms)
+✔ the Node adapter collects actual committed baseline/head coverage and separate test results (1050.019917ms)
+✔ missing, malformed, incomplete, or stale evidence cannot pass (3762.098083ms)
+✔ changed-code coverage at 90 percent passes and 80 percent fails even when global coverage passes (498.68475ms)
+✔ only approved exact-scope exceptions can relax coverage requirements (729.92025ms)
+✔ proposed Quality policy weakening does not affect the governing thresholds (287.017542ms)
+✔ real measurement cannot hide unused source through candidate c8 configuration (1286.550333ms)
+✔ passing unit coverage cannot replace the required integration suite (1035.077583ms)
+✔ coverage honors the declared test deadline instead of a hardcoded minute (2572.665208ms)
+✔ coverage rejects a test budget above the independently trusted profile limit (413.8485ms)
+✔ coverage policy defaults to the contract repository when invoked elsewhere (1142.411667ms)
+✔ coverage refuses a contract changed between context capture and policy evaluation (317.632083ms)
+✔ coverage collector runs complete suites with exactly four bounded file workers (2591.564083ms)
+✔ measurement retains stage timings and bounded redacted failures through its public command (762.848375ms)
+✔ measurement distinguishes a stage deadline from a nonzero test exit (2537.719292ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21433.790458
