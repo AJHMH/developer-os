@@ -1,0 +1,54 @@
+name: Diagnostic Linux fixture storage comparison
+on:
+  push:
+    branches: [codex/linux-contract-io-pressure]
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        order: [disk-first, memory-first]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: consumer
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: AJHMH/software-factory
+          ref: b9ddb90de815b68787e741bb2c8118e7b6a784d9
+          path: factory
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+        working-directory: factory
+      # A fresh private mount preserves executable-fixture semantics; /dev/shm
+      # may be noexec and would confound the storage comparison.
+      - name: Prepare private diagnostic memory filesystem
+        run: |
+          mkdir -m 700 "$RUNNER_TEMP/fixture-memory"
+          sudo mount -t tmpfs -o "size=512m,nodev,nosuid,mode=0700,uid=$(id -u),gid=$(id -g)" tmpfs "$RUNNER_TEMP/fixture-memory"
+      - name: Compare full unchanged contract with alternate fixture storage
+        env:
+          AIOS_MEMORY_FIXTURE_ROOT: ${{ runner.temp }}/fixture-memory
+          COMPARISON_ORDER: ${{ matrix.order }}
+        run: node consumer/.scratch/linux-contract-io-pressure/compare-fixture-storage.mjs factory consumer "$RUNNER_TEMP/storage-comparison" "$COMPARISON_ORDER"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: fixture-storage-${{ matrix.order }}
+          path: ${{ runner.temp }}/storage-comparison
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove diagnostic mount
+        if: always()
+        run: |
+          if mountpoint -q "$RUNNER_TEMP/fixture-memory"; then
+            sudo umount "$RUNNER_TEMP/fixture-memory"
+          fi
