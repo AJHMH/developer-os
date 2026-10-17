@@ -28,13 +28,13 @@ jobs:
         env:
           AIOS_DIAGNOSTIC_REVISION: ${{ github.sha }}
         run: |
-          node --test-reporter=tap .scratch/windows-push-bounded-loop/reproduce.mjs --approve-native-windows-loop 2>&1 | Tee-Object -FilePath windows-push-loop.tap
+          node --test-reporter=tap .scratch/windows-push-bounded-loop/paired.mjs --approve-native-windows-loop 2>&1 | Tee-Object -FilePath windows-push-paired.log
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: windows-push-loop-${{ matrix.observation }}-${{ github.sha }}
           path: |
-            windows-push-loop.tap
-            tmp/windows-push-loop.json
+            windows-push-paired.log
+            tmp/windows-push-paired-*
           if-no-files-found: error
