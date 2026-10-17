@@ -1,0 +1,49 @@
+{
+  "node": "24.21.0",
+  "platform": "darwin-arm64",
+  "focused": {
+    "command": "node --test tests/zz-operator-tools.test.mjs",
+    "tests": 22,
+    "passed": 21,
+    "failed": 0,
+    "platformSkipped": 1
+  },
+  "typecheck": "passed",
+  "formatCheck": "passed",
+  "fullSuiteAttempts": [
+    {
+      "label": "candidate-full-suite",
+      "command": "npm test",
+      "timeoutSeconds": 120,
+      "status": "failed",
+      "exitCode": null,
+      "signal": "SIGKILL",
+      "timedOut": true,
+      "terminationFailed": false,
+      "startedAt": "2026-10-17T03:55:53.236Z",
+      "finishedAt": "2026-10-17T03:57:53.254Z",
+      "truncated": false
+    },
+    {
+      "label": "unchanged-main-full-suite",
+      "command": "npm test",
+      "timeoutSeconds": 120,
+      "status": "failed",
+      "exitCode": null,
+      "signal": "SIGKILL",
+      "timedOut": true,
+      "terminationFailed": false,
+      "startedAt": "2026-10-17T03:58:48.191Z",
+      "finishedAt": "2026-10-17T04:00:48.208Z",
+      "truncated": false
+    }
+  ],
+  "main": "e68fa3d38d008a6f2c0e371689e6b50b10b4f279",
+  "productionSourceChanged": false,
+  "existingTestsChanged": false,
+  "review": {
+    "spec": 0,
+    "standards": 0
+  },
+  "claim": "Operator-tool focused validation passes; neither historical baseline failures nor full-suite timeouts are waived."
+}
