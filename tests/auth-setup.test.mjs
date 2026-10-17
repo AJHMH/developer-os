@@ -20,10 +20,19 @@ function fixture(t) {
     state = join(root, "state"),
     auth = join(root, "auth");
   mkdirSync(repo);
-  const command = (directory) =>
-    spawnSync(
+  const command = (directory) => {
+    const result = spawnSync(
       process.execPath,
       [
+        ...(process.platform === "win32"
+          ? [
+              "--import",
+              new URL(
+                "./helpers/storage-process-diagnostics.mjs",
+                import.meta.url,
+              ).href,
+            ]
+          : []),
         "dist/cli.js",
         "prepare-auth",
         "--repo",
@@ -35,6 +44,63 @@ function fixture(t) {
       ],
       { encoding: "utf8" },
     );
+    if (process.platform === "win32") {
+      // Only the preload's closed-schema metadata is propagated on success.
+      for (const line of String(result.stderr ?? "").split(/\r?\n/)) {
+        const match = /^\[storage-process\] (.{1,512})$/.exec(line);
+        if (!match) continue;
+        try {
+          const record = JSON.parse(match[1]);
+          const stages = [
+            "cli-preload",
+            "initialize-directory",
+            "protected-storage",
+          ];
+          if (
+            !stages.includes(record.stage) ||
+            !["entered", "started", "finished"].includes(record.event)
+          )
+            continue;
+          // Reconstruct only fixed labels and finite numeric/status fields.
+          const clean = { stage: record.stage, event: record.event };
+          if (record.event === "finished") {
+            clean.elapsedMs = Number.isFinite(record.elapsedMs)
+              ? record.elapsedMs
+              : null;
+            clean.status = Number.isInteger(record.status)
+              ? record.status
+              : null;
+            clean.signal = [
+              "SIGTERM",
+              "SIGKILL",
+              "SIGABRT",
+              "SIGSEGV",
+              "other",
+              null,
+            ].includes(record.signal)
+              ? record.signal
+              : "other";
+            clean.errorCode = [
+              "ETIMEDOUT",
+              "ENOENT",
+              "EACCES",
+              "EPERM",
+              "ENOBUFS",
+              "other",
+              null,
+            ].includes(record.errorCode)
+              ? record.errorCode
+              : "other";
+            clean.threw = record.threw === true;
+          }
+          console.error("[storage-process] " + JSON.stringify(clean));
+        } catch {
+          /* Missing evidence never changes the original assertion. */
+        }
+      }
+    }
+    return result;
+  };
   return { repo, state, auth, command };
 }
 
