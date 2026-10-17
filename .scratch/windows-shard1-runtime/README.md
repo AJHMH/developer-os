@@ -80,3 +80,35 @@ this profiling slice (CI waits excluded), leaving 20 active minutes and the two
 additional repair cycles. The new implementation/control was validated before
 publication; no cause-specific repair cycle or unchanged-main retry was used.
 Restarting or opening this diagnostic PR does not reset those limits.
+
+## Continued investigation after PR 57
+
+Main `9096ab6bc2b3df07a0f000437a13341b6b37c8f5` is synchronized locally.
+Native CI run `38989321715`, Factory run `38989322030` and CodeQL run
+`38989321741` all passed. The original historical failure remains unexplained.
+PR 57's uninstrumented required shard 1 also passed all 63 cases in 358.913 seconds.
+
+The slower profiling host spent less time inside measured Git calls, but more time
+outside them: review resolution elapsed/Git/self CPU was 220.11/109.34/11.7 seconds,
+versus 175.08/136.86/13.9 on the other host. The remainder is not automatically
+filesystem latency, CPU starvation or a specific blocked operation.
+
+Next prediction: if synchronous filesystem waits explain that unmeasured time,
+fixed-operation filesystem totals should account for a substantial portion of it.
+A separately opt-in `AIOS_FILESYSTEM_PROFILE=1` extends the preload with operation
+counts, totals and maxima only. No paths, contents, arguments or errors are recorded.
+Native success/refusal behavior and `realpathSync.native` are preserved. Nested
+filesystem calls and diagnostic snapshot writes are excluded from ordinary totals.
+SQLite native calls, asynchronous waits and scheduling delays are not measured by
+these filesystem wrappers; an unexplained remainder cannot establish their cause.
+
+A real filesystem control fails with the pristine profiler (missing measurements)
+and passes with this extension. It verifies returned contents, ENOENT refusal,
+native path identity and absence of private path/content values in reports. The
+original report-write-failure/deadline control passes with profiling enabled.
+Two-axis review found no actionable findings before publication.
+
+A temporary two-host native observation uses unchanged full shard 1/8, file
+concurrency two and ten-minute job deadline. It will be removed after retaining
+all outcomes. This is an instrumented changed-revision observation, not an
+unchanged-main rerun or a cause-specific repair.

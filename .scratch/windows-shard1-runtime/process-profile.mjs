@@ -1,7 +1,7 @@
 // Temporary diagnostic preload: fixed command families and numeric timing only.
 import cp from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
-import { writeFileSync, mkdirSync } from "node:fs";
+import fs, { writeFileSync, mkdirSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cpus, availableParallelism } from "node:os";
@@ -21,6 +21,69 @@ const file =
     ? name
     : null;
 const families = {};
+const filesystem = {};
+let filesystemDepth = 0;
+if (process.env.AIOS_FILESYSTEM_PROFILE === "1") {
+  for (const operation of [
+    "readFileSync",
+    "writeFileSync",
+    "openSync",
+    "closeSync",
+    "fsyncSync",
+    "renameSync",
+    "rmSync",
+    "mkdirSync",
+    "lstatSync",
+    "statSync",
+    "realpathSync",
+    "readdirSync",
+    "chmodSync",
+    "unlinkSync",
+  ]) {
+    const originalOperation = fs[operation];
+    const wrapped = function (...args) {
+      const outer = filesystemDepth++ === 0;
+      const before = performance.now();
+      try {
+        return Reflect.apply(originalOperation, this, args);
+      } finally {
+        filesystemDepth--;
+        if (outer) {
+          const elapsed = performance.now() - before;
+          const item = (filesystem[operation] ??= {
+            count: 0,
+            totalMs: 0,
+            maxMs: 0,
+          });
+          item.count++;
+          item.totalMs += elapsed;
+          item.maxMs = Math.max(item.maxMs, elapsed);
+        }
+      }
+    };
+    // Preserve the native realpath entry point used by identity validation.
+    if (operation === "realpathSync") {
+      wrapped.native = function (...args) {
+        const before = performance.now();
+        try {
+          return Reflect.apply(originalOperation.native, this, args);
+        } finally {
+          const elapsed = performance.now() - before;
+          const item = (filesystem.realpathNative ??= {
+            count: 0,
+            totalMs: 0,
+            maxMs: 0,
+          });
+          item.count++;
+          item.totalMs += elapsed;
+          item.maxMs = Math.max(item.maxMs, elapsed);
+        }
+      };
+    }
+    fs[operation] = wrapped;
+  }
+}
+
 const snapshotPath = join(
   directory,
   `${process.pid}-${process.hrtime.bigint()}.json`,
@@ -80,28 +143,34 @@ cp.spawnSync = function (command, ...args) {
 };
 syncBuiltinESMExports();
 function flush(completed) {
-  writeFileSync(
-    snapshotPath,
-    JSON.stringify({
-      schemaVersion: 1,
-      diagnosticOnly: true,
-      snapshotFailed,
-      file: file ? basename(file) : "node-process",
-      elapsedMs: performance.now() - started,
-      completed,
-      inFlight,
-      families,
-      cpuUsage: process.cpuUsage(),
-      resourceUsage: process.resourceUsage(),
-      runtime: {
-        node: process.version,
-        platform: process.platform,
-        architecture: process.arch,
-        parallelism: availableParallelism(),
-        cpuModel: cpus()[0]?.model,
-      },
-    }),
-  );
+  filesystemDepth++;
+  try {
+    writeFileSync(
+      snapshotPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        diagnosticOnly: true,
+        snapshotFailed,
+        file: file ? basename(file) : "node-process",
+        elapsedMs: performance.now() - started,
+        completed,
+        inFlight,
+        families,
+        filesystem,
+        cpuUsage: process.cpuUsage(),
+        resourceUsage: process.resourceUsage(),
+        runtime: {
+          node: process.version,
+          platform: process.platform,
+          architecture: process.arch,
+          parallelism: availableParallelism(),
+          cpuModel: cpus()[0]?.model,
+        },
+      }),
+    );
+  } finally {
+    filesystemDepth--;
+  }
 }
 let snapshotFailed = false;
 let timer;
