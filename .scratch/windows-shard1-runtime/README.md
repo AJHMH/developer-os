@@ -1,10 +1,10 @@
 # Windows shard 1 baseline runtime investigation
 
-Status: PARTIAL. Main `ab8ceb1` and local main are synchronized. Required Windows
-shard 1 exceeded its unchanged ten-minute job limit; the Windows aggregate failed.
-Main is not green. The owner authorized this separate baseline investigation on
-16 October 2026 using the recently extended time/cycle allowance, before resuming
-actual-fixture Git phase capture. No cause-specific repair is established.
+Status: PARTIAL. Local and remote main are synchronized at `9096ab6`, whose
+native, Factory and CodeQL workflows passed. The historical main `ab8ceb1`
+Windows shard 1 ten-minute deadline failure remains unexplained. The owner
+authorized this separate baseline investigation before actual-fixture Git phase
+capture. No cause-specific repair is established.
 
 ## Original failure
 
@@ -70,7 +70,7 @@ The preload and filesystem-failure control remain explicitly opt-in under scratc
 normal tests and required workflows do not load them. The temporary two-host
 workflow is removed. No assertions, command arguments, subprocess deadlines,
 ten-minute job limit, coverage thresholds, approval requirements or isolation
-rules changed. Issue 04 remains paused behind the unresolved main baseline.
+rules changed. At that checkpoint, Issue 04 remained paused behind the unresolved main baseline.
 Actual required main-sync Git phase capture remains pending.
 
 Allowance ledger: the owner added 30 active minutes and two repair cycles to the
@@ -89,8 +89,8 @@ Native CI run `38989321715`, Factory run `38989322030` and CodeQL run
 PR 57's uninstrumented required shard 1 also passed all 63 cases in 358.913 seconds.
 
 The slower profiling host spent less time inside measured Git calls, but more time
-outside them: review resolution elapsed/Git/self CPU was 220.11/109.34/11.7 seconds,
-versus 175.08/136.86/13.9 on the other host. The remainder is not automatically
+outside them: review resolution elapsed/Git/self CPU was 220.11/109.32/11.7 seconds,
+versus 175.08/136.91/13.9 on the other host. The remainder is not automatically
 filesystem latency, CPU starvation or a specific blocked operation.
 
 Next prediction: if synchronous filesystem waits explain that unmeasured time,
@@ -109,6 +109,31 @@ original report-write-failure/deadline control passes with profiling enabled.
 Two-axis review found no actionable findings before publication.
 
 A temporary two-host native observation uses unchanged full shard 1/8, file
-concurrency two and ten-minute job deadline. It will be removed after retaining
+concurrency two and ten-minute job deadline. It was removed after retaining
 all outcomes. This is an instrumented changed-revision observation, not an
 unchanged-main rerun or a cause-specific repair.
+
+### Filesystem observation results
+
+[Run 38990169762](https://github.com/AJHMH/developer-os/actions/runs/38990169762)
+at `86c307caef833e4647df5126381c9ed29526c095` passed on both native hosts: all
+63 tests each, zero skips/failures/cancellations, in 326.977 and 378.657 seconds.
+All 20 snapshots per host completed without snapshot failures. Artifacts were
+downloaded before removing the temporary workflow. Full bounded test-file
+summaries are retained in `filesystem-observations.json`.
+
+Measured filesystem totals across concurrent test files were 8.557 and 6.730
+seconds. Review resolution accounted for 1.469/1.676 seconds of filesystem time
+within 137.12/165.61 seconds elapsed. These observations do not support measured
+JavaScript filesystem calls as the dominant cost on these healthy hosts. They do
+not exclude native SQLite I/O, asynchronous waits, scheduling delays or filesystem
+costs in child processes, and do not resolve the historical failed-host cause.
+No production optimization or deadline change is justified by this evidence.
+
+The temporary workflow is removed; the extension remains explicitly opt-in only.
+Native commands, assertions, all limits and safety checks remain unchanged.
+Charge a further ten active investigation minutes, excluding CI waits: ten active
+minutes and two additional repair cycles remain from the prior owner extension.
+No cause-specific repair cycle or unchanged-main rerun was used. The next useful
+boundary, if pursued within that allowance, is native SQLite execution timing;
+it has not yet been captured. Main-sync Git phase capture also remains pending.

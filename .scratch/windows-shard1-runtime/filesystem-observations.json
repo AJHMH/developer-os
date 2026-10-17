@@ -1,0 +1,2179 @@
+{
+  "run": 38990169762,
+  "revision": "86c307caef833e4647df5126381c9ed29526c095",
+  "diagnosticOnly": true,
+  "observations": [
+    {
+      "host": "host2",
+      "snapshots": 20,
+      "incomplete": 0,
+      "snapshotFailed": 0,
+      "tapSummary": "1..63\n# tests 63\n# suites 0\n# pass 63\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 378657.2954\n",
+      "files": [
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "conditional-merge.test.mjs",
+          "elapsedMs": 169729.8013,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 511.5309000000063,
+              "maxMs": 100.39649999999999
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 431.56020000001485,
+              "maxMs": 74.61680000000342
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 730.23680000002,
+              "maxMs": 133.11870000000272
+            },
+            "git:rev-parse": {
+              "count": 809,
+              "totalMs": 45436.43189999966,
+              "maxMs": 140.81909999999334
+            },
+            "git:config": {
+              "count": 401,
+              "totalMs": 22305.0465999997,
+              "maxMs": 99.027700000006
+            },
+            "git:status": {
+              "count": 401,
+              "totalMs": 24005.64899999987,
+              "maxMs": 145.26919999999518
+            },
+            "git:ls-tree": {
+              "count": 401,
+              "totalMs": 22873.34600000001,
+              "maxMs": 120.5396000000037
+            },
+            "git:cat-file": {
+              "count": 401,
+              "totalMs": 22938.867499999913,
+              "maxMs": 116.49869999999646
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 468.93219999995245,
+              "maxMs": 71.76600000000008
+            },
+            "node": {
+              "count": 3,
+              "totalMs": 468.4533000000083,
+              "maxMs": 160.26320000000123
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 4565,
+              "totalMs": 430.34099999973665,
+              "maxMs": 0.7710999999981141
+            },
+            "readFileSync": {
+              "count": 2283,
+              "totalMs": 183.04379999963237,
+              "maxMs": 0.5230000000010477
+            },
+            "mkdirSync": {
+              "count": 1310,
+              "totalMs": 235.6279000000589,
+              "maxMs": 3.1186000000016065
+            },
+            "writeFileSync": {
+              "count": 35,
+              "totalMs": 215.6354000000312,
+              "maxMs": 23.02070000002277
+            },
+            "statSync": {
+              "count": 14,
+              "totalMs": 0.43549999999265765,
+              "maxMs": 0.07820000000003802
+            },
+            "lstatSync": {
+              "count": 7901,
+              "totalMs": 365.37380000083937,
+              "maxMs": 0.19170000000030996
+            },
+            "realpathNative": {
+              "count": 802,
+              "totalMs": 140.02730000024178,
+              "maxMs": 0.3018000000010943
+            },
+            "openSync": {
+              "count": 401,
+              "totalMs": 16.75200000000575,
+              "maxMs": 0.12349999999787542
+            },
+            "closeSync": {
+              "count": 401,
+              "totalMs": 7.237500000047476,
+              "maxMs": 0.06420000000071013
+            },
+            "rmSync": {
+              "count": 7,
+              "totalMs": 76.44119999996838,
+              "maxMs": 12.396400000012363
+            }
+          },
+          "cpuUsage": {
+            "user": 5312000,
+            "system": 8343000
+          },
+          "resourceUsage": {
+            "userCPUTime": 5312000,
+            "systemCPUTime": 8343000,
+            "maxRSS": 76828,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 33156,
+            "swappedOut": 0,
+            "fsRead": 26183,
+            "fsWrite": 7385,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "native-podman-options.test.mjs",
+          "elapsedMs": 780.6863999999999,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "node": {
+              "count": 4,
+              "totalMs": 600.4166000000001,
+              "maxMs": 163.72940000000006
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 75,
+              "totalMs": 3.2690999999999164,
+              "maxMs": 0.14819999999998856
+            },
+            "readFileSync": {
+              "count": 45,
+              "totalMs": 5.182700000000075,
+              "maxMs": 0.375700000000009
+            },
+            "mkdirSync": {
+              "count": 4,
+              "totalMs": 1.287200000000027,
+              "maxMs": 0.5482000000000653
+            },
+            "rmSync": {
+              "count": 2,
+              "totalMs": 1.9325000000000045,
+              "maxMs": 1.3555000000000064
+            },
+            "statSync": {
+              "count": 1,
+              "totalMs": 0.0543999999999869,
+              "maxMs": 0.0543999999999869
+            },
+            "lstatSync": {
+              "count": 8,
+              "totalMs": 0.42400000000009186,
+              "maxMs": 0.09190000000000964
+            },
+            "writeFileSync": {
+              "count": 1,
+              "totalMs": 5.894399999999905,
+              "maxMs": 5.894399999999905
+            }
+          },
+          "cpuUsage": {
+            "user": 125000,
+            "system": 46000
+          },
+          "resourceUsage": {
+            "userCPUTime": 125000,
+            "systemCPUTime": 46000,
+            "maxRSS": 58464,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 15731,
+            "swappedOut": 0,
+            "fsRead": 88,
+            "fsWrite": 48,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "branch-cleanup-races.test.mjs",
+          "elapsedMs": 74455.37879999999,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 427.41050000000234,
+              "maxMs": 80.09799999999814
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 317.00279999999225,
+              "maxMs": 59.04149999999936
+            },
+            "git:commit": {
+              "count": 3,
+              "totalMs": 335.59660000000497,
+              "maxMs": 148.01139999999998
+            },
+            "git:rev-parse": {
+              "count": 314,
+              "totalMs": 16702.00510000001,
+              "maxMs": 71.81810000000041
+            },
+            "git:config": {
+              "count": 177,
+              "totalMs": 9207.341300000055,
+              "maxMs": 67.68549999999959
+            },
+            "git:status": {
+              "count": 153,
+              "totalMs": 8786.557799999986,
+              "maxMs": 73.23959999999988
+            },
+            "git:ls-tree": {
+              "count": 126,
+              "totalMs": 7167.554200000023,
+              "maxMs": 65.77790000000095
+            },
+            "git:cat-file": {
+              "count": 126,
+              "totalMs": 7199.63290000004,
+              "maxMs": 77.6911
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 403.04800000002024,
+              "maxMs": 72.06140000000596
+            },
+            "git:push": {
+              "count": 8,
+              "totalMs": 1949.7488000000048,
+              "maxMs": 336.5311999999976
+            },
+            "git:other": {
+              "count": 144,
+              "totalMs": 8248.769799999962,
+              "maxMs": 128.78549999999814
+            },
+            "git:fetch": {
+              "count": 12,
+              "totalMs": 1641.6185999999943,
+              "maxMs": 143.21230000001378
+            },
+            "git:symbolic-ref": {
+              "count": 27,
+              "totalMs": 1217.7989999999663,
+              "maxMs": 50.9874000000018
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 1507,
+              "totalMs": 145.6359999999758,
+              "maxMs": 0.335399999996298
+            },
+            "readFileSync": {
+              "count": 795,
+              "totalMs": 70.60650000012288,
+              "maxMs": 0.27300000000104774
+            },
+            "mkdirSync": {
+              "count": 657,
+              "totalMs": 120.27970000010278,
+              "maxMs": 3.9266999999963446
+            },
+            "writeFileSync": {
+              "count": 15,
+              "totalMs": 95.7695000000063,
+              "maxMs": 14.72059999999999
+            },
+            "statSync": {
+              "count": 6,
+              "totalMs": 0.21369999998893263,
+              "maxMs": 0.08639999999996917
+            },
+            "lstatSync": {
+              "count": 3480,
+              "totalMs": 156.4995000002247,
+              "maxMs": 0.15779999999995198
+            },
+            "realpathNative": {
+              "count": 288,
+              "totalMs": 50.22849999998152,
+              "maxMs": 0.3069000000000415
+            },
+            "openSync": {
+              "count": 126,
+              "totalMs": 5.499500000042076,
+              "maxMs": 0.10710000000108266
+            },
+            "closeSync": {
+              "count": 126,
+              "totalMs": 2.3233999999948765,
+              "maxMs": 0.056599999999889405
+            },
+            "rmSync": {
+              "count": 3,
+              "totalMs": 66.90920000000187,
+              "maxMs": 24.19829999999638
+            }
+          },
+          "cpuUsage": {
+            "user": 1968000,
+            "system": 3718000
+          },
+          "resourceUsage": {
+            "userCPUTime": 1968000,
+            "systemCPUTime": 3718000,
+            "maxRSS": 76400,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 26076,
+            "swappedOut": 0,
+            "fsRead": 12063,
+            "fsWrite": 3236,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "review-resolution.test.mjs",
+          "elapsedMs": 165611.2487,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 363.6378000000201,
+              "maxMs": 66.8909
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 324.1343999999897,
+              "maxMs": 69.10979999999998
+            },
+            "git:commit": {
+              "count": 6,
+              "totalMs": 555.0279000000093,
+              "maxMs": 125.09479999999996
+            },
+            "git:rev-parse": {
+              "count": 898,
+              "totalMs": 42861.9356999998,
+              "maxMs": 67.11789999999746
+            },
+            "git:config": {
+              "count": 446,
+              "totalMs": 21445.930199999988,
+              "maxMs": 66.75210000000516
+            },
+            "git:status": {
+              "count": 446,
+              "totalMs": 22596.735899999687,
+              "maxMs": 67.5598000000009
+            },
+            "git:ls-tree": {
+              "count": 446,
+              "totalMs": 21797.205700000108,
+              "maxMs": 73.71519999999873
+            },
+            "git:cat-file": {
+              "count": 446,
+              "totalMs": 21794.683299999866,
+              "maxMs": 65.64540000000125
+            },
+            "git:update-ref": {
+              "count": 6,
+              "totalMs": 360.9242000000081,
+              "maxMs": 72.90430000000197
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 4990,
+              "totalMs": 401.58040000075965,
+              "maxMs": 0.7202000000106636
+            },
+            "readFileSync": {
+              "count": 2441,
+              "totalMs": 173.69729999952892,
+              "maxMs": 0.47339999999985594
+            },
+            "mkdirSync": {
+              "count": 1549,
+              "totalMs": 248.88399999995244,
+              "maxMs": 4.850099999999657
+            },
+            "writeFileSync": {
+              "count": 35,
+              "totalMs": 261.8222000001038,
+              "maxMs": 33.32500000000073
+            },
+            "statSync": {
+              "count": 12,
+              "totalMs": 0.3287999999953968,
+              "maxMs": 0.0836999999999648
+            },
+            "lstatSync": {
+              "count": 9087,
+              "totalMs": 371.22979999957306,
+              "maxMs": 0.24790000001667067
+            },
+            "realpathNative": {
+              "count": 892,
+              "totalMs": 135.21459999992953,
+              "maxMs": 0.6663000000007742
+            },
+            "openSync": {
+              "count": 446,
+              "totalMs": 15.891699999787988,
+              "maxMs": 0.1075999999884516
+            },
+            "closeSync": {
+              "count": 446,
+              "totalMs": 7.0747000000078515,
+              "maxMs": 0.05580000000190921
+            },
+            "rmSync": {
+              "count": 6,
+              "totalMs": 60.190400000006775,
+              "maxMs": 11.445099999997183
+            }
+          },
+          "cpuUsage": {
+            "user": 5140000,
+            "system": 8734000
+          },
+          "resourceUsage": {
+            "userCPUTime": 5140000,
+            "systemCPUTime": 8734000,
+            "maxRSS": 78536,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 34747,
+            "swappedOut": 0,
+            "fsRead": 31428,
+            "fsWrite": 8262,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "publication-signature.test.mjs",
+          "elapsedMs": 32361.692000000003,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 4,
+              "totalMs": 279.0104000000019,
+              "maxMs": 72.01410000000033
+            },
+            "git:add": {
+              "count": 4,
+              "totalMs": 241.74209999999817,
+              "maxMs": 62.03369999999995
+            },
+            "git:commit": {
+              "count": 4,
+              "totalMs": 369.76310000000296,
+              "maxMs": 98.22850000000017
+            },
+            "git:rev-parse": {
+              "count": 148,
+              "totalMs": 8164.163799999997,
+              "maxMs": 75.07300000000032
+            },
+            "git:config": {
+              "count": 72,
+              "totalMs": 4003.7471999999825,
+              "maxMs": 73.99439999999959
+            },
+            "git:status": {
+              "count": 72,
+              "totalMs": 4267.499999999996,
+              "maxMs": 67.10010000000011
+            },
+            "git:ls-tree": {
+              "count": 72,
+              "totalMs": 4088.8847999999984,
+              "maxMs": 65.01909999999953
+            },
+            "git:cat-file": {
+              "count": 72,
+              "totalMs": 4106.769500000002,
+              "maxMs": 64.60709999999744
+            },
+            "git:update-ref": {
+              "count": 4,
+              "totalMs": 271.6379000000002,
+              "maxMs": 73.22880000000077
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 892,
+              "totalMs": 86.40079999997391,
+              "maxMs": 0.8220999999999989
+            },
+            "readFileSync": {
+              "count": 429,
+              "totalMs": 37.85909999997195,
+              "maxMs": 0.9120999999999952
+            },
+            "mkdirSync": {
+              "count": 348,
+              "totalMs": 63.205400000005895,
+              "maxMs": 2.954700000002049
+            },
+            "writeFileSync": {
+              "count": 20,
+              "totalMs": 102.02140000000094,
+              "maxMs": 13.159299999999803
+            },
+            "statSync": {
+              "count": 8,
+              "totalMs": 0.22519999999877882,
+              "maxMs": 0.0553000000000452
+            },
+            "lstatSync": {
+              "count": 1860,
+              "totalMs": 83.50380000000229,
+              "maxMs": 0.20530000000144355
+            },
+            "realpathNative": {
+              "count": 144,
+              "totalMs": 25.926899999979923,
+              "maxMs": 0.2791999999972177
+            },
+            "openSync": {
+              "count": 72,
+              "totalMs": 2.951500000000806,
+              "maxMs": 0.05409999999938009
+            },
+            "closeSync": {
+              "count": 72,
+              "totalMs": 1.271399999987807,
+              "maxMs": 0.026499999999941792
+            },
+            "rmSync": {
+              "count": 4,
+              "totalMs": 42.13949999999659,
+              "maxMs": 11.352699999999459
+            }
+          },
+          "cpuUsage": {
+            "user": 1250000,
+            "system": 1796000
+          },
+          "resourceUsage": {
+            "userCPUTime": 1250000,
+            "systemCPUTime": 1796000,
+            "maxRSS": 66016,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 21282,
+            "swappedOut": 0,
+            "fsRead": 5513,
+            "fsWrite": 1794,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "windows-qualification-runner.test.mjs",
+          "elapsedMs": 620.4236,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "node": {
+              "count": 1,
+              "totalMs": 75.36159999999998,
+              "maxMs": 75.36159999999998
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 26,
+              "totalMs": 3.645699999999856,
+              "maxMs": 0.2008999999999901
+            },
+            "readFileSync": {
+              "count": 21,
+              "totalMs": 1.9076999999999344,
+              "maxMs": 0.14039999999999964
+            },
+            "writeFileSync": {
+              "count": 8,
+              "totalMs": 2.5758999999999546,
+              "maxMs": 0.38049999999999784
+            },
+            "lstatSync": {
+              "count": 19,
+              "totalMs": 0.8030999999999722,
+              "maxMs": 0.073599999999999
+            },
+            "rmSync": {
+              "count": 2,
+              "totalMs": 1.4535000000000764,
+              "maxMs": 0.8106000000000222
+            },
+            "mkdirSync": {
+              "count": 3,
+              "totalMs": 0.67349999999999,
+              "maxMs": 0.2758000000000038
+            }
+          },
+          "cpuUsage": {
+            "user": 78000,
+            "system": 62000
+          },
+          "resourceUsage": {
+            "userCPUTime": 78000,
+            "systemCPUTime": 62000,
+            "maxRSS": 53172,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 14037,
+            "swappedOut": 0,
+            "fsRead": 31,
+            "fsWrite": 49,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "auth-broker.test.mjs",
+          "elapsedMs": 1727.3637,
+          "completed": true,
+          "inFlight": null,
+          "families": {},
+          "filesystem": {
+            "realpathSync": {
+              "count": 72,
+              "totalMs": 2.8057999999999907,
+              "maxMs": 0.13220000000000454
+            },
+            "readFileSync": {
+              "count": 46,
+              "totalMs": 5.898799999999966,
+              "maxMs": 1.003700000000002
+            }
+          },
+          "cpuUsage": {
+            "user": 1656000,
+            "system": 93000
+          },
+          "resourceUsage": {
+            "userCPUTime": 1656000,
+            "systemCPUTime": 93000,
+            "maxRSS": 58736,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 15911,
+            "swappedOut": 0,
+            "fsRead": 54,
+            "fsWrite": 126,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "pr-checks-admission.test.mjs",
+          "elapsedMs": 93669.7655,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 520.9311999999945,
+              "maxMs": 98.37649999999849
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 414.3499999999953,
+              "maxMs": 65.93899999999849
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 700.0059999999937,
+              "maxMs": 118.20019999999204
+            },
+            "git:rev-parse": {
+              "count": 455,
+              "totalMs": 24884.585600000068,
+              "maxMs": 65.5734999999986
+            },
+            "git:config": {
+              "count": 224,
+              "totalMs": 12401.509200000059,
+              "maxMs": 74.70920000000478
+            },
+            "git:status": {
+              "count": 224,
+              "totalMs": 13232.496600000093,
+              "maxMs": 74.12930000000051
+            },
+            "git:ls-tree": {
+              "count": 224,
+              "totalMs": 12668.171900000096,
+              "maxMs": 75.00220000000263
+            },
+            "git:cat-file": {
+              "count": 224,
+              "totalMs": 12629.756000000067,
+              "maxMs": 71.810300000001
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 487.16770000001725,
+              "maxMs": 78.19610000000011
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 2590,
+              "totalMs": 251.50569999996014,
+              "maxMs": 0.44629999999597203
+            },
+            "readFileSync": {
+              "count": 1218,
+              "totalMs": 101.18349999992256,
+              "maxMs": 0.23660000000018044
+            },
+            "mkdirSync": {
+              "count": 840,
+              "totalMs": 148.28440000011227,
+              "maxMs": 1.9876000000003842
+            },
+            "writeFileSync": {
+              "count": 35,
+              "totalMs": 212.40329999999963,
+              "maxMs": 28.676400000000285
+            },
+            "statSync": {
+              "count": 14,
+              "totalMs": 0.43720000001673043,
+              "maxMs": 0.08610000000044238
+            },
+            "lstatSync": {
+              "count": 4781,
+              "totalMs": 222.04670000014698,
+              "maxMs": 0.5743999999999687
+            },
+            "realpathNative": {
+              "count": 448,
+              "totalMs": 81.29400000004864,
+              "maxMs": 0.744699999999284
+            },
+            "openSync": {
+              "count": 224,
+              "totalMs": 9.421500000000492,
+              "maxMs": 0.14349999999103602
+            },
+            "closeSync": {
+              "count": 224,
+              "totalMs": 3.996100000030424,
+              "maxMs": 0.051500000001396984
+            },
+            "rmSync": {
+              "count": 7,
+              "totalMs": 72.89280000001054,
+              "maxMs": 11.319000000001324
+            }
+          },
+          "cpuUsage": {
+            "user": 3140000,
+            "system": 4859000
+          },
+          "resourceUsage": {
+            "userCPUTime": 3140000,
+            "systemCPUTime": 4859000,
+            "maxRSS": 76144,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 28922,
+            "swappedOut": 0,
+            "fsRead": 14848,
+            "fsWrite": 3969,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "main-sync-admission.test.mjs",
+          "elapsedMs": 105886.6927,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 10,
+              "totalMs": 1632.3591000000183,
+              "maxMs": 1023.8755000000019
+            },
+            "git:add": {
+              "count": 10,
+              "totalMs": 593.2071999999923,
+              "maxMs": 85.30839999999444
+            },
+            "git:commit": {
+              "count": 5,
+              "totalMs": 493.7475999999899,
+              "maxMs": 121.40239999999176
+            },
+            "git:rev-parse": {
+              "count": 466,
+              "totalMs": 26000.487500000017,
+              "maxMs": 95.09339999999793
+            },
+            "git:config": {
+              "count": 240,
+              "totalMs": 13334.49079999996,
+              "maxMs": 97.70349999999598
+            },
+            "git:status": {
+              "count": 220,
+              "totalMs": 13115.558799999997,
+              "maxMs": 116.4346000000005
+            },
+            "git:ls-tree": {
+              "count": 210,
+              "totalMs": 12097.139999999956,
+              "maxMs": 136.51710000000458
+            },
+            "git:cat-file": {
+              "count": 210,
+              "totalMs": 12200.386200000006,
+              "maxMs": 170.18530000000464
+            },
+            "git:update-ref": {
+              "count": 5,
+              "totalMs": 328.26689999999326,
+              "maxMs": 66.61830000000009
+            },
+            "git:push": {
+              "count": 11,
+              "totalMs": 3246.510699999977,
+              "maxMs": 580.4018999999971
+            },
+            "git:other": {
+              "count": 30,
+              "totalMs": 1879.4513000000006,
+              "maxMs": 151.63900000000285
+            },
+            "git:fetch": {
+              "count": 10,
+              "totalMs": 1363.8506000000125,
+              "maxMs": 143.63670000000275
+            },
+            "git:symbolic-ref": {
+              "count": 10,
+              "totalMs": 464.6857000000018,
+              "maxMs": 53.235200000002806
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 2445,
+              "totalMs": 244.0767000001609,
+              "maxMs": 0.6548999999940861
+            },
+            "readFileSync": {
+              "count": 1218,
+              "totalMs": 106.03710000008365,
+              "maxMs": 0.5743000000074971
+            },
+            "mkdirSync": {
+              "count": 876,
+              "totalMs": 176.9662000000681,
+              "maxMs": 14.516700000000128
+            },
+            "writeFileSync": {
+              "count": 25,
+              "totalMs": 127.36430000001599,
+              "maxMs": 14.79609999999957
+            },
+            "statSync": {
+              "count": 10,
+              "totalMs": 0.274600000005762,
+              "maxMs": 0.05119999999999436
+            },
+            "lstatSync": {
+              "count": 4880,
+              "totalMs": 228.02770000002727,
+              "maxMs": 0.2485000000015134
+            },
+            "realpathNative": {
+              "count": 434,
+              "totalMs": 77.69750000001272,
+              "maxMs": 0.287400000001071
+            },
+            "openSync": {
+              "count": 210,
+              "totalMs": 8.685100000089164,
+              "maxMs": 0.09830000000147265
+            },
+            "closeSync": {
+              "count": 210,
+              "totalMs": 3.743499999981964,
+              "maxMs": 0.07450000000244472
+            },
+            "rmSync": {
+              "count": 5,
+              "totalMs": 109.24950000000172,
+              "maxMs": 22.64389999999912
+            }
+          },
+          "cpuUsage": {
+            "user": 3125000,
+            "system": 5328000
+          },
+          "resourceUsage": {
+            "userCPUTime": 3125000,
+            "systemCPUTime": 5328000,
+            "maxRSS": 76356,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 28179,
+            "swappedOut": 0,
+            "fsRead": 15961,
+            "fsWrite": 4345,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 7763 64-Core Processor                "
+          }
+        }
+      ]
+    },
+    {
+      "host": "windows-shard1-runtime-1-86c307caef833e4647df5126381c9ed29526c095",
+      "snapshots": 20,
+      "incomplete": 0,
+      "snapshotFailed": 0,
+      "tapSummary": "1..63\n# tests 63\n# suites 0\n# pass 63\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 326977.324\n",
+      "files": [
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "review-resolution.test.mjs",
+          "elapsedMs": 137119.735,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 385.980499999995,
+              "maxMs": 141.7604
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 267.07690000001236,
+              "maxMs": 47.86960000000181
+            },
+            "git:commit": {
+              "count": 6,
+              "totalMs": 579.943799999996,
+              "maxMs": 219.94709999999998
+            },
+            "git:rev-parse": {
+              "count": 898,
+              "totalMs": 34701.075000000026,
+              "maxMs": 63.396200000002864
+            },
+            "git:config": {
+              "count": 446,
+              "totalMs": 17406.116899999965,
+              "maxMs": 66.38360000000102
+            },
+            "git:status": {
+              "count": 446,
+              "totalMs": 18206.22950000022,
+              "maxMs": 51.47309999999925
+            },
+            "git:ls-tree": {
+              "count": 446,
+              "totalMs": 17634.15619999993,
+              "maxMs": 65.45610000000306
+            },
+            "git:cat-file": {
+              "count": 446,
+              "totalMs": 17536.778300000013,
+              "maxMs": 50.25570000000016
+            },
+            "git:update-ref": {
+              "count": 6,
+              "totalMs": 305.39769999999817,
+              "maxMs": 58.632299999997485
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 4990,
+              "totalMs": 303.8721000005338,
+              "maxMs": 0.698500000005879
+            },
+            "readFileSync": {
+              "count": 2441,
+              "totalMs": 139.91609999987114,
+              "maxMs": 0.5518999999985681
+            },
+            "mkdirSync": {
+              "count": 1549,
+              "totalMs": 187.4151000001156,
+              "maxMs": 2.4729999999999563
+            },
+            "writeFileSync": {
+              "count": 35,
+              "totalMs": 364.09359999996207,
+              "maxMs": 88.2451000000001
+            },
+            "statSync": {
+              "count": 12,
+              "totalMs": 0.2496999999953573,
+              "maxMs": 0.05490000000003192
+            },
+            "lstatSync": {
+              "count": 9087,
+              "totalMs": 309.8327000009941,
+              "maxMs": 0.44779999999445863
+            },
+            "realpathNative": {
+              "count": 892,
+              "totalMs": 103.0270999998254,
+              "maxMs": 0.41300000000046566
+            },
+            "openSync": {
+              "count": 446,
+              "totalMs": 13.889400000002752,
+              "maxMs": 0.08209999999962747
+            },
+            "closeSync": {
+              "count": 446,
+              "totalMs": 5.957100000092851,
+              "maxMs": 0.035799999997834675
+            },
+            "rmSync": {
+              "count": 6,
+              "totalMs": 40.414499999995314,
+              "maxMs": 8.087799999997515
+            }
+          },
+          "cpuUsage": {
+            "user": 4328000,
+            "system": 6781000
+          },
+          "resourceUsage": {
+            "userCPUTime": 4328000,
+            "systemCPUTime": 6781000,
+            "maxRSS": 79356,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 33735,
+            "swappedOut": 0,
+            "fsRead": 31428,
+            "fsWrite": 8250,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "auth-broker.test.mjs",
+          "elapsedMs": 1339.2519,
+          "completed": true,
+          "inFlight": null,
+          "families": {},
+          "filesystem": {
+            "realpathSync": {
+              "count": 72,
+              "totalMs": 2.0623999999999008,
+              "maxMs": 0.09819999999999851
+            },
+            "readFileSync": {
+              "count": 46,
+              "totalMs": 4.808100000000046,
+              "maxMs": 0.2927999999999997
+            }
+          },
+          "cpuUsage": {
+            "user": 1250000,
+            "system": 78000
+          },
+          "resourceUsage": {
+            "userCPUTime": 1250000,
+            "systemCPUTime": 78000,
+            "maxRSS": 58688,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 15906,
+            "swappedOut": 0,
+            "fsRead": 54,
+            "fsWrite": 126,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "publication-signature.test.mjs",
+          "elapsedMs": 39523.7076,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 4,
+              "totalMs": 238.7514999999975,
+              "maxMs": 70.8013
+            },
+            "git:add": {
+              "count": 4,
+              "totalMs": 197.66230000000283,
+              "maxMs": 51.78069999999934
+            },
+            "git:commit": {
+              "count": 4,
+              "totalMs": 379.0465999999951,
+              "maxMs": 105.12949999999998
+            },
+            "git:rev-parse": {
+              "count": 148,
+              "totalMs": 6460.249500000015,
+              "maxMs": 59.21429999999964
+            },
+            "git:config": {
+              "count": 72,
+              "totalMs": 3188.9275000000107,
+              "maxMs": 55.76710000000003
+            },
+            "git:status": {
+              "count": 72,
+              "totalMs": 3362.370900000013,
+              "maxMs": 59.41439999999966
+            },
+            "git:ls-tree": {
+              "count": 72,
+              "totalMs": 3217.273200000007,
+              "maxMs": 54.252700000000004
+            },
+            "git:cat-file": {
+              "count": 72,
+              "totalMs": 3297.2781999999893,
+              "maxMs": 67.28489999999965
+            },
+            "git:update-ref": {
+              "count": 4,
+              "totalMs": 217.19520000000375,
+              "maxMs": 59.90560000000005
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 892,
+              "totalMs": 64.34849999993179,
+              "maxMs": 0.9085999999999999
+            },
+            "readFileSync": {
+              "count": 429,
+              "totalMs": 32.032099999958774,
+              "maxMs": 0.29690000000118744
+            },
+            "mkdirSync": {
+              "count": 348,
+              "totalMs": 49.85220000004084,
+              "maxMs": 2.4387000000006083
+            },
+            "writeFileSync": {
+              "count": 20,
+              "totalMs": 2299.262399999997,
+              "maxMs": 1436.6546999999996
+            },
+            "statSync": {
+              "count": 8,
+              "totalMs": 0.1846999999972354,
+              "maxMs": 0.039299999999968804
+            },
+            "lstatSync": {
+              "count": 1860,
+              "totalMs": 70.26669999998148,
+              "maxMs": 0.4261999999980617
+            },
+            "realpathNative": {
+              "count": 144,
+              "totalMs": 19.279399999975226,
+              "maxMs": 0.22620000000006257
+            },
+            "openSync": {
+              "count": 72,
+              "totalMs": 2.503499999984342,
+              "maxMs": 0.06940000000031432
+            },
+            "closeSync": {
+              "count": 72,
+              "totalMs": 1.0280999999657752,
+              "maxMs": 0.03949999999895226
+            },
+            "rmSync": {
+              "count": 4,
+              "totalMs": 34.204499999998006,
+              "maxMs": 10.530099999999948
+            }
+          },
+          "cpuUsage": {
+            "user": 1109000,
+            "system": 1609000
+          },
+          "resourceUsage": {
+            "userCPUTime": 1109000,
+            "systemCPUTime": 1609000,
+            "maxRSS": 66004,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 21206,
+            "swappedOut": 0,
+            "fsRead": 5513,
+            "fsWrite": 1795,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "conditional-merge.test.mjs",
+          "elapsedMs": 137918.9073,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 394.56249999999994,
+              "maxMs": 78.8984
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 358.15849999999176,
+              "maxMs": 62.34059999999954
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 697.834400000003,
+              "maxMs": 163.75340000000142
+            },
+            "git:rev-parse": {
+              "count": 809,
+              "totalMs": 34688.24639999997,
+              "maxMs": 73.31390000000829
+            },
+            "git:config": {
+              "count": 401,
+              "totalMs": 17204.984199999948,
+              "maxMs": 53.44090000000142
+            },
+            "git:status": {
+              "count": 401,
+              "totalMs": 18054.889399999935,
+              "maxMs": 56.53740000000107
+            },
+            "git:ls-tree": {
+              "count": 401,
+              "totalMs": 17587.30480000002,
+              "maxMs": 104.54030000000057
+            },
+            "git:cat-file": {
+              "count": 401,
+              "totalMs": 17589.049300000017,
+              "maxMs": 55.74380000000383
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 397.9345999999787,
+              "maxMs": 74.81940000000031
+            },
+            "node": {
+              "count": 3,
+              "totalMs": 357.98510000000533,
+              "maxMs": 125.16190000000643
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 4565,
+              "totalMs": 303.1393999999922,
+              "maxMs": 0.5959000000002561
+            },
+            "readFileSync": {
+              "count": 2283,
+              "totalMs": 141.56809999951707,
+              "maxMs": 0.9835000000020955
+            },
+            "mkdirSync": {
+              "count": 1310,
+              "totalMs": 197.57460000016997,
+              "maxMs": 18.207699999999022
+            },
+            "writeFileSync": {
+              "count": 35,
+              "totalMs": 202.33720000000037,
+              "maxMs": 33.03550000000541
+            },
+            "statSync": {
+              "count": 14,
+              "totalMs": 0.30529999999868096,
+              "maxMs": 0.05580000000003338
+            },
+            "lstatSync": {
+              "count": 7901,
+              "totalMs": 289.91420000028614,
+              "maxMs": 0.5911000000005515
+            },
+            "realpathNative": {
+              "count": 802,
+              "totalMs": 101.83590000027891,
+              "maxMs": 0.24849999999787542
+            },
+            "openSync": {
+              "count": 401,
+              "totalMs": 12.838800000123115,
+              "maxMs": 0.09420000002137385
+            },
+            "closeSync": {
+              "count": 401,
+              "totalMs": 5.6101000001931425,
+              "maxMs": 0.03910000000905711
+            },
+            "rmSync": {
+              "count": 7,
+              "totalMs": 60.395699999979115,
+              "maxMs": 12.859400000001187
+            }
+          },
+          "cpuUsage": {
+            "user": 4437000,
+            "system": 6187000
+          },
+          "resourceUsage": {
+            "userCPUTime": 4437000,
+            "systemCPUTime": 6187000,
+            "maxRSS": 77716,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 32845,
+            "swappedOut": 0,
+            "fsRead": 26183,
+            "fsWrite": 7370,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "branch-cleanup-races.test.mjs",
+          "elapsedMs": 64646.811,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 6,
+              "totalMs": 482.085499999992,
+              "maxMs": 183.41309999999794
+            },
+            "git:add": {
+              "count": 6,
+              "totalMs": 262.5621999999916,
+              "maxMs": 62.103799999997136
+            },
+            "git:commit": {
+              "count": 3,
+              "totalMs": 339.2549999999988,
+              "maxMs": 151.6877
+            },
+            "git:rev-parse": {
+              "count": 314,
+              "totalMs": 13148.311699999957,
+              "maxMs": 52.24989999999525
+            },
+            "git:config": {
+              "count": 177,
+              "totalMs": 7155.652799999996,
+              "maxMs": 75.244200000001
+            },
+            "git:status": {
+              "count": 153,
+              "totalMs": 6831.588399999981,
+              "maxMs": 52.560599999997066
+            },
+            "git:ls-tree": {
+              "count": 126,
+              "totalMs": 5587.3271000000095,
+              "maxMs": 50.321500000000015
+            },
+            "git:cat-file": {
+              "count": 126,
+              "totalMs": 5595.551700000022,
+              "maxMs": 51.11069999999745
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 315.4449999999947,
+              "maxMs": 63.665700000000015
+            },
+            "git:push": {
+              "count": 8,
+              "totalMs": 1704.3035999999902,
+              "maxMs": 240.9545999999973
+            },
+            "git:other": {
+              "count": 144,
+              "totalMs": 6811.044599999999,
+              "maxMs": 231.67550000000483
+            },
+            "git:fetch": {
+              "count": 12,
+              "totalMs": 1303.8074000000106,
+              "maxMs": 137.25420000000304
+            },
+            "git:symbolic-ref": {
+              "count": 27,
+              "totalMs": 959.4401000000144,
+              "maxMs": 56.34130000000005
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 1507,
+              "totalMs": 101.70819999991855,
+              "maxMs": 0.5498000000006869
+            },
+            "readFileSync": {
+              "count": 795,
+              "totalMs": 56.14639999997242,
+              "maxMs": 0.28300000000001546
+            },
+            "mkdirSync": {
+              "count": 657,
+              "totalMs": 94.22370000006856,
+              "maxMs": 2.4983999999967637
+            },
+            "writeFileSync": {
+              "count": 15,
+              "totalMs": 292.03389999999814,
+              "maxMs": 144.44540000000416
+            },
+            "statSync": {
+              "count": 6,
+              "totalMs": 0.15300000000530645,
+              "maxMs": 0.059599999999988995
+            },
+            "lstatSync": {
+              "count": 3480,
+              "totalMs": 125.86349999997861,
+              "maxMs": 0.18170000000100117
+            },
+            "realpathNative": {
+              "count": 288,
+              "totalMs": 37.216399999995815,
+              "maxMs": 0.2595999999975902
+            },
+            "openSync": {
+              "count": 126,
+              "totalMs": 4.210800000028712,
+              "maxMs": 0.05680000000211294
+            },
+            "closeSync": {
+              "count": 126,
+              "totalMs": 1.8049000000246451,
+              "maxMs": 0.0422000000035041
+            },
+            "rmSync": {
+              "count": 3,
+              "totalMs": 46.32299999999668,
+              "maxMs": 15.545199999993201
+            }
+          },
+          "cpuUsage": {
+            "user": 2015000,
+            "system": 3218000
+          },
+          "resourceUsage": {
+            "userCPUTime": 2015000,
+            "systemCPUTime": 3218000,
+            "maxRSS": 76236,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 26155,
+            "swappedOut": 0,
+            "fsRead": 12059,
+            "fsWrite": 3231,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "windows-qualification-runner.test.mjs",
+          "elapsedMs": 609.9508999999999,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "node": {
+              "count": 1,
+              "totalMs": 67.6802,
+              "maxMs": 67.6802
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 26,
+              "totalMs": 2.9299999999999926,
+              "maxMs": 0.1850999999999985
+            },
+            "readFileSync": {
+              "count": 21,
+              "totalMs": 1.5100000000000833,
+              "maxMs": 0.12069999999999936
+            },
+            "writeFileSync": {
+              "count": 8,
+              "totalMs": 2.1839000000000297,
+              "maxMs": 0.35940000000000083
+            },
+            "lstatSync": {
+              "count": 19,
+              "totalMs": 0.7478999999999587,
+              "maxMs": 0.10750000000001592
+            },
+            "rmSync": {
+              "count": 2,
+              "totalMs": 1.1085000000000065,
+              "maxMs": 0.714500000000001
+            },
+            "mkdirSync": {
+              "count": 3,
+              "totalMs": 0.6050999999999078,
+              "maxMs": 0.25629999999998176
+            }
+          },
+          "cpuUsage": {
+            "user": 78000,
+            "system": 62000
+          },
+          "resourceUsage": {
+            "userCPUTime": 78000,
+            "systemCPUTime": 62000,
+            "maxRSS": 53088,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 14075,
+            "swappedOut": 0,
+            "fsRead": 31,
+            "fsWrite": 49,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "pr-checks-admission.test.mjs",
+          "elapsedMs": 93758.8369,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 7,
+              "totalMs": 479.3722000000107,
+              "maxMs": 107.34369999999763
+            },
+            "git:add": {
+              "count": 7,
+              "totalMs": 348.1305999999983,
+              "maxMs": 58.35100000000057
+            },
+            "git:commit": {
+              "count": 7,
+              "totalMs": 622.0913999999915,
+              "maxMs": 111.5659999999989
+            },
+            "git:rev-parse": {
+              "count": 455,
+              "totalMs": 19601.79800000006,
+              "maxMs": 72.17820000000938
+            },
+            "git:config": {
+              "count": 224,
+              "totalMs": 9657.69979999999,
+              "maxMs": 55.090000000000146
+            },
+            "git:status": {
+              "count": 224,
+              "totalMs": 10227.128200000003,
+              "maxMs": 62.30939999999919
+            },
+            "git:ls-tree": {
+              "count": 224,
+              "totalMs": 9925.899899999977,
+              "maxMs": 79.70960000000014
+            },
+            "git:cat-file": {
+              "count": 224,
+              "totalMs": 9987.249800000014,
+              "maxMs": 85.73279999999977
+            },
+            "git:update-ref": {
+              "count": 7,
+              "totalMs": 363.1549999999986,
+              "maxMs": 58.415600000007544
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 2590,
+              "totalMs": 175.6364999999667,
+              "maxMs": 0.5771999999997206
+            },
+            "readFileSync": {
+              "count": 1218,
+              "totalMs": 79.49760000012421,
+              "maxMs": 0.29200000000128057
+            },
+            "mkdirSync": {
+              "count": 840,
+              "totalMs": 124.32990000004271,
+              "maxMs": 8.211800000000949
+            },
+            "writeFileSync": {
+              "count": 35,
+              "totalMs": 470.0209000000152,
+              "maxMs": 151.39480000000185
+            },
+            "statSync": {
+              "count": 14,
+              "totalMs": 0.29170000000107166,
+              "maxMs": 0.04799999999522697
+            },
+            "lstatSync": {
+              "count": 4781,
+              "totalMs": 178.1993999997049,
+              "maxMs": 0.7852999999995518
+            },
+            "realpathNative": {
+              "count": 448,
+              "totalMs": 58.48249999990628,
+              "maxMs": 0.23369999999704305
+            },
+            "openSync": {
+              "count": 224,
+              "totalMs": 7.4699999999636475,
+              "maxMs": 0.06689999999071006
+            },
+            "closeSync": {
+              "count": 224,
+              "totalMs": 3.1177000000409407,
+              "maxMs": 0.0405999999929918
+            },
+            "rmSync": {
+              "count": 7,
+              "totalMs": 56.79489999999714,
+              "maxMs": 9.902699999991455
+            }
+          },
+          "cpuUsage": {
+            "user": 2500000,
+            "system": 3859000
+          },
+          "resourceUsage": {
+            "userCPUTime": 2500000,
+            "systemCPUTime": 3859000,
+            "maxRSS": 68332,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 26375,
+            "swappedOut": 0,
+            "fsRead": 14848,
+            "fsWrite": 3966,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "native-podman-options.test.mjs",
+          "elapsedMs": 631.9136000000001,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "node": {
+              "count": 4,
+              "totalMs": 459.7882,
+              "maxMs": 121.08820000000003
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 75,
+              "totalMs": 2.3878000000000625,
+              "maxMs": 0.13459999999999184
+            },
+            "readFileSync": {
+              "count": 45,
+              "totalMs": 4.562699999999971,
+              "maxMs": 0.21590000000000487
+            },
+            "mkdirSync": {
+              "count": 4,
+              "totalMs": 1.0652000000000044,
+              "maxMs": 0.4725999999999999
+            },
+            "rmSync": {
+              "count": 2,
+              "totalMs": 1.6141000000000076,
+              "maxMs": 1.1082999999999856
+            },
+            "statSync": {
+              "count": 1,
+              "totalMs": 0.037399999999990996,
+              "maxMs": 0.037399999999990996
+            },
+            "lstatSync": {
+              "count": 8,
+              "totalMs": 0.36189999999987776,
+              "maxMs": 0.08749999999997726
+            },
+            "writeFileSync": {
+              "count": 1,
+              "totalMs": 5.745999999999981,
+              "maxMs": 5.745999999999981
+            }
+          },
+          "cpuUsage": {
+            "user": 109000,
+            "system": 31000
+          },
+          "resourceUsage": {
+            "userCPUTime": 109000,
+            "systemCPUTime": 31000,
+            "maxRSS": 58672,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 15712,
+            "swappedOut": 0,
+            "fsRead": 88,
+            "fsWrite": 48,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "diagnosticOnly": true,
+          "snapshotFailed": false,
+          "file": "main-sync-admission.test.mjs",
+          "elapsedMs": 85380.7456,
+          "completed": true,
+          "inFlight": null,
+          "families": {
+            "git:init": {
+              "count": 10,
+              "totalMs": 664.8658000000003,
+              "maxMs": 181.04880000000412
+            },
+            "git:add": {
+              "count": 10,
+              "totalMs": 434.2522999999874,
+              "maxMs": 57.37699999999313
+            },
+            "git:commit": {
+              "count": 5,
+              "totalMs": 420.5092000000036,
+              "maxMs": 117.5951
+            },
+            "git:rev-parse": {
+              "count": 466,
+              "totalMs": 19580.10189999993,
+              "maxMs": 95.99379999999655
+            },
+            "git:config": {
+              "count": 240,
+              "totalMs": 9926.746999999945,
+              "maxMs": 53.46240000000398
+            },
+            "git:status": {
+              "count": 220,
+              "totalMs": 9902.80429999997,
+              "maxMs": 75.82130000000325
+            },
+            "git:ls-tree": {
+              "count": 210,
+              "totalMs": 9084.646099999925,
+              "maxMs": 58.62980000000971
+            },
+            "git:cat-file": {
+              "count": 210,
+              "totalMs": 9166.449199999966,
+              "maxMs": 82.14740000000165
+            },
+            "git:update-ref": {
+              "count": 5,
+              "totalMs": 261.2583999999954,
+              "maxMs": 57.59739999999874
+            },
+            "git:push": {
+              "count": 11,
+              "totalMs": 2569.8938999999973,
+              "maxMs": 396.16270000000077
+            },
+            "git:other": {
+              "count": 30,
+              "totalMs": 1616.1065999999919,
+              "maxMs": 150.97920000000158
+            },
+            "git:fetch": {
+              "count": 10,
+              "totalMs": 1080.5431000000135,
+              "maxMs": 125.26949999999488
+            },
+            "git:symbolic-ref": {
+              "count": 10,
+              "totalMs": 348.36319999998886,
+              "maxMs": 38.303899999998976
+            }
+          },
+          "filesystem": {
+            "realpathSync": {
+              "count": 2445,
+              "totalMs": 169.81729999999507,
+              "maxMs": 0.9055000000000746
+            },
+            "readFileSync": {
+              "count": 1218,
+              "totalMs": 82.42459999998255,
+              "maxMs": 1.4870000000009895
+            },
+            "mkdirSync": {
+              "count": 876,
+              "totalMs": 510.12109999985034,
+              "maxMs": 368.0144
+            },
+            "writeFileSync": {
+              "count": 25,
+              "totalMs": 170.77649999999514,
+              "maxMs": 42.98619999999937
+            },
+            "statSync": {
+              "count": 10,
+              "totalMs": 0.2094000000017786,
+              "maxMs": 0.039600000000007185
+            },
+            "lstatSync": {
+              "count": 4880,
+              "totalMs": 181.4590999998615,
+              "maxMs": 4.489700000005541
+            },
+            "realpathNative": {
+              "count": 434,
+              "totalMs": 55.403100000014206,
+              "maxMs": 0.42960000000311993
+            },
+            "openSync": {
+              "count": 210,
+              "totalMs": 7.0272999999574495,
+              "maxMs": 0.0859000000054948
+            },
+            "closeSync": {
+              "count": 210,
+              "totalMs": 3.0939999999889096,
+              "maxMs": 0.0904000000009546
+            },
+            "rmSync": {
+              "count": 5,
+              "totalMs": 73.88780000000952,
+              "maxMs": 17.1911999999993
+            }
+          },
+          "cpuUsage": {
+            "user": 2718000,
+            "system": 4218000
+          },
+          "resourceUsage": {
+            "userCPUTime": 2718000,
+            "systemCPUTime": 4218000,
+            "maxRSS": 77020,
+            "sharedMemorySize": 0,
+            "unsharedDataSize": 0,
+            "unsharedStackSize": 0,
+            "minorPageFault": 0,
+            "majorPageFault": 29459,
+            "swappedOut": 0,
+            "fsRead": 15953,
+            "fsWrite": 4336,
+            "ipcSent": 0,
+            "ipcReceived": 0,
+            "signalsCount": 0,
+            "voluntaryContextSwitches": 0,
+            "involuntaryContextSwitches": 0
+          },
+          "runtime": {
+            "node": "v24.21.0",
+            "platform": "win32",
+            "architecture": "x64",
+            "parallelism": 4,
+            "cpuModel": "AMD EPYC 9V74 80-Core Processor                "
+          }
+        }
+      ]
+    }
+  ]
+}
