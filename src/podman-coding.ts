@@ -109,6 +109,27 @@ def directory(path):
   if parent.is_symlink(): fail()
  s=os.lstat(path)
  if not stat.S_ISDIR(s.st_mode) or s.st_uid!=os.getuid() or s.st_mode&0o077: fail()
+def retained_home(path):
+ # Require existing private state; never synthesize a missing session home.
+ s=os.lstat(path)
+ if not stat.S_ISDIR(s.st_mode): fail()
+ directory(path)
+ # Codex loads these from CODEX_HOME; a prior turn must not configure the next.
+ with os.scandir(path) as entries:
+  if any(e.name.lower() in ['config.toml','hooks.json','agents.md','agents.override.md','skills','rules'] for e in entries): fail()
+ pending=[path];count=0;total=0
+ while pending:
+  with os.scandir(pending.pop()) as entries:
+   for entry in entries:
+    count+=1
+    if count>4096: fail()
+    s=entry.stat(follow_symlinks=False)
+    if s.st_uid!=os.getuid(): fail()
+    if stat.S_ISDIR(s.st_mode): pending.append(entry.path)
+    else:
+     ordinary(entry.path)
+     total+=s.st_size
+     if s.st_size>4194304 or total>16777216: fail()
 def save(path,value):
  temp=path+'.new-'+uuid.uuid4().hex
  fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
@@ -275,7 +296,30 @@ else:
    branch=R.get('branch')
    if not isinstance(R.get('sourceRevision'),str) or not re.fullmatch('[a-f0-9]{40}',R['sourceRevision']) or not isinstance(R.get('inputSha256'),str) or not re.fullmatch('[a-f0-9]{64}',R['inputSha256']): fail()
    if not isinstance(branch,str) or len(branch)>240 or not re.fullmatch(r'codex/[A-Za-z0-9][A-Za-z0-9._/-]*',branch) or '..' in branch or any(not p or p.startswith('.') or p.endswith('.') or p.lower().endswith('.lock') for p in branch.split('/')): fail()
-   if R['argv'][:5]!=['exec','--json','--skip-git-repo-check','--sandbox','workspace-write'] or len(R['argv'])!=6 or not isinstance(R['argv'][5],str): fail()
+   resuming=R['session']['intent']=='resume'
+   # exec resume has no --sandbox flag; pin the same mode by explicit override.
+   expected=['exec','resume','--json','--skip-git-repo-check','-c','sandbox_mode="workspace-write"',R.get('threadId')] if resuming else ['exec','--json','--skip-git-repo-check','--sandbox','workspace-write']
+   if R['argv'][:-1]!=expected or len(R['argv'])!=len(expected)+1 or not isinstance(R['argv'][-1],str) or len(R['argv'][-1])>65536: fail()
+   predecessor=None
+   admission=dict(sourceRevision=R['sourceRevision'],branch=R['branch'],inputSha256=R['inputSha256'])
+   if resuming:
+    previous=R.get('resumeFrom');thread=R.get('threadId')
+    if not isinstance(previous,dict) or not isinstance(thread,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread): fail()
+    oldId=previous.get('operationId');oldFence=previous.get('fence')
+    if not isinstance(oldId,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',oldId) or oldId==R['session']['operationId'] or type(oldFence) is not int or oldFence<1 or oldFence>R['session']['fence'] or previous.get('state')!='stopped': fail()
+    oldName='aios-coding-'+h((R['authority']+oldId).encode())[:32]
+    oldPath=root+'/'+oldName+'.json';predecessor=read(oldPath)
+    oldIdentity=h(json.dumps(dict(operationId=oldId,fence=oldFence),sort_keys=True).encode())
+    if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') or predecessor.get('threadId')!=thread or predecessor['binding']!=binding or predecessor.get('pins')!=R['pins'] or predecessor.get('lease') or not gone(predecessor): fail()
+    oldAdmission=predecessor.get('admission',{})
+    if oldAdmission.get('sourceRevision')!=R['sourceRevision'] or oldAdmission.get('branch')!=branch: fail()
+    oldContainer=obj('inspect',oldName)[0]
+    if oldContainer['Config'].get('Labels',{})!={'aios.coding.authority':R['authority'],'aios.coding.session':oldIdentity} or oldContainer['State'].get('Running') is not False or oldContainer['State'].get('Pid')!=0: fail()
+    for suffix in ['-lease.timer','-deadline.timer','-lease.service','-deadline.service']:
+     if timer_state(oldName+suffix)['ActiveState'] not in ['inactive','failed']: fail()
+    oldHome=root+'/'+oldName+'/home';retained_home(oldHome)
+    admission.update(threadId=thread,resumeFrom=previous)
+   elif R['session']['intent']!='start' or R.get('threadId') is not None or R.get('resumeFrom') is not None: fail()
    total=0;names=set();inputs=[];manifest=[]
    if not isinstance(R['files'],list) or len(R['files'])>1000: fail()
    for file in R['files']:
@@ -284,9 +328,14 @@ else:
     names.add(path.lower());inputs.append((path,data,file['executable']))
     manifest.append(dict(path=path,sha256=h(data),executable=file['executable']))
    if h(json.dumps(manifest,ensure_ascii=False,separators=(',',':')).encode())!=R['inputSha256']: fail()
-   record=dict(identity=identity,binding=binding,admission=dict(sourceRevision=R['sourceRevision'],branch=R['branch'],inputSha256=R['inputSha256']),argv=R['argv'],phase='preparing',group='',pids={},deadline=time.monotonic()+R['allowanceMs']/1000)
+   record=dict(identity=identity,binding=binding,pins=R['pins'],admission=admission,argv=R['argv'],phase='preparing',group='',pids={},deadline=time.monotonic()+R['allowanceMs']/1000)
    save(recordPath,record)
-   directory(operation);directory(work);directory(home)
+   directory(operation);directory(work)
+   if predecessor:
+    # Reserve durably before moving retained state. Partial effects never retry.
+    predecessor['resumedBy']=identity;save(oldPath,predecessor)
+    os.rename(oldHome,home)
+   directory(home)
    source=os.path.expanduser('~/.local/state/aios-offline-v1/codex-0.161.0')
    fd=os.open(binary,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o500)
    with os.fdopen(fd,'wb') as f:
@@ -332,7 +381,7 @@ else:
    binding=snapshot()
    if binding!=record['binding']: fail()
    if R['action']=='launch':
-    if record['phase']!='prepared' or not isinstance(record.get('admission'),dict) or record['admission']!=R.get('admission'): fail()
+    if record['phase']!='prepared' or not isinstance(record.get('admission'),dict) or record['admission']!=R.get('admission') or record.get('pins')!=R.get('pins'): fail()
     ordinary(binary)
     if h(pathlib.Path(binary).read_bytes())!=R['cliSha256']: fail()
     effective(container(),False)
@@ -353,6 +402,21 @@ else:
      lease()
     logs=pod('logs',R['name'])
     if len(logs)>65536: fail()
+    # Bind a complete explicit CLI thread event to this durable session. A
+    # partial final line is not evidence and cannot authorize later resume.
+    threads=[]
+    for line in logs.split(b'\n')[:-1]:
+     try: event=json.loads(line)
+     except (ValueError,UnicodeDecodeError): continue
+     if isinstance(event,dict) and event.get('type')=='thread.started':
+      thread=event.get('thread_id')
+      if not isinstance(thread,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread): fail()
+      threads.append(thread)
+    if len(threads)>1: fail()
+    if threads:
+     if record.get('threadId',threads[0])!=threads[0] or record['admission'].get('threadId',threads[0])!=threads[0]: fail()
+     record['threadId']=threads[0];save(recordPath,record)
+    if not c['State']['Running'] and record['admission'].get('threadId') and not threads: fail()
     result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(logs).decode())
    elif R['action']=='observe-timer-execution':
     container() # Verify current authority/session labels before reading units.
@@ -379,6 +443,11 @@ else:
 print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha256'],**(result if 'result' in globals() else {}),**(dict(stopped=True,remainingProcesses=0) if R['action']=='stop' else {}))))
 
 `;
+
+/** Offline resume names its stopped predecessor; no global session selection. */
+export interface NativeCodingRequest extends CodingRequest {
+  resumeFrom?: CodingSession;
+}
 
 export interface NativeTimerObservation {
   loadState: "loaded" | "not-found";
@@ -551,12 +620,48 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
   async inspect(session: CodingSession): Promise<CodingPins> {
     return (await this.invoke("inspect", structuredClone(session))).pins;
   }
-  async run(request: CodingRequest, stdout: (bytes: Buffer) => void) {
-    if (request.intent === "resume")
-      throw Error("Native resume is not qualified");
+  async run(request: NativeCodingRequest, stdout: (bytes: Buffer) => void) {
+    const resuming = request.intent === "resume";
+    const uuid = (value: unknown): value is string =>
+      typeof value === "string" &&
+      /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+        value,
+      );
+    if (
+      resuming
+        ? !uuid(request.threadId) ||
+          !request.resumeFrom ||
+          !uuid(request.resumeFrom.operationId) ||
+          request.resumeFrom.operationId === request.operationId ||
+          !Number.isSafeInteger(request.resumeFrom.fence) ||
+          request.resumeFrom.fence < 1 ||
+          request.resumeFrom.fence > request.fence ||
+          request.resumeFrom.state !== "stopped" ||
+          !["start", "resume"].includes(request.resumeFrom.intent)
+        : request.threadId !== undefined || request.resumeFrom !== undefined
+    )
+      throw Error("Unsupported native coding resume");
+    // `exec resume` has no --sandbox flag; pin the same mode by explicit override.
+    const prefix = resuming
+      ? [
+          "exec",
+          "resume",
+          "--json",
+          "--skip-git-repo-check",
+          "-c",
+          'sandbox_mode="workspace-write"',
+          request.threadId,
+        ]
+      : [
+          "exec",
+          "--json",
+          "--skip-git-repo-check",
+          "--sandbox",
+          "workspace-write",
+        ];
     if (
       request.baseRefresh ||
-      request.intent !== "start" ||
+      !["start", "resume"].includes(request.intent) ||
       typeof request.sourceRevision !== "string" ||
       request.sourceRevision.length !== 40 ||
       !/^[a-f0-9]{40}$/.test(request.sourceRevision) ||
@@ -577,19 +682,12 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
             part.endsWith(".") ||
             part.toLowerCase().endsWith(".lock"),
         ) ||
-      request.threadId ||
       request.state !== "running" ||
-      request.argv.length !== 6 ||
-      JSON.stringify(request.argv.slice(0, 5)) !==
-        JSON.stringify([
-          "exec",
-          "--json",
-          "--skip-git-repo-check",
-          "--sandbox",
-          "workspace-write",
-        ]) ||
-      typeof request.argv[5] !== "string" ||
-      request.argv[5].length > 65536 ||
+      !Array.isArray(request.argv) ||
+      request.argv.length !== prefix.length + 1 ||
+      JSON.stringify(request.argv.slice(0, -1)) !== JSON.stringify(prefix) ||
+      typeof request.argv.at(-1) !== "string" ||
+      request.argv.at(-1)!.length > 65536 ||
       !Number.isSafeInteger(request.allowanceMs) ||
       request.allowanceMs < 1 ||
       request.allowanceMs > 7200000
@@ -604,6 +702,12 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       branch: request.branch,
       inputSha256: request.inputSha256,
       allowanceMs: request.allowanceMs,
+      ...(resuming
+        ? {
+            threadId: request.threadId,
+            resumeFrom: this.session(request.resumeFrom!),
+          }
+        : {}),
     });
     const prepared = payload(),
       binding = JSON.stringify(prepared);
@@ -647,10 +751,14 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
         "launch",
         session,
         {
+          pins: prepared.pins,
           admission: {
             sourceRevision: prepared.sourceRevision,
             branch: prepared.branch,
             inputSha256: prepared.inputSha256,
+            ...(resuming
+              ? { threadId: prepared.threadId, resumeFrom: prepared.resumeFrom }
+              : {}),
           },
         },
         () => permit(mayDispatch) && performance.now() < deadline,

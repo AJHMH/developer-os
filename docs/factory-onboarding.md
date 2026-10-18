@@ -3,8 +3,8 @@
 Developer OS is an implemented Factory consumer alongside `AJHMH/profile-page`, using the `node-24-typescript-cli` profile. Consumer adoption was merged; full certification remains unverified in retained evidence.
 
 `factory.lock.yaml`, both reusable calls and the approval-refresh tool select
-Factory `26c641d207c0754eeb2037679d944cebe62977ff` (Factory PR #74).
-Factory PR #74 received owner review and merged. Set the
+Factory `f78ebdbcfcde6138ec8f63c11c2e6a984a72dce9` (Factory PR #75, which raised the `node-24-typescript-cli` command limit to 240 seconds).
+Factory PR #75 received owner review and merged. Set the
 independently approved `FACTORY_DISTRIBUTION_REVISION` to the reviewed revision
 before the consumer upgrade can pass adoption inspection. The new certification
 path retains the successful exact-head PR package and gate reports, checks that

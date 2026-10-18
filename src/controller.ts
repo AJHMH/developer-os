@@ -2600,8 +2600,17 @@ export class DeliveryController {
         JSON.stringify(runtime.pins) === pins
       );
     };
+    // `exec resume` has no --sandbox flag; pin the first launch's mode explicitly.
     const argv = session.threadId
-      ? ["exec", "resume", "--json", "--skip-git-repo-check", session.threadId]
+      ? [
+          "exec",
+          "resume",
+          "--json",
+          "--skip-git-repo-check",
+          "-c",
+          'sandbox_mode="workspace-write"',
+          session.threadId,
+        ]
       : [
           "exec",
           "--json",
