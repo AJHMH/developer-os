@@ -28,8 +28,8 @@ const hash = (v) => createHash("sha256").update(v).digest("hex");
 function fixture(t, online, target = "macos") {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-decision-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  if (target === "windows" && process.platform === "win32")
-    initializeWindowsAuthDirectory(root);
+  // Storage belongs to the actual runner, independently of the simulated VM target.
+  if (process.platform === "win32") initializeWindowsAuthDirectory(root);
   const repo = join(root, "repo"),
     state = join(root, "state");
   mkdirSync(repo);
@@ -107,14 +107,13 @@ function fixture(t, online, target = "macos") {
     { mode: 0o600 },
   );
   writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
-  if (target === "windows")
-    ownWindowsFixturePaths([
-      state,
-      policy,
-      registration,
-      recordPath,
-      join(state, "inference-" + run + ".consumed"),
-    ]);
+  ownWindowsFixturePaths([
+    state,
+    policy,
+    registration,
+    recordPath,
+    join(state, "inference-" + run + ".consumed"),
+  ]);
   const usage = {
     observedAt: new Date().toISOString(),
     accountId: record.accountId,
@@ -498,6 +497,7 @@ test("operator-pinned npm artifact dispatch admits exact bytes and refuses candi
     }),
     { mode: 0o600 },
   );
+  ownWindowsFixturePaths([policy]);
   let response = { status: 200, bytes };
   const runtime = new NpmArtifactRuntime(inner, policy, async (url) => {
     requests.push(url);

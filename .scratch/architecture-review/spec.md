@@ -62,7 +62,20 @@ exercise still observes its phase/ownership guards. Online routing uses its
 contract/lifecycle dependencies. See [ADR 0001](../../docs/adr/0001-architecture-module-boundaries.md)
 for all retain/remove/move decisions.
 
-A draft PR is prepared locally. Automatic approval review rejected publication
-because uploading source to GitHub with the App key requires explicit owner
-publication authorization. No PR was created and no cross-platform CI result is
-claimed. The managed worktree retains all staged changes for review.
+Publication was authorized after the initial automatic-review refusal. PR #66
+contains the verified App-authored implementation. Initial Linux/macOS CI and
+Factory contract/security checks passed. Windows shards exposed two fixture
+assumptions: simulated Mac executable paths were not resolved in the actual
+runner's path domain, and Mac-target evidence fixtures skipped Windows storage
+ownership setup. These fixtures now use the actual runner's canonical paths and
+storage controls. Production guards are unchanged. Fresh CI is required after
+these test corrections; any new head requires renewed owner review before merge.
+
+The owner explicitly authorized publishing the fixture corrections and further CI fixes to PR #66. The same actual-runner storage correction applies to both online-access and subscription-decision fixtures.
+
+PR #66 merged as `db34ae1e9b748ed77fefa511304b5a6e9a5a3906` while the
+Windows failures remained. Its remote branch was deleted. Local main was
+fast-forwarded to that merge without changing the primary checkout's unrelated
+work. The correction is retained on `codex/architecture-windows-fixtures` for a
+follow-up PR. All 37 affected local tests and formatting pass. No runtime source
+or safety assertion was changed by the correction.
