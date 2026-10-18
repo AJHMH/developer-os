@@ -29,6 +29,23 @@ not authorize a new run.
 
 ## Current continuation
 
+PR #70 merged as `003c89730a360082fd22a41815c941a4e7cb0aea` with all applicable
+checks and current-head human approval passing. Its tree exactly matches validated
+head `1e6a765`; those results were reused. Local main was fast-forwarded and the
+merged task branch retired, without a suite rerun merely for the merge.
+
+The next native launch-admission slice binds the caller-declared source revision,
+branch and admitted plain-file manifest digest at both host and guest boundaries.
+The host refuses a digest mismatch before observations; the guest independently
+rehashes transferred bytes before materialization. The guest persists provenance
+and compares it with the guarded launch request before starting the container.
+This is prerequisite groundwork for explicit-session resume, which remains
+unqualified and refused. It does not establish a Git revision's relationship to
+file contents; that admission remains the controller's responsibility. Native
+Windows/macOS qualification for the changed runtime is not-run. Historical
+version-bound macOS timer evidence remains retained, without qualifying these
+new policy bytes. See [launch provenance](../ticket04-native-launch-provenance-receipt.md).
+
 PR #69 merged as `a132a7456ed53709317cf11ee43dd79d20d7c5de` with all applicable
 head checks passing. Its source tree equals validated head `6b8adff`; those
 results were reused, local main was fast-forwarded and the merged task branch

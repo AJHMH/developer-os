@@ -201,7 +201,8 @@ async function launchRequest(transport, overrides = {}) {
     ],
     branch: "codex/example",
     sourceRevision: "b".repeat(40),
-    inputSha256: "c".repeat(64),
+    inputSha256:
+      "79e66062117b48d4c618d93d2fba5fbb22250bbf83df8aaa67ed60cc7022a4b4",
     files: [
       { path: "index.html", bytes: Buffer.from("before\n"), executable: false },
     ],
@@ -1479,5 +1480,124 @@ test(
     assert.equal(value.finishedUs, 0);
     assert.equal(value.code, 0);
     assert.equal(value.status, 0);
+  },
+);
+
+test(
+  "native launch refuses a digest that does not describe its admitted file bytes before effects",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t);
+    const request = await launchRequest(transport, {
+      inputSha256: "0".repeat(64),
+    });
+    const before = read().commands.length;
+    await assert.rejects(
+      transport.run(request, () => {}),
+      /Native coding input digest mismatch/,
+    );
+    assert.equal(read().commands.length, before);
+  },
+);
+
+test(
+  "native guest refuses transferred file bytes that no longer match the admitted digest before container creation",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t, {
+      transferredInputDrift: true,
+    });
+    await assert.rejects(
+      transport.run(await launchRequest(transport), () => {}),
+      /Native coding prepare observation unavailable/,
+    );
+    assert.equal(
+      read().commands.some(
+        (args) => args[0] === "podman" && args[1] === "create",
+      ),
+      false,
+    );
+  },
+);
+
+test(
+  "native guest refuses changed launch provenance before starting the prepared worker",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t, {
+      launchProvenanceDrift: true,
+    });
+    await assert.rejects(
+      transport.run(await launchRequest(transport), () => {}),
+      /Native coding launch observation unavailable/,
+    );
+    assert.equal(
+      read().commands.some(
+        (args) => args[0] === "podman" && args[1] === "start",
+      ),
+      false,
+    );
+  },
+);
+
+test(
+  "native launch refuses unresolved or unsafe provenance before host observations",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t);
+    const request = await launchRequest(transport);
+    const before = read().commands.length;
+    for (const override of [
+      { sourceRevision: "main" },
+      { sourceRevision: "b".repeat(40) + "\n" },
+      { sourceRevision: undefined },
+      { branch: undefined },
+      { branch: "codex/task\n" },
+      { branch: "main" },
+      { branch: "codex/" + "a".repeat(240) },
+      { branch: "codex/task//nested" },
+      { branch: "codex/task/.private" },
+      { branch: "codex/task." },
+      { branch: "codex/../other" },
+      { branch: "codex/task.lock" },
+      { branch: "codex/task\nother" },
+      { inputSha256: undefined },
+      { inputSha256: "c".repeat(64) + "\n" },
+      { inputSha256: "unknown" },
+      { intent: "unexpected" },
+    ])
+      await assert.rejects(
+        transport.run({ ...request, ...override }, () => {}),
+        /Unsupported native coding launch/,
+      );
+    assert.equal(read().commands.length, before);
+  },
+);
+
+test(
+  "native admitted manifest preserves UTF-8 paths and executable flags through stopped collection",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t);
+    const request = await launchRequest(transport, {
+      files: [
+        {
+          path: "café.txt",
+          bytes: Buffer.from("bounded unicode\n"),
+          executable: true,
+        },
+      ],
+      inputSha256:
+        "c7a1966631a6b1f0c269599fe83a297bdf5bc69edd66981b46a0f057a580dfa8",
+    });
+    await transport.run(request, () => {});
+    const collected = await transport.collect(session);
+    assert.equal(collected.complete, true);
+    const file = collected.files.find((entry) => entry.path === "café.txt");
+    assert.ok(file);
+    assert.deepEqual(file.bytes, Buffer.from("bounded unicode\n"));
+    assert.equal(file.executable, true);
+    assert.equal(file.ordinary, true);
+    assert.equal(file.links, 1);
   },
 );

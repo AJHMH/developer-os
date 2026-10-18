@@ -272,8 +272,19 @@ else:
   if R['action']=='prepare':
    binding=snapshot()
    if binding!=R['expectedBinding'] or record: fail()
+   branch=R.get('branch')
+   if not isinstance(R.get('sourceRevision'),str) or not re.fullmatch('[a-f0-9]{40}',R['sourceRevision']) or not isinstance(R.get('inputSha256'),str) or not re.fullmatch('[a-f0-9]{64}',R['inputSha256']): fail()
+   if not isinstance(branch,str) or len(branch)>240 or not re.fullmatch(r'codex/[A-Za-z0-9][A-Za-z0-9._/-]*',branch) or '..' in branch or any(not p or p.startswith('.') or p.endswith('.') or p.lower().endswith('.lock') for p in branch.split('/')): fail()
    if R['argv'][:5]!=['exec','--json','--skip-git-repo-check','--sandbox','workspace-write'] or len(R['argv'])!=6 or not isinstance(R['argv'][5],str): fail()
-   record=dict(identity=identity,binding=binding,argv=R['argv'],phase='preparing',group='',pids={},deadline=time.monotonic()+R['allowanceMs']/1000)
+   total=0;names=set();inputs=[];manifest=[]
+   if not isinstance(R['files'],list) or len(R['files'])>1000: fail()
+   for file in R['files']:
+    path=file['path'];data=base64.b64decode(file['bytes'],validate=True);total+=len(data)
+    if not path_ok(path) or path.lower() in names or len(data)>262144 or total>1048576 or type(file['executable']) is not bool: fail()
+    names.add(path.lower());inputs.append((path,data,file['executable']))
+    manifest.append(dict(path=path,sha256=h(data),executable=file['executable']))
+   if h(json.dumps(manifest,ensure_ascii=False,separators=(',',':')).encode())!=R['inputSha256']: fail()
+   record=dict(identity=identity,binding=binding,admission=dict(sourceRevision=R['sourceRevision'],branch=R['branch'],inputSha256=R['inputSha256']),argv=R['argv'],phase='preparing',group='',pids={},deadline=time.monotonic()+R['allowanceMs']/1000)
    save(recordPath,record)
    directory(operation);directory(work);directory(home)
    source=os.path.expanduser('~/.local/state/aios-offline-v1/codex-0.161.0')
@@ -282,14 +293,10 @@ else:
     data=pathlib.Path(source).read_bytes()
     if h(data)!=R['cliSha256']: fail()
     f.write(data);f.flush();os.fsync(f.fileno())
-   total=0;names=set()
-   if len(R['files'])>1000: fail()
-   for file in R['files']:
-    path=file['path'];data=base64.b64decode(file['bytes'],validate=True);total+=len(data)
-    if not path_ok(path) or path.lower() in names or len(data)>262144 or total>1048576: fail()
-    names.add(path.lower());target=work+'/'+path
+   for path,data,executable in inputs:
+    target=work+'/'+path
     os.makedirs(os.path.dirname(target),mode=0o700,exist_ok=True)
-    fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o700 if file['executable'] else 0o600)
+    fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o700 if executable else 0o600)
     with os.fdopen(fd,'wb') as f: f.write(data)
    profile=json.loads(pathlib.Path('/usr/share/containers/seccomp.json').read_text())
    if profile.get('defaultAction')!='SCMP_ACT_ERRNO': fail()
@@ -325,7 +332,7 @@ else:
    binding=snapshot()
    if binding!=record['binding']: fail()
    if R['action']=='launch':
-    if record['phase']!='prepared': fail()
+    if record['phase']!='prepared' or not isinstance(record.get('admission'),dict) or record['admission']!=R.get('admission'): fail()
     ordinary(binary)
     if h(pathlib.Path(binary).read_bytes())!=R['cliSha256']: fail()
     effective(container(),False)
@@ -549,6 +556,27 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       throw Error("Native resume is not qualified");
     if (
       request.baseRefresh ||
+      request.intent !== "start" ||
+      typeof request.sourceRevision !== "string" ||
+      request.sourceRevision.length !== 40 ||
+      !/^[a-f0-9]{40}$/.test(request.sourceRevision) ||
+      typeof request.inputSha256 !== "string" ||
+      request.inputSha256.length !== 64 ||
+      !/^[a-f0-9]{64}$/.test(request.inputSha256) ||
+      typeof request.branch !== "string" ||
+      request.branch.length > 240 ||
+      request.branch.trim() !== request.branch ||
+      !/^codex\/[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(request.branch) ||
+      request.branch.includes("..") ||
+      request.branch
+        .split("/")
+        .some(
+          (part) =>
+            !part ||
+            part.startsWith(".") ||
+            part.endsWith(".") ||
+            part.toLowerCase().endsWith(".lock"),
+        ) ||
       request.threadId ||
       request.state !== "running" ||
       request.argv.length !== 6 ||
@@ -579,6 +607,13 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     });
     const prepared = payload(),
       binding = JSON.stringify(prepared);
+    const manifest = prepared.files.map(({ path, bytes, executable }) => ({
+      path,
+      sha256: digest(Buffer.from(bytes, "base64")),
+      executable,
+    }));
+    if (digest(JSON.stringify(manifest)) !== prepared.inputSha256)
+      throw Error("Native coding input digest mismatch");
     const { mayDispatch, checkpoint, onEvent } = request;
     const unchanged = () =>
       JSON.stringify(this.session(request)) === JSON.stringify(session) &&
@@ -611,7 +646,13 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       const launched = await this.invoke(
         "launch",
         session,
-        {},
+        {
+          admission: {
+            sourceRevision: prepared.sourceRevision,
+            branch: prepared.branch,
+            inputSha256: prepared.inputSha256,
+          },
+        },
         () => permit(mayDispatch) && performance.now() < deadline,
       );
       if (JSON.stringify(launched.pins) !== expected)
