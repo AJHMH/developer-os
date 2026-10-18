@@ -1,0 +1,127 @@
+{
+  "scope": "issue04-native-explicit-resume",
+  "candidateParent": "19cc1cac75c6e4b27e227157197be3fd2bcedba2",
+  "candidateCommitted": false,
+  "command": "npm run typecheck && npm run format:check && npm test && npm run build",
+  "timeoutSeconds": 600,
+  "sourceSha256": {
+    "src/podman-coding.ts": "0d419febe8532c7042ed11348e56dc30b5be5edc0ec4a9754b19ea03f3372f42",
+    "tests/worker-native-coding.test.mjs": "1f76bfadbc035873309e8f51a082686160345ced8a5cb38603f41b10843e9004",
+    "tests/helpers/native-coding-guest.py": "69fc78f965eb70c991ae52281e24a17bc4d7c87f5f972d67a551a4fa7dc0d52d"
+  },
+  "sourceUnchangedDuringValidation": true,
+  "result": {
+    "status": "failed",
+    "exitCode": 1,
+    "signal": null,
+    "timedOut": false,
+    "terminationFailed": false,
+    "startedAt": "2026-10-18T03:26:47.764Z",
+    "finishedAt": "2026-10-18T03:32:20.749Z",
+    "truncated": true
+  },
+  "rawResult": "/private/tmp/issue04-explicit-resume-final-validation.json",
+  "visibleFailure": "guest command budgets keep Mac scheduling bounded and Windows unchanged (5003.258708ms)",
+  "failureDetailsIncompleteBecauseOutputTruncated": true,
+  "focused": {
+    "tests": 130,
+    "passed": 130,
+    "failed": 0,
+    "reference": "/private/tmp/issue04-explicit-resume-final-focused.txt"
+  },
+  "diagnosticRerun": {
+    "tests": 1,
+    "passed": 1,
+    "durationMs": 52.745416,
+    "reference": "/private/tmp/issue04-resume-unrelated-python-command-rerun.txt",
+    "explainsOriginalFailure": false
+  },
+  "unchangedMainComparison": {
+    "revision": "19cc1cac75c6e4b27e227157197be3fd2bcedba2",
+    "status": "passed",
+    "reference": "/private/tmp/issue04-explicit-resume-main-comparison.json",
+    "exitCode": 0,
+    "signal": null,
+    "timedOut": false,
+    "terminationFailed": false,
+    "startedAt": "2026-10-18T03:33:55.869Z",
+    "finishedAt": "2026-10-18T03:39:21.199Z",
+    "truncated": true,
+    "attributionResolved": false
+  },
+  "supersededValidation": [
+    {
+      "reference": "/private/tmp/issue04-explicit-resume-superseded-validation.json",
+      "status": "passed",
+      "startedAt": "2026-10-18T03:14:04.022Z",
+      "finishedAt": "2026-10-18T03:19:51.086Z",
+      "superseded": true
+    },
+    {
+      "reference": "/private/tmp/issue04-explicit-resume-pre-pin-validation.json",
+      "status": "passed",
+      "startedAt": "2026-10-18T03:20:01.127Z",
+      "finishedAt": "2026-10-18T03:25:35.455Z",
+      "superseded": true
+    }
+  ],
+  "reviews": {
+    "specFindings": 0,
+    "standardsFindings": 0
+  },
+  "productionEnabled": false,
+  "qualified": false,
+  "continuation": {
+    "candidateParent": "461b62ea6982b35484c67020c4133e4c76303d60",
+    "recoveredFromBackup": true,
+    "recoveredHashesMatched": true,
+    "reviewFixes": [
+      "refuse retained Codex configuration in resumed home",
+      "pin resumed sandbox_mode=workspace-write"
+    ],
+    "host": {
+      "platform": "linux",
+      "node": "24.15.0",
+      "python": "3.13",
+      "declaredMacProfile": false
+    },
+    "command": "npm run typecheck && npm run format:check && npm test && npm run build",
+    "timeoutSeconds": 600,
+    "sourceSha256": {
+      "src/podman-coding.ts": "7b1c208b312445782ee383c101879d145adf8c8bb201d235706169e0294dc41e",
+      "src/controller.ts": "268751ee36a1eba1bd038adc099ea7ab2f107ab8c67e9a0f89e0b689c9c6dae2",
+      "tests/worker-native-coding.test.mjs": "8ab3fa454b614aab5ddcdf40f4af746ce0741129e1ee1fed1f140379ef0dff6c",
+      "tests/helpers/native-coding-guest.py": "69fc78f965eb70c991ae52281e24a17bc4d7c87f5f972d67a551a4fa7dc0d52d",
+      ".scratch/aios-v1-implementation/native-coding-resume-acceptance.mjs": "cd35c2909fb541841ff6dd70b0a3229839441c9e0c57ee4cc10e54082b967c69"
+    },
+    "result": {
+      "status": "failed",
+      "exitCode": 1,
+      "tests": 816,
+      "passed": 809,
+      "skipped": 4,
+      "failed": 3,
+      "startedAt": "2026-10-18T04:33:17Z",
+      "finishedAt": "2026-10-18T04:37:11Z"
+    },
+    "failures": {
+      "tests": [
+        "real signed repair updates the existing branch and preserves the PR identity",
+        "split identity adapter verifies a real signed Git tree and leaves the source checkout untouched",
+        "a conflicting existing remote branch blocks the split adapter before push"
+      ],
+      "cause": "ssh-keygen absent in validation container (spawn status null)",
+      "unchangedMainSameEnvironment": "same 3 failed",
+      "attributedTo": "environment"
+    },
+    "buildRunSeparately": "passed",
+    "commandBudgetTest": "passed",
+    "earlierCommandBudgetFailureAttributionResolved": false,
+    "focusedNativeAndLifecycle": {
+      "tests": 135,
+      "passed": 135
+    },
+    "nativeResumeObservation": "not-run",
+    "authoritativeFullRun": "hosted checks on the published head"
+  }
+}

@@ -127,7 +127,9 @@ say `scope: fixed-worker` and retain `productionEnabled: false`.
   `NativePodmanCodingTransport` now supplies an offline first-launch transport.
   `PinnedCodingRuntime` and controller admission remain controlled-only;
   `PodmanHostAdapter.start()` still refuses production execution. Native
-  integration, explicit resume and qualification remain unfinished. A generic request must
+  production integration and resume qualification remain unfinished. The offline
+  transport now supports an explicitly named stopped predecessor and thread;
+  base refresh and production resume are still refused. A generic request must
   not broaden fixed-task credentials, mounts, endpoints or management authority.
 - [ ] Bind each launch and explicit-session resume to admitted plain-file input,
   exact executable/runtime/policy pins, current delivery ownership and fresh
@@ -298,3 +300,32 @@ owner-authorized offline host work does not waive their dependency gates.
 `ready`/`liveReady` remain false; production start still refuses.
 
 </details>
+
+
+## 17 October: explicit native session resume slice
+
+Implemented offline transport resume through `NativeCodingRequest.resumeFrom`
+(previous operation ID, fence and stopped state) plus the exact CLI thread ID.
+The prior thread must have been observed in a complete pinned CLI stream event.
+Guest management independently verifies the predecessor's durable identity,
+stopped container/process census, inactive timers, matching runtime binding and
+same source revision/branch before transferring its private session home.
+It durably reserves the predecessor once, stages freshly admitted ordinary files
+in a new workspace/container, and applies fresh dispatch gates, allowance,
+independent timers and stopped collection. Global last-session selection is
+refused. Conflicting or missing resumed thread output refuses and stops the worker.
+
+This is implementation at the existing offline transport seam, not native
+qualification or production installation. Changed-base resume remains refused;
+controller predecessor plumbing, fresh model-only/usage authority and independent
+Windows/macOS real CLI resume/isolation observations remain open. Production
+remains disabled and the parent ticket stays partial. See the
+[resume receipt](../ticket04-native-explicit-resume-receipt.md) for validation and
+retained diagnostic limitations.
+
+Continued 17 October after main `461b62e`: the candidate was rebased and reviewed
+again. Resume now refuses a retained home containing Codex configuration
+(`config.toml`, `hooks.json`, `AGENTS.md`, `AGENTS.override.md`, `skills/`,
+`rules/`), so one turn cannot configure the next, and resumed turns pin
+`sandbox_mode="workspace-write"` as first launch does. An offline,
+credential-free native resume procedure is provided; its outcome is not-run.
