@@ -1,0 +1,31 @@
+{
+  "scope": "python-command-budget-fixture",
+  "candidateParent": "19cc1cac75c6e4b27e227157197be3fd2bcedba2",
+  "command": "npm run typecheck && npm run format:check && npm test && npm run build",
+  "timeoutSeconds": 600,
+  "testSha256": "17d91d9dd453d4060c27eed7562c00aa9e7e4cbed99931f74b96aa6ff5e907e2",
+  "testUnchangedDuringValidation": true,
+  "result": {
+    "status": "passed",
+    "exitCode": 0,
+    "signal": null,
+    "timedOut": false,
+    "terminationFailed": false,
+    "startedAt": "2026-10-18T03:46:02.923Z",
+    "finishedAt": "2026-10-18T03:51:19.006Z",
+    "truncated": true
+  },
+  "rawResult": "/private/tmp/python-command-budget-full-validation.json",
+  "historicalFailureResolved": false,
+  "restrictedHostAttempt": "/private/tmp/python-command-budget-focused.txt",
+  "metadataRegressionRed": "/private/tmp/python-command-budget-diagnostic-red.txt",
+  "reviews": {
+    "specFindings": 0,
+    "standardsFindings": 0
+  },
+  "productionCodeChanged": false,
+  "originalSubprocessTimeoutMs": 5000,
+  "allExistingAssertionPredicatesPreserved": true,
+  "productionEnabled": false,
+  "qualified": false
+}
