@@ -201,3 +201,26 @@ bounded errors show where native behavior differs (for example, no
 after the home transfer, or a refused carried configuration file that Codex
 itself wrote). An observed result remains `qualified: false` and
 `productionEnabled: false`; it does not check off any native criterion alone.
+
+## 18 October: Factory command budget after publication
+
+PR #73 published this candidate as verified bot commit `133de66`. Every hosted
+check passed except `validation / Execute Factory Contract Validation`: its
+`npm test` command was stopped at the trusted policy's unchanged 120-second
+limit (`timedOut: true`, `SIGKILL`). No test failure was reported. Install and
+validation had passed.
+
+All 28 explicit-resume tests had been appended to `worker-native-coding.test.mjs`.
+Tests within one file run serially, so that file roughly doubled (about 30 to
+61 seconds locally) and became the suite's long pole. Measured on the same
+Linux host with the suite's own `--test-concurrency=4`: unchanged main 181 s,
+the published candidate 209 s.
+
+The resume block now lives in `worker-native-resume.test.mjs`, and the shared
+external host/guest fixtures it uses moved unchanged into
+`tests/helpers/native-coding-fixture.mjs`. This is a pure move. A line
+comparison found every non-blank line of the original file in the three
+resulting files (moved declarations only gained `export`), and the test count is
+unchanged at 132 (104 plus 28). The same full-suite measurement is now 183 s.
+No limit, assertion, coverage rule, deadline or approval rule changed, and no
+test was removed, skipped or weakened.

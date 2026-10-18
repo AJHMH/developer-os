@@ -123,5 +123,21 @@
     },
     "nativeResumeObservation": "not-run",
     "authoritativeFullRun": "hosted checks on the published head"
+  },
+  "factoryBudgetRepair": {
+    "publishedHead": "133de66e5bfac76bd5f13c9d94261062a6d6b119",
+    "pr": 73,
+    "failedCheck": "validation / Execute Factory Contract Validation",
+    "cause": "npm test exceeded trusted 120 s command limit (timedOut, SIGKILL); no test failure reported",
+    "change": "moved explicit-resume tests to tests/worker-native-resume.test.mjs and shared fixtures to tests/helpers/native-coding-fixture.mjs without changing test bodies",
+    "testsBeforeAfter": [132, 132],
+    "originalLinesMissing": 0,
+    "fullSuiteWallSeconds": {
+      "unchangedMain": 181,
+      "publishedCandidate": 209,
+      "split": 183
+    },
+    "host": "linux container, Node 24.15.0, --test-concurrency=4",
+    "limitsChanged": false
   }
 }
