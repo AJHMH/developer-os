@@ -326,6 +326,17 @@ else:
     logs=pod('logs',R['name'])
     if len(logs)>65536: fail()
     result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(logs).decode())
+   elif R['action']=='observe-session':
+    # Observe independently: no log consumption, lease renewal, stop or journal write.
+    c=container();running=c['State'].get('Running')
+    if not isinstance(running,bool): fail()
+    if running:
+     if not record['group'] or group(c['State']['Pid'])!=record['group']: fail()
+     effective(c,True)
+    elif c['State'].get('Pid')!=0: fail()
+    processes=census(record['group']) if record['group'] else {}
+    timers={key:timer_state(R['name']+'-'+key+'.timer') for key in ['lease','deadline']}
+    result=dict(phase=record['phase'],running=running,remainingProcesses=len(processes),processesGone=gone(record),timers={key:dict(loadState=value['LoadState'],activeState=value['ActiveState']) for key,value in timers.items()})
    elif R['action']=='collect':
     if record['phase']!='stopped' or not gone(record): fail()
     c=container()
@@ -337,6 +348,27 @@ else:
 print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha256'],**(result if 'result' in globals() else {}),**(dict(stopped=True,remainingProcesses=0) if R['action']=='stop' else {}))))
 
 `;
+
+export interface NativeTimerObservation {
+  loadState: "loaded" | "not-found";
+  activeState: "active" | "inactive" | "failed";
+}
+export interface NativeSessionObservation {
+  operationId: string;
+  fence: number;
+  phase:
+    | "preparing"
+    | "prepared"
+    | "launching"
+    | "running"
+    | "revoked"
+    | "stopped";
+  running: boolean;
+  remainingProcesses: number;
+  processesGone: boolean;
+  timers: { lease: NativeTimerObservation; deadline: NativeTimerObservation };
+  pins: CodingPins;
+}
 
 /** Offline native transport groundwork; never a production qualification.
  * The controller's controlled-only gate deliberately rejects this live adapter. */
@@ -625,6 +657,56 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     if (bytes.length > limit || bytes.toString("base64") !== value)
       throw Error("Invalid native coding bytes");
     return bytes;
+  }
+  /** Independent qualification evidence only. Never renews, stops or reconciles
+   * the session; collection still requires a separately verified explicit stop. */
+  async observeSession(
+    session: CodingSession,
+  ): Promise<NativeSessionObservation> {
+    const bound = this.session(session);
+    const { result, pins } = await this.invoke("observe-session", bound);
+    const timer = (value: unknown): value is NativeTimerObservation =>
+      record(value) &&
+      typeof value.loadState === "string" &&
+      ["loaded", "not-found"].includes(value.loadState) &&
+      typeof value.activeState === "string" &&
+      ["active", "inactive", "failed"].includes(value.activeState) &&
+      (value.loadState !== "not-found" || value.activeState === "inactive");
+    if (
+      typeof result.phase !== "string" ||
+      ![
+        "preparing",
+        "prepared",
+        "launching",
+        "running",
+        "revoked",
+        "stopped",
+      ].includes(result.phase) ||
+      typeof result.running !== "boolean" ||
+      !Number.isSafeInteger(result.remainingProcesses) ||
+      (result.remainingProcesses as number) < 0 ||
+      (result.remainingProcesses as number) > 4096 ||
+      typeof result.processesGone !== "boolean" ||
+      !record(result.timers) ||
+      !timer(result.timers.lease) ||
+      !timer(result.timers.deadline) ||
+      (result.running && result.remainingProcesses === 0) ||
+      (result.processesGone &&
+        (result.running || result.remainingProcesses !== 0))
+    )
+      throw Error("Native coding session observation unavailable");
+    return {
+      operationId: bound.operationId,
+      fence: bound.fence,
+      phase: result.phase as NativeSessionObservation["phase"],
+      running: result.running,
+      remainingProcesses: result.remainingProcesses as number,
+      processesGone: result.processesGone,
+      timers: structuredClone(
+        result.timers,
+      ) as NativeSessionObservation["timers"],
+      pins,
+    };
   }
   async stop(session: CodingSession) {
     const { result } = await this.invoke("stop", this.session(session));
