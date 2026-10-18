@@ -252,3 +252,24 @@ for unchanged main. Local timing varies by roughly 10 seconds, so this is
 treated as main-level cost rather than a speed-up. The same three `ssh-keygen`
 environment failures remain the only local failures. Hosted checks are the
 authoritative result.
+
+## 18 October: Factory pin update to the 240-second profile
+
+Sharing the first launch fixed the plain contract run at `42bac2f`, but the
+coverage gate's head run under c8 instrumentation still stopped at 120 seconds.
+A local reproduction of the pinned gate confirmed the stage, and unchanged main
+is already at that edge, so the owner approved raising the profile limit rather
+than reworking older tests.
+
+Software Factory PR #75 merged as `f78ebdbcfcde6138ec8f63c11c2e6a984a72dce9`.
+It raises only the `node-24-typescript-cli` profile from 120 to 240 seconds; the
+300-second baseline, the `node-24` profile and the exception process are
+unchanged. The owner set `FACTORY_DISTRIBUTION_REVISION` to that merge.
+
+This commit moves every developer-os pin from `26c641d` to `f78ebdb`
+(`factory.lock.yaml`, both reusable workflow calls, the approval-refresh tool and
+its test, and the onboarding record) and raises the contract's `test` command to
+240 seconds. The other contract commands keep 120 seconds. The pinned Factory's
+policy gate passes this contract with an effective 240-second limit, and refuses
+the same contract under `26c641d`. The approval-refresh tests (55), typecheck and
+format check pass.
