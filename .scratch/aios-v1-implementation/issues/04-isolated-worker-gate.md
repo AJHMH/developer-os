@@ -29,6 +29,21 @@ not authorize a new run.
 
 ## Current continuation
 
+Continued after PR #68 merged as `a44e5bfbd95e1f7afb1e82224e6012f6b7c42d1f`.
+Its tree exactly matches approved, validated head `911ae1c`; those passing results
+were reused without a post-merge suite rerun. Local main was fast-forwarded while
+unrelated dirty work was preserved in its original checkout. The PR #68 branch
+is retained because another worktree still uses it.
+
+The next slice supplies an explicit offline controller-loss acceptance procedure
+for the lease and fixed deadline. It requires positive running controls, confirmed
+controller loss without cleanup, independent disappearance, and a successful
+manager execution record for the exact session's kill command before recovery.
+Natural exit, prior controller cleanup, unknown/failed/ambiguous timer execution,
+pin drift and uncertain recovery cannot pass. Real host runs remain **not-run**;
+production execution and native qualification remain disabled. See the
+[controller-loss procedure receipt](../ticket04-controller-loss-procedure-receipt.md).
+
 Resumed after architecture PRs #66 and #67 merged. The synchronized baseline is
 `f42a132fc0206f6c583100b9d218c6d9af2599a1`; its passing results were reused
 without a post-merge validation rerun. New Issue 04 source changes receive fresh
