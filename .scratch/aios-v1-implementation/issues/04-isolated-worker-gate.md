@@ -27,6 +27,22 @@ implementation slice. Later live enrollment/inference still requires the relevan
 external configuration and fresh explicit authorization; historical approvals do
 not authorize a new run.
 
+## Current continuation
+
+Resumed after architecture PRs #66 and #67 merged. The synchronized baseline is
+`f42a132fc0206f6c583100b9d218c6d9af2599a1`; its passing results were reused
+without a post-merge validation rerun. New Issue 04 source changes receive fresh
+validation.
+
+Independent exact-session process and timer observation is implemented as the
+next prerequisite for native expiry/controller-loss qualification. Observation
+never renews the lease, stops the worker, consumes logs or reconciles lifecycle
+phase. Observed process disappearance alone cannot authorize collection; explicit
+verified stop remains required. See the
+[observation receipt](../ticket04-native-session-observation-receipt.md).
+Native expiry/controller-loss qualification, general integration and explicit
+resume remain open; production execution remains disabled.
+
 ## Completed work
 
 Completed means the recorded fixed-worker scope, not arbitrary production feature

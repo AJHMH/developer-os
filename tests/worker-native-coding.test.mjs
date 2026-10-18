@@ -940,3 +940,186 @@ test(
     assert.equal((await transport.collect(session)).complete, true);
   },
 );
+
+test(
+  "native session observation reports stopped process and timer evidence without mutating lifecycle",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t);
+    const request = await launchRequest(transport);
+    await transport.run(request, () => {});
+    const before = read();
+    await assert.rejects(
+      transport.observeSession({ ...session, fence: session.fence + 1 }),
+    );
+    const observed = await transport.observeSession({
+      ...session,
+      state: "uncertain",
+    });
+    assert.equal(observed.operationId, session.operationId);
+    assert.equal(observed.fence, session.fence);
+    assert.equal(observed.phase, "stopped");
+    assert.equal(observed.running, false);
+    assert.equal(observed.remainingProcesses, 0);
+    assert.equal(observed.processesGone, true);
+    assert.deepEqual(observed.timers, {
+      lease: { loadState: "not-found", activeState: "inactive" },
+      deadline: { loadState: "not-found", activeState: "inactive" },
+    });
+    assert.deepEqual(observed.pins, request.pins);
+    const commands = read().commands.slice(before.commands.length);
+    assert.equal(
+      commands.some(
+        (args) =>
+          args[0] === "systemd-run" ||
+          (args[0] === "systemctl" && args[2] !== "show") ||
+          (args[0] === "podman" &&
+            ["start", "stop", "exec", "create", "logs"].includes(args[1])),
+      ),
+      false,
+    );
+    assert.equal(read().alive, false);
+  },
+);
+
+test(
+  "native session observation proves expiry before recovery without renewing timers or authorizing collection",
+  posixGuest,
+  async (t) => {
+    const { transport, read, write } = guestFixture(t, { keepRunning: true });
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    let allowed = true,
+      ready;
+    const started = new Promise((resolve) => {
+      ready = resolve;
+    });
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      checkpoint: () => allowed,
+    });
+    const pending = transport.run(request, () => ready());
+    const stopped = assert.rejects(pending, /stopped by its gate/);
+    try {
+      await Promise.race([started, pending]);
+      const before = read();
+      const live = await transport.observeSession(session);
+      assert.equal(live.phase, "running");
+      assert.equal(live.running, true);
+      assert.equal(live.remainingProcesses, 1);
+      assert.equal(live.processesGone, false);
+      assert.deepEqual(live.timers, {
+        lease: { loadState: "loaded", activeState: "active" },
+        deadline: { loadState: "loaded", activeState: "active" },
+      });
+      assert.deepEqual(read().timers, before.timers);
+      const expired = read();
+      const lease = Object.keys(expired.timers).find((name) =>
+        name.endsWith("-lease.timer"),
+      );
+      expired.timers[lease].active = "inactive";
+      expired.alive = false;
+      expired.container.State = {
+        ...expired.container.State,
+        Running: false,
+        Pid: 0,
+        Status: "exited",
+      };
+      write(expired);
+      const afterExpiry = await transport.observeSession({
+        ...session,
+        state: "uncertain",
+      });
+      assert.equal(
+        afterExpiry.phase,
+        "running",
+        "observation cannot reconcile the protected lifecycle record",
+      );
+      assert.equal(afterExpiry.running, false);
+      assert.equal(afterExpiry.remainingProcesses, 0);
+      assert.equal(afterExpiry.processesGone, true);
+      assert.equal(afterExpiry.timers.lease.activeState, "inactive");
+      assert.deepEqual(
+        read().timers,
+        expired.timers,
+        "expired timers cannot be revived by observation",
+      );
+      const commands = read().commands.slice(before.commands.length);
+      assert.equal(
+        commands.some(
+          (args) =>
+            args[0] === "systemd-run" ||
+            (args[0] === "systemctl" && args[2] !== "show") ||
+            (args[0] === "podman" &&
+              ["start", "stop", "exec", "create", "logs"].includes(args[1])),
+        ),
+        false,
+      );
+      await assert.rejects(transport.collect({ ...session, state: "stopped" }));
+    } finally {
+      allowed = false;
+      t.mock.timers.tick(100);
+      await stopped;
+    }
+    assert.equal(
+      (await transport.collect({ ...session, state: "stopped" })).complete,
+      true,
+    );
+  },
+);
+
+for (const mode of ["unavailable", "malformed", "pending-job"])
+  test(
+    `native session observation refuses ${mode} timer evidence`,
+    posixGuest,
+    async (t) => {
+      const { transport, read, write } = guestFixture(t);
+      await transport.run(await launchRequest(transport), () => {});
+      write({ ...read(), timerObservation: mode });
+      await assert.rejects(transport.observeSession(session));
+    },
+  );
+
+for (const invalid of [
+  { phase: ["running"] },
+  { running: "false" },
+  { remainingProcesses: -1 },
+  { remainingProcesses: 0.5 },
+  { running: true, remainingProcesses: 0, processesGone: false },
+  { running: true, remainingProcesses: 1, processesGone: true },
+  {
+    timers: {
+      lease: { loadState: ["loaded"], activeState: "active" },
+      deadline: { loadState: "loaded", activeState: "active" },
+    },
+  },
+  {
+    timers: {
+      lease: { loadState: "not-found", activeState: "active" },
+      deadline: { loadState: "loaded", activeState: "active" },
+    },
+  },
+])
+  test(`native session observation refuses malformed external evidence ${JSON.stringify(invalid)}`, async (t) => {
+    nativeHost(t, (r) => ({
+      session: r.session,
+      binding: observation,
+      cliSha256: r.cliSha256,
+      phase: "running",
+      running: true,
+      remainingProcesses: 1,
+      processesGone: false,
+      timers: {
+        lease: { loadState: "loaded", activeState: "active" },
+        deadline: { loadState: "loaded", activeState: "active" },
+      },
+      ...invalid,
+    }));
+    const transport = new NativePodmanCodingTransport(
+      "aios-test",
+      "a".repeat(64),
+    );
+    await assert.rejects(
+      transport.observeSession(session),
+      /session observation unavailable/,
+    );
+  });
