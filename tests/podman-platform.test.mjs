@@ -11,6 +11,7 @@ import { EventEmitter } from "node:events";
 import { Writable } from "node:stream";
 import { syncBuiltinESMExports } from "node:module";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   podmanPlatform,
   podmanMachine,
@@ -844,25 +845,104 @@ test("guest command budgets keep Mac scheduling bounded and Windows unchanged", 
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
+  const started = performance.now();
   const r = py(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
       String.raw`
-import ast,sys,subprocess,time
-program=ast.parse(sys.stdin.read());functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command']]
+import sys,time
+started=time.monotonic_ns()
+def mark(stage): print('guest-command-phase:'+stage+':'+str((time.monotonic_ns()-started)//1000000),file=sys.stderr,flush=True)
+mark('python-ready')
+import ast,subprocess
+mark('imports-ready')
+source=sys.stdin.read();mark('input-read')
+program=ast.parse(source);mark('ast-parsed')
+functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command']]
 for platform,expected in [('darwin',30),('win32',15)]:
+ mark(platform+'-check')
  R={'hostBinding':{'platform':platform},'target':{'guestCommandSeconds':expected}};deadlines=[]
  def run(args,**kw): deadlines.append(kw['timeout']);return subprocess.CompletedProcess(args,0,b'ok',b'')
  subprocess.run=run
  exec(compile(ast.fix_missing_locations(ast.Module(body=functions,type_ignores=[])),'actual-management','exec'))
  assert command(['synthetic'])==b'ok' and deadlines==[expected]
+mark('checks-complete')
 print('bounded')
 `,
     ],
     { input: f.programs[0], encoding: "utf8", timeout: 5000 },
   );
-  assert.equal(r.status, 0, r.stderr);
+  const stages = new Set([
+    "python-ready",
+    "imports-ready",
+    "input-read",
+    "ast-parsed",
+    "darwin-check",
+    "win32-check",
+    "checks-complete",
+  ]);
+  const stderr = Buffer.from(r.stderr ?? "");
+  const milestones = stderr
+    .subarray(0, 4096)
+    .toString("utf8")
+    .split(/\r?\n/)
+    .flatMap((line) => {
+      const match = /^guest-command-phase:([a-z0-9-]+):(\d{1,8})$/.exec(line);
+      return match && stages.has(match[1])
+        ? [{ stage: match[1], elapsedMs: Number(match[2]) }]
+        : [];
+    })
+    .slice(0, 16);
+  const errorCode = r.error?.code;
+  const diagnostic = {
+    probe: "python-command-budget",
+    timeoutMs: 5000,
+    elapsedMs: Math.round(performance.now() - started),
+    status: Number.isSafeInteger(r.status) ? r.status : null,
+    signal:
+      r.signal == null
+        ? null
+        : [
+              "SIGTERM",
+              "SIGKILL",
+              "SIGABRT",
+              "SIGSEGV",
+              "SIGBUS",
+              "SIGILL",
+              "SIGINT",
+              "SIGTRAP",
+              "SIGPIPE",
+            ].includes(r.signal)
+          ? r.signal
+          : "unclassified",
+    errorCode:
+      errorCode === undefined
+        ? null
+        : [
+              "ETIMEDOUT",
+              "ENOENT",
+              "EACCES",
+              "EPERM",
+              "EAGAIN",
+              "ENOMEM",
+              "ENOBUFS",
+              "EPIPE",
+              "EMFILE",
+              "ENFILE",
+              "E2BIG",
+              "UNKNOWN",
+            ].includes(errorCode)
+          ? errorCode
+          : "unclassified",
+    timedOut: errorCode === "ETIMEDOUT",
+    stdoutBytes: Buffer.byteLength(r.stdout ?? ""),
+    stderrBytes: stderr.length,
+    stderrTruncated: stderr.length > 4096,
+    milestones,
+  };
+  t.diagnostic("[python-command-budget] " + JSON.stringify(diagnostic));
+  assert.equal(r.status, 0, JSON.stringify(diagnostic));
   assert.equal(r.stdout.trim(), "bounded");
 });
 
@@ -1275,3 +1355,115 @@ print('only explicit absence is absent; failures refuse')
     "only explicit absence is absent; failures refuse",
   );
 });
+
+function commandBudgetFixtureProcess(overrides = {}) {
+  const env = { ...process.env, ...overrides };
+  // A separate real CLI invocation must not inherit the parent test IPC mode.
+  delete env.NODE_TEST_CONTEXT;
+  return nativeSpawnSync(
+    process.execPath,
+    [
+      "--test",
+      "--test-name-pattern=^guest command budgets keep Mac scheduling bounded and Windows unchanged$",
+      fileURLToPath(import.meta.url),
+    ],
+    { encoding: "utf8", timeout: 15000, env },
+  );
+}
+
+function commandBudgetEvidence(child) {
+  const match = child.stdout.match(/\[python-command-budget\] (\{[^\r\n]+\})/);
+  assert.ok(
+    match,
+    "actual fixture must report bounded native status and stages",
+  );
+  return JSON.parse(match[1]);
+}
+
+test("command-budget fixture exposes bounded native subprocess evidence", () => {
+  const child = commandBudgetFixtureProcess();
+  assert.equal(child.status, 0, child.stderr);
+  const evidence = commandBudgetEvidence(child);
+  assert.equal(evidence.timeoutMs, 5000);
+  assert.equal(evidence.status, 0);
+  assert.equal(evidence.errorCode, null);
+  assert.equal(evidence.timedOut, false);
+  assert.deepEqual(
+    evidence.milestones.map((m) => m.stage),
+    [
+      "python-ready",
+      "imports-ready",
+      "input-read",
+      "ast-parsed",
+      "darwin-check",
+      "win32-check",
+      "checks-complete",
+    ],
+  );
+  assert.ok(
+    evidence.milestones.every(
+      (m) => Number.isSafeInteger(m.elapsedMs) && m.elapsedMs >= 0,
+    ),
+  );
+});
+
+for (const mode of ["missing", "exit", "timeout"])
+  test(
+    `command-budget fixture retains ${mode} evidence without accepting failure or raw stderr`,
+    {
+      skip:
+        process.platform === "win32"
+          ? "External executable script controls require POSIX shebang dispatch"
+          : false,
+    },
+    (t) => {
+      const root = fs.mkdtempSync(`${os.tmpdir()}/python-budget-control-`);
+      t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+      const executable = `${root}/private-interpreter`;
+      const sentinel = `private-${Date.now()}-${Math.random()}`;
+      if (mode !== "missing")
+        fs.writeFileSync(
+          executable,
+          `#!/usr/bin/env node\nrequire("node:fs").readFileSync(0);\nprocess.stderr.write(${JSON.stringify("guest-command-phase:python-ready:0\n" + sentinel + "\nguest-command-phase:unknown-stage:2\n" + (mode === "exit" ? "z".repeat(5000) : ""))});\n` +
+            (mode === "exit"
+              ? "process.exit(7);\n"
+              : "setTimeout(()=>{},30000);\n"),
+          { mode: 0o700 },
+        );
+      const child = commandBudgetFixtureProcess({
+        AIOS_TEST_PYTHON: executable,
+      });
+      assert.equal(
+        child.status,
+        1,
+        "the original fixture assertion must still reject this native failure",
+      );
+      const evidence = commandBudgetEvidence(child);
+      assert.equal(evidence.timeoutMs, 5000);
+      assert.ok(Buffer.byteLength(JSON.stringify(evidence)) < 2048);
+      assert.equal(child.stdout.includes(sentinel), false);
+      assert.equal(child.stdout.includes(executable), false);
+      if (mode === "missing") {
+        assert.equal(evidence.status, null);
+        assert.equal(evidence.errorCode, "ENOENT");
+        assert.equal(evidence.timedOut, false);
+        assert.deepEqual(evidence.milestones, []);
+      } else {
+        assert.deepEqual(evidence.milestones, [
+          { stage: "python-ready", elapsedMs: 0 },
+        ]);
+        if (mode === "exit") {
+          assert.equal(evidence.status, 7);
+          assert.equal(evidence.errorCode, null);
+          assert.equal(evidence.timedOut, false);
+          assert.equal(evidence.stderrTruncated, true);
+        } else {
+          assert.equal(evidence.status, null);
+          assert.equal(evidence.errorCode, "ETIMEDOUT");
+          assert.equal(evidence.timedOut, true);
+          assert.equal(evidence.signal, "SIGTERM");
+          assert.ok(evidence.elapsedMs >= 4900);
+        }
+      }
+    },
+  );
