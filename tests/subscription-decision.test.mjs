@@ -31,8 +31,8 @@ for (const target of ["macos", "windows"])
   test(`${target} qualification and status expose owner-state positive mediation without authorizing inference`, async (t) => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-decision-")));
     t.after(() => rmSync(root, { recursive: true, force: true }));
-    if (target === "windows" && process.platform === "win32")
-      initializeWindowsAuthDirectory(root);
+    // Filesystem protection follows the runner, not the simulated VM binding.
+    if (process.platform === "win32") initializeWindowsAuthDirectory(root);
     const repo = join(root, "repo"),
       state = join(root, "state");
     mkdirSync(repo);
@@ -123,14 +123,13 @@ for (const target of ["macos", "windows"])
       undefined,
     );
     writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
-    if (target === "windows")
-      ownWindowsFixturePaths([
-        state,
-        policy,
-        registration,
-        recordPath,
-        join(state, "inference-" + run + ".consumed"),
-      ]);
+    ownWindowsFixturePaths([
+      state,
+      policy,
+      registration,
+      recordPath,
+      join(state, "inference-" + run + ".consumed"),
+    ]);
     const result = await c.qualify(d.id);
     assert.equal(
       result.qualification.subscriptionMediation.mechanismDecision.qualified,
@@ -180,8 +179,7 @@ for (const target of ["macos", "windows"])
     writeFileSync(readablePolicy, "synthetic independent pins", {
       mode: 0o600,
     });
-    if (target === "windows")
-      ownWindowsFixturePaths([readablePolicyParent, readablePolicy]);
+    ownWindowsFixturePaths([readablePolicyParent, readablePolicy]);
     writeFileSync(
       recordPath,
       JSON.stringify({ ...record, policyPath: readablePolicy }),
@@ -246,7 +244,7 @@ for (const target of ["macos", "windows"])
       undefined,
     );
     writeFileSync(marker, "one-shot approval consumed\n", { mode: 0o600 });
-    if (target === "windows") ownWindowsFixturePaths([marker]);
+    ownWindowsFixturePaths([marker]);
     if (process.platform !== "win32") {
       chmodSync(recordPath, 0o644);
       assert.equal(

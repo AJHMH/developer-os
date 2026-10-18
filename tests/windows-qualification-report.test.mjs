@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { DeliveryController } from "../dist/controller.js";
 import { PodmanHostAdapter } from "../dist/podman-host.js";
@@ -931,7 +931,7 @@ async function nativeControlsScenario(t, refusal, macos = false) {
       : originals.lstat(p),
   );
   t.mock.method(fs, "realpathSync", (p) =>
-    special(p) ? String(p) : originals.realpath(p),
+    special(p) ? resolve(p) : originals.realpath(p),
   );
   t.mock.method(fs, "existsSync", (p) =>
     special(p) || String(p).endsWith("ssh.exe") ? true : originals.exists(p),
