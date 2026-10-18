@@ -29,6 +29,21 @@ not authorize a new run.
 
 ## Current continuation
 
+PR #69 merged as `a132a7456ed53709317cf11ee43dd79d20d7c5de` with all applicable
+head checks passing. Its source tree equals validated head `6b8adff`; those
+results were reused, local main was fast-forwarded and the merged task branch
+was retired. The original dirty checkout remains untouched. A post-merge
+approval refresh refused because the PR was closed; no approval was granted,
+and that workflow result is retained separately from source validation.
+
+The first fresh macOS controller-loss observation refused the timer-execution
+property before intentional controller loss. Exact-session recovery passed; no
+expiry proof was obtained. A bounded disposable native manager probe exposed a
+property wire-shape mismatch, reproduced through the public transport test seam.
+The candidate corrects direct property decoding without changing timer limits,
+command/session validation or production enablement. Native rerun is pending a
+committed source revision. See [native timer evidence](../ticket04-native-timer-property-receipt.md).
+
 Continued after PR #68 merged as `a44e5bfbd95e1f7afb1e82224e6012f6b7c42d1f`.
 Its tree exactly matches approved, validated head `911ae1c`; those passing results
 were reused without a post-merge suite rerun. Local main was fast-forwarded while

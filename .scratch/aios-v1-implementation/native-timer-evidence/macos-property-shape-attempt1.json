@@ -1,0 +1,5 @@
+{
+  "status": 0,
+  "stdout": "{\"scope\": \"synthetic-manager-shape\", \"unit\": \"aios-observation-probe-3fc7f85febc04f389d4a1ea44dc4ae10\", \"records\": [{\"property\": \"LastTriggerUSecMonotonic\", \"status\": 0, \"stdout\": \"{\\\"type\\\":\\\"t\\\",\\\"data\\\":0}\\n\", \"stderr\": \"\"}, {\"property\": \"ExecStart\", \"status\": 0, \"stdout\": \"{\\\"type\\\":\\\"a(sasbttttuii)\\\",\\\"data\\\":[[\\\"/usr/bin/true\\\",[\\\"/usr/bin/true\\\"],false,0,0,0,0,0,0,0]]}\\n\", \"stderr\": \"\"}], \"start\": {\"status\": 0, \"stdout\": \"\", \"stderr\": \"Running timer as unit: aios-observation-probe-3fc7f85febc04f389d4a1ea44dc4ae10.timer\\nWill run service as unit: aios-observation-probe-3fc7f85febc04f389d4a1ea44dc4ae10.service\\n\"}, \"cleanup\": {\"status\": 5, \"stdout\": \"\", \"stderr\": \"Failed to stop aios-observation-probe-3fc7f85febc04f389d4a1ea44dc4ae10.service: Unit aios-observation-probe-3fc7f85febc04f389d4a1ea44dc4ae10.service not loaded.\\n\"}}\n",
+  "stderr": ""
+}

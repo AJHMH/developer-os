@@ -1,0 +1,76 @@
+{
+  "scope": "native-coding-offline-controller-loss",
+  "qualified": false,
+  "productionEnabled": false,
+  "inferenceAuthorized": false,
+  "outcome": "blocked",
+  "sourceRevision": "a132a7456ed53709317cf11ee43dd79d20d7c5de",
+  "timer": "lease",
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "session": {
+    "operationId": "6c0a8550-b7e9-49ae-86d9-8913487f3390",
+    "fence": 1,
+    "state": "running",
+    "intent": "start"
+  },
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "runnerSha256": "f62354a56e1b7c19180f0bc64b531cdb29f48bcb7654c8826722f1f01e27ff5e",
+  "transportSourceSha256": "f0c4ad0904811d291510096402763e9431b5fc54a049fe45666f9f8fa95afbd2",
+  "transportModuleSha256": "839a3020687f1e0fb3a07dc8926b336252ad0dd5eda81ef42f8f042975a6c868",
+  "procedureModuleSha256": "5f387ab0dc4253fc5519a48598ed2370ee9f9bf79bc719e61fb76b4557f2e3fd",
+  "evidence": [
+    {
+      "stage": "controller-start-intent",
+      "value": {
+        "operationId": "6c0a8550-b7e9-49ae-86d9-8913487f3390",
+        "fence": 1
+      }
+    },
+    {
+      "stage": "session",
+      "value": {
+        "operationId": "6c0a8550-b7e9-49ae-86d9-8913487f3390",
+        "fence": 1,
+        "phase": "running",
+        "running": true,
+        "remainingProcesses": 1,
+        "processesGone": false,
+        "timers": {
+          "lease": {
+            "loadState": "loaded",
+            "activeState": "active"
+          },
+          "deadline": {
+            "loadState": "loaded",
+            "activeState": "active"
+          }
+        },
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "69db1256818d12efea831e3312f9b7f322afed5a6c8e2f41b30b066d6e3fafcd",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "explicit-recovery",
+      "value": {
+        "stopped": true,
+        "remainingProcesses": 0
+      }
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "69db1256818d12efea831e3312f9b7f322afed5a6c8e2f41b30b066d6e3fafcd",
+    "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+  },
+  "error": "Native coding observe-timer-execution observation unavailable"
+}

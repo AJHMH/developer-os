@@ -1,0 +1,40 @@
+{
+  "status": "failed",
+  "exitCode": null,
+  "signal": "SIGKILL",
+  "timedOut": true,
+  "terminationFailed": false,
+  "startedAt": "2026-10-18T01:26:10.859Z",
+  "finishedAt": "2026-10-18T01:39:45.710Z",
+  "truncated": true,
+  "scope": "candidate-local-macos-property-decoding-repair",
+  "baseRevision": "a132a7456ed53709317cf11ee43dd79d20d7c5de",
+  "workingTreeDirty": true,
+  "declaredTimeoutSeconds": 600,
+  "command": "npm run typecheck && npm run format:check && npm test && npm run build",
+  "fullOutputReference": "/private/tmp/issue04-native-property-validation.json",
+  "focusedTests": {
+    "passed": 102,
+    "failed": 0
+  },
+  "cause": "unresolved",
+  "resourceDiagnostics": {
+    "schemaVersion": 1,
+    "platform": "darwin",
+    "architecture": "arm64",
+    "parallelism": 6,
+    "samplingFailed": false,
+    "sampleLimitReached": true
+  },
+  "hostObservation": {
+    "candidatePowerTransitionsLocal": [
+      "2026-10-17 20:30:10 -0500 Idle Sleep",
+      "2026-10-17 20:30:23 -0500 Maintenance Sleep 300s",
+      "2026-10-17 20:35:23 -0500 DarkWake",
+      "2026-10-17 20:35:33 -0500 Maintenance Sleep 251s",
+      "2026-10-17 20:39:44 -0500 DarkWake"
+    ],
+    "largestRetainedSampleGapMs": 299739.85550000006,
+    "interpretation": "Host sleep interrupted validation; no full-suite pass or code-regression attribution claimed."
+  }
+}

@@ -1187,6 +1187,7 @@ for (const mode of [
   "wrong-command",
   "ignored-failure",
   "malformed",
+  "wrapped-data",
 ])
   test(
     `native timer execution refuses unverified manager data: ${mode}`,
@@ -1460,3 +1461,23 @@ test("offline deadline procedure refuses a timer execution during the preloss wa
   assert.ok(effects.includes("explicit-recovery"));
   assert.equal(effects.includes("collect"), false);
 });
+
+test(
+  "native timer execution accepts the untriggered scalar property and direct command array",
+  posixGuest,
+  async (t) => {
+    const { transport, read, write } = guestFixture(t);
+    await transport.run(await launchRequest(transport), () => {});
+    write({
+      ...read(),
+      executionEvidence: true,
+      executionMode: "never-triggered",
+    });
+    const value = await transport.observeTimerExecution(session, "lease");
+    assert.equal(value.lastTriggerUs, 0);
+    assert.equal(value.startedUs, 0);
+    assert.equal(value.finishedUs, 0);
+    assert.equal(value.code, 0);
+    assert.equal(value.status, 0);
+  },
+);
