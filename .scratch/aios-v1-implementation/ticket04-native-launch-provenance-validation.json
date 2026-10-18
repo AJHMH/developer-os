@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "terminationFailed": false,
+  "startedAt": "2026-10-18T02:50:37.015Z",
+  "finishedAt": "2026-10-18T02:56:19.878Z",
+  "truncated": true,
+  "profile": "local-macos-validation",
+  "baseRevision": "003c89730a360082fd22a41815c941a4e7cb0aea",
+  "workingTreeDirty": true,
+  "declaredTimeoutSeconds": 600,
+  "durationMs": 342863,
+  "command": "npm run typecheck && npm run format:check && npm test && npm run build",
+  "awakeControl": "PID-bound caffeinate; released in finally",
+  "nativeQualification": "not-run",
+  "fullResultReference": "/private/tmp/issue04-provenance-full-validation.json",
+  "testedFiles": {
+    "src/podman-coding.ts": "60ab877130c4cf6c8eb82c87212fdf36f39e6026f374d498138164eccd54abf4",
+    "tests/worker-native-coding.test.mjs": "c317a75cc376af057e16297858659c96e18d621a51e679d8378d3fd7579e3f70",
+    "tests/helpers/native-coding-guest.py": "d7e7d591ed6553f3013dd8114ca8182abff5cd5ba7c54589458e00bf387aded6"
+  }
+}

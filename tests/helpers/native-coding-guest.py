@@ -1,7 +1,7 @@
 """External Linux/Podman simulator; executes the transported Python program.
 No VM, provider, owner credentials or real qualification is involved.
 """
-import sys, os, json, pathlib, subprocess, hashlib, types, fcntl, threading, time
+import sys, os, json, pathlib, subprocess, hashlib, types, fcntl, threading, time, base64
 root = pathlib.Path(sys.argv[1])
 os.environ['HOME'] = str(root)
 state_path = root / 'engine.json'
@@ -16,6 +16,10 @@ source = sys.stdin.read()
 namespace = {}
 exec(source.split('\n', 2)[0] + '\n' + source.split('\n', 2)[1], namespace)
 request = namespace['R']
+if request['action'] == 'prepare' and state.get('transferredInputDrift'):
+    request['files'][0]['bytes'] = base64.b64encode(b'foreign input\n').decode()
+if request['action'] == 'launch' and state.get('launchProvenanceDrift'):
+    request['admission'] = {'sourceRevision': 'f'*40, 'branch': 'codex/foreign', 'inputSha256': '0'*64}
 artifact = root / '.local/state/aios-offline-v1/codex-0.161.0'
 artifact.parent.mkdir(parents=True, exist_ok=True)
 artifact.parent.chmod(0o700)
