@@ -224,3 +224,31 @@ resulting files (moved declarations only gained `export`), and the test count is
 unchanged at 132 (104 plus 28). The same full-suite measurement is now 183 s.
 No limit, assertion, coverage rule, deadline or approval rule changed, and no
 test was removed, skipped or weakened.
+
+## 18 October: shared first-launch fixture
+
+The split alone did not fit the hosted budget. At `c824d37`, the pasted Factory
+log again shows `npm test` stopped at 120 seconds (`timedOut: true`,
+`SIGKILL`) after install and validation passed; the 349 visible tests all
+passed. The hosted suite is CPU-bound with four workers, so moving tests between
+files does not reduce the work they add.
+
+Instrumenting the guest-harness interpreter showed that the 28 resume tests
+made 353 simulated-guest calls (about 80 ms each, 28.5 s in total). Nine setup
+sites each re-ran the identical standard first launch before testing anything.
+`launchedGuest(t, engine)` now performs that launch once per engine
+configuration, saves the stopped guest directory with `cp -a`, and restores it
+at the same fixed path for later tests. Tests in one file run serially, so the
+restored absolute paths and the 0700/0600 modes the management program verifies
+remain exact. Test bodies are unchanged: only the nine setup lines were
+replaced, and the file still has 45 assertion lines and 28 tests.
+
+The resume file now makes 192 calls (14.0 s), and its CPU time fell from about
+27.6 to 14.9 seconds. A mutation check removed the retained-configuration guard
+and the single-link check: all five configuration refusals and the hard-link
+refusal failed, the other 22 tests passed, and the restored source matched
+exactly. The full suite on the same 2-CPU host now takes 169 s, against 181 s
+for unchanged main. Local timing varies by roughly 10 seconds, so this is
+treated as main-level cost rather than a speed-up. The same three `ssh-keygen`
+environment failures remain the only local failures. Hosted checks are the
+authoritative result.

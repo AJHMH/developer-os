@@ -139,5 +139,29 @@
     },
     "host": "linux container, Node 24.15.0, --test-concurrency=4",
     "limitsChanged": false
+  },
+  "sharedFirstLaunchFixture": {
+    "publishedHead": "c824d3752126a0c7e4d417463a3bf1a2b52c4aa8",
+    "hostedCause": "npm test timedOut (SIGKILL at 120 s); 349 visible tests passed, none failed",
+    "change": "launchedGuest restores a cp -a snapshot of the standard first launch at a fixed path; nine setup sites replaced; test bodies unchanged",
+    "resumeFile": {
+      "tests": 28,
+      "assertLines": 45,
+      "harnessCalls": [353, 192],
+      "harnessSeconds": [28.5, 14.0],
+      "cpuSeconds": [27.6, 14.9]
+    },
+    "mutationCheck": {
+      "removed": ["retained configuration guard", "single-link check"],
+      "failed": 6,
+      "passed": 22,
+      "sourceRestored": true
+    },
+    "fullSuiteWallSeconds": {
+      "unchangedMain": 181,
+      "withSnapshot": 169,
+      "note": "2-CPU host; about 10 s run-to-run variance"
+    },
+    "limitsChanged": false
   }
 }

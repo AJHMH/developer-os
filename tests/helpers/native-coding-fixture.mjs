@@ -158,14 +158,23 @@ export async function launchRequest(transport, overrides = {}) {
   };
 }
 
-export function guestFixture(t, engine = {}) {
-  const root = realMkdtempSync(`${realTemporaryDirectory}/aios-native-coding-`);
+export function guestFixture(t, engine = {}, restoredRoot = undefined) {
+  const root =
+    restoredRoot ??
+    realMkdtempSync(`${realTemporaryDirectory}/aios-native-coding-`);
   t.after(() => realRmSync(root, { recursive: true, force: true }));
   const statePath = `${root}/engine.json`;
-  realWriteFileSync(
-    statePath,
-    JSON.stringify({ commands: [], container: null, alive: false, ...engine }),
-  );
+  // A restored root already holds its simulated engine state.
+  if (!restoredRoot)
+    realWriteFileSync(
+      statePath,
+      JSON.stringify({
+        commands: [],
+        container: null,
+        alive: false,
+        ...engine,
+      }),
+    );
   const fixture = nativeHost(t, (_request, program) => {
     const result = realSpawnSync(
       process.env.AIOS_TEST_PYTHON || "python3",
@@ -190,3 +199,48 @@ export const posixGuest = {
       ? "Linux guest simulator requires a POSIX filesystem"
       : false,
 };
+
+// Tests within one file run serially, so a single fixed root can be reused.
+// The standard first launch runs once per engine configuration; each later
+// caller receives a byte-for-byte copy of that stopped predecessor state at the
+// same absolute path. `cp -a` preserves the 0700/0600 modes the management
+// program verifies. This changes setup cost only, never what a test asserts.
+let launchedBase;
+const launchedTemplates = new Map();
+function copyTree(from, to) {
+  const copied = realSpawnSync("cp", ["-a", from, to], { encoding: "utf8" });
+  if (copied.status !== 0) throw Error("Unable to copy launched guest fixture");
+}
+export async function launchedGuest(t, engine = {}) {
+  if (!launchedBase) {
+    launchedBase = realMkdtempSync(
+      `${realTemporaryDirectory}/aios-native-launched-`,
+    );
+    const base = launchedBase;
+    process.once("exit", () =>
+      realRmSync(base, { recursive: true, force: true }),
+    );
+  }
+  const key = JSON.stringify(engine);
+  const root = `${launchedBase}/guest`;
+  realRmSync(root, { recursive: true, force: true });
+  const template = launchedTemplates.get(key);
+  if (template) {
+    copyTree(template, root);
+    return guestFixture(t, engine, root);
+  }
+  realMkdirSync(root, { mode: 0o700 });
+  realWriteFileSync(
+    `${root}/engine.json`,
+    JSON.stringify({ commands: [], container: null, alive: false, ...engine }),
+  );
+  const fixture = guestFixture(t, engine, root);
+  await fixture.transport.run(
+    await launchRequest(fixture.transport, { allowanceMs: 60000 }),
+    () => {},
+  );
+  const saved = `${launchedBase}/template-${launchedTemplates.size}`;
+  copyTree(root, saved);
+  launchedTemplates.set(key, saved);
+  return fixture;
+}

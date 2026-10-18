@@ -18,6 +18,7 @@ import {
   observation,
   launchRequest,
   guestFixture,
+  launchedGuest,
   posixGuest,
 } from "./helpers/native-coding-fixture.mjs";
 
@@ -52,13 +53,9 @@ test(
   "native explicit resume retains only the named stopped session home under fresh launch isolation",
   posixGuest,
   async (t) => {
-    const { transport, read, root } = guestFixture(t, {
+    const { transport, read, root } = await launchedGuest(t, {
       threadId: resumeThread,
     });
-    await transport.run(
-      await launchRequest(transport, { allowanceMs: 60000 }),
-      () => {},
-    );
     const original = read().container;
     const originalHome = original.Mounts.find(
       (m) => m.Destination === "/session",
@@ -126,11 +123,9 @@ for (const planted of [
     `native explicit resume refuses retained worker-writable Codex configuration ${planted}`,
     posixGuest,
     async (t) => {
-      const { transport, read } = guestFixture(t, { threadId: resumeThread });
-      await transport.run(
-        await launchRequest(transport, { allowanceMs: 60000 }),
-        () => {},
-      );
+      const { transport, read } = await launchedGuest(t, {
+        threadId: resumeThread,
+      });
       const originalHome = read().container.Mounts.find(
         (m) => m.Destination === "/session",
       ).Source;
@@ -241,15 +236,11 @@ for (const refusal of [
     `native explicit resume refuses ${refusal} without starting another worker`,
     posixGuest,
     async (t) => {
-      const fixture = guestFixture(
+      const fixture = await launchedGuest(
         t,
         refusal === "missing-thread" ? {} : { threadId: resumeThread },
       );
       const { transport, read, write } = fixture;
-      await transport.run(
-        await launchRequest(transport, { allowanceMs: 60000 }),
-        () => {},
-      );
       const state = read();
       const changes = {};
       if (refusal === "thread") {
@@ -311,11 +302,9 @@ test(
   "native explicit resume refuses a retained predecessor when fresh dispatch admission is denied",
   posixGuest,
   async (t) => {
-    const { transport, read } = guestFixture(t, { threadId: resumeThread });
-    await transport.run(
-      await launchRequest(transport, { allowanceMs: 60000 }),
-      () => {},
-    );
+    const { transport, read } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
     await assert.rejects(
       transport.run(
         await nativeResumeRequest(transport, { mayDispatch: () => false }),
@@ -339,13 +328,9 @@ for (const mismatch of ["different", "missing"])
     `native explicit resume rejects ${mismatch} resumed thread output and stops the new worker`,
     posixGuest,
     async (t) => {
-      const { transport, read, write } = guestFixture(t, {
+      const { transport, read, write } = await launchedGuest(t, {
         threadId: resumeThread,
       });
-      await transport.run(
-        await launchRequest(transport, { allowanceMs: 60000 }),
-        () => {},
-      );
       const state = read();
       state.threadId =
         mismatch === "different"
@@ -390,11 +375,9 @@ test(
   "native explicit resume can continue the latest stopped turn but cannot reuse its ancestor",
   posixGuest,
   async (t) => {
-    const { transport, read } = guestFixture(t, { threadId: resumeThread });
-    await transport.run(
-      await launchRequest(transport, { allowanceMs: 60000 }),
-      () => {},
-    );
+    const { transport, read } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
     const second = await nativeResumeRequest(transport);
     await transport.run(second, () => {});
     const third = await nativeResumeRequest(transport, {
@@ -420,11 +403,9 @@ for (const unsafeHome of ["missing", "hardlink", "symlink", "oversized"])
     `native explicit resume refuses ${unsafeHome} retained home before claiming it`,
     posixGuest,
     async (t) => {
-      const { transport, read } = guestFixture(t, { threadId: resumeThread });
-      await transport.run(
-        await launchRequest(transport, { allowanceMs: 60000 }),
-        () => {},
-      );
+      const { transport, read } = await launchedGuest(t, {
+        threadId: resumeThread,
+      });
       const mounts = read().container.Mounts;
       const home = mounts.find((m) => m.Destination === "/session").Source;
       const workspace = mounts.find(
@@ -465,13 +446,9 @@ test(
   "native explicit resume keeps predecessor recovery separate from a running successor",
   posixGuest,
   async (t) => {
-    const { transport, read, write } = guestFixture(t, {
+    const { transport, read, write } = await launchedGuest(t, {
       threadId: resumeThread,
     });
-    await transport.run(
-      await launchRequest(transport, { allowanceMs: 60000 }),
-      () => {},
-    );
     const state = read();
     state.keepRunning = true;
     write(state);
@@ -539,11 +516,9 @@ test(
   "native explicit resume refuses changed host runtime pins even when guest pins are unchanged",
   posixGuest,
   async (t) => {
-    const { transport, read } = guestFixture(t, { threadId: resumeThread });
-    await transport.run(
-      await launchRequest(transport, { allowanceMs: 60000 }),
-      () => {},
-    );
+    const { transport, read } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
     const hostRead = fs.readFileSync;
     t.mock.method(fs, "readFileSync", (path, ...args) =>
       String(path).endsWith("aios-test.json")
