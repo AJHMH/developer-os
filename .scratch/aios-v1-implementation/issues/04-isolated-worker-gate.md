@@ -40,9 +40,12 @@ The first fresh macOS controller-loss observation refused the timer-execution
 property before intentional controller loss. Exact-session recovery passed; no
 expiry proof was obtained. A bounded disposable native manager probe exposed a
 property wire-shape mismatch, reproduced through the public transport test seam.
-The candidate corrects direct property decoding without changing timer limits,
-command/session validation or production enablement. Native rerun is pending a
-committed source revision. See [native timer evidence](../ticket04-native-timer-property-receipt.md).
+The reviewed repair corrects direct property decoding without changing timer
+limits, command/session validation or production enablement. Fresh committed-source
+macOS lease and fixed-deadline observations now pass, with positive post-controller-
+loss controls, successful exact-session timer kill records, independent process
+disappearance, explicit recovery and unchanged canary collection. The first failed
+attempt remains retained; Windows and broader production qualification stay open. See [native timer evidence](../ticket04-native-timer-property-receipt.md).
 
 Continued after PR #68 merged as `a44e5bfbd95e1f7afb1e82224e6012f6b7c42d1f`.
 Its tree exactly matches approved, validated head `911ae1c`; those passing results
@@ -88,6 +91,10 @@ work or automatic qualification of later source/runtime versions.
   21–22; the broader usage-monitoring criterion in 22 remains open).
 - [x] Independent fixed-worker qualification on Windows Hyper-V and macOS
   AppleHV, including fixed inference and isolated task validation (24–25).
+- [x] Version-bound macOS offline general-transport lease and fixed-deadline
+  controller-loss observations, with independently observed disappearance,
+  exact timer execution, explicit recovery and unchanged canary collection
+  (runtime commit `c27ff3f`; no Windows or production qualification inferred).
 - [x] Controlled general feature lifecycle contracts and tests exist. Their native
   coding/validation integrations are not installed or qualified.
 

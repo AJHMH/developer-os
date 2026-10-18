@@ -1,7 +1,8 @@
 # Issue 04: native timer property decoding
 
-Status: local implementation validation passed. Native controller-loss qualification
-remains open; production execution stays disabled.
+Status: local implementation validation and both bounded macOS offline timer
+observations passed. General native qualification remains open; production
+execution stays disabled.
 
 ## Baseline
 
@@ -74,8 +75,8 @@ reported exit zero, no timeout and no termination failure. Bounded stdout was
 truncated, so no exact full-suite test count is claimed. The
 [passing candidate record](native-timer-evidence/candidate-validation-attempt2-awake.json)
 and [unchanged-main record](native-timer-evidence/unchanged-main-validation.json)
-retain both observations. Native acceptance refuses dirty runtime source, so no candidate
-native rerun is claimed before the repair is committed.
+retain both observations. Native acceptance refused dirty runtime source; both successful reruns below
+were performed only after the reviewed repair was committed.
 
 No production admission, online inference, VM provisioning, credentials, timer
 limits, coverage thresholds, assertions or approval rules change. Windows and
@@ -85,3 +86,36 @@ remain open.
 
 The existing private investigation ledger retains the failed native observation,
 red-capable public regression and repair cycle without resetting earlier usage.
+
+
+## Committed-source macOS observations
+
+Both successful runs used verified bot commit
+`c27ff3f229c082e51fb57b2cb1e3c91018aa2b76`, the existing dedicated
+`aios-macos-noshare` AppleHV VM, the acceptance lock/awake wrapper, a fresh
+empty-home deny-all session, and only an ordinary canary. No online inference,
+provisioning or credentials were authorized.
+
+- [Lease attempt 2](macos/ticket04-controller-loss-lease-attempt2.json): positive
+  running controls before and after confirmed controller termination, independent
+  process disappearance, successful lease kill execution (`code=1`, `status=0`),
+  fixed deadline untriggered, explicit exact-session recovery and unchanged canary.
+- [Deadline attempt 1](macos/ticket04-controller-loss-deadline-attempt1.json): normal
+  renewals during the declared wait, fresh untriggered records before controller
+  loss, positive running control after termination, independent disappearance,
+  successful fixed-deadline kill execution, lease untriggered, exact-session
+  recovery and unchanged canary.
+
+The procedure also requires collection to refuse before explicit recovery.
+A report audit verified source/module hashes against the current runtime bytes,
+ordered monotonic trigger/start/finish fields, selected-timer success, the other
+untriggered timer, post-loss positive controls, recovery and canary preservation.
+Each report remains `qualified:false`, `productionEnabled:false` and
+`inferenceAuthorized:false`.
+
+This completes only the version-bound macOS offline lease/fixed-deadline
+controller-loss observation sub-scope. It does not close the parent Issue 04,
+qualify Windows, enable production or establish general resume, model-only access,
+usage/exhaustion, dependency/resource controls or the broader adversarial gate.
+The follow-up changes only evidence/issue records; the passing implementation
+validation is reused without a report-only suite rerun.
