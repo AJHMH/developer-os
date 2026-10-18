@@ -1,0 +1,313 @@
+{
+  "scope": "native-coding-offline-controller-loss",
+  "qualified": false,
+  "productionEnabled": false,
+  "inferenceAuthorized": false,
+  "outcome": "observed-independent-controller-loss-stop",
+  "sourceRevision": "c27ff3f229c082e51fb57b2cb1e3c91018aa2b76",
+  "timer": "deadline",
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "session": {
+    "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+    "fence": 1,
+    "state": "running",
+    "intent": "start"
+  },
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "runnerSha256": "f62354a56e1b7c19180f0bc64b531cdb29f48bcb7654c8826722f1f01e27ff5e",
+  "transportSourceSha256": "449a1a997de98c0ba53768676c218b336fd6349eba170b7cd1855c31ad988fa0",
+  "transportModuleSha256": "ac54156b2c8ae460144bd391a1c17e5e139d00e3bd6e920810adbb31f5b7f6f6",
+  "procedureModuleSha256": "5f387ab0dc4253fc5519a48598ed2370ee9f9bf79bc719e61fb76b4557f2e3fd",
+  "evidence": [
+    {
+      "stage": "controller-start-intent",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1
+      }
+    },
+    {
+      "stage": "session",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "phase": "running",
+        "running": true,
+        "remainingProcesses": 1,
+        "processesGone": false,
+        "timers": {
+          "lease": {
+            "loadState": "loaded",
+            "activeState": "active"
+          },
+          "deadline": {
+            "loadState": "loaded",
+            "activeState": "active"
+          }
+        },
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "timer-execution",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "timer": "lease",
+        "lastTriggerUs": 0,
+        "startedUs": 0,
+        "finishedUs": 0,
+        "code": 0,
+        "status": 0,
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "timer-execution",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "timer": "deadline",
+        "lastTriggerUs": 0,
+        "startedUs": 0,
+        "finishedUs": 0,
+        "code": 0,
+        "status": 0,
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "session",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "phase": "running",
+        "running": true,
+        "remainingProcesses": 1,
+        "processesGone": false,
+        "timers": {
+          "lease": {
+            "loadState": "loaded",
+            "activeState": "active"
+          },
+          "deadline": {
+            "loadState": "loaded",
+            "activeState": "active"
+          }
+        },
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "timer-execution",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "timer": "lease",
+        "lastTriggerUs": 0,
+        "startedUs": 0,
+        "finishedUs": 0,
+        "code": 0,
+        "status": 0,
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "timer-execution",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "timer": "deadline",
+        "lastTriggerUs": 0,
+        "startedUs": 0,
+        "finishedUs": 0,
+        "code": 0,
+        "status": 0,
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "controller-loss-intent",
+      "value": {
+        "withoutCleanup": true
+      }
+    },
+    {
+      "stage": "controller-terminated",
+      "value": {
+        "withoutCleanup": true
+      }
+    },
+    {
+      "stage": "session",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "phase": "running",
+        "running": true,
+        "remainingProcesses": 1,
+        "processesGone": false,
+        "timers": {
+          "lease": {
+            "loadState": "loaded",
+            "activeState": "active"
+          },
+          "deadline": {
+            "loadState": "loaded",
+            "activeState": "active"
+          }
+        },
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "session",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "phase": "running",
+        "running": true,
+        "remainingProcesses": 1,
+        "processesGone": false,
+        "timers": {
+          "lease": {
+            "loadState": "loaded",
+            "activeState": "active"
+          },
+          "deadline": {
+            "loadState": "loaded",
+            "activeState": "active"
+          }
+        },
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "session",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "phase": "running",
+        "running": false,
+        "remainingProcesses": 0,
+        "processesGone": true,
+        "timers": {
+          "lease": {
+            "loadState": "loaded",
+            "activeState": "active"
+          },
+          "deadline": {
+            "loadState": "loaded",
+            "activeState": "active"
+          }
+        },
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "timer-execution",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "timer": "deadline",
+        "lastTriggerUs": 122261376543,
+        "startedUs": 122261379591,
+        "finishedUs": 122261477406,
+        "code": 1,
+        "status": 0,
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "timer-execution",
+      "value": {
+        "operationId": "0b552cc7-9f02-44f3-9f7c-fcb705c586f0",
+        "fence": 1,
+        "timer": "lease",
+        "lastTriggerUs": 0,
+        "startedUs": 0,
+        "finishedUs": 0,
+        "code": 0,
+        "status": 0,
+        "pins": {
+          "cliVersion": "0.161.0",
+          "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+          "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+          "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+        }
+      }
+    },
+    {
+      "stage": "explicit-recovery",
+      "value": {
+        "stopped": true,
+        "remainingProcesses": 0
+      }
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "605653caaafbfeede09a5da4df947720d0e345f6430a0968be55069211d06241",
+    "bindingSha256": "874c75070ae700a3070ea8167b1e51edcf4f3c6d6afad362a14a0cab06d4efd3"
+  },
+  "collection": {
+    "inputPreserved": true,
+    "files": 1
+  }
+}

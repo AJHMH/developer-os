@@ -70,12 +70,16 @@ def run(args, **kwargs):
             state['timers'][unit.removesuffix('.timer')+'.service'] = {'active': 'inactive', 'starts': []}
     elif args[0] == 'busctl':
         if not state.get('executionEvidence'): code = 1
-        elif args[-1] == 'LastTriggerUSecMonotonic': output = json.dumps({'type': 't', 'data': [100]}).encode()
+        elif args[-1] == 'LastTriggerUSecMonotonic': output = json.dumps({'type': 't', 'data': 0 if state.get('executionMode') == 'never-triggered' else 100}).encode()
         elif args[-1] == 'ExecStart':
             target = request['name'] + ('-foreign' if state.get('executionMode') == 'wrong-command' else '')
             ignored = state.get('executionMode') == 'ignored-failure'
-            output = json.dumps({'type': 's' if state.get('executionMode') == 'malformed' else 'a(sasbttttuii)', 'data': [[['/usr/bin/podman',['/usr/bin/podman','kill','--signal','KILL',target],ignored,1000,101,1001,102,99,1,0]]]}).encode()
+            output = json.dumps({'type': 's' if state.get('executionMode') == 'malformed' else 'a(sasbttttuii)', 'data': [['/usr/bin/podman',['/usr/bin/podman','kill','--signal','KILL',target],ignored,1000,101,1001,102,99,1,0]]}).encode()
+            if state.get('executionMode') == 'never-triggered':
+                value=json.loads(output);value['data'][0][3:]=[0,0,0,0,0,0,0];output=json.dumps(value).encode()
         else: raise RuntimeError('Unexpected manager property')
+        if state.get('executionMode') == 'wrapped-data' and output:
+            value=json.loads(output);value['data']=[value['data']];output=json.dumps(value).encode()
     elif args[0] == 'systemctl':
         timers = state.setdefault('timers', {})
         verb = args[2]

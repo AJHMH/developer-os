@@ -214,8 +214,8 @@ def timer_execution():
   # Unit names are fixed from the validated session, never guest-provided paths.
   path='/org/freedesktop/systemd1/unit/'+''.join(c if c.isascii() and c.isalnum() else '_'+c.encode().hex() for c in unit+suffix)
   value=json.loads(command(['busctl','--user','--json=short','get-property','org.freedesktop.systemd1',path,'org.freedesktop.systemd1.'+interface,name]))
-  if not isinstance(value,dict) or value.get('type')!=signature or not isinstance(value.get('data'),list) or len(value['data'])!=1: fail()
-  return value['data'][0]
+  if not isinstance(value,dict) or value.get('type')!=signature or 'data' not in value: fail()
+  return value['data']
  triggered=prop('.timer','Timer','LastTriggerUSecMonotonic','t')
  entries=prop('.service','Service','ExecStart','a(sasbttttuii)')
  if not isinstance(entries,list) or len(entries)!=1 or not isinstance(entries[0],list) or len(entries[0])!=10: fail()

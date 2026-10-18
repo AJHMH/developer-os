@@ -1,0 +1,12 @@
+{
+  "scope": "independent-post-probe-unit-observation",
+  "machine": "aios-macos-noshare",
+  "unitPrefix": "aios-observation-probe-3fc7f85febc04f389d4a1ea44dc4ae10",
+  "method": "systemctl --user show exact timer and service units --property=LoadState,ActiveState,Job",
+  "observations": {
+    "timer": { "LoadState": "not-found", "ActiveState": "inactive", "Job": "" },
+    "service": { "LoadState": "not-found", "ActiveState": "inactive", "Job": "" }
+  },
+  "productionEnabled": false,
+  "qualified": false
+}

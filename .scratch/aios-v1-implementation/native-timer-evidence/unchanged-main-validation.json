@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "terminationFailed": false,
+  "startedAt": "2026-10-18T02:07:59.575Z",
+  "finishedAt": "2026-10-18T02:14:03.692Z",
+  "truncated": true,
+  "scope": "unchanged-main-comparison",
+  "revision": "a132a7456ed53709317cf11ee43dd79d20d7c5de",
+  "workingTreeDirty": false,
+  "declaredTimeoutSeconds": 600,
+  "command": "npm run typecheck && npm run format:check && npm test && npm run build",
+  "durationMs": 364117,
+  "awakeAssertion": "PID-bound caffeinate attached during comparison; later candidate retry asserts awake from startup",
+  "fullOutputReference": "/private/tmp/issue04-property-baseline-validation.json"
+}
