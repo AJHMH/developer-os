@@ -168,7 +168,10 @@ def path_ok(path):
  return bool(path) and '\\' not in path and ':' not in path and all(p and p not in ['.','..'] and not re.search(r'[\x00-\x1f\x7f]',p) and not re.search(r'[. ]$',p) and not re.match(r'^(\.git|\.env(\..*)?|\.ssh|\.gnupg|\.aws|\.codex|\.agents|\.claude|\.npmrc|\.mcp\.json|sbxenv\.ya?ml)$',p,re.I) and not re.search(r'\.(pem|key|p12|pfx)$',p,re.I) and not re.match(r'^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)',p,re.I) for p in parts)
 def require_timers():
  for suffix in ['-lease.timer','-deadline.timer']:
-  if command(['systemctl','--user','is-active',R['name']+suffix]).strip()!=b'active': fail()
+  lines=command(['systemctl','--user','show',R['name']+suffix,'--property=LoadState,ActiveState,SubState,Job']).decode('ascii').splitlines()
+  if len(lines)!=4: fail()
+  state=dict(line.split('=',1) for line in lines)
+  if state!={'LoadState':'loaded','ActiveState':'active','SubState':'waiting','Job':''}: fail()
 def lease(start=False):
  unit=R['name']+'-lease'
  remaining=record['deadline']-time.monotonic()
@@ -178,7 +181,7 @@ def lease(start=False):
   # stops it when the controller disappears. Neither timer is worker-mounted.
   record['lease']=True;save(recordPath,record)
   for name,seconds in [(unit,min(remaining,30)),(R['name']+'-deadline',remaining)]:
-   command(['systemd-run','--user','--unit='+name,'--on-active='+str(seconds)+'s','--timer-property=AccuracySec=100ms','/usr/bin/podman','kill','--signal','KILL',R['name']])
+   command(['systemd-run','--user','--unit='+name,'--on-active='+str(seconds)+'s','--timer-property=AccuracySec=100ms','--timer-property=RemainAfterElapse=yes','--property=RemainAfterExit=yes','/usr/bin/podman','kill','--signal','KILL',R['name']])
  else:
   # Never renew a missing/expired lease or continue without the fixed deadline.
   require_timers()
@@ -198,11 +201,29 @@ def timer_state(unit):
  elif state['LoadState']!='loaded' or state['ActiveState'] not in ['active','inactive','failed']: fail()
  return state
 def stop_timers():
- for unit in [R['name']+'-lease.timer',R['name']+'-deadline.timer']:
+ for suffix in ['-lease.timer','-deadline.timer','-lease.service','-deadline.service']:
+  unit=R['name']+suffix
   before=timer_state(unit)
   if before['LoadState']=='loaded': command(['systemctl','--user','stop',unit])
   if timer_state(unit)['ActiveState'] not in ['inactive','failed']: fail()
  record['lease']=False;save(recordPath,record)
+def timer_execution():
+ if R.get('timer') not in ['lease','deadline']: fail()
+ unit=R['name']+'-'+R['timer']
+ def prop(suffix,interface,name,signature):
+  # Unit names are fixed from the validated session, never guest-provided paths.
+  path='/org/freedesktop/systemd1/unit/'+''.join(c if c.isascii() and c.isalnum() else '_'+c.encode().hex() for c in unit+suffix)
+  value=json.loads(command(['busctl','--user','--json=short','get-property','org.freedesktop.systemd1',path,'org.freedesktop.systemd1.'+interface,name]))
+  if not isinstance(value,dict) or value.get('type')!=signature or not isinstance(value.get('data'),list) or len(value['data'])!=1: fail()
+  return value['data'][0]
+ triggered=prop('.timer','Timer','LastTriggerUSecMonotonic','t')
+ entries=prop('.service','Service','ExecStart','a(sasbttttuii)')
+ if not isinstance(entries,list) or len(entries)!=1 or not isinstance(entries[0],list) or len(entries[0])!=10: fail()
+ row=entries[0]
+ if row[:2]!=['/usr/bin/podman',['/usr/bin/podman','kill','--signal','KILL',R['name']]] or row[2] is not False: fail()
+ values=[triggered,*row[3:]]
+ if any(type(n) is not int or n<0 or n>9007199254740991 for n in values): fail()
+ return dict(timer=R['timer'],lastTriggerUs=triggered,startedUs=row[4],finishedUs=row[6],code=row[8],status=row[9])
 def collect_files():
  files=[];total=0;names=set()
  def visit(path,prefix):
@@ -326,6 +347,9 @@ else:
     logs=pod('logs',R['name'])
     if len(logs)>65536: fail()
     result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(logs).decode())
+   elif R['action']=='observe-timer-execution':
+    container() # Verify current authority/session labels before reading units.
+    result=timer_execution()
    elif R['action']=='observe-session':
     # Observe independently: no log consumption, lease renewal, stop or journal write.
     c=container();running=c['State'].get('Running')
@@ -352,6 +376,17 @@ print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha25
 export interface NativeTimerObservation {
   loadState: "loaded" | "not-found";
   activeState: "active" | "inactive" | "failed";
+}
+export interface NativeTimerExecution {
+  operationId: string;
+  fence: number;
+  timer: "lease" | "deadline";
+  lastTriggerUs: number;
+  startedUs: number;
+  finishedUs: number;
+  code: number;
+  status: number;
+  pins: CodingPins;
 }
 export interface NativeSessionObservation {
   operationId: string;
@@ -705,6 +740,58 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       timers: structuredClone(
         result.timers,
       ) as NativeSessionObservation["timers"],
+      pins,
+    };
+  }
+  /** Read retained manager execution evidence, without renewing or reconciling. */
+  async observeTimerExecution(
+    session: CodingSession,
+    timer: "lease" | "deadline",
+  ): Promise<NativeTimerExecution> {
+    if (!["lease", "deadline"].includes(timer))
+      throw Error("Native timer execution observation unavailable");
+    const bound = this.session(session);
+    const { result, pins } = await this.invoke(
+      "observe-timer-execution",
+      bound,
+      {
+        timer,
+      },
+    );
+    const fields = [
+      "lastTriggerUs",
+      "startedUs",
+      "finishedUs",
+      "code",
+      "status",
+    ] as const;
+    if (
+      result.timer !== timer ||
+      fields.some(
+        (key) =>
+          !Number.isSafeInteger(result[key]) || (result[key] as number) < 0,
+      ) ||
+      (result.code as number) > 3 ||
+      (result.status as number) > 255 ||
+      (result.startedUs !== 0 && result.lastTriggerUs === 0) ||
+      (result.startedUs !== 0 &&
+        (result.startedUs as number) < (result.lastTriggerUs as number)) ||
+      (result.startedUs === 0 && result.finishedUs !== 0) ||
+      (result.finishedUs !== 0 &&
+        (result.finishedUs as number) < (result.startedUs as number)) ||
+      (result.finishedUs === 0 && (result.code !== 0 || result.status !== 0)) ||
+      (result.finishedUs !== 0 && result.code === 0)
+    )
+      throw Error("Native timer execution observation unavailable");
+    return {
+      operationId: bound.operationId,
+      fence: bound.fence,
+      timer,
+      lastTriggerUs: result.lastTriggerUs as number,
+      startedUs: result.startedUs as number,
+      finishedUs: result.finishedUs as number,
+      code: result.code as number,
+      status: result.status as number,
       pins,
     };
   }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
 import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
 
@@ -505,6 +506,167 @@ const posixGuest = {
       : false,
 };
 
+function controllerLossFixture(mode = "valid", selectedTimer = "lease") {
+  const effects = [];
+  const pins = {
+    cliVersion: "0.161.0",
+    cliSha256: "a".repeat(64),
+    policySha256: "b".repeat(64),
+    bindingSha256: "c".repeat(64),
+  };
+  let lost = false,
+    stopped = false,
+    polls = 0,
+    now = 0;
+  const probe = {
+    session,
+    pins,
+    timer: selectedTimer,
+    controller: {
+      async start() {
+        effects.push("start");
+      },
+      async terminate() {
+        if (mode === "controller-uncertain")
+          throw Error("controller termination uncertain");
+        if (!lost) effects.push("controller-lost");
+        lost = true;
+      },
+    },
+    transport: {
+      async inspect() {
+        return pins;
+      },
+      async observeSession() {
+        const gone =
+          mode === "natural-exit" ||
+          (lost && ++polls > 1 && mode !== "never-stops");
+        effects.push(gone ? "independent-stop" : "running-control");
+        return {
+          ...session,
+          pins:
+            mode === "pin-drift"
+              ? { ...pins, bindingSha256: "d".repeat(64) }
+              : pins,
+          phase: mode === "cleanup-before-loss" ? "stopped" : "running",
+          running: !gone,
+          remainingProcesses: gone ? 0 : 1,
+          processesGone: gone,
+          timers: {
+            lease: {
+              loadState: "loaded",
+              activeState: gone ? "inactive" : "active",
+            },
+            deadline: { loadState: "loaded", activeState: "active" },
+          },
+        };
+      },
+      async observeTimerExecution(_session, timer) {
+        const fired =
+          (lost && (timer === selectedTimer || mode === "both-fired")) ||
+          (mode === "preloss-execution" && now > 0);
+        return {
+          ...session,
+          pins,
+          timer,
+          lastTriggerUs: fired ? 100 : 0,
+          startedUs: fired ? 101 : 0,
+          finishedUs: fired ? 102 : 0,
+          code: fired ? 1 : 0,
+          status: lost && mode === "failed-kill" ? 1 : 0,
+        };
+      },
+      async stop() {
+        effects.push("explicit-recovery");
+        stopped = true;
+        return {
+          ...session,
+          stopped: mode !== "recovery-uncertain",
+          remainingProcesses: 0,
+        };
+      },
+      async collect() {
+        if (!stopped && mode !== "early-collection")
+          throw Error("explicit stop required");
+        effects.push("collect");
+        return {
+          ...session,
+          complete: mode !== "collection-incomplete",
+          files: [],
+        };
+      },
+    },
+    clock: {
+      now: () => (mode === "clock-unavailable" ? NaN : now),
+      async wait(ms) {
+        now +=
+          mode === "late-stop" ? 50000 : mode === "clock-backwards" ? -1 : ms;
+      },
+    },
+    onEvidence(stage) {
+      if (mode === "evidence-after-start" && stage === "session")
+        throw Error("evidence unavailable after start");
+      if (mode === "evidence-unavailable") throw Error("evidence unavailable");
+    },
+  };
+  return { probe, effects };
+}
+
+test("offline controller-loss procedure observes independent expiry before recovery", async () => {
+  const { observeNativeControllerLoss } = await import(
+    "../dist/native-coding-qualification.js"
+  );
+  const { probe, effects } = controllerLossFixture();
+  const result = await observeNativeControllerLoss(probe);
+  assert.equal(result.qualified, false);
+  assert.equal(result.productionEnabled, false);
+  assert.ok(
+    effects.indexOf("running-control") < effects.indexOf("controller-lost"),
+  );
+  assert.ok(
+    effects.indexOf("independent-stop") < effects.indexOf("explicit-recovery"),
+  );
+  assert.ok(effects.indexOf("explicit-recovery") < effects.indexOf("collect"));
+});
+
+for (const mode of [
+  "natural-exit",
+  "cleanup-before-loss",
+  "pin-drift",
+  "never-stops",
+  "failed-kill",
+  "both-fired",
+  "early-collection",
+  "controller-uncertain",
+  "recovery-uncertain",
+  "collection-incomplete",
+  "clock-unavailable",
+  "clock-backwards",
+  "late-stop",
+  "evidence-unavailable",
+  "evidence-after-start",
+])
+  test(`offline controller-loss procedure refuses misleading evidence: ${mode}`, async () => {
+    const { observeNativeControllerLoss } = await import(
+      "../dist/native-coding-qualification.js"
+    );
+    const { probe, effects } = controllerLossFixture(mode);
+    await assert.rejects(observeNativeControllerLoss(probe));
+    if (effects.includes("start"))
+      assert.ok(effects.includes("explicit-recovery"));
+    else assert.deepEqual(effects, []);
+  });
+
+test("offline fixed-deadline procedure distinguishes the deadline from the lease", async () => {
+  const { observeNativeControllerLoss } = await import(
+    "../dist/native-coding-qualification.js"
+  );
+  const { probe } = controllerLossFixture("valid", "deadline");
+  const result = await observeNativeControllerLoss(probe);
+  assert.equal(result.timer, "deadline");
+  assert.equal(result.qualified, false);
+});
+
 for (const timer of ["deadline", "lease"])
   for (const state of ["missing", "inactive", "failed"])
     test(
@@ -983,6 +1145,131 @@ test(
 );
 
 test(
+  "native timer execution observation identifies the bound kill command without lifecycle effects",
+  posixGuest,
+  async (t) => {
+    const { transport, read, write } = guestFixture(t);
+    await transport.run(await launchRequest(transport), () => {});
+    write({ ...read(), executionEvidence: true });
+    const before = read();
+    await assert.rejects(
+      transport.observeTimerExecution(
+        { ...session, fence: session.fence + 1 },
+        "lease",
+      ),
+    );
+    const result = await transport.observeTimerExecution(session, "lease");
+    assert.equal(result.timer, "lease");
+    assert.equal(result.lastTriggerUs, 100);
+    assert.equal(result.startedUs, 101);
+    assert.equal(result.finishedUs, 102);
+    assert.equal(result.code, 1);
+    assert.equal(result.status, 0);
+    assert.equal(result.operationId, session.operationId);
+    assert.equal(result.fence, session.fence);
+    assert.equal(
+      read()
+        .commands.slice(before.commands.length)
+        .some(
+          (args) =>
+            args[0] === "systemd-run" ||
+            (args[0] === "systemctl" && args[2] !== "show") ||
+            (args[0] === "podman" &&
+              ["stop", "start", "exec", "logs"].includes(args[1])),
+        ),
+      false,
+    );
+  },
+);
+
+for (const mode of [
+  "unavailable",
+  "wrong-command",
+  "ignored-failure",
+  "malformed",
+])
+  test(
+    `native timer execution refuses unverified manager data: ${mode}`,
+    posixGuest,
+    async (t) => {
+      const { transport, read, write } = guestFixture(t);
+      await transport.run(await launchRequest(transport), () => {});
+      write({
+        ...read(),
+        executionEvidence: mode !== "unavailable",
+        executionMode: mode,
+      });
+      await assert.rejects(transport.observeTimerExecution(session, "lease"));
+      assert.equal(read().alive, false);
+    },
+  );
+
+test("offline native acceptance CLI refuses missing approval and direct child entry before effects", (t) => {
+  const root = realMkdtempSync(`${realTemporaryDirectory}/aios-loss-cli-`);
+  t.after(() => realRmSync(root, { recursive: true, force: true }));
+  const path = `${root}/report.json`;
+  const script = new URL(
+    "../.scratch/aios-v1-implementation/native-coding-controller-loss-acceptance.mjs",
+    import.meta.url,
+  );
+  const missing = realSpawnSync(
+    process.execPath,
+    [fileURLToPath(script), "aios-test", path, "lease"],
+    { encoding: "utf8", timeout: 5000 },
+  );
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /--approve-offline-native-run/);
+  assert.equal(fs.existsSync(path), false);
+  const direct = realSpawnSync(
+    process.execPath,
+    [
+      fileURLToPath(script),
+      "aios-test",
+      "--controller-child",
+      "lease",
+      "--approve-offline-native-run",
+      session.operationId,
+    ],
+    { encoding: "utf8", timeout: 5000 },
+  );
+  assert.notEqual(direct.status, 0);
+  assert.match(direct.stderr, /function|darwin|win32/);
+  assert.equal(fs.existsSync(path), false);
+});
+
+for (const invalid of [
+  { lastTriggerUs: 0 },
+  { startedUs: 0, lastTriggerUs: 0 },
+  { finishedUs: 100 },
+  { code: 0 },
+  { status: 256 },
+  { lastTriggerUs: "100" },
+  { timer: "foreign" },
+])
+  test(`native timer execution refuses contradictory evidence ${JSON.stringify(invalid)}`, async (t) => {
+    nativeHost(t, (r) => ({
+      session: r.session,
+      binding: observation,
+      cliSha256: r.cliSha256,
+      timer: "lease",
+      lastTriggerUs: 100,
+      startedUs: 101,
+      finishedUs: 102,
+      code: 1,
+      status: 0,
+      ...invalid,
+    }));
+    const transport = new NativePodmanCodingTransport(
+      "aios-test",
+      "a".repeat(64),
+    );
+    await assert.rejects(
+      transport.observeTimerExecution(session, "lease"),
+      /observation unavailable/,
+    );
+  });
+
+test(
   "native session observation proves expiry before recovery without renewing timers or authorizing collection",
   posixGuest,
   async (t) => {
@@ -1123,3 +1410,53 @@ for (const invalid of [
       /session observation unavailable/,
     );
   });
+
+test(
+  "retained elapsed timer refuses live worker continuity before renewal",
+  posixGuest,
+  async (t) => {
+    const { transport, read, write } = guestFixture(t, { keepRunning: true });
+    let checkpoints = 0;
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      checkpoint: () => {
+        if (++checkpoints === 2) {
+          const state = read();
+          const unit = Object.keys(state.timers).find((name) =>
+            name.endsWith("-lease.timer"),
+          );
+          state.timers[unit].sub = "elapsed";
+          write(state);
+        }
+        return checkpoints < 4;
+      },
+    });
+    await assert.rejects(
+      transport.run(request, () => {}),
+      /Native coding poll observation unavailable/,
+    );
+    assert.equal(
+      read().commands.some(
+        (args) => args[0] === "systemctl" && args[2] === "restart",
+      ),
+      false,
+    );
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+  },
+);
+
+test("offline deadline procedure refuses a timer execution during the preloss wait", async () => {
+  const { observeNativeControllerLoss } = await import(
+    "../dist/native-coding-qualification.js"
+  );
+  const { probe, effects } = controllerLossFixture(
+    "preloss-execution",
+    "deadline",
+  );
+  await assert.rejects(
+    observeNativeControllerLoss(probe),
+    /already executed before controller loss/,
+  );
+  assert.ok(effects.includes("explicit-recovery"));
+  assert.equal(effects.includes("collect"), false);
+});
