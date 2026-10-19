@@ -1447,3 +1447,122 @@ test("a paused, lost resume blocks resumption and release until its home is reco
     await settle();
   }
 });
+
+// A launched resume the controller never saw start: recovery is refused, so
+// the guest's own thread record decides through reconciliation.
+async function unobservedLaunch(t, outcome) {
+  const resume = await resumable(t),
+    reconciles = [];
+  resume.f.runtime.recover = async () => {
+    throw Error("Native resume recovery is uncertain");
+  };
+  resume.f.runtime.reconcile = async (session, resumeFrom, retire) => {
+    reconciles.push(structuredClone({ session, resumeFrom, retire }));
+    return {
+      operationId: session.operationId,
+      fence: session.fence,
+      outcome: outcome(retire),
+    };
+  };
+  resume.next(unlaunchedTurn);
+  const settled = await resume.f.controller.codeFeature(resume.f.delivery.id);
+  return { ...resume, reconciles, settled, successor: resume.requests[1] };
+}
+
+test("a launched resume whose thread the guest recorded is adopted as the next predecessor", async (t) => {
+  const { f, requests, reconciles, settled, successor, next } =
+    await unobservedLaunch(t, () => "adopted");
+  assert.equal(settled.blocker.code, "DELIVERY_NOT_ENABLED");
+  assert.deepEqual(
+    reconciles.map((r) => r.retire),
+    [false],
+  );
+  next("normal");
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(resumed.feature.outcome, "admitted");
+  assert.deepEqual(requests[2].resumeFrom, named(successor));
+});
+
+test("an unresolved launched resume stays blocked until the owner retires it, then coding starts fresh", async (t) => {
+  const { f, requests, reconciles, settled, successor, next } =
+    await unobservedLaunch(t, (retire) => (retire ? "retired" : "unresolved"));
+  assert.equal(settled.blocker.code, "UNCERTAIN_SESSION");
+  assert.match(settled.blocker.nextAction, /retire/i);
+  next("normal");
+  await assert.rejects(f.controller.codeFeature(f.delivery.id));
+  assert.equal(
+    (await f.controller.recover(f.delivery.id)).blocker.code,
+    "UNCERTAIN_SESSION",
+  );
+  const retired = await f.controller.retireResume(f.delivery.id);
+  assert.equal(retired.blocker.code, "DELIVERY_NOT_ENABLED");
+  assert.deepEqual(
+    retired.feature.retirements.map((r) => r.operationId),
+    [successor.operationId],
+    "the owner decision is recorded",
+  );
+  assert.deepEqual(
+    reconciles.map((r) => r.retire),
+    [false, false, true],
+  );
+  const fresh = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(fresh.feature.outcome, "admitted");
+  assert.equal(requests[2].intent, "start");
+  assert.equal(requests[2].threadId, undefined);
+  assert.equal(requests[2].resumeFrom, undefined);
+});
+
+test("retiring a resume refuses when no interrupted resume needs it", async (t) => {
+  const { f } = await resumable(t);
+  await assert.rejects(f.controller.retireResume(f.delivery.id));
+});
+
+for (const [name, pinsChanged, code] of [
+  ["exact pins", false, "DELIVERY_NOT_ENABLED"],
+  ["changed pins", true, "UNCERTAIN_SESSION"],
+])
+  test(`the pinned adapter trusts a reconciliation receipt only with ${name}`, async (t) => {
+    const f = codingFixture(t);
+    const { PinnedCodingRuntime } = await import(
+      "../dist/feature-candidate.js"
+    );
+    let runs = 0;
+    const transport = turnTransport(f, async (request) => {
+      if ((runs += 1) > 1) throw Error("synthetic stream loss");
+      return failedTurn(request);
+    });
+    transport.recoverInterruptedResume = async () => {
+      throw Error("Native resume recovery is uncertain");
+    };
+    transport.reconcileInterruptedResume = async (session) => ({
+      operationId: session.operationId,
+      fence: session.fence,
+      outcome: "adopted",
+      pins: pinsChanged
+        ? { ...f.runtime.pins, cliSha256: "f".repeat(64) }
+        : { ...f.runtime.pins },
+    });
+    f.controller = controllerFor(
+      f,
+      new PinnedCodingRuntime(f.runtime.pins, transport),
+    );
+    await planAndValidate(f);
+    await f.controller.codeFeature(f.delivery.id);
+    const settled = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(settled.blocker.code, code);
+  });
+
+test("a reconciliation receipt for another operation leaves the resume unverified", async (t) => {
+  const resume = await resumable(t);
+  resume.f.runtime.recover = async () => {
+    throw Error("Native resume recovery is uncertain");
+  };
+  resume.f.runtime.reconcile = async (session) => ({
+    operationId: session.resumeFrom.operationId,
+    fence: session.fence,
+    outcome: "adopted",
+  });
+  resume.next(unlaunchedTurn);
+  const settled = await resume.f.controller.codeFeature(resume.f.delivery.id);
+  assert.equal(settled.blocker.code, "UNCERTAIN_SESSION");
+});

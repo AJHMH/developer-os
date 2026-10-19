@@ -35,6 +35,8 @@ import {
   featurePlan,
   validCodingPins,
   type CodingResult,
+  type CodingSession,
+  type ResumeReconciliation,
   type FeatureEvidence,
   type FeaturePlanner,
   type FeatureRuntime,
@@ -290,6 +292,17 @@ export interface Delivery {
 }
 
 /** Public durable delivery controls. The CLI supplies no live worker adapter. */
+/** A runtime receipt names exactly this coding operation and fence. */
+function sameOperation(
+  receipt: { operationId: string; fence: number } | undefined,
+  session: CodingSession,
+): boolean {
+  return (
+    receipt?.operationId === session.operationId &&
+    receipt.fence === session.fence
+  );
+}
+
 export class DeliveryController {
   private readonly stateDirectory: string;
   private get lifecycle() {
@@ -2561,7 +2574,12 @@ export class DeliveryController {
       // A recovered resume returned the home, so its predecessor resumes again.
       const predecessor =
         prior?.resumeRecovery === "recovered" ? prior.resumeFrom! : prior;
-      const resuming = !repairId && !!prior?.threadId && !!predecessor;
+      // A retired lineage is never resumed; coding restarts fresh.
+      const resuming =
+        !repairId &&
+        !!prior?.threadId &&
+        !!predecessor &&
+        prior.resumeRecovery !== "retired";
       f.session = {
         operationId: randomUUID(),
         fence: delivery.ownership.fence,
@@ -3890,23 +3908,74 @@ export class DeliveryController {
     if (!session || !needsResumeRecovery(session)) return snapshot;
     let recovered = false;
     try {
-      if (
-        runtime?.mode === "controlled" &&
-        runtime.recover &&
-        JSON.stringify(runtime.pins) === JSON.stringify(snapshot.feature?.pins)
-      ) {
+      if (this.sameCodingRuntime(snapshot) && runtime!.recover) {
         const receipt = await this.observe(
-          runtime.recover(
+          runtime!.recover(
             codingBinding(session),
             codingBinding(session.resumeFrom!),
           ),
         );
         recovered =
-          receipt?.operationId === session.operationId &&
-          receipt.fence === session.fence &&
-          receipt.recovered === true;
+          sameOperation(receipt, session) && receipt!.recovered === true;
       }
     } catch {}
+    if (recovered) return this.settleResume(id, session, "recovered");
+    // Recovery refuses a launched resume; the guest's thread record decides.
+    return this.reconcileResume(id, session, false);
+  }
+
+  /** The owner's explicit decision to quarantine an unresolved resume lineage:
+   * its retained home is never reused and coding restarts without resuming. */
+  async retireResume(id: string): Promise<Delivery> {
+    const snapshot = this.status(id),
+      session = snapshot.feature?.session;
+    if (
+      !session ||
+      !needsResumeRecovery(session) ||
+      !snapshot.ownership.held ||
+      session.fence !== snapshot.ownership.fence
+    )
+      throw new DeliveryError(
+        "Only the owning delivery may retire an interrupted coding resume.",
+      );
+    return this.reconcileResume(id, session, true);
+  }
+
+  /** Callers have checked that `session` still needs resume recovery;
+   * settlement re-checks it inside the durable transaction. */
+  private async reconcileResume(
+    id: string,
+    session: CodingSession,
+    retire: boolean,
+  ) {
+    const snapshot = this.status(id),
+      runtime = this.coordination.featureRuntime;
+    let outcome: ResumeReconciliation | undefined;
+    try {
+      if (this.sameCodingRuntime(snapshot) && runtime!.reconcile) {
+        const receipt = await this.observe(
+          runtime!.reconcile(
+            codingBinding(session),
+            codingBinding(session.resumeFrom!),
+            retire,
+          ),
+        );
+        if (sameOperation(receipt, session)) outcome = receipt!.outcome;
+      }
+    } catch {}
+    return this.settleResume(
+      id,
+      session,
+      outcome === "adopted" || outcome === "retired" ? outcome : undefined,
+    );
+  }
+
+  /** Record a verified resume settlement, or keep coding blocked. */
+  private settleResume(
+    id: string,
+    session: CodingSession,
+    settlement: "recovered" | "adopted" | "retired" | undefined,
+  ): Delivery {
     return this.change(id, (delivery) => {
       const current = delivery.feature?.session;
       if (
@@ -3914,15 +3983,34 @@ export class DeliveryController {
         !needsResumeRecovery(current)
       )
         return;
-      if (recovered) {
-        current.resumeRecovery = "recovered";
-        if (
-          delivery.blocker.code === "UNCERTAIN_SESSION" &&
-          sessionsQuiescent(delivery)
-        )
-          delivery.blocker = this.disabledBlocker();
-      } else delivery.blocker = this.resumeRecoveryBlocker();
+      if (!settlement) {
+        delivery.blocker = this.resumeRecoveryBlocker();
+        return;
+      }
+      // An adopted successor started its thread in the guest: it is the
+      // next predecessor, exactly as if the controller had observed it.
+      if (settlement === "adopted") current.threadStarted = true;
+      else current.resumeRecovery = settlement;
+      if (settlement === "retired")
+        (delivery.feature!.retirements ??= []).push({
+          operationId: current.operationId,
+          at: new Date().toISOString(),
+        });
+      if (
+        delivery.blocker.code === "UNCERTAIN_SESSION" &&
+        sessionsQuiescent(delivery)
+      )
+        delivery.blocker = this.disabledBlocker();
     });
+  }
+
+  /** The configured runtime is the same trusted binding the feature pinned. */
+  private sameCodingRuntime(snapshot: Delivery): boolean {
+    const runtime = this.coordination.featureRuntime;
+    return (
+      runtime?.mode === "controlled" &&
+      JSON.stringify(runtime.pins) === JSON.stringify(snapshot.feature?.pins)
+    );
   }
 
   private resumeRecoveryBlocker(): Delivery["blocker"] {
@@ -3931,7 +4019,7 @@ export class DeliveryController {
       message:
         "An interrupted coding resume left its retained session home unverified.",
       nextAction:
-        "Recover this delivery with the same trusted runtime before coding continues.",
+        "Recover this delivery with the same trusted runtime. If the guest never recorded the resumed thread, only an explicit owner decision to retire the resume lineage lets coding restart fresh.",
     };
   }
 

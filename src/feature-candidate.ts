@@ -32,6 +32,8 @@ export interface FeatureEvidence extends FeaturePlan {
     validation: "not-run" | "passed";
   };
   extensions?: { addedMs: number; at: string }[];
+  /** Owner decisions retiring an unresolved resume lineage. */
+  retirements?: { operationId: string; at: string }[];
   clarifications?: string[];
   allowanceMs: number;
   activeMs: number;
@@ -89,8 +91,9 @@ export interface CodingSession {
   resumeFrom?: CodingSession;
   /** Durable: this operation's CLI thread was observed starting. */
   threadStarted?: boolean;
-  /** Durable: an interrupted resume returned its home to `resumeFrom`. */
-  resumeRecovery?: "recovered";
+  /** Durable: an interrupted resume returned its home to `resumeFrom`, or
+   * the owner retired its lineage so coding restarts without resuming. */
+  resumeRecovery?: "recovered" | "retired";
 }
 /** A resume that stopped without observing its thread may have moved the
  * predecessor's retained home and must be recovered before coding continues. */
@@ -100,7 +103,7 @@ export function needsResumeRecovery(session: CodingSession): boolean {
     session.state === "stopped" &&
     !!session.resumeFrom &&
     !session.threadStarted &&
-    session.resumeRecovery !== "recovered"
+    session.resumeRecovery === undefined
   );
 }
 /** Only the management identity crosses the runtime boundary. */
@@ -120,6 +123,17 @@ export interface CodingRecovery {
   operationId: string;
   fence: number;
   recovered: true;
+}
+export type ResumeReconciliation = "adopted" | "retired" | "unresolved";
+export const resumeReconciliations: readonly ResumeReconciliation[] = [
+  "adopted",
+  "retired",
+  "unresolved",
+];
+export interface CodingReconciliation {
+  operationId: string;
+  fence: number;
+  outcome: ResumeReconciliation;
 }
 export interface CodingRequest extends CodingSession {
   baseRefresh?: {
@@ -177,6 +191,13 @@ export interface FeatureRuntime {
     session: CodingSession,
     resumeFrom: CodingSession,
   ): Promise<CodingRecovery>;
+  /** Settle a launched resume by the guest's own thread record; `retire` is
+   * the owner's explicit decision to quarantine an unresolved lineage. */
+  reconcile?(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+    retire: boolean,
+  ): Promise<CodingReconciliation>;
   stop(session: CodingSession): Promise<{
     operationId: string;
     fence: number;
@@ -509,6 +530,11 @@ export interface IsolatedCodingTransport {
     session: CodingSession,
     resumeFrom: CodingSession,
   ): Promise<CodingRecovery & { pins: CodingPins }>;
+  reconcileInterruptedResume?(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+    retire: boolean,
+  ): Promise<CodingReconciliation & { pins: CodingPins }>;
   stop: FeatureRuntime["stop"];
   collect: FeatureRuntime["collect"];
 }
@@ -705,6 +731,35 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       operationId: receipt.operationId,
       fence: receipt.fence,
       recovered: true,
+    };
+  }
+  async reconcile(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+    retire: boolean,
+  ): Promise<CodingReconciliation> {
+    const binding = Object.freeze(codingBinding(session)),
+      previous = Object.freeze(codingBinding(resumeFrom));
+    if (!this.transport.reconcileInterruptedResume)
+      throw Error("Resume reconciliation is unsupported by this transport");
+    await this.inspectSession(binding);
+    const receipt = await this.transport.reconcileInterruptedResume(
+      binding,
+      previous,
+      retire,
+    );
+    if (
+      receipt.operationId !== binding.operationId ||
+      receipt.fence !== binding.fence ||
+      !resumeReconciliations.includes(receipt.outcome) ||
+      JSON.stringify(receipt.pins) !== JSON.stringify(this.pins)
+    )
+      throw Error("Resume reconciliation binding changed");
+    await this.inspectSession(binding);
+    return {
+      operationId: receipt.operationId,
+      fence: receipt.fence,
+      outcome: receipt.outcome,
     };
   }
   async collect(session: CodingSession) {
