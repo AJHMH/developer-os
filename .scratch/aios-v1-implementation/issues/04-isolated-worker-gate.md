@@ -387,3 +387,18 @@ reconciles it from the guest's own thread record:
 Nothing is moved in either case. Production remains disabled, and native
 qualification is not-run. See the
 [reconciliation receipt](../ticket04-resume-reconciliation-receipt.md).
+
+## 19 October: fresh model-only authority for coding turns
+
+Every coding launch, resume and repair now needs fresh subscription usage
+authority from `UsageApprovalGate`:
+- It must come from a known model-only account, the same one the feature's
+  first launch used.
+- It is bound inside the prepare transaction to exactly that coding operation.
+- It is rechecked at the runtime's dispatch callback after asynchronous pin
+  inspection.
+
+Exhaustion is never overridden, and each approval authorizes one operation.
+Usage monitoring during a turn, and binding to the qualified mediation
+account, remain open. Production remains disabled. See the
+[authority receipt](../ticket04-coding-model-authority-receipt.md).

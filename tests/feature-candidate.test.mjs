@@ -116,6 +116,7 @@ test("exhaustion persists across restart and only an explicit owner extension pe
   f.controller = new DeliveryController(f.state, f.options, {
     validationRuntime: f.validation,
     featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
     clock: () => f.now,
   });
   assert.equal(
@@ -213,6 +214,7 @@ test("coding uses its persisted allowance rather than the short observation dead
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
     clock: () => f.now,
     observationTimeoutMs: 5,
   });
@@ -397,6 +399,7 @@ test("restart with a changed coding binding cannot acknowledge the old worker's 
   const reopened = new DeliveryController(f.state, f.options, {
     validationRuntime: f.validation,
     featureRuntime: changed,
+    subscription: () => f.subscription(Date.now()),
   });
   const recovered = await reopened.recover(f.delivery.id);
   assert.equal(recovered.feature.session.state, "uncertain");
@@ -455,6 +458,7 @@ test("the pinned coding adapter consumes coalesced CLI JSON and preserves the ex
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
+    subscription: () => f.subscription(),
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -500,6 +504,7 @@ test("the pinned adapter refuses an independently measured executable mismatch b
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
+    subscription: () => f.subscription(),
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -914,6 +919,7 @@ for (const failure of [
       featurePlanner: f.criteria,
       validationRuntime: f.validation,
       featureRuntime: adapter,
+      subscription: () => f.subscription(),
       clock: () => f.now,
     });
     await planAndValidate(f);
@@ -984,6 +990,7 @@ for (const drift of [
       featurePlanner: f.criteria,
       validationRuntime: f.validation,
       featureRuntime: adapter,
+      subscription: () => f.subscription(),
       clock: () => f.now,
     });
     await planAndValidate(f);
@@ -1024,6 +1031,7 @@ test("pin inspection cannot replace controller authority to launch paused work",
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
+    subscription: () => f.subscription(),
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -1065,6 +1073,7 @@ test("transport preparation uses owned admitted bytes despite a retained inspect
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
+    subscription: () => f.subscription(),
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -1099,6 +1108,7 @@ test("changed prepared launch refuses effect acceptance after an asynchronous wa
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
+    subscription: () => f.subscription(),
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -1252,6 +1262,7 @@ const controllerFor = (f, featureRuntime = f.runtime) =>
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime,
+    subscription: () => f.subscription(),
     clock: () => f.now,
   });
 // A controlled transport that streams the turn `run` returns as CLI JSON.
@@ -1565,4 +1576,101 @@ test("a reconciliation receipt for another operation leaves the resume unverifie
   resume.next(unlaunchedTurn);
   const settled = await resume.f.controller.codeFeature(resume.f.delivery.id);
   assert.equal(settled.blocker.code, "UNCERTAIN_SESSION");
+});
+
+// Coding records every dispatch attempt; a launch never reaches the runtime
+// without fresh model-only usage authority bound to its exact operation.
+async function authorizedCoding(t) {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime),
+    dispatched = [];
+  f.runtime.execute = async (request) => {
+    dispatched.push(request.operationId);
+    return normal(request);
+  };
+  await planAndValidate(f);
+  return { f, dispatched };
+}
+
+for (const [name, arrange, approvable] of [
+  // Unknown usage still needs an explicit owner approval, as for workers.
+  [
+    "no usage observation",
+    (f) => (f.subscription = async () => undefined),
+    true,
+  ],
+  ["an exhausted subscription", (f) => (f.usedPercent = 100), false],
+])
+  test(`coding refuses with ${name} and dispatches nothing`, async (t) => {
+    const { f, dispatched } = await authorizedCoding(t);
+    arrange(f);
+    await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+    assert.deepEqual(dispatched, []);
+    const usage = f.controller.status(f.delivery.id).usage;
+    if (approvable) {
+      // An unknown account is never model-only authority, even when approved.
+      f.controller.approveUsage(f.delivery.id, usage.checkId);
+      await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+      assert.deepEqual(dispatched, []);
+    } else
+      assert.throws(
+        () => f.controller.approveUsage(f.delivery.id, usage.checkId),
+        /exhaustion cannot be overridden/,
+      );
+  });
+
+test("a low allowance needs owner approval, bound to exactly one coding operation", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  // A failed first turn leaves a resumable session, so only usage can refuse.
+  f.runtime.execute = async (request) => {
+    dispatched.push(request.operationId);
+    return failedTurn(request);
+  };
+  f.usedPercent = 85;
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+  assert.deepEqual(dispatched, []);
+  const pending = f.controller.status(f.delivery.id).usage;
+  assert.equal(pending.decision, "approval-required");
+  f.controller.approveUsage(f.delivery.id, pending.checkId);
+  const first = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched.length, 1);
+  assert.equal(first.usage.approval.operationId, dispatched[0]);
+  // The consumed approval cannot authorize another coding operation.
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+  assert.equal(dispatched.length, 1);
+  const renewed = f.controller.status(f.delivery.id).usage;
+  f.controller.approveUsage(f.delivery.id, renewed.checkId);
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched.length, 2);
+  assert.equal(resumed.feature.session.intent, "resume");
+  assert.equal(resumed.usage.approval.operationId, dispatched[1]);
+});
+
+test("an authorization that goes stale before dispatch is refused at the recheck", async (t) => {
+  const { f } = await authorizedCoding(t);
+  let permitted;
+  f.runtime.execute = async (request) => {
+    f.now += 61_000;
+    permitted = request.mayDispatch();
+    throw Error("synthetic refusal after the dispatch recheck");
+  };
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(permitted, false);
+});
+
+test("a resumed coding turn refuses usage from a different account than its first launch", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  f.runtime.execute = async (request) => {
+    dispatched.push(request.operationId);
+    return failedTurn(request);
+  };
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched.length, 1);
+  const healthy = f.subscription;
+  f.subscription = async (at) => ({
+    ...(await healthy(at)),
+    accountId: "account-2",
+  });
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /account/i);
+  assert.equal(dispatched.length, 1);
 });

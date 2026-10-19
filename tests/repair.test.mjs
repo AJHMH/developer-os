@@ -44,6 +44,7 @@ function reopen(f) {
   return new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
     validationRuntime: f.validation,
     clock: () => f.now,
   });
