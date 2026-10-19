@@ -34,6 +34,8 @@ export interface FeatureEvidence extends FeaturePlan {
   extensions?: { addedMs: number; at: string }[];
   /** Coding turns stopped because their usage authority lapsed. */
   usageInterruptions?: { operationId: string; at: string }[];
+  /** The qualified mediation account this feature's coding is linked to. */
+  mediationAccountId?: string;
   /** The model-only subscription account the first coding launch used. */
   usageAccountId?: string;
   /** Owner decisions retiring an unresolved resume lineage. */

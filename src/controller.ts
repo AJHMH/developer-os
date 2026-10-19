@@ -294,6 +294,18 @@ export interface Delivery {
 }
 
 /** Public durable delivery controls. The CLI supplies no live worker adapter. */
+/** The delivery's owner-endorsed mediation decision, when it is qualified
+ * for the delivery's current offline admission binding. */
+function qualifiedDecision(delivery: Delivery) {
+  const qualification = delivery.qualification,
+    decision = qualification?.subscriptionMediation?.mechanismDecision;
+  return decision?.qualified &&
+    decision.scope ===
+      subscriptionDecisionScope(qualification?.offlineAdmission?.binding)
+    ? decision
+    : undefined;
+}
+
 /** A runtime receipt names exactly this coding operation and fence. */
 function sameOperation(
   receipt: { operationId: string; fence: number } | undefined,
@@ -475,15 +487,8 @@ export class DeliveryController {
         "Prepare an exact inference plan with the trusted gateway on an owned stopped delivery.",
       );
     const qualified = await this.qualify(id),
-      decision =
-        qualified.qualification?.subscriptionMediation?.mechanismDecision;
-    if (
-      !decision?.qualified ||
-      decision.scope !==
-        subscriptionDecisionScope(
-          qualified.qualification?.offlineAdmission?.binding,
-        )
-    )
+      decision = qualifiedDecision(qualified);
+    if (!decision)
       throw new DeliveryError(
         "Positive fixed-request authentication mediation is required.",
       );
@@ -607,14 +612,9 @@ export class DeliveryController {
         "Online canary requires an owned stopped delivery and trusted runtime; recover uncertain sessions first.",
       );
     const qualified = await this.qualify(id);
-    const decision =
-      qualified.qualification?.subscriptionMediation?.mechanismDecision;
+    const decision = qualifiedDecision(qualified);
     if (
-      !decision?.qualified ||
-      decision.scope !==
-        subscriptionDecisionScope(
-          qualified.qualification?.offlineAdmission?.binding,
-        ) ||
+      !decision ||
       !qualified.qualification?.offlineAdmission?.allowed ||
       (runtime.mode === "live" && qualified.qualification.mode !== "live")
     )
@@ -2567,6 +2567,21 @@ export class DeliveryController {
       throw new DeliveryError(
         "Coding usage authority must come from the same known model-only account as the first coding launch.",
       );
+    // A qualified mediation decision names the only account coding may use,
+    // and a feature once linked to it never codes without that decision.
+    // Like every dispatch path, a mediated delivery re-qualifies first.
+    const mediation =
+      snapshot.qualification?.subscriptionMediation?.mechanismDecision ||
+      feature.mediationAccountId
+        ? qualifiedDecision(await this.qualify(id))
+        : undefined;
+    if (
+      (mediation || feature.mediationAccountId) &&
+      mediation?.accountId !== account
+    )
+      throw new DeliveryError(
+        "Coding usage must come from the delivery's qualified model-only mediation account.",
+      );
     const prepared = this.change(id, (delivery) => {
       if (
         delivery.ownership.fence !== snapshot.ownership.fence ||
@@ -2634,6 +2649,7 @@ export class DeliveryController {
         );
       delivery.usage = bound;
       f.usageAccountId = account;
+      if (mediation) f.mediationAccountId = account;
       f.activeCheckpoint = {
         at: (this.coordination.clock ?? Date.now)(),
         runnerId: this.runnerId,
@@ -3678,17 +3694,12 @@ export class DeliveryController {
   async syntheticTask(id: string): Promise<Delivery> {
     const runtime = this.coordination.synthetic;
     const qualified = await this.qualify(id);
-    const decision =
-      qualified.qualification?.subscriptionMediation?.mechanismDecision;
+    const decision = qualifiedDecision(qualified);
     if (
       !runtime ||
       runtime !== this.coordination.offline ||
       runtime.version !== syntheticTaskVersion ||
-      !decision?.qualified ||
-      decision.scope !==
-        subscriptionDecisionScope(
-          qualified.qualification?.offlineAdmission?.binding,
-        )
+      !decision
     )
       throw new DeliveryError(
         "Synthetic work requires a trusted fixed task runtime and independent positive authentication; no inference is authorized.",

@@ -413,3 +413,16 @@ collection means a turn that completed after its authority lapsed is never
 admitted. Binding to the mediation account and production restart
 authorization remain open. Production remains disabled. See the
 [monitoring receipt](../ticket04-coding-usage-monitoring-receipt.md).
+
+## 19 October: linking coding usage to the qualified mediation account
+
+The owner chose "match when qualified". When a delivery has a qualified
+model-only mediation decision, coding re-qualifies first, and its usage must
+come from exactly that decision's account. The first such launch links the
+feature. A linked feature refuses coding if the decision is withdrawn or its
+evidence regresses. A delivery without a decision keeps the current controlled
+behavior, and a strict requirement is deferred to production integration.
+Usage and decision account IDs are derived differently, which can make
+mediated launches fail closed; reconciling them belongs to production
+integration. See the
+[mediation account receipt](../ticket04-coding-mediation-account-receipt.md).
