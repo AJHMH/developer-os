@@ -385,7 +385,9 @@ else:
     ordinary(binary)
     if h(pathlib.Path(binary).read_bytes())!=R['cliSha256']: fail()
     effective(container(),False)
-    record['phase']='launching';save(recordPath,record)
+    # Durable before start: stop rewrites the phase, and recovery must never
+    # return a home that a started worker could have changed.
+    record['phase']='launching';record['launchAttempted']=True;save(recordPath,record)
     pod('start',R['name'])
     c=container();record['group']=group(c['State']['Pid']);record['pids']=census(record['group']);save(recordPath,record)
     if not record['pids']: fail()
@@ -439,6 +441,30 @@ else:
     first=collect_files()
     if first!=collect_files() or not gone(record): fail()
     result=dict(files=first)
+   elif R['action']=='recover-resume':
+    # Return a home stranded by an interrupted, never-launched resume. Each step
+    # is idempotent; ambiguous or foreign state refuses rather than guessing.
+    previous=R.get('resumeFrom');admission=record.get('admission',{})
+    if record['phase']!='stopped' or record.get('launchAttempted') or record['group'] or record['pids'] or record.get('recovered') or not isinstance(previous,dict) or admission.get('resumeFrom')!=previous: fail()
+    exists=subprocess.run(['/usr/bin/podman','container','exists',R['name']],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+    if exists.returncode==0:
+     c=container()
+     if c['State'].get('Running') or c['State'].get('Pid')!=0: fail()
+    elif exists.returncode!=1: fail()
+    oldName='aios-coding-'+h((R['authority']+previous['operationId']).encode())[:32]
+    oldPath=root+'/'+oldName+'.json';predecessor=read(oldPath)
+    oldIdentity=h(json.dumps(dict(operationId=previous['operationId'],fence=previous['fence']),sort_keys=True).encode())
+    if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') not in [None,identity]: fail()
+    oldHome=root+'/'+oldName+'/home'
+    if os.path.lexists(home):
+     # Prepare reserves before moving, so a moved home must still be reserved.
+     if os.path.lexists(oldHome) or predecessor.get('resumedBy')!=identity: fail()
+     os.rename(home,oldHome)
+    elif not os.path.lexists(oldHome): fail()
+    if predecessor.get('resumedBy'):
+     del predecessor['resumedBy'];save(oldPath,predecessor)
+    record['recovered']=True;save(recordPath,record)
+    result=dict(recovered=True)
    else: fail()
 print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha256'],**(result if 'result' in globals() else {}),**(dict(stopped=True,remainingProcesses=0) if R['action']=='stop' else {}))))
 
@@ -941,6 +967,48 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       finishedUs: result.finishedUs as number,
       code: result.code as number,
       status: result.status as number,
+      pins,
+    };
+  }
+  /** Return the retained home of an interrupted, never-launched resume to its
+   * explicitly named predecessor and release the one-use reservation. The
+   * successor must already be independently stopped; it can never be reused. */
+  async recoverInterruptedResume(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+  ): Promise<{
+    operationId: string;
+    fence: number;
+    recovered: true;
+    pins: CodingPins;
+  }> {
+    const uuid =
+      /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+    const identity = (value: CodingSession | undefined) =>
+      !!value &&
+      typeof value.operationId === "string" &&
+      uuid.test(value.operationId) &&
+      Number.isSafeInteger(value.fence) &&
+      value.fence >= 1;
+    if (
+      !identity(session) ||
+      !identity(resumeFrom) ||
+      resumeFrom.operationId === session.operationId ||
+      resumeFrom.fence > session.fence ||
+      resumeFrom.state !== "stopped" ||
+      !["start", "resume"].includes(resumeFrom.intent)
+    )
+      throw Error("Unsupported native resume recovery");
+    const bound = this.session(session);
+    const { result, pins } = await this.invoke("recover-resume", bound, {
+      resumeFrom: this.session(resumeFrom),
+    });
+    if (result.recovered !== true)
+      throw Error("Native resume recovery is uncertain");
+    return {
+      operationId: bound.operationId,
+      fence: bound.fence,
+      recovered: true,
       pins,
     };
   }

@@ -535,3 +535,271 @@ test(
     );
   },
 );
+
+const interruptedOperation = "52345678-1234-4234-8234-123456789abc";
+const freshOperation = "62345678-1234-4234-8234-123456789abc";
+const laterOperation = "72345678-1234-4234-8234-123456789abc";
+const interruptedSuccessor = {
+  ...session,
+  operationId: interruptedOperation,
+  fence: 2,
+  intent: "resume",
+  state: "stopped",
+};
+const namedPredecessor = { ...session, state: "stopped" };
+
+// Strand a resume: the external engine refuses creation after the home
+// transfer. `arrange` runs against the launched predecessor first.
+async function strandedResume(t, arrange = () => {}) {
+  const fixture = await launchedGuest(t, { threadId: resumeThread });
+  const { transport, read, write } = fixture;
+  const predecessorHome = read().container.Mounts.find(
+    (m) => m.Destination === "/session",
+  ).Source;
+  arrange(predecessorHome);
+  write({ ...read(), createUnavailable: true });
+  await assert.rejects(
+    transport.run(
+      await nativeResumeRequest(transport, {
+        operationId: interruptedOperation,
+      }),
+      () => {},
+    ),
+  );
+  write({ ...read(), createUnavailable: false });
+  // The management record sits beside each session's directory.
+  const predecessorRecord = predecessorHome.replace(/\/home$/, ".json");
+  return { ...fixture, predecessorHome, predecessorRecord };
+}
+// Every retained session home in the guest's external management state.
+function sessionHomes(root) {
+  return realSpawnSync(
+    "find",
+    [
+      `${root}/.local/state/aios-coding-v1`,
+      "-mindepth",
+      "2",
+      "-maxdepth",
+      "2",
+      "-name",
+      "home",
+    ],
+    { encoding: "utf8" },
+  )
+    .stdout.split("\n")
+    .filter(Boolean)
+    .sort();
+}
+const resumeAgain = async (transport, operationId = laterOperation) =>
+  transport.run(
+    await nativeResumeRequest(transport, { operationId, fence: 3 }),
+    () => {},
+  );
+
+test(
+  "an interrupted resume preparation returns the retained home to its named predecessor",
+  posixGuest,
+  async (t) => {
+    const { transport, predecessorHome } = await strandedResume(t, (home) =>
+      realWriteFileSync(`${home}/retained-session`, "thread canary"),
+    );
+    await assert.rejects(
+      resumeAgain(transport, freshOperation),
+      "a reserved predecessor cannot be resumed before recovery",
+    );
+    const recovered = await transport.recoverInterruptedResume(
+      interruptedSuccessor,
+      namedPredecessor,
+    );
+    assert.equal(recovered.recovered, true);
+    assert.equal(
+      realReadFileSync(`${predecessorHome}/retained-session`, "utf8"),
+      "thread canary",
+    );
+    const output = [];
+    const result = await transport.run(
+      await nativeResumeRequest(transport, {
+        operationId: laterOperation,
+        fence: 3,
+      }),
+      (bytes) => output.push(bytes),
+    );
+    assert.equal(result.exitCode, 1);
+    assert.match(Buffer.concat(output).toString(), new RegExp(resumeThread));
+  },
+);
+
+for (const refusal of [
+  "launch-attempted-successor",
+  "moved-home-without-reservation",
+  "launched-successor",
+  "different-predecessor",
+  "already-recovered",
+  "foreign-reservation",
+  "foreign-reservation-after-return",
+  "unstopped-successor",
+  "both-homes",
+])
+  test(
+    `interrupted resume recovery refuses ${refusal} without moving any retained home`,
+    posixGuest,
+    async (t) => {
+      let fixture;
+      let successor = interruptedSuccessor,
+        predecessor = namedPredecessor;
+      if (refusal === "launched-successor") {
+        // A successor that actually ran owns a genuine continuation.
+        fixture = await launchedGuest(t, { threadId: resumeThread });
+        await fixture.transport.run(
+          await nativeResumeRequest(fixture.transport),
+          () => {},
+        );
+        successor = { ...interruptedSuccessor, operationId: resumedOperation };
+      } else if (refusal === "launch-attempted-successor") {
+        // Start failed after launch was attempted: Codex may have touched the home.
+        fixture = await launchedGuest(t, { threadId: resumeThread });
+        fixture.write({ ...fixture.read(), startUnavailable: true });
+        await assert.rejects(
+          fixture.transport.run(
+            await nativeResumeRequest(fixture.transport, {
+              operationId: interruptedOperation,
+            }),
+            () => {},
+          ),
+        );
+        fixture.write({ ...fixture.read(), startUnavailable: false });
+      } else fixture = await strandedResume(t);
+      const { transport, root, predecessorHome, predecessorRecord } = fixture;
+      if (refusal === "different-predecessor") {
+        // A real, valid, stopped and unreserved session that this successor
+        // never named must not receive its stranded home.
+        await transport.run(
+          await launchRequest(transport, {
+            operationId: freshOperation,
+            allowanceMs: 60000,
+          }),
+          () => {},
+        );
+        predecessor = { ...namedPredecessor, operationId: freshOperation };
+      }
+      if (refusal === "already-recovered")
+        await transport.recoverInterruptedResume(
+          interruptedSuccessor,
+          namedPredecessor,
+        );
+      if (refusal === "foreign-reservation-after-return")
+        // The home is already back; another successor's reservation must survive.
+        realSpawnSync("mv", [sessionHomes(root)[0], predecessorHome]);
+      // Fault injection into the external guest state, not an assertion source.
+      if (
+        [
+          "foreign-reservation",
+          "foreign-reservation-after-return",
+          "moved-home-without-reservation",
+        ].includes(refusal)
+      ) {
+        const record = JSON.parse(realReadFileSync(predecessorRecord, "utf8"));
+        if (refusal.startsWith("foreign-reservation"))
+          record.resumedBy = "f".repeat(64);
+        else delete record.resumedBy;
+        realWriteFileSync(predecessorRecord, JSON.stringify(record));
+      }
+      if (refusal === "unstopped-successor") {
+        // A host lost mid-prepare never stopped the successor; its prepare may
+        // still be live, so its home cannot be taken back underneath it.
+        const successorRecord = sessionHomes(root)
+          .find((home) => home !== predecessorHome)
+          .replace(/\/home$/, ".json");
+        const record = JSON.parse(realReadFileSync(successorRecord, "utf8"));
+        record.phase = "preparing";
+        realWriteFileSync(successorRecord, JSON.stringify(record));
+      }
+      if (refusal === "both-homes")
+        realMkdirSync(predecessorHome, { mode: 0o700 });
+      const before = sessionHomes(root);
+      await assert.rejects(
+        transport.recoverInterruptedResume(successor, predecessor),
+      );
+      assert.deepEqual(
+        sessionHomes(root),
+        before,
+        "a refused recovery moves no home",
+      );
+    },
+  );
+
+for (const priorEffect of ["home-returned", "home-returned-and-released"])
+  test(
+    `interrupted resume recovery completes after a prior partial recovery: ${priorEffect}`,
+    posixGuest,
+    async (t) => {
+      const { transport, root, predecessorHome, predecessorRecord } =
+        await strandedResume(t);
+      // A previous attempt returned the home (and possibly released the
+      // reservation) before stopping; recovery must finish idempotently.
+      const [successorHome] = sessionHomes(root);
+      realSpawnSync("mv", [successorHome, predecessorHome]);
+      if (priorEffect === "home-returned-and-released") {
+        const record = JSON.parse(realReadFileSync(predecessorRecord, "utf8"));
+        delete record.resumedBy;
+        realWriteFileSync(predecessorRecord, JSON.stringify(record));
+      }
+      const recovered = await transport.recoverInterruptedResume(
+        interruptedSuccessor,
+        namedPredecessor,
+      );
+      assert.equal(recovered.recovered, true);
+      assert.equal((await resumeAgain(transport)).exitCode, 1);
+    },
+  );
+
+test(
+  "interrupted resume recovery refuses when the retained home is lost and keeps the predecessor blocked",
+  posixGuest,
+  async (t) => {
+    const { transport, root } = await strandedResume(t);
+    for (const home of sessionHomes(root))
+      realRmSync(home, { recursive: true, force: true });
+    await assert.rejects(
+      transport.recoverInterruptedResume(
+        interruptedSuccessor,
+        namedPredecessor,
+      ),
+    );
+    await assert.rejects(
+      resumeAgain(transport),
+      "an unrecoverable predecessor stays reserved",
+    );
+  },
+);
+
+test("interrupted resume recovery rejects malformed identities before guest effects", async (t) => {
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  for (const [successor, predecessor] of [
+    [interruptedSuccessor, undefined],
+    [interruptedSuccessor, { ...namedPredecessor, operationId: "--last" }],
+    [
+      interruptedSuccessor,
+      { ...namedPredecessor, operationId: interruptedOperation },
+    ],
+    [interruptedSuccessor, { ...namedPredecessor, fence: 3 }],
+    [interruptedSuccessor, { ...namedPredecessor, fence: 0 }],
+    [interruptedSuccessor, { ...namedPredecessor, state: "running" }],
+    [interruptedSuccessor, { ...namedPredecessor, intent: "recover" }],
+    [undefined, namedPredecessor],
+    [{ ...interruptedSuccessor, operationId: "../foreign" }, namedPredecessor],
+    [{ ...interruptedSuccessor, fence: 1.5 }, namedPredecessor],
+  ])
+    await assert.rejects(
+      transport.recoverInterruptedResume(successor, predecessor),
+    );
+  assert.equal(fixture.requests.length, 0);
+});
