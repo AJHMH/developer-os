@@ -372,3 +372,18 @@ A resume that launched without an observed thread still needs owner
 reconciliation, which doesn't exist yet. Production remains disabled, and
 native qualification is not-run. See the
 [controller resume receipt](../ticket04-controller-resume-plumbing-receipt.md).
+
+## 18 October: reconciling a launched resume with no observed thread
+
+This closes the last case left blocked by the controller resume slice. When
+recovery is refused because the resume had launched, the controller now
+reconciles it from the guest's own thread record:
+- If the guest recorded the expected thread, the successor is adopted as the
+  next predecessor.
+- Otherwise coding stays blocked until the owning delivery explicitly calls
+  `retireResume`. That decision is recorded. It quarantines the moved home,
+  which is never reused, and coding restarts fresh.
+
+Nothing is moved in either case. Production remains disabled, and native
+qualification is not-run. See the
+[reconciliation receipt](../ticket04-resume-reconciliation-receipt.md).

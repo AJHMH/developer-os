@@ -864,3 +864,155 @@ test(
     assert.deepEqual(sessionHomes(root), before);
   },
 );
+
+// A resume that launched, then lost its controller-side stream: the guest
+// may or may not have recorded the CLI thread before the worker stopped.
+const launchedSuccessor = {
+  ...session,
+  operationId: resumedOperation,
+  fence: 2,
+  intent: "resume",
+  state: "stopped",
+  threadId: resumeThread,
+};
+async function launchedResume(t, { threadRecorded }) {
+  const fixture = await launchedGuest(t, { threadId: resumeThread });
+  const { transport, read, write, root } = fixture;
+  if (!threadRecorded) write({ ...read(), startUnavailable: true });
+  await assert.rejects(
+    transport.run(await nativeResumeRequest(transport), () => {
+      throw Error("controller rejected the stream");
+    }),
+  );
+  if (!threadRecorded) write({ ...read(), startUnavailable: false });
+  await transport.stop({ ...launchedSuccessor, state: "running" });
+  await assert.rejects(
+    transport.recoverInterruptedResume(launchedSuccessor, namedPredecessor),
+    "a launched resume is never recovered",
+  );
+  return { ...fixture, before: sessionHomes(root) };
+}
+
+test(
+  "a launched resume whose thread the guest recorded is adopted as the next predecessor",
+  posixGuest,
+  async (t) => {
+    const { transport, root, before } = await launchedResume(t, {
+      threadRecorded: true,
+    });
+    const reconciled = await transport.reconcileInterruptedResume(
+      launchedSuccessor,
+      namedPredecessor,
+      false,
+    );
+    assert.equal(reconciled.outcome, "adopted");
+    assert.deepEqual(sessionHomes(root), before, "nothing was moved");
+    await transport.run(
+      await nativeResumeRequest(transport, {
+        operationId: laterOperation,
+        fence: 3,
+        resumeFrom: { ...launchedSuccessor },
+      }),
+      () => {},
+    );
+  },
+);
+
+test(
+  "a launched resume without a recorded thread stays unresolved until the owner retires it",
+  posixGuest,
+  async (t) => {
+    const { transport, root, before } = await launchedResume(t, {
+      threadRecorded: false,
+    });
+    const observed = await transport.reconcileInterruptedResume(
+      launchedSuccessor,
+      namedPredecessor,
+      false,
+    );
+    assert.equal(observed.outcome, "unresolved");
+    const retired = await transport.reconcileInterruptedResume(
+      launchedSuccessor,
+      namedPredecessor,
+      true,
+    );
+    assert.equal(retired.outcome, "retired");
+    assert.deepEqual(sessionHomes(root), before, "the home stays quarantined");
+    for (const resumeFrom of [namedPredecessor, launchedSuccessor])
+      await assert.rejects(
+        transport.run(
+          await nativeResumeRequest(transport, {
+            operationId: laterOperation,
+            fence: 3,
+            resumeFrom: { ...resumeFrom, threadId: undefined },
+          }),
+          () => {},
+        ),
+        "neither lineage session is ever resumed again",
+      );
+  },
+);
+
+test(
+  "reconciliation refuses a resume that never launched",
+  posixGuest,
+  async (t) => {
+    const { transport } = await strandedResume(t);
+    for (const retire of [false, true])
+      await assert.rejects(
+        transport.reconcileInterruptedResume(
+          interruptedSuccessor,
+          namedPredecessor,
+          retire,
+        ),
+      );
+  },
+);
+
+for (const fault of ["home-returned", "foreign-reservation"])
+  test(
+    `reconciliation refuses inconsistent launched-resume state: ${fault}`,
+    posixGuest,
+    async (t) => {
+      const { transport, root } = await launchedResume(t, {
+        threadRecorded: false,
+      });
+      // Fault injection into the external guest state, not an assertion source.
+      const homes = sessionHomes(root);
+      assert.equal(homes.length, 1, "the launched successor holds the home");
+      const predecessorRecord = realSpawnSync(
+        "find",
+        [
+          `${root}/.local/state/aios-coding-v1`,
+          "-maxdepth",
+          "1",
+          "-name",
+          "aios-coding-*.json",
+        ],
+        { encoding: "utf8" },
+      )
+        .stdout.split("\n")
+        .filter(Boolean)
+        .find((path) => !homes[0].startsWith(path.replace(/\.json$/, "")));
+      if (fault === "home-returned")
+        realSpawnSync("mv", [
+          homes[0],
+          predecessorRecord.replace(/\.json$/, "/home"),
+        ]);
+      else {
+        const record = JSON.parse(realReadFileSync(predecessorRecord, "utf8"));
+        record.resumedBy = "f".repeat(64);
+        realWriteFileSync(predecessorRecord, JSON.stringify(record));
+      }
+      const before = sessionHomes(root);
+      for (const retire of [false, true])
+        await assert.rejects(
+          transport.reconcileInterruptedResume(
+            launchedSuccessor,
+            namedPredecessor,
+            retire,
+          ),
+        );
+      assert.deepEqual(sessionHomes(root), before);
+    },
+  );

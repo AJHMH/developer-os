@@ -2,12 +2,14 @@ import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { hostname } from "node:os";
-import type {
-  CodingPins,
-  CodingCollection,
-  CodingRequest,
-  CodingSession,
-  IsolatedCodingTransport,
+import {
+  resumeReconciliations,
+  type CodingPins,
+  type CodingCollection,
+  type CodingRequest,
+  type CodingSession,
+  type IsolatedCodingTransport,
+  type ResumeReconciliation,
 } from "./feature-candidate.js";
 import { podmanMachine, podmanCommand } from "./podman-platform.js";
 import { admittedPath } from "./workspace.js";
@@ -138,6 +140,11 @@ def save(path,value):
  fd=os.open(os.path.dirname(path),os.O_RDONLY|os.O_DIRECTORY)
  try: os.fsync(fd)
  finally: os.close(fd)
+def predecessor_of(previous):
+ # The explicitly named predecessor's record, path, directory name and identity.
+ name='aios-coding-'+h((R['authority']+previous['operationId']).encode())[:32]
+ identity=h(json.dumps(dict(operationId=previous['operationId'],fence=previous['fence']),sort_keys=True).encode())
+ return name,root+'/'+name+'.json',read(root+'/'+name+'.json'),identity
 def read(path):
  ordinary(path)
  with open(path) as f: return json.load(f)
@@ -310,7 +317,7 @@ else:
     oldName='aios-coding-'+h((R['authority']+oldId).encode())[:32]
     oldPath=root+'/'+oldName+'.json';predecessor=read(oldPath)
     oldIdentity=h(json.dumps(dict(operationId=oldId,fence=oldFence),sort_keys=True).encode())
-    if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') or predecessor.get('threadId')!=thread or predecessor['binding']!=binding or predecessor.get('pins')!=R['pins'] or predecessor.get('lease') or not gone(predecessor): fail()
+    if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') or predecessor.get('reconciled') or predecessor.get('threadId')!=thread or predecessor['binding']!=binding or predecessor.get('pins')!=R['pins'] or predecessor.get('lease') or not gone(predecessor): fail()
     oldAdmission=predecessor.get('admission',{})
     if oldAdmission.get('sourceRevision')!=R['sourceRevision'] or oldAdmission.get('branch')!=branch: fail()
     oldContainer=obj('inspect',oldName)[0]
@@ -453,9 +460,7 @@ else:
      c=container()
      if c['State'].get('Running') or c['State'].get('Pid')!=0: fail()
     elif exists.returncode!=1: fail()
-    oldName='aios-coding-'+h((R['authority']+previous['operationId']).encode())[:32]
-    oldPath=root+'/'+oldName+'.json';predecessor=read(oldPath)
-    oldIdentity=h(json.dumps(dict(operationId=previous['operationId'],fence=previous['fence']),sort_keys=True).encode())
+    oldName,oldPath,predecessor,oldIdentity=predecessor_of(previous)
     if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') not in [None,identity]: fail()
     oldHome=root+'/'+oldName+'/home'
     if unprepared:
@@ -470,6 +475,26 @@ else:
      del predecessor['resumedBy'];save(oldPath,predecessor)
     record['recovered']=True;save(recordPath,record)
     result=dict(recovered=True)
+   elif R['action']=='reconcile-resume':
+    # Settle a launched resume whose thread never reached the controller. The
+    # guest's own thread record decides; nothing is ever moved or reused.
+    previous=R.get('resumeFrom');admission=record.get('admission',{});thread=admission.get('threadId')
+    if record['phase']!='stopped' or not record.get('launchAttempted') or record.get('recovered') or not isinstance(previous,dict) or admission.get('resumeFrom')!=previous or not isinstance(thread,str) or type(R.get('retire')) is not bool or not gone(record): fail()
+    exists=subprocess.run(['/usr/bin/podman','container','exists',R['name']],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+    if exists.returncode==0:
+     c=container()
+     if c['State'].get('Running') or c['State'].get('Pid')!=0: fail()
+    elif exists.returncode!=1: fail()
+    oldName,oldPath,predecessor,oldIdentity=predecessor_of(previous)
+    if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy')!=identity: fail()
+    # A launched resume holds the moved home; anything else is not this state.
+    if os.path.lexists(root+'/'+oldName+'/home') or not os.path.lexists(home): fail()
+    if record.get('threadId')==thread and not record.get('reconciled'): outcome='adopted'
+    elif record.get('threadId') is not None: fail()
+    elif R['retire'] or record.get('reconciled')=='retired':
+     record['reconciled']='retired';save(recordPath,record);outcome='retired'
+    else: outcome='unresolved'
+    result=dict(outcome=outcome)
    else: fail()
 print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha256'],**(result if 'result' in globals() else {}),**(dict(stopped=True,remainingProcesses=0) if R['action']=='stop' else {}))))
 
@@ -986,6 +1011,54 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     recovered: true;
     pins: CodingPins;
   }> {
+    const bound = this.resumePair(session, resumeFrom);
+    const { result, pins } = await this.invoke("recover-resume", bound, {
+      resumeFrom: this.session(resumeFrom),
+    });
+    if (result.recovered !== true)
+      throw Error("Native resume recovery is uncertain");
+    return {
+      operationId: bound.operationId,
+      fence: bound.fence,
+      recovered: true,
+      pins,
+    };
+  }
+  /** Settle a launched resume whose thread never reached the controller. The
+   * guest adopts it when it recorded the expected thread; otherwise only an
+   * explicit owner retirement quarantines the lineage. Nothing is moved. */
+  async reconcileInterruptedResume(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+    retire: boolean,
+  ): Promise<{
+    operationId: string;
+    fence: number;
+    outcome: ResumeReconciliation;
+    pins: CodingPins;
+  }> {
+    if (typeof retire !== "boolean")
+      throw Error("Unsupported native resume reconciliation");
+    const bound = this.resumePair(session, resumeFrom);
+    const { result, pins } = await this.invoke("reconcile-resume", bound, {
+      resumeFrom: this.session(resumeFrom),
+      retire,
+    });
+    const outcome = result.outcome as ResumeReconciliation;
+    if (!resumeReconciliations.includes(outcome))
+      throw Error("Native resume reconciliation is uncertain");
+    return {
+      operationId: bound.operationId,
+      fence: bound.fence,
+      outcome,
+      pins,
+    };
+  }
+  /** Validate an explicit successor/predecessor pair before guest effects. */
+  private resumePair(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+  ): CodingSession {
     const uuid =
       /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
     const identity = (value: CodingSession | undefined) =>
@@ -1002,19 +1075,8 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       resumeFrom.state !== "stopped" ||
       !["start", "resume"].includes(resumeFrom.intent)
     )
-      throw Error("Unsupported native resume recovery");
-    const bound = this.session(session);
-    const { result, pins } = await this.invoke("recover-resume", bound, {
-      resumeFrom: this.session(resumeFrom),
-    });
-    if (result.recovered !== true)
-      throw Error("Native resume recovery is uncertain");
-    return {
-      operationId: bound.operationId,
-      fence: bound.fence,
-      recovered: true,
-      pins,
-    };
+      throw Error("Unsupported native resume pair");
+    return this.session(session);
   }
   async stop(session: CodingSession) {
     const { result } = await this.invoke("stop", this.session(session));
