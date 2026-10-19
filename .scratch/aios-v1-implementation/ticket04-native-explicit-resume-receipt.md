@@ -34,7 +34,8 @@ their identities cannot stop the new worker or claim the moved home again.
 
 This native-only input is not wired into the production controller. The controlled
 runtime guard remains intact. Fresh model-only authority, usage/restart approval,
-base refresh, general recovery after a partially prepared home transfer, and real
+base refresh, controller orchestration of partial-transfer recovery (transport recovery: see
+ticket04-native-resume-transfer-recovery-receipt.md), and real
 Windows/macOS resumed CLI and adversarial isolation qualification remain open.
 No online inference, credentials, provisioning or real VM observation was used.
 Historical macOS receipts bind earlier versions and do not qualify this runtime.

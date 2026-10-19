@@ -135,6 +135,7 @@ def run(args, **kwargs):
             output = json.dumps(info).encode()
         elif action == 'ps': output = json.dumps([{'Names': [name]} for name, value in containers().items() if value['State']['Running']]).encode()
         elif action == 'image': output = json.dumps([{'RepoDigests': [request['template']], 'Architecture': request['guestArch'], 'Config': {'Env': ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']}}]).encode()
+        elif action == 'create' and state.get('createUnavailable'): code = 1  # external engine refuses creation
         elif action == 'create':
             if state.get('largeDatabase'):
                 database = root / 'engine-private.db'
@@ -164,6 +165,7 @@ def run(args, **kwargs):
         elif action == 'inspect':
             if not c: code = 1
             else: output = json.dumps([c]).encode()
+        elif action == 'start' and state.get('startUnavailable'): code = 1  # external engine fails to start
         elif action == 'start': c['State'].update(Running=True, Pid=c['FixturePid'], Status='running');set_alive(c, True)
         elif action == 'exec':
             state['timeOffset'] = state.get('timeOffset', 0) + state.get('advanceAfterLaunch', 0)

@@ -329,3 +329,26 @@ again. Resume now refuses a retained home containing Codex configuration
 `rules/`), so one turn cannot configure the next, and resumed turns pin
 `sandbox_mode="workspace-write"` as first launch does. An offline,
 credential-free native resume procedure is provided; its outcome is not-run.
+
+## 18 October: native resume partial-transfer recovery slice
+
+Added `NativePodmanCodingTransport.recoverInterruptedResume`. When a resume
+moves the predecessor's private home and then stops before it attempts launch,
+this call returns the home to the explicitly named predecessor and releases
+only that successor's reservation. The successor is consumed for good. The
+following cases refuse and leave the home where it is:
+- launch was saved as attempted (`launchAttempted`), or the successor ran;
+- the successor is not stopped;
+- the predecessor named does not match the successor's admission;
+- a foreign reservation, a moved home with no reservation, homes present in
+  both sessions, or a lost home.
+
+Home contents are not rechecked here; the next resume's retained-home check
+does that.
+
+This is implementation at the offline transport seam only. Controller
+orchestration and native qualification of recovery remain open, and production
+remains disabled. See the
+[recovery receipt](../ticket04-native-resume-transfer-recovery-receipt.md) for
+crash-point coverage, the mutation table and the guards that are redundant by
+design.
