@@ -803,3 +803,64 @@ test("interrupted resume recovery rejects malformed identities before guest effe
     );
   assert.equal(fixture.requests.length, 0);
 });
+
+// A resume refused by the retained-home check never records its preparation;
+// the controller's exact-session stop then leaves only a revoked record.
+async function unpreparedResume(t) {
+  const fixture = await strandedResume(t, (home) =>
+    realWriteFileSync(`${home}/config.toml`, "planted by a prior turn"),
+  );
+  await fixture.transport.stop({ ...interruptedSuccessor, state: "running" });
+  return fixture;
+}
+
+test(
+  "interrupted resume recovery releases a successor whose preparation was never recorded",
+  posixGuest,
+  async (t) => {
+    const { transport, root } = await unpreparedResume(t);
+    const before = sessionHomes(root);
+    const recovered = await transport.recoverInterruptedResume(
+      interruptedSuccessor,
+      namedPredecessor,
+    );
+    assert.equal(recovered.recovered, true);
+    assert.deepEqual(sessionHomes(root), before, "nothing was moved");
+    await assert.rejects(
+      transport.recoverInterruptedResume(
+        interruptedSuccessor,
+        namedPredecessor,
+      ),
+      "the successor is consumed",
+    );
+  },
+);
+
+test(
+  "interrupted resume recovery refuses an unrecorded preparation that holds a home",
+  posixGuest,
+  async (t) => {
+    const { transport, root, predecessorRecord } = await unpreparedResume(t);
+    // Fault injection into the external guest state, not an assertion source.
+    const state = `${root}/.local/state/aios-coding-v1`;
+    const successorRecord = realSpawnSync(
+      "find",
+      [state, "-maxdepth", "1", "-name", "aios-coding-*.json"],
+      { encoding: "utf8" },
+    )
+      .stdout.split("\n")
+      .find((path) => path && path !== predecessorRecord);
+    realMkdirSync(successorRecord.replace(/\.json$/, "/home"), {
+      recursive: true,
+      mode: 0o700,
+    });
+    const before = sessionHomes(root);
+    await assert.rejects(
+      transport.recoverInterruptedResume(
+        interruptedSuccessor,
+        namedPredecessor,
+      ),
+    );
+    assert.deepEqual(sessionHomes(root), before);
+  },
+);

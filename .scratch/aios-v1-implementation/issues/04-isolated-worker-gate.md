@@ -352,3 +352,23 @@ remains disabled. See the
 [recovery receipt](../ticket04-native-resume-transfer-recovery-receipt.md) for
 crash-point coverage, the mutation table and the guards that are redundant by
 design.
+
+## 18 October: controller explicit-session resume plumbing
+
+The controller now passes explicit-session resume through to the transport.
+
+- A resumed coding turn names its exact stopped predecessor as `resumeFrom`.
+  The session persists it, and the pinned launch binding fences it.
+- A resume that stops without observing its CLI thread may have moved the
+  predecessor's retained home. Until the same trusted runtime verifies
+  recovery, it blocks dispatch, phase resume and release as `UNCERTAIN_SESSION`.
+  Recovery runs after the turn, or through `recover` after a pause or
+  controller loss.
+- A recovered resume names the original predecessor again.
+- The guest now also recovers a resume that was refused before its
+  preparation was recorded, which until now stayed blocked forever.
+
+A resume that launched without an observed thread still needs owner
+reconciliation, which doesn't exist yet. Production remains disabled, and
+native qualification is not-run. See the
+[controller resume receipt](../ticket04-controller-resume-plumbing-receipt.md).

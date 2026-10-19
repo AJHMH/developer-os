@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { CoordinationOptions, Delivery } from "./controller.js";
 import { DeliveryError } from "./errors.js";
+import { needsResumeRecovery } from "./feature-candidate.js";
 import { matchesCanary } from "./offline-canary.js";
 import type { OnlineStop } from "./online-access.js";
 import type { WorkerQualification } from "./qualification.js";
@@ -64,6 +65,12 @@ interface LifecyclePorts {
 /** All current and retained process sessions must independently be stopped.
  * Repair attempts are orchestration allowances, not process sessions. */
 export function sessionsQuiescent(delivery: Delivery): boolean {
+  // A stopped resume that may have moved its predecessor's home is retained.
+  if (
+    delivery.feature?.session &&
+    needsResumeRecovery(delivery.feature.session)
+  )
+    return false;
   return [
     delivery.execution,
     ...(delivery.sessions ?? []),

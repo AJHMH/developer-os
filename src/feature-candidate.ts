@@ -85,6 +85,41 @@ export interface CodingSession {
   state: "running" | "stopped" | "uncertain";
   intent: "start" | "resume";
   threadId?: string;
+  /** The exact stopped session whose retained home a resume continues. */
+  resumeFrom?: CodingSession;
+  /** Durable: this operation's CLI thread was observed starting. */
+  threadStarted?: boolean;
+  /** Durable: an interrupted resume returned its home to `resumeFrom`. */
+  resumeRecovery?: "recovered";
+}
+/** A resume that stopped without observing its thread may have moved the
+ * predecessor's retained home and must be recovered before coding continues. */
+export function needsResumeRecovery(session: CodingSession): boolean {
+  return (
+    session.intent === "resume" &&
+    session.state === "stopped" &&
+    !!session.resumeFrom &&
+    !session.threadStarted &&
+    session.resumeRecovery !== "recovered"
+  );
+}
+/** Only the management identity crosses the runtime boundary. */
+export function codingBinding(session: CodingSession): CodingSession {
+  return {
+    operationId: session.operationId,
+    fence: session.fence,
+    state: session.state,
+    intent: session.intent,
+    ...(session.threadId ? { threadId: session.threadId } : {}),
+    ...(session.resumeFrom
+      ? { resumeFrom: codingBinding(session.resumeFrom) }
+      : {}),
+  };
+}
+export interface CodingRecovery {
+  operationId: string;
+  fence: number;
+  recovered: true;
 }
 export interface CodingRequest extends CodingSession {
   baseRefresh?: {
@@ -137,6 +172,11 @@ export interface FeatureRuntime {
   readonly mode: "controlled";
   readonly pins: CodingPins;
   execute(request: CodingRequest): Promise<CodingResult>;
+  /** Return a home stranded by an interrupted, never-launched resume. */
+  recover?(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+  ): Promise<CodingRecovery>;
   stop(session: CodingSession): Promise<{
     operationId: string;
     fence: number;
@@ -465,6 +505,10 @@ export interface IsolatedCodingTransport {
     exitCode: number;
     pins: CodingPins;
   }>;
+  recoverInterruptedResume?(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+  ): Promise<CodingRecovery & { pins: CodingPins }>;
   stop: FeatureRuntime["stop"];
   collect: FeatureRuntime["collect"];
 }
@@ -484,6 +528,7 @@ function codingLaunchBinding(request: CodingRequest): string {
       state: request.state,
       intent: request.intent,
       threadId: request.threadId,
+      resumeFrom: request.resumeFrom && codingBinding(request.resumeFrom),
       branch: request.branch,
       sourceRevision: request.sourceRevision,
       inputSha256: request.inputSha256,
@@ -538,6 +583,9 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       ...request,
       argv: [...request.argv],
       pins: { ...request.pins },
+      ...(request.resumeFrom
+        ? { resumeFrom: codingBinding(request.resumeFrom) }
+        : {}),
       files: copyFiles(request.files),
       ...(request.baseRefresh
         ? {
@@ -631,6 +679,33 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     const receipt = { ...(await this.transport.stop(binding)) };
     await this.inspectSession(binding);
     return receipt;
+  }
+  async recover(
+    session: CodingSession,
+    resumeFrom: CodingSession,
+  ): Promise<CodingRecovery> {
+    const binding = Object.freeze(codingBinding(session)),
+      previous = Object.freeze(codingBinding(resumeFrom));
+    if (!this.transport.recoverInterruptedResume)
+      throw Error("Resume recovery is unsupported by this transport");
+    await this.inspectSession(binding);
+    const receipt = await this.transport.recoverInterruptedResume(
+      binding,
+      previous,
+    );
+    if (
+      receipt.operationId !== binding.operationId ||
+      receipt.fence !== binding.fence ||
+      receipt.recovered !== true ||
+      JSON.stringify(receipt.pins) !== JSON.stringify(this.pins)
+    )
+      throw Error("Resume recovery binding changed");
+    await this.inspectSession(binding);
+    return {
+      operationId: receipt.operationId,
+      fence: receipt.fence,
+      recovered: true,
+    };
   }
   async collect(session: CodingSession) {
     const binding = Object.freeze(structuredClone(session));

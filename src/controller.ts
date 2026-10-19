@@ -28,8 +28,10 @@ import {
   candidateOutput,
   candidateRevisionFiles,
   candidateSource,
+  codingBinding,
   codingTurn,
   featureBranch,
+  needsResumeRecovery,
   featurePlan,
   validCodingPins,
   type CodingResult,
@@ -2555,13 +2557,26 @@ export class DeliveryController {
       f.sourceRevision = source.revision;
       f.branch = `codex/feature-${id}`;
       f.pins = structuredClone(runtime.pins);
+      const prior = f.session;
+      // A recovered resume returned the home, so its predecessor resumes again.
+      const predecessor =
+        prior?.resumeRecovery === "recovered" ? prior.resumeFrom! : prior;
+      const resuming = !repairId && !!prior?.threadId && !!predecessor;
       f.session = {
         operationId: randomUUID(),
         fence: delivery.ownership.fence,
         state: "running",
-        intent: !repairId && f.session?.threadId ? "resume" : "start",
-        ...(!repairId && f.session?.threadId
-          ? { threadId: f.session.threadId }
+        intent: resuming ? "resume" : "start",
+        ...(resuming
+          ? {
+              threadId: prior!.threadId,
+              resumeFrom: {
+                operationId: predecessor!.operationId,
+                fence: predecessor!.fence,
+                state: "stopped" as const,
+                intent: predecessor!.intent,
+              },
+            }
           : {}),
       };
       f.activeCheckpoint = {
@@ -2697,6 +2712,7 @@ export class DeliveryController {
                 )
                   throw new DeliveryError("Coding session identity changed.");
                 delivery.feature.session.threadId = threadId;
+                delivery.feature.session.threadStarted = true;
               }
             });
             return (
@@ -2741,8 +2757,10 @@ export class DeliveryController {
       );
       completed = turn.completed;
       this.change(id, (delivery) => {
-        if (delivery.feature?.session?.operationId === session.operationId)
+        if (delivery.feature?.session?.operationId === session.operationId) {
           delivery.feature.session.threadId = turn.threadId;
+          delivery.feature.session.threadStarted = true;
+        }
       });
       checkpoint();
     } catch {
@@ -2752,6 +2770,11 @@ export class DeliveryController {
       clearInterval(heartbeat);
     }
     const stopped = await this.stopFeature(id, session.operationId);
+    if (
+      stopped.feature?.session?.operationId === session.operationId &&
+      needsResumeRecovery(stopped.feature.session)
+    )
+      return this.recoverResume(id);
     if (
       !completed ||
       stopped.feature?.session?.state !== "stopped" ||
@@ -2917,6 +2940,8 @@ export class DeliveryController {
           nextAction:
             "Recover the exact coding session with the same trusted runtime.",
         };
+      else if (needsResumeRecovery(delivery.feature.session!))
+        delivery.blocker = this.resumeRecoveryBlocker();
     });
   }
 
@@ -3825,8 +3850,15 @@ export class DeliveryController {
     if (this.status(id).validation?.attempts.some((a) => a.state !== "stopped"))
       return this.stopValidation(id);
     const coding = this.status(id).feature?.session;
-    if (coding && coding.state !== "stopped")
-      return this.stopFeature(id, coding.operationId);
+    if (coding && coding.state !== "stopped") {
+      const stopped = await this.stopFeature(id, coding.operationId);
+      // A resume lost mid-preparation may have moved the predecessor's home.
+      return stopped.feature?.session &&
+        needsResumeRecovery(stopped.feature.session)
+        ? this.recoverResume(id)
+        : stopped;
+    }
+    if (coding && needsResumeRecovery(coding)) return this.recoverResume(id);
     let delivery = this.status(id);
     if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
       delivery = await this.recoverOnline(id);
@@ -3847,6 +3879,60 @@ export class DeliveryController {
       });
     }
     return recovered;
+  }
+
+  /** Return a home an interrupted resume may have moved. Uncertainty blocks
+   * coding until the same trusted runtime verifies the exact transfer. */
+  private async recoverResume(id: string): Promise<Delivery> {
+    const snapshot = this.status(id),
+      session = snapshot.feature?.session,
+      runtime = this.coordination.featureRuntime;
+    if (!session || !needsResumeRecovery(session)) return snapshot;
+    let recovered = false;
+    try {
+      if (
+        runtime?.mode === "controlled" &&
+        runtime.recover &&
+        JSON.stringify(runtime.pins) === JSON.stringify(snapshot.feature?.pins)
+      ) {
+        const receipt = await this.observe(
+          runtime.recover(
+            codingBinding(session),
+            codingBinding(session.resumeFrom!),
+          ),
+        );
+        recovered =
+          receipt?.operationId === session.operationId &&
+          receipt.fence === session.fence &&
+          receipt.recovered === true;
+      }
+    } catch {}
+    return this.change(id, (delivery) => {
+      const current = delivery.feature?.session;
+      if (
+        current?.operationId !== session.operationId ||
+        !needsResumeRecovery(current)
+      )
+        return;
+      if (recovered) {
+        current.resumeRecovery = "recovered";
+        if (
+          delivery.blocker.code === "UNCERTAIN_SESSION" &&
+          sessionsQuiescent(delivery)
+        )
+          delivery.blocker = this.disabledBlocker();
+      } else delivery.blocker = this.resumeRecoveryBlocker();
+    });
+  }
+
+  private resumeRecoveryBlocker(): Delivery["blocker"] {
+    return {
+      code: "UNCERTAIN_SESSION",
+      message:
+        "An interrupted coding resume left its retained session home unverified.",
+      nextAction:
+        "Recover this delivery with the same trusted runtime before coding continues.",
+    };
   }
 
   private stopSession(id: string): Promise<Delivery> {
