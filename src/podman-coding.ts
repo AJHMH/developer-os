@@ -379,7 +379,9 @@ else:
   else:
    if not record: fail()
    binding=snapshot()
-   if binding!=record['binding']: fail()
+   # Only stop writes a record without preparing, and it has no binding.
+   unprepared=R['action']=='recover-resume' and record['binding']=={} and 'admission' not in record
+   if binding!=record['binding'] and not unprepared: fail()
    if R['action']=='launch':
     if record['phase']!='prepared' or not isinstance(record.get('admission'),dict) or record['admission']!=R.get('admission') or record.get('pins')!=R.get('pins'): fail()
     ordinary(binary)
@@ -445,7 +447,7 @@ else:
     # Return a home stranded by an interrupted, never-launched resume. Each step
     # is idempotent; ambiguous or foreign state refuses rather than guessing.
     previous=R.get('resumeFrom');admission=record.get('admission',{})
-    if record['phase']!='stopped' or record.get('launchAttempted') or record['group'] or record['pids'] or record.get('recovered') or not isinstance(previous,dict) or admission.get('resumeFrom')!=previous: fail()
+    if record['phase']!='stopped' or record.get('launchAttempted') or record['group'] or record['pids'] or record.get('recovered') or not isinstance(previous,dict) or (not unprepared and admission.get('resumeFrom')!=previous): fail()
     exists=subprocess.run(['/usr/bin/podman','container','exists',R['name']],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
     if exists.returncode==0:
      c=container()
@@ -456,7 +458,10 @@ else:
     oldIdentity=h(json.dumps(dict(operationId=previous['operationId'],fence=previous['fence']),sort_keys=True).encode())
     if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') not in [None,identity]: fail()
     oldHome=root+'/'+oldName+'/home'
-    if os.path.lexists(home):
+    if unprepared:
+     # Preparation reserves and moves only after its record is saved.
+     if os.path.lexists(home) or predecessor.get('resumedBy')==identity: fail()
+    elif os.path.lexists(home):
      # Prepare reserves before moving, so a moved home must still be reserved.
      if os.path.lexists(oldHome) or predecessor.get('resumedBy')!=identity: fail()
      os.rename(home,oldHome)
@@ -470,10 +475,9 @@ print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha25
 
 `;
 
-/** Offline resume names its stopped predecessor; no global session selection. */
-export interface NativeCodingRequest extends CodingRequest {
-  resumeFrom?: CodingSession;
-}
+/** Native resume names its exact stopped predecessor through
+ * `CodingRequest.resumeFrom`; there is no global session selection. */
+export type NativeCodingRequest = CodingRequest;
 
 export interface NativeTimerObservation {
   loadState: "loaded" | "not-found";

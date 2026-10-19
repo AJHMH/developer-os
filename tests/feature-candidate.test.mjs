@@ -1111,3 +1111,339 @@ test("changed prepared launch refuses effect acceptance after an asynchronous wa
   assert.equal(result.feature.candidate, undefined);
   assert.equal(result.feature.session.state, "stopped");
 });
+
+const firstThread = "11111111-1111-4111-8111-111111111111";
+// A turn that starts its CLI thread and then fails leaves a stopped,
+// resumable session that owns that thread.
+const failedTurn = async (request) => ({
+  operationId: request.operationId,
+  fence: request.fence,
+  exitCode: 1,
+  events: [
+    { type: "thread.started", thread_id: firstThread },
+    { type: "turn.started" },
+    { type: "turn.failed", error: { message: "synthetic failure" } },
+  ],
+});
+// Preparation fails before the CLI starts, so no thread is ever observed.
+const unlaunchedTurn = async () => {
+  throw Error("synthetic preparation failure");
+};
+const named = ({ operationId, fence, intent }) => ({
+  operationId,
+  fence,
+  state: "stopped",
+  intent,
+});
+async function resumable(t) {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime),
+    requests = [],
+    recoveries = [];
+  let turn = failedTurn;
+  f.runtime.execute = async (request) => {
+    // Record only the launch data; callbacks and file bytes are not compared.
+    const { operationId, fence, intent, threadId, resumeFrom } = request;
+    requests.push(
+      structuredClone({ operationId, fence, intent, threadId, resumeFrom }),
+    );
+    return turn === "normal" ? normal(request) : turn(request);
+  };
+  f.runtime.recover = async (session, resumeFrom) => {
+    recoveries.push(structuredClone({ session, resumeFrom }));
+    return {
+      operationId: session.operationId,
+      fence: session.fence,
+      recovered: true,
+    };
+  };
+  await planAndValidate(f);
+  const first = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(first.feature.session.state, "stopped");
+  assert.equal(first.feature.session.threadId, firstThread);
+  return {
+    f,
+    requests,
+    recoveries,
+    origin: first.feature.session,
+    next: (behavior) => (turn = behavior),
+  };
+}
+
+test("a resumed coding turn names its exact stopped predecessor session", async (t) => {
+  const { f, requests, origin, next } = await resumable(t);
+  assert.equal(requests[0].resumeFrom, undefined);
+  next("normal");
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(resumed.feature.outcome, "admitted");
+  assert.equal(requests[1].intent, "resume");
+  assert.equal(requests[1].threadId, firstThread);
+  assert.deepEqual(requests[1].resumeFrom, named(origin));
+  assert.deepEqual(
+    new DeliveryController(f.state).status(f.delivery.id).feature.session
+      .resumeFrom,
+    named(origin),
+  );
+});
+
+test("a resume that never started its thread returns the home and resumes from the original predecessor", async (t) => {
+  const { f, requests, recoveries, origin, next } = await resumable(t);
+  next(unlaunchedTurn);
+  const interrupted = await f.controller.codeFeature(f.delivery.id);
+  const successor = requests[1];
+  assert.equal(interrupted.blocker.code, "DELIVERY_NOT_ENABLED");
+  assert.deepEqual(recoveries, [
+    {
+      session: {
+        operationId: successor.operationId,
+        fence: successor.fence,
+        state: "stopped",
+        intent: "resume",
+        threadId: firstThread,
+        resumeFrom: named(origin),
+      },
+      resumeFrom: named(origin),
+    },
+  ]);
+  next("normal");
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(resumed.feature.outcome, "admitted");
+  assert.deepEqual(requests[2].resumeFrom, named(origin));
+  assert.equal(requests[2].threadId, firstThread);
+});
+
+test("a resume whose thread started but failed keeps that successor as the next predecessor", async (t) => {
+  const { f, requests, recoveries, next } = await resumable(t);
+  await f.controller.codeFeature(f.delivery.id);
+  const successor = requests[1];
+  next("normal");
+  await f.controller.codeFeature(f.delivery.id);
+  assert.deepEqual(recoveries, []);
+  assert.deepEqual(requests[2].resumeFrom, named(successor));
+});
+
+for (const failure of ["refused", "unsupported"])
+  test(`an unverified resume recovery (${failure}) blocks coding until recovery succeeds`, async (t) => {
+    const { f, requests, recoveries, origin, next } = await resumable(t),
+      recover = f.runtime.recover;
+    if (failure === "refused")
+      f.runtime.recover = async () => {
+        throw Error("Native resume recovery is uncertain");
+      };
+    else delete f.runtime.recover;
+    next(unlaunchedTurn);
+    const blocked = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(blocked.blocker.code, "UNCERTAIN_SESSION");
+    next("normal");
+    await assert.rejects(f.controller.codeFeature(f.delivery.id));
+    assert.equal(requests.length, 2, "no further dispatch while blocked");
+    f.runtime.recover = recover;
+    const recovered = await f.controller.recover(f.delivery.id);
+    assert.equal(recovered.blocker.code, "DELIVERY_NOT_ENABLED");
+    assert.equal(recoveries.length, 1);
+    const resumed = await f.controller.codeFeature(f.delivery.id);
+    assert.equal(resumed.feature.outcome, "admitted");
+    assert.deepEqual(requests[2].resumeFrom, named(origin));
+  });
+
+// A controller over the same durable state, as after a restart.
+const controllerFor = (f, featureRuntime = f.runtime) =>
+  new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    validationRuntime: f.validation,
+    featureRuntime,
+    clock: () => f.now,
+  });
+// A controlled transport that streams the turn `run` returns as CLI JSON.
+function turnTransport(f, run) {
+  return {
+    mode: "controlled",
+    async inspect() {
+      return { ...f.runtime.pins };
+    },
+    async run(request, output) {
+      const result = await run(request);
+      output(
+        Buffer.from(
+          result.events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+        ),
+      );
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        exitCode: result.exitCode,
+        pins: { ...f.runtime.pins },
+      };
+    },
+    stop: (request) => f.runtime.stop(request),
+    collect: (request) => f.runtime.collect(request),
+  };
+}
+// Lose the controller mid-resume: its turn stays pending until settled, so
+// only the restarted controller acts on the delivery.
+async function loseResume({ f, next }) {
+  let release;
+  next(
+    () =>
+      new Promise((_, reject) => {
+        release = () => reject(Error("synthetic controller loss"));
+      }),
+  );
+  const lost = f.controller.codeFeature(f.delivery.id);
+  while (!release) await new Promise((resolve) => setImmediate(resolve));
+  return {
+    restarted: controllerFor(f),
+    settle: async () => {
+      release();
+      await lost;
+    },
+  };
+}
+
+// The pinned adapter over a controlled transport: the first turn fails after
+// its thread starts; the resume fails during preparation, before any output.
+async function pinnedResume(t, receipt) {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const runs = [],
+    recoveries = [];
+  const transport = turnTransport(f, async (request) => {
+    runs.push(structuredClone(request.resumeFrom));
+    if (runs.length > 1) throw Error("synthetic preparation failure");
+    return failedTurn(request);
+  });
+  if (receipt)
+    transport.recoverInterruptedResume = async (session, resumeFrom) => {
+      recoveries.push(structuredClone({ session, resumeFrom }));
+      return receipt(session, f.runtime.pins);
+    };
+  f.controller = controllerFor(
+    f,
+    new PinnedCodingRuntime(f.runtime.pins, transport),
+  );
+  await planAndValidate(f);
+  const origin = (await f.controller.codeFeature(f.delivery.id)).feature
+    .session;
+  const interrupted = await f.controller.codeFeature(f.delivery.id);
+  return { origin, interrupted, runs, recoveries };
+}
+
+test("the pinned adapter forwards the named predecessor and recovers its stranded home", async (t) => {
+  const { origin, interrupted, runs, recoveries } = await pinnedResume(
+    t,
+    (session, pins) => ({
+      operationId: session.operationId,
+      fence: session.fence,
+      recovered: true,
+      pins: { ...pins },
+    }),
+  );
+  assert.deepEqual(runs, [undefined, named(origin)]);
+  assert.equal(recoveries.length, 1);
+  assert.deepEqual(recoveries[0].resumeFrom, named(origin));
+  assert.equal(interrupted.feature.session.state, "stopped");
+  assert.equal(interrupted.blocker.code, "DELIVERY_NOT_ENABLED");
+});
+
+for (const [name, receipt] of [
+  ["unsupported transport", undefined],
+  [
+    "changed pins",
+    (session, pins) => ({
+      operationId: session.operationId,
+      fence: session.fence,
+      recovered: true,
+      pins: { ...pins, cliSha256: "f".repeat(64) },
+    }),
+  ],
+  [
+    "another operation",
+    (session, pins) => ({
+      operationId: session.resumeFrom.operationId,
+      fence: session.fence,
+      recovered: true,
+      pins: { ...pins },
+    }),
+  ],
+])
+  test(`the pinned adapter treats resume recovery with ${name} as unverified`, async (t) => {
+    const { interrupted } = await pinnedResume(t, receipt);
+    assert.equal(interrupted.blocker.code, "UNCERTAIN_SESSION");
+  });
+
+test("a resume interrupted by controller loss is recovered by the public recover action", async (t) => {
+  const resume = await resumable(t);
+  const { f, requests, recoveries, origin, next } = resume;
+  const { restarted, settle } = await loseResume(resume);
+  try {
+    const recovered = await restarted.recover(f.delivery.id);
+    assert.equal(recovered.feature.session.state, "stopped");
+    assert.equal(recoveries.length, 1);
+  } finally {
+    await settle();
+  }
+  next("normal");
+  const resumed = await restarted.codeFeature(f.delivery.id);
+  assert.equal(resumed.feature.outcome, "admitted");
+  assert.deepEqual(requests[2].resumeFrom, named(origin));
+});
+
+test("a recovery receipt for another operation leaves the resume unverified", async (t) => {
+  const { f, next } = await resumable(t);
+  f.runtime.recover = async (session, resumeFrom) => ({
+    operationId: resumeFrom.operationId,
+    fence: session.fence,
+    recovered: true,
+  });
+  next(unlaunchedTurn);
+  const blocked = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(blocked.blocker.code, "UNCERTAIN_SESSION");
+});
+
+test("the pinned adapter refuses a predecessor changed during pin inspection", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  let dispatches = 0;
+  const transport = {
+    ...turnTransport(f, async (request) => {
+      dispatches += 1;
+      return failedTurn(request);
+    }),
+    async inspect(request) {
+      if (request.resumeFrom) request.resumeFrom.fence += 1;
+      return { ...f.runtime.pins };
+    },
+  };
+  f.controller = controllerFor(
+    f,
+    new PinnedCodingRuntime(f.runtime.pins, transport),
+  );
+  await planAndValidate(f);
+  await f.controller.codeFeature(f.delivery.id);
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatches, 1, "a changed predecessor never dispatches");
+});
+
+test("a paused, lost resume blocks resumption and release until its home is recovered", async (t) => {
+  const resume = await resumable(t);
+  const { f, requests, recoveries, origin, next } = resume;
+  const { restarted, settle } = await loseResume(resume);
+  try {
+    const paused = await restarted.pause(f.delivery.id);
+    assert.equal(paused.blocker.code, "UNCERTAIN_SESSION");
+    // The stopped successor may hold the predecessor's home: not quiescent.
+    assert.throws(() => restarted.resume(f.delivery.id), /Recover/);
+    assert.throws(() => restarted.release(f.delivery.id), /shutdown/);
+    assert.equal(recoveries.length, 0);
+    const recovered = await restarted.recover(f.delivery.id);
+    assert.equal(recoveries.length, 1);
+    assert.equal(recovered.blocker.code, "DELIVERY_NOT_ENABLED");
+    await restarted.resume(f.delivery.id);
+    next("normal");
+    const resumed = await restarted.codeFeature(f.delivery.id);
+    assert.equal(resumed.feature.outcome, "admitted");
+    assert.deepEqual(requests[2].resumeFrom, named(origin));
+  } finally {
+    await settle();
+  }
+});
