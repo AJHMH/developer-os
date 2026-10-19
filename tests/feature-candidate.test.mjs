@@ -1674,3 +1674,187 @@ test("a resumed coding turn refuses usage from a different account than its firs
   await assert.rejects(f.controller.codeFeature(f.delivery.id), /account/i);
   assert.equal(dispatched.length, 1);
 });
+
+// A coding turn held open after its thread starts, until its worker is
+// stopped; usage is re-observed every few milliseconds while it runs.
+async function monitoredTurn(t, duringTurn) {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime),
+    stop = f.runtime.stop.bind(f.runtime),
+    dispatched = [];
+  let release = () => {};
+  f.runtime.stop = async (request) => {
+    release();
+    return stop(request);
+  };
+  f.runtime.execute = async (request) => {
+    dispatched.push(request);
+    if (dispatched.length > 1) return normal(request);
+    request.onEvent({ type: "thread.started", thread_id: firstThread });
+    await duringTurn(f);
+    return new Promise((_, reject) => {
+      release = () => reject(Error("synthetic worker stopped"));
+    });
+  };
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
+    validationRuntime: f.validation,
+    clock: () => f.now,
+    codingUsagePollMs: 5,
+  });
+  await planAndValidate(f);
+  const stopped = await f.controller.codeFeature(f.delivery.id);
+  return { f, stopped, dispatched };
+}
+
+for (const [name, change] of [
+  ["exhaustion", (f) => (f.usedPercent = 100)],
+  ["a lost usage observation", (f) => (f.subscription = async () => undefined)],
+  [
+    "an account change",
+    (f) => {
+      const healthy = f.subscription;
+      f.subscription = async (at) => ({
+        ...(await healthy(at)),
+        accountId: "account-2",
+      });
+    },
+  ],
+])
+  test(
+    `${name} during a coding turn stops it and preserves the resumable thread`,
+    { timeout: 10_000 },
+    async (t) => {
+      let restore;
+      const { f, stopped, dispatched } = await monitoredTurn(t, async (f) => {
+        const { usedPercent, subscription } = f;
+        restore = () => {
+          f.usedPercent = usedPercent;
+          f.subscription = subscription;
+        };
+        change(f);
+      });
+      assert.equal(stopped.feature.session.state, "stopped");
+      assert.equal(stopped.feature.session.threadId, firstThread);
+      assert.deepEqual(
+        stopped.feature.usageInterruptions.map((i) => i.operationId),
+        [dispatched[0].operationId],
+      );
+      await assert.rejects(
+        f.controller.codeFeature(f.delivery.id),
+        /usage|account/i,
+      );
+      assert.equal(
+        dispatched.length,
+        1,
+        "no continuation without fresh authority",
+      );
+      restore();
+      const resumed = await f.controller.codeFeature(f.delivery.id);
+      assert.equal(resumed.feature.session.intent, "resume");
+      assert.equal(dispatched[1].threadId, firstThread);
+    },
+  );
+
+test("monitoring keeps a healthy, approved coding turn running across polls", async (t) => {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime);
+  let polls = 0;
+  const healthy = f.subscription;
+  f.subscription = async (at) => {
+    polls += 1;
+    return healthy(at);
+  };
+  let during = 0;
+  f.runtime.execute = async (request) => {
+    const start = polls;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    during = polls - start;
+    return normal(request);
+  };
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
+    validationRuntime: f.validation,
+    clock: () => f.now,
+    codingUsagePollMs: 5,
+  });
+  await planAndValidate(f);
+  f.usedPercent = 85;
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+  f.controller.approveUsage(
+    f.delivery.id,
+    f.controller.status(f.delivery.id).usage.checkId,
+  );
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.outcome, "admitted");
+  assert.ok(during >= 2, "usage was re-observed while the turn ran");
+  assert.equal(result.feature.usageInterruptions, undefined);
+});
+
+test("the coding usage poll interval must be a bounded whole number of milliseconds", (t) => {
+  const f = codingFixture(t);
+  for (const codingUsagePollMs of [0, 1.5, 60_001, Number.NaN])
+    assert.throws(
+      () => new DeliveryController(f.state, f.options, { codingUsagePollMs }),
+      /usage poll interval/,
+    );
+  for (const codingUsagePollMs of [1, 60_000])
+    new DeliveryController(f.state, f.options, { codingUsagePollMs });
+});
+
+test("a turn that completes after usage was exhausted is stopped, not admitted", async (t) => {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime);
+  let operationId;
+  f.runtime.execute = async (request) => {
+    operationId = request.operationId;
+    const result = await normal(request);
+    f.usedPercent = 100;
+    return result;
+  };
+  await planAndValidate(f);
+  const stopped = await f.controller.codeFeature(f.delivery.id);
+  assert.notEqual(stopped.feature.outcome, "admitted");
+  assert.equal(stopped.feature.candidate, undefined);
+  assert.deepEqual(
+    stopped.feature.usageInterruptions.map((i) => i.operationId),
+    [operationId],
+  );
+  assert.equal(stopped.feature.session.threadId, firstThread, "work preserved");
+});
+
+test("a slow usage observation is never polled concurrently during a coding turn", async (t) => {
+  const f = codingFixture(t),
+    normal = f.runtime.execute.bind(f.runtime),
+    healthy = f.subscription;
+  let active = 0,
+    most = 0,
+    running = false;
+  f.subscription = async (at) => {
+    if (running) most = Math.max(most, ++active);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    if (running) active -= 1;
+    return healthy(at);
+  };
+  f.runtime.execute = async (request) => {
+    running = true;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    running = false;
+    return normal(request);
+  };
+  f.controller = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
+    validationRuntime: f.validation,
+    clock: () => f.now,
+    codingUsagePollMs: 2,
+  });
+  await planAndValidate(f);
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(most, 1, "one usage poll at a time");
+});

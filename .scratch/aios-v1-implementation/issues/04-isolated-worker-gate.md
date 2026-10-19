@@ -402,3 +402,14 @@ Exhaustion is never overridden, and each approval authorizes one operation.
 Usage monitoring during a turn, and binding to the qualified mediation
 account, remain open. Production remains disabled. See the
 [authority receipt](../ticket04-coding-model-authority-receipt.md).
+
+## 19 October: usage monitoring during coding turns
+
+A running coding turn now re-observes usage every `codingUsagePollMs`.
+Exhaustion, an account change or a lost observation interrupts it through the
+exact-session stop and records the lapse. A started thread stays resumable,
+and continuing needs fresh, newly bound authority. A final usage check before
+collection means a turn that completed after its authority lapsed is never
+admitted. Binding to the mediation account and production restart
+authorization remain open. Production remains disabled. See the
+[monitoring receipt](../ticket04-coding-usage-monitoring-receipt.md).

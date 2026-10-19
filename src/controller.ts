@@ -220,6 +220,8 @@ export interface CoordinationOptions {
   subscription?: SubscriptionReader;
   worker?: WorkerAdapter;
   observationTimeoutMs?: number;
+  /** How often a running coding turn re-observes usage (default 30 s). */
+  codingUsagePollMs?: number;
 }
 
 export interface Delivery {
@@ -343,6 +345,15 @@ export class DeliveryController {
     )
       throw new DeliveryError(
         "Use a worker observation timeout between 1 and 60000 milliseconds.",
+      );
+    if (
+      coordination.codingUsagePollMs !== undefined &&
+      (!Number.isSafeInteger(coordination.codingUsagePollMs) ||
+        coordination.codingUsagePollMs < 1 ||
+        coordination.codingUsagePollMs > 60000)
+    )
+      throw new DeliveryError(
+        "Use a usage poll interval between 1 and 60000 milliseconds.",
       );
     if (!stateDirectory.trim() || /[\u0000-\u001F\u007F]/.test(stateDirectory))
       throw new DeliveryError("Provide a valid state directory.");
@@ -2692,6 +2703,33 @@ export class DeliveryController {
     const interrupted = new Promise<undefined>((resolve) => {
       interrupt = resolve;
     });
+    // Re-observe usage while the turn runs: exhaustion, an account change or
+    // a lost observation stops it, preserving any started thread.
+    let usageLapsed = false,
+      monitoring = true,
+      polling = false;
+    // True, false for a usage lapse, or undefined after a control change.
+    const usagePermits = () =>
+      this.checkUsage(id)
+        .then((observed) =>
+          this.usageGate.permits(observed.usage, {
+            operationId: session.operationId,
+            accountId: account,
+          }),
+        )
+        .catch(() => undefined);
+    const usageMonitor = setInterval(() => {
+      if (polling) return;
+      polling = true;
+      void usagePermits().then((permitted) => {
+        polling = false;
+        // A poll that finishes after the turn ended changes nothing.
+        if (permitted || !monitoring) return;
+        if (permitted === false) usageLapsed = true;
+        interrupt(undefined);
+      });
+    }, this.coordination.codingUsagePollMs ?? workerUsagePollMs);
+    usageMonitor.unref();
     const heartbeat = setInterval(() => {
       try {
         if (!checkpoint()) interrupt(undefined);
@@ -2816,9 +2854,22 @@ export class DeliveryController {
       /* Only fixed safe status crosses the controller boundary. */
     } finally {
       clearTimeout(deadline);
+      monitoring = false;
       clearInterval(heartbeat);
+      clearInterval(usageMonitor);
     }
-    const stopped = await this.stopFeature(id, session.operationId);
+    let stopped = await this.stopFeature(id, session.operationId);
+    // Output is collected only under authority that still holds afterwards;
+    // exhaustion is never overridden, and the stopped thread stays resumable.
+    if (!usageLapsed && completed && (await usagePermits()) === false)
+      usageLapsed = true;
+    if (usageLapsed)
+      stopped = this.change(id, (delivery) => {
+        (delivery.feature!.usageInterruptions ??= []).push({
+          operationId: session.operationId,
+          at: new Date().toISOString(),
+        });
+      });
     if (
       stopped.feature?.session?.operationId === session.operationId &&
       needsResumeRecovery(stopped.feature.session)
@@ -2826,6 +2877,7 @@ export class DeliveryController {
       return this.recoverResume(id);
     if (
       !completed ||
+      usageLapsed ||
       stopped.feature?.session?.state !== "stopped" ||
       stopped.phase === "paused" ||
       stopped.phase === "cancelled" ||
