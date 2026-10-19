@@ -32,6 +32,8 @@ export interface FeatureEvidence extends FeaturePlan {
     validation: "not-run" | "passed";
   };
   extensions?: { addedMs: number; at: string }[];
+  /** The model-only subscription account the first coding launch used. */
+  usageAccountId?: string;
   /** Owner decisions retiring an unresolved resume lineage. */
   retirements?: { operationId: string; at: string }[];
   clarifications?: string[];

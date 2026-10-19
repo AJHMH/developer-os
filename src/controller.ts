@@ -2541,6 +2541,21 @@ export class DeliveryController {
       throw new DeliveryError(
         "Coding pins changed; requalification is required.",
       );
+    // Each coding launch, resume or repair needs fresh model-only usage
+    // authority: a low allowance needs owner approval, exhaustion is never
+    // overridden, and every approval binds to exactly one operation.
+    const usage = (await this.checkUsage(id)).usage!,
+      account = usage.accountId;
+    // An unknown account is never model-only authority, and a feature's
+    // turns all use the account its first coding launch used.
+    if (
+      !account ||
+      (feature.usageAccountId !== undefined &&
+        feature.usageAccountId !== account)
+    )
+      throw new DeliveryError(
+        "Coding usage authority must come from the same known model-only account as the first coding launch.",
+      );
     const prepared = this.change(id, (delivery) => {
       if (
         delivery.ownership.fence !== snapshot.ownership.fence ||
@@ -2597,6 +2612,17 @@ export class DeliveryController {
             }
           : {}),
       };
+      // Bind fresh authority from exactly this check to this operation; the
+      // gate refuses stale, unapproved or exhausted usage.
+      const bound =
+        delivery.usage?.checkId === usage.checkId &&
+        this.usageGate.bind(delivery.usage, f.session.operationId);
+      if (!bound)
+        throw new DeliveryError(
+          "Fresh model-only subscription usage authority is required before coding; exhaustion cannot be overridden.",
+        );
+      delivery.usage = bound;
+      f.usageAccountId = account;
       f.activeCheckpoint = {
         at: (this.coordination.clock ?? Date.now)(),
         runnerId: this.runnerId,
@@ -2759,7 +2785,12 @@ export class DeliveryController {
           allowanceMs:
             this.featureBudget(prepared).allowanceMs -
             this.featureBudget(prepared).activeMs,
-          mayDispatch: checkpoint,
+          // Recheck the bound authority after asynchronous pin inspection.
+          mayDispatch: () =>
+            checkpoint() &&
+            this.usageGate.permits(this.status(id).usage, {
+              operationId: session.operationId,
+            }),
           checkpoint,
         }),
         interrupted,

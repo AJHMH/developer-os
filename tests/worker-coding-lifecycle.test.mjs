@@ -38,6 +38,7 @@ test("changed shutdown pins fence import and redispatch until exact-session reco
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: adapter,
+    subscription: () => f.subscription(),
     validationRuntime: f.validation,
     clock: () => f.now,
   });
@@ -77,6 +78,7 @@ function lifecycleFixture(t) {
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: new PinnedCodingRuntime(f.runtime.pins, f.transport),
+    subscription: () => f.subscription(),
     validationRuntime: f.validation,
     clock: () => f.now,
   });

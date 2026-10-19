@@ -157,9 +157,26 @@ function codingFixture(t, configurePolicy = () => {}) {
       };
     },
   };
+  // A fresh, healthy model-only subscription observation at the fixture clock.
+  f.usedPercent = 10;
+  // Stamp it with the observing controller's clock (the fixture clock by default).
+  f.subscription = async (at = f.now) => ({
+    observedAt: new Date(at).toISOString(),
+    accountId: "account-1",
+    authMode: "chatgpt",
+    windows: [
+      {
+        id: "primary",
+        usedPercent: f.usedPercent,
+        resetsAt: Math.floor(at / 1000) + 3600,
+      },
+    ],
+    exhausted: f.usedPercent >= 100,
+  });
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
     validationRuntime: f.validation,
     clock: () => f.now,
   });

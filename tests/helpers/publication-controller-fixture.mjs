@@ -71,6 +71,7 @@ export async function fixture(t, configurePolicy) {
     new DeliveryController(f.state, f.options, {
       featurePlanner: f.criteria,
       featureRuntime: f.runtime,
+      subscription: () => f.subscription(),
       validationRuntime: f.validation,
       publicationRuntime: f.runtimePublication,
       clock: () => f.now,
