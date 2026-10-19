@@ -1016,3 +1016,52 @@ for (const fault of ["home-returned", "foreign-reservation"])
       assert.deepEqual(sessionHomes(root), before);
     },
   );
+
+for (const [method, args, receipt] of [
+  [
+    "recoverInterruptedResume",
+    [interruptedSuccessor, namedPredecessor],
+    { recovered: false },
+  ],
+  [
+    "reconcileInterruptedResume",
+    [launchedSuccessor, namedPredecessor, false],
+    { outcome: "assumed" },
+  ],
+])
+  test(`${method} treats an unrecognized guest receipt as uncertain`, async (t) => {
+    const fixture = nativeHost(t, (r) => ({
+      session: r.session,
+      binding: observation,
+      cliSha256: r.cliSha256,
+      ...receipt,
+    }));
+    const transport = new NativePodmanCodingTransport(
+      "aios-test",
+      "a".repeat(64),
+    );
+    await assert.rejects(transport[method](...args), /uncertain/);
+    assert.equal(fixture.requests.length, 1, "the guest was asked once");
+  });
+
+test("resume reconciliation requires an explicit retire decision before guest effects", async (t) => {
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+    outcome: "retired",
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  for (const retire of [undefined, "yes", 1])
+    await assert.rejects(
+      transport.reconcileInterruptedResume(
+        launchedSuccessor,
+        namedPredecessor,
+        retire,
+      ),
+    );
+  assert.equal(fixture.requests.length, 0);
+});

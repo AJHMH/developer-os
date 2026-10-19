@@ -3921,7 +3921,7 @@ export class DeliveryController {
     } catch {}
     if (recovered) return this.settleResume(id, session, "recovered");
     // Recovery refuses a launched resume; the guest's thread record decides.
-    return this.reconcileResume(id, false);
+    return this.reconcileResume(id, session, false);
   }
 
   /** The owner's explicit decision to quarantine an unresolved resume lineage:
@@ -3929,20 +3929,27 @@ export class DeliveryController {
   async retireResume(id: string): Promise<Delivery> {
     const snapshot = this.status(id),
       session = snapshot.feature?.session;
-    if (!session || !needsResumeRecovery(session))
-      throw new DeliveryError("No interrupted coding resume needs retiring.");
-    if (!snapshot.ownership.held || session.fence !== snapshot.ownership.fence)
+    if (
+      !session ||
+      !needsResumeRecovery(session) ||
+      !snapshot.ownership.held ||
+      session.fence !== snapshot.ownership.fence
+    )
       throw new DeliveryError(
-        "Only the owning delivery may retire its interrupted coding resume.",
+        "Only the owning delivery may retire an interrupted coding resume.",
       );
-    return this.reconcileResume(id, true);
+    return this.reconcileResume(id, session, true);
   }
 
-  private async reconcileResume(id: string, retire: boolean) {
+  /** Callers have checked that `session` still needs resume recovery;
+   * settlement re-checks it inside the durable transaction. */
+  private async reconcileResume(
+    id: string,
+    session: CodingSession,
+    retire: boolean,
+  ) {
     const snapshot = this.status(id),
-      session = snapshot.feature?.session,
       runtime = this.coordination.featureRuntime;
-    if (!session || !needsResumeRecovery(session)) return snapshot;
     let outcome: ResumeReconciliation | undefined;
     try {
       if (this.sameCodingRuntime(snapshot) && runtime!.reconcile) {
