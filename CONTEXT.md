@@ -98,6 +98,13 @@ _Avoid_: Repair budget
 **Usage approval**: Fresh owner authorization for one observed account/window
 scope and at most one operation. It grants no worker, credential or publication authority.
 
+**Vault credential account**: The mediated subscription credential's identity
+(issuer, client, subject and host). Online plans and relays use it.
+
+**Endorsed usage account**: The usage reader's identity for the same
+subscription. The owner endorses it in the mediation decision record, and every
+check against observed usage compares with it, never with the vault account.
+
 **Session**: A dispatched worker or online operation whose matching receipt must
 prove descendant shutdown. Retained uncertain sessions prevent ownership release.
 

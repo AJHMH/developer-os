@@ -496,7 +496,7 @@ export class DeliveryController {
       usage = checked.usage!;
     if (
       usage.decision === "exhausted" ||
-      (usage.accountId && usage.accountId !== decision.accountId)
+      (usage.accountId && usage.accountId !== decision.usageAccountId)
     )
       throw new DeliveryError("Account allowance is exhausted or mismatched.");
     const description = runtime.inferenceRequest(
@@ -652,7 +652,7 @@ export class DeliveryController {
       const approved = this.usageGate.approve(usage, usage.checkId);
       if (approved) usage.approval = approved.approval!;
     }
-    if (!this.usageGate.permits(usage, { accountId: decision.accountId }))
+    if (!this.usageGate.permits(usage, { accountId: decision.usageAccountId }))
       throw new DeliveryError(
         "Fresh account-scoped subscription usage approval is required; exhaustion cannot be overridden.",
       );
@@ -694,6 +694,7 @@ export class DeliveryController {
         deliveryId: id,
         repository: before.repository,
         accountId: decision.accountId,
+        usageAccountId: decision.usageAccountId,
         usageScope: usage.scope,
         policyVersion: onlinePolicyVersion,
         runtimeVersion: runtime.version ?? "controlled-observation",
@@ -720,18 +721,19 @@ export class DeliveryController {
       try {
         const current = await this.checkUsage(id);
         const fresh = this.status(id);
-        const u = current.usage!;
+        const u = current.usage!,
+          endorsed =
+            fresh.qualification?.subscriptionMediation?.mechanismDecision;
         const allowed =
           fresh.ownership.held &&
           fresh.ownership.fence === plan.fence &&
           fresh.phase === before.phase &&
           fresh.onlineAccess?.runId === plan.runId &&
           fresh.onlineAccess.state === "dispatched" &&
-          fresh.qualification?.subscriptionMediation?.mechanismDecision
-            ?.accountId === plan.accountId &&
+          endorsed?.accountId === plan.accountId &&
           this.usageGate.permits(u, {
             operationId: plan.runId,
-            accountId: plan.accountId,
+            accountId: endorsed.usageAccountId,
             scope: plan.usageScope,
           });
         if (!allowed) return false;
@@ -745,7 +747,7 @@ export class DeliveryController {
             delivery.onlineAccess.state !== "dispatched" ||
             !this.usageGate.permits(delivery.usage, {
               operationId: plan.runId,
-              accountId: plan.accountId,
+              accountId: endorsed.usageAccountId,
               scope: plan.usageScope,
             })
           )
@@ -2559,8 +2561,10 @@ export class DeliveryController {
       account = usage.accountId;
     // An unknown account is never model-only authority, and a feature's
     // turns all use the account its first coding launch used.
+    // Unmeasured usage (endorsed or not) is never a known model-only account.
     if (
       !account ||
+      usage.remainingPercent === null ||
       (feature.usageAccountId !== undefined &&
         feature.usageAccountId !== account)
     )
@@ -2572,12 +2576,12 @@ export class DeliveryController {
     // Like every dispatch path, a mediated delivery re-qualifies first.
     const mediation =
       snapshot.qualification?.subscriptionMediation?.mechanismDecision ||
-      feature.mediationAccountId
+      feature.mediationUsageAccountId
         ? qualifiedDecision(await this.qualify(id))
         : undefined;
     if (
-      (mediation || feature.mediationAccountId) &&
-      mediation?.accountId !== account
+      (mediation || feature.mediationUsageAccountId) &&
+      mediation?.usageAccountId !== account
     )
       throw new DeliveryError(
         "Coding usage must come from the delivery's qualified model-only mediation account.",
@@ -2649,7 +2653,7 @@ export class DeliveryController {
         );
       delivery.usage = bound;
       f.usageAccountId = account;
-      if (mediation) f.mediationAccountId = account;
+      if (mediation) f.mediationUsageAccountId = account;
       f.activeCheckpoint = {
         at: (this.coordination.clock ?? Date.now)(),
         runnerId: this.runnerId,
@@ -3248,7 +3252,7 @@ export class DeliveryController {
         observation,
         delivery.usage,
         delivery.qualification?.subscriptionMediation?.mechanismDecision
-          ?.accountId,
+          ?.usageAccountId,
       );
     });
   }
@@ -3272,13 +3276,19 @@ export class DeliveryController {
   async pollUsage(id: string): Promise<Delivery> {
     const observed = await this.checkUsage(id);
     const usage = observed.usage!;
+    // Usage identifies the endorsed usage-reader account, never the vault one.
+    // Status re-verifies the protected decision record's pins.
+    const endorsed =
+      this.status(id).qualification?.subscriptionMediation?.mechanismDecision;
     if (
       observed.onlineAccess?.state === "dispatched" &&
-      !this.usageGate.permits(usage, {
-        operationId: observed.onlineAccess.runId,
-        accountId: observed.onlineAccess.accountId,
-        scope: observed.onlineAccess.usageScope,
-      })
+      // A dispatched run blocks re-qualification, so only absence can occur.
+      (!endorsed ||
+        !this.usageGate.permits(usage, {
+          operationId: observed.onlineAccess.runId,
+          accountId: endorsed.usageAccountId,
+          scope: observed.onlineAccess.usageScope,
+        }))
     )
       return this.recoverOnline(id);
     if (

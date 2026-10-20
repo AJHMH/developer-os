@@ -86,6 +86,8 @@ export interface OnlineAccessRuntime {
   stop(runId: string): Promise<OnlineStop>;
 }
 export interface OnlineAccessEvidence extends OnlinePlan {
+  /** The endorsed usage-reader account whose usage authorized this run. */
+  usageAccountId?: string;
   mode: "controlled" | "live";
   state: "dispatched" | "stopped" | "uncertain";
   outcome: "running" | "passed" | "refused" | "uncertain";
@@ -95,15 +97,18 @@ export interface OnlineAccessEvidence extends OnlinePlan {
   shutdown?: OnlineStop;
 }
 
-/** Missing account observations require the grant already bound to this plan's
- * endorsed account. A changed observed account or allowance window refuses. */
+/** Missing account observations require the grant already bound to this run's
+ * endorsed usage account. A changed observed account or window refuses. */
 export function onlineUsagePermits(
   usage: UsageReport | undefined,
-  plan: OnlinePlan,
+  run: OnlineAccessEvidence,
 ): boolean {
-  return new UsageApprovalGate().permits(usage, {
-    operationId: plan.runId,
-    accountId: plan.accountId,
-    scope: plan.usageScope,
-  });
+  return (
+    !!run.usageAccountId &&
+    new UsageApprovalGate().permits(usage, {
+      operationId: run.runId,
+      accountId: run.usageAccountId,
+      scope: run.usageScope,
+    })
+  );
 }

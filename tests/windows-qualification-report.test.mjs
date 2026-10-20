@@ -121,6 +121,7 @@ test("Windows report needs measured supplemental controls and refuses a missing 
     runId: "measured-online",
     policyVersion: "controlled-policy",
     usageScope: "account-window",
+    usageAccountId: "usage-account-1",
     bindingSha256: q.bindingSha256,
     hostPolicySha256: q.policySha256,
     proof: {
@@ -135,6 +136,7 @@ test("Windows report needs measured supplemental controls and refuses a missing 
   complete.usage = {
     checkId: "fresh-check",
     scope: "account-window",
+    accountId: "usage-account-1",
     decision: "ready",
     checkedAt: new Date().toISOString(),
   };
@@ -589,7 +591,9 @@ test("report accepts complete controlled evidence while retaining production blo
     productionEnabled: false,
     runId: "run-report-test",
     usageScope: "account-window",
+    // The relay's vault account and the usage reader's account differ.
     accountId: "account-1",
+    usageAccountId: "usage-account-1",
     policyVersion: "policy-1",
     bindingSha256: digestValue,
     hostPolicySha256: digestValue,
@@ -605,7 +609,7 @@ test("report accepts complete controlled evidence while retaining production blo
   qualified.usage = {
     checkId: "usage-1",
     scope: "account-window",
-    accountId: "account-1",
+    accountId: "usage-account-1",
     checkedAt: new Date().toISOString(),
     decision: "ready",
   };
@@ -618,6 +622,14 @@ test("report accepts complete controlled evidence while retaining production blo
   );
   assert.equal(passedControlledReport.checks.onlinePolicy.result, "passed");
   assert.equal(passedControlledReport.checks.usageGate.result, "passed");
+  const unrecordedUsageAccount = structuredClone(qualified);
+  delete unrecordedUsageAccount.onlineAccess.usageAccountId;
+  assert.equal(
+    windowsWorkerQualificationReport(unrecordedUsageAccount).checks.usageGate
+      .result,
+    "not-run",
+    "a run without its usage account is not usage-gate proof",
+  );
   assert.equal(passedControlledReport.checks.fencingRecovery.result, "passed");
   assert.equal(passedControlledReport.outcome, "blocked");
   assert.equal(passedControlledReport.productionEnabled, false);

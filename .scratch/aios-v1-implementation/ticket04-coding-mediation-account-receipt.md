@@ -14,7 +14,8 @@ The owner chose the rule "match when qualified":
   delivery's current offline admission binding, and coding usage must come
   from exactly that decision's account.
 - **Linking.** The first mediated launch links the feature
-  (`feature.mediationAccountId`). Once linked, coding refuses if the decision
+  (`feature.mediationUsageAccountId`, renamed from `mediationAccountId` by the
+  reconciliation slice). Once linked, coding refuses if the decision
   is withdrawn, its record changes, or the host evidence regresses, such as a
   failed gateway integration.
 - **Without a decision.** A delivery with no decision keeps the current
@@ -36,6 +37,8 @@ now one helper, `qualifiedDecision`, which coding uses too.
   because of the account pinned at first launch. That fails closed, and the
   feature needs a new delivery.
 - **Account ID formats may never match (applies to the online path too).**
+  Resolved by the
+  [reconciliation receipt](ticket04-account-id-reconciliation-receipt.md).
   - Usage observations derive `accountId` in `codex-usage.ts` by hashing the
     account email.
   - Decisions use `subscriptionAccountId(...)`.

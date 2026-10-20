@@ -1906,3 +1906,30 @@ test("a mediation-linked feature re-qualifies before coding and refuses regresse
   await assert.rejects(f.controller.codeFeature(f.delivery.id), /mediation/i);
   assert.equal(dispatched.length, 1, "no turn on stale mediation evidence");
 });
+
+test("coding accepts the endorsed usage account, never the mediation credential account", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  await mediatedCoding(f, t, mediatedAccount);
+  // The vault credential account is a different identity space from usage.
+  observeAccount(f, "a".repeat(64));
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /mediation/i);
+  assert.deepEqual(dispatched, []);
+  observeAccount(f, mediatedAccount);
+  assert.equal(
+    (await f.controller.codeFeature(f.delivery.id)).feature.outcome,
+    "admitted",
+  );
+});
+
+test("a missing usage observation never authorizes mediated coding, even when approved", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  await mediatedCoding(f, t, mediatedAccount);
+  f.subscription = async () => undefined;
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+  f.controller.approveUsage(
+    f.delivery.id,
+    f.controller.status(f.delivery.id).usage.checkId,
+  );
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+  assert.deepEqual(dispatched, []);
+});

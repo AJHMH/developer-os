@@ -426,3 +426,14 @@ Usage and decision account IDs are derived differently, which can make
 mediated launches fail closed; reconciling them belongs to production
 integration. See the
 [mediation account receipt](../ticket04-coding-mediation-account-receipt.md).
+
+## 19 October: reconciling usage and mediation account IDs
+
+Usage observations hash the Codex login email, while mediation decisions hash
+the vault credential's OAuth identity, so they never matched. The owner chose
+an endorsed binding: the decision record now carries `usageAccountId`, the
+usage-reader account for the same subscription. Every comparison against
+observed usage uses it, across inference, the online canary, polling, coding
+and unknown-usage endorsement. Plans still record the vault account. Records
+without the endorsement stop qualifying until re-endorsed. See the
+[reconciliation receipt](../ticket04-account-id-reconciliation-receipt.md).

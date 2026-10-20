@@ -83,6 +83,7 @@ function fixture(t, online, target = "macos") {
     runId: run,
     observedAt: new Date().toISOString(),
     accountId: "c".repeat(64),
+    usageAccountId: "b".repeat(64),
     policyPath: policy,
     policySha256: q.policySha256,
     bindingSha256: q.bindingSha256,
@@ -116,7 +117,7 @@ function fixture(t, online, target = "macos") {
   ]);
   const usage = {
     observedAt: new Date().toISOString(),
-    accountId: record.accountId,
+    accountId: record.usageAccountId,
     authMode: "chatgpt",
     exhausted: false,
     windows: [
@@ -387,7 +388,8 @@ test("recovery clears the online shutdown blocker after independently verified s
   );
 });
 
-test("public foreground usage polling stops an exhausted online canary and preserves its request", async (t) => {
+// An online run held open after its first authorized request until stopped.
+function heldRun() {
   let entered, finish;
   const active = new Promise((resolve) => (entered = resolve)),
     pending = new Promise((resolve) => (finish = resolve));
@@ -410,6 +412,11 @@ test("public foreground usage polling stops an exhausted online canary and prese
       return { runId, revoked: true, remainingProcesses: 0 };
     },
   };
+  return { runtime, active };
+}
+
+test("public foreground usage polling stops an exhausted online canary and preserves its request", async (t) => {
+  const { runtime, active } = heldRun();
   const f = fixture(t, runtime);
   const run = f.c.onlineCanary(f.d.id);
   await active;
@@ -448,9 +455,9 @@ test("an unknown-usage approval cannot move to a newly endorsed account", async 
   const check = await f.c.checkUsage(f.d.id);
   f.c.approveUsage(f.d.id, check.usage.checkId);
   const record = JSON.parse(readFileSync(f.recordPath));
-  record.accountId = "e".repeat(64);
+  record.usageAccountId = "e".repeat(64);
   writeFileSync(f.recordPath, JSON.stringify(record));
-  f.usage.accountId = record.accountId;
+  f.usage.accountId = record.usageAccountId;
   await assert.rejects(() => f.c.onlineCanary(f.d.id), /usage approval/);
   assert.equal(calls, 0);
 });
@@ -791,3 +798,46 @@ for (const target of ["windows", "macos"])
     await c.syntheticTask(f.d.id);
     assert.equal(dispatches, 0, "authentication drift must prevent dispatch");
   });
+
+test("foreground polling keeps a healthy online run that uses the endorsed usage account", async (t) => {
+  const { runtime, active } = heldRun();
+  const f = fixture(t, runtime);
+  const run = f.c.onlineCanary(f.d.id);
+  await active;
+  const polled = await f.c.pollUsage(f.d.id);
+  // Always release the fixture even if this assertion fails.
+  await f.c.pause(f.d.id);
+  await run;
+  assert.equal(polled.onlineAccess.state, "dispatched");
+  assert.equal(
+    polled.onlineAccess.usageAccountId,
+    f.c.status(f.d.id).qualification.subscriptionMediation.mechanismDecision
+      .usageAccountId,
+    "the run records the usage account that authorized it",
+  );
+});
+
+test("unknown usage is endorsed as the decision's usage-reader account, not its vault account", async (t) => {
+  const f = fixture(t, { mode: "controlled" });
+  f.options.subscription = async () => undefined;
+  await f.c.qualify(f.d.id);
+  const decision = f.c.status(f.d.id).qualification.subscriptionMediation
+    .mechanismDecision;
+  const checked = await f.c.checkUsage(f.d.id);
+  assert.equal(checked.usage.accountId, decision.usageAccountId);
+  assert.notEqual(checked.usage.accountId, decision.accountId);
+});
+
+test("foreground polling stops an online run whose mediation decision no longer verifies", async (t) => {
+  const { runtime, active } = heldRun();
+  const f = fixture(t, runtime);
+  const run = f.c.onlineCanary(f.d.id);
+  await active;
+  const record = JSON.parse(readFileSync(f.recordPath));
+  // Same meaning, different bytes: the protected record's pin no longer holds.
+  writeFileSync(f.recordPath, JSON.stringify(record) + "\n", { mode: 0o600 });
+  const polled = await f.c.pollUsage(f.d.id);
+  await f.c.pause(f.d.id);
+  await run;
+  assert.equal(polled.onlineAccess.state, "stopped");
+});
