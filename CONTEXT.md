@@ -105,6 +105,17 @@ scope and at most one operation. It grants no worker, credential or publication 
 subscription. The owner endorses it in the mediation decision record, and every
 check against observed usage compares with it, never with the vault account.
 
+**Usage interruption**: A coding turn stopped because its usage authority
+lapsed during the turn or before its output was collected (exhaustion, an
+account change or a lost observation). The thread is preserved, and coding
+stays blocked until a coding restart approval.
+
+**Coding restart approval**: The owner's decision to restart coding after a
+usage interruption. It names the interrupted operation and records the
+feature's account, which every turn must use anyway. The one re-dispatch that
+passes the controller's dispatch recheck spends it, and it never replaces the
+fresh usage authority every turn needs.
+
 **Session**: A dispatched worker or online operation whose matching receipt must
 prove descendant shutdown. Retained uncertain sessions prevent ownership release.
 

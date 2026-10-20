@@ -32,6 +32,7 @@ import {
   codingTurn,
   featureBranch,
   needsResumeRecovery,
+  unrestartedInterruption,
   featurePlan,
   validCodingPins,
   type CodingResult,
@@ -291,6 +292,37 @@ export interface Delivery {
     nextAction: string;
   };
   evidence: { kind: "request" | "offline-canary"; path: string }[];
+}
+
+const restartRequired =
+  "Coding was interrupted by usage; record the owner's restart approval before re-dispatch.";
+
+/** The unspent owner approval to restart past the latest interruption. */
+function pendingRestart(feature: FeatureEvidence | undefined) {
+  const interrupted = unrestartedInterruption(feature);
+  return interrupted
+    ? feature!.restartApprovals?.find(
+        (a) => a.interruptedOperationId === interrupted.operationId,
+      )
+    : undefined;
+}
+
+/** Record a usage interruption of `session`, once. */
+function recordInterruption(delivery: Delivery, session: CodingSession) {
+  const f = delivery.feature!;
+  if (!f.usageInterruptions?.some((i) => i.operationId === session.operationId))
+    (f.usageInterruptions ??= []).push({
+      operationId: session.operationId,
+      at: new Date().toISOString(),
+    });
+}
+
+/** A restart approval is spent once its re-dispatch reaches dispatch. */
+function spendRestart(delivery: Delivery, operationId: string) {
+  const approval = delivery.feature?.restartApprovals?.find(
+    (a) => a.operationId === operationId,
+  );
+  if (approval) approval.dispatched = true;
 }
 
 /** Public durable delivery controls. The CLI supplies no live worker adapter. */
@@ -2557,6 +2589,9 @@ export class DeliveryController {
     // Each coding launch, resume or repair needs fresh model-only usage
     // authority: a low allowance needs owner approval, exhaustion is never
     // overridden, and every approval binds to exactly one operation.
+    // Fresh usage alone never restarts coding after a usage interruption.
+    if (unrestartedInterruption(feature) && !pendingRestart(feature))
+      throw new DeliveryError(restartRequired);
     const usage = (await this.checkUsage(id)).usage!,
       account = usage.accountId;
     // An unknown account is never model-only authority, and a feature's
@@ -2652,6 +2687,13 @@ export class DeliveryController {
           "Fresh model-only subscription usage authority is required before coding; exhaustion cannot be overridden.",
         );
       delivery.usage = bound;
+      // Bind the owner's restart approval to this re-dispatch; reaching
+      // dispatch spends it, so a refusal before then leaves it usable.
+      if (unrestartedInterruption(f)) {
+        const approval = pendingRestart(f);
+        if (!approval) throw new DeliveryError(restartRequired);
+        approval.operationId = f.session.operationId;
+      }
       f.usageAccountId = account;
       if (mediation) f.mediationUsageAccountId = account;
       f.activeCheckpoint = {
@@ -2738,6 +2780,14 @@ export class DeliveryController {
           }),
         )
         .catch(() => undefined);
+    // A lapse is durable before the worker is stopped, so a controller lost
+    // mid-stop still needs the owner's restart approval.
+    const recordLapse = () => {
+      usageLapsed = true;
+      try {
+        this.change(id, (delivery) => recordInterruption(delivery, session));
+      } catch {}
+    };
     const usageMonitor = setInterval(() => {
       if (polling) return;
       polling = true;
@@ -2745,7 +2795,7 @@ export class DeliveryController {
         polling = false;
         // A poll that finishes after the turn ended changes nothing.
         if (permitted || !monitoring) return;
-        if (permitted === false) usageLapsed = true;
+        if (permitted === false) recordLapse();
         interrupt(undefined);
       });
     }, this.coordination.codingUsagePollMs ?? workerUsagePollMs);
@@ -2815,6 +2865,7 @@ export class DeliveryController {
                   throw new DeliveryError("Coding session identity changed.");
                 delivery.feature.session.threadId = threadId;
                 delivery.feature.session.threadStarted = true;
+                spendRestart(delivery, session.operationId);
               }
             });
             return (
@@ -2844,11 +2895,18 @@ export class DeliveryController {
             this.featureBudget(prepared).allowanceMs -
             this.featureBudget(prepared).activeMs,
           // Recheck the bound authority after asynchronous pin inspection.
-          mayDispatch: () =>
-            checkpoint() &&
-            this.usageGate.permits(this.status(id).usage, {
-              operationId: session.operationId,
-            }),
+          mayDispatch: () => {
+            const permitted =
+              checkpoint() &&
+              this.usageGate.permits(this.status(id).usage, {
+                operationId: session.operationId,
+              });
+            if (permitted)
+              this.change(id, (delivery) =>
+                spendRestart(delivery, session.operationId),
+              );
+            return permitted;
+          },
           checkpoint,
         }),
         interrupted,
@@ -2867,6 +2925,7 @@ export class DeliveryController {
         if (delivery.feature?.session?.operationId === session.operationId) {
           delivery.feature.session.threadId = turn.threadId;
           delivery.feature.session.threadStarted = true;
+          spendRestart(delivery, session.operationId);
         }
       });
       checkpoint();
@@ -2884,12 +2943,9 @@ export class DeliveryController {
     if (!usageLapsed && completed && (await usagePermits()) === false)
       usageLapsed = true;
     if (usageLapsed)
-      stopped = this.change(id, (delivery) => {
-        (delivery.feature!.usageInterruptions ??= []).push({
-          operationId: session.operationId,
-          at: new Date().toISOString(),
-        });
-      });
+      stopped = this.change(id, (delivery) =>
+        recordInterruption(delivery, session),
+      );
     if (
       stopped.feature?.session?.operationId === session.operationId &&
       needsResumeRecovery(stopped.feature.session)
@@ -3254,6 +3310,32 @@ export class DeliveryController {
         delivery.qualification?.subscriptionMediation?.mechanismDecision
           ?.usageAccountId,
       );
+    });
+  }
+
+  /** Owner approval to restart coding after a usage interruption. It is bound
+   * to the delivery, the interrupted operation and the feature's account, and
+   * is consumed by one re-dispatch, which still needs fresh usage authority. */
+  approveCodingRestart(id: string): Delivery {
+    return this.change(id, (delivery) => {
+      const f = delivery.feature,
+        interrupted = unrestartedInterruption(f);
+      if (
+        !interrupted ||
+        pendingRestart(f) ||
+        !f!.usageAccountId ||
+        !sessionsQuiescent(delivery) ||
+        !delivery.ownership.held ||
+        delivery.phase === "cancelled"
+      )
+        throw new DeliveryError(
+          "Approve a coding restart only for an owned delivery whose stopped coding turn was interrupted by usage, once per interruption.",
+        );
+      (f!.restartApprovals ??= []).push({
+        interruptedOperationId: interrupted.operationId,
+        accountId: f!.usageAccountId,
+        approvedAt: new Date().toISOString(),
+      });
     });
   }
 

@@ -34,6 +34,17 @@ export interface FeatureEvidence extends FeaturePlan {
   extensions?: { addedMs: number; at: string }[];
   /** Coding turns stopped because their usage authority lapsed. */
   usageInterruptions?: { operationId: string; at: string }[];
+  /** Owner approvals to restart coding after a usage interruption. Each names
+   * the interrupted operation and the feature's account. `operationId` is the
+   * latest re-dispatch bound to it, and `dispatched` marks the one that
+   * reached dispatch, which spends the approval. */
+  restartApprovals?: {
+    interruptedOperationId: string;
+    accountId: string;
+    approvedAt: string;
+    operationId?: string;
+    dispatched?: true;
+  }[];
   /** The endorsed usage account of the mediation decision this feature's
    * coding is linked to. */
   mediationUsageAccountId?: string;
@@ -102,6 +113,20 @@ export interface CodingSession {
    * the owner retired its lineage so coding restarts without resuming. */
   resumeRecovery?: "recovered" | "retired";
 }
+/** The latest usage interruption, unless an owner-approved restart has
+ * already dispatched past it. */
+export function unrestartedInterruption(feature: FeatureEvidence | undefined) {
+  const latest = feature?.usageInterruptions?.at(-1);
+  return latest &&
+    !feature!.restartApprovals?.some(
+      (a) =>
+        a.interruptedOperationId === latest.operationId &&
+        a.dispatched === true,
+    )
+    ? latest
+    : undefined;
+}
+
 /** A resume that stopped without observing its thread may have moved the
  * predecessor's retained home and must be recovered before coding continues. */
 export function needsResumeRecovery(session: CodingSession): boolean {

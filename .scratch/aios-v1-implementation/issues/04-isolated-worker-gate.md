@@ -448,3 +448,15 @@ the protected record only with explicit confirmation. It refuses invalid or
 non-private records, unusable observations, an unexpected account and any
 re-binding. See the
 [endorsement receipt](../ticket04-decision-endorsement-receipt.md).
+
+## 20 October: owner restart approval after a usage interruption
+
+After a usage interruption, coding stays blocked until the owner calls
+`approveCodingRestart`. The approval names the interrupted operation and the
+feature's account, and the one re-dispatch that reaches dispatch spends it,
+after binding fresh usage authority. Interruptions are recorded before the
+worker is stopped. Fresh usage alone never restarts, and exhaustion is never
+overridden. Pause, cancel and recovery restarts are unchanged. Native
+qualification of usage and restart controls through a production adapter
+remains open. Production remains disabled. See the
+[restart authorization receipt](../ticket04-restart-authorization-receipt.md).
