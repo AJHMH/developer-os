@@ -70,9 +70,10 @@ and a distinct already-endorsed result. All are done.
 
 Mutation checks: each guard was removed in turn and the focused tests rerun;
 every guard has a failing test, except the temporary file's privacy check,
-which only an inherited non-private ACL can reach. On Linux the module's
-only uncovered lines are the Windows in-place write, which the hosted Windows
-shard runs through the same tests. Windows ACL refusal is left to native
+which only an inherited non-private ACL can reach. The Windows in-place write is
+selected by an optional `platform` input (default: the running platform), so
+Linux tests it too and the module has full line and branch coverage, including
+the Factory's changed-code measure. The hosted Windows shard runs it natively. Windows ACL refusal is left to native
 Windows acceptance.
 
 No Codex binary, credentials, online inference or real VM was used.

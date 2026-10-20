@@ -45,6 +45,8 @@ export async function endorseUsageAccount(options: {
   expectedUsageAccountId?: string;
   confirm?: boolean;
   now?: () => number;
+  /** Selects the write strategy; defaults to the running platform. */
+  platform?: NodeJS.Platform;
 }): Promise<UsageEndorsement> {
   const refuse = (reason: string): never => {
     throw new EndorsementRefusal("Usage endorsement refused: " + reason + ".");
@@ -96,7 +98,7 @@ export async function endorseUsageAccount(options: {
   const endorsed = JSON.stringify({ ...record, usageAccountId });
   const temporary = join(state, ".pending-endorsement-" + randomUUID());
   try {
-    if (process.platform === "win32") {
+    if ((options.platform ?? process.platform) === "win32") {
       // A new Windows file takes the process's default owner, which an
       // elevated shell sets to Administrators, so only an in-place rewrite
       // keeps the record's owner and access rules.

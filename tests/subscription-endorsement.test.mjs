@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { endorseUsageAccount } from "../dist/subscription-endorsement.js";
@@ -87,6 +88,21 @@ test("a confirmed endorsement binds the observed usage account so the decision q
     { usageAccountId: usageAccount, written: false, alreadyEndorsed: true },
     "re-endorsing the same account changes nothing",
   );
+});
+
+test("on Windows the endorsement rewrites the record in place to keep its owner", async (t) => {
+  const { recordPath, endorse, decision } = await awaitingEndorsement(t);
+  const before = statSync(recordPath).ino;
+  // Linux runs the Windows write path too; the hosted Windows shard runs it
+  // natively.
+  const result = await endorse({
+    confirm: true,
+    expectedUsageAccountId: usageAccount,
+    platform: "win32",
+  });
+  assert.equal(result.written, true);
+  assert.equal(statSync(recordPath).ino, before, "the same file was rewritten");
+  assert.equal((await decision()).usageAccountId, usageAccount);
 });
 
 for (const [name, reason, arrange] of [
