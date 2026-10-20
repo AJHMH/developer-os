@@ -1753,11 +1753,204 @@ for (const [name, change] of [
         "no continuation without fresh authority",
       );
       restore();
+      await assert.rejects(
+        f.controller.codeFeature(f.delivery.id),
+        /restart approval/,
+      );
+      assert.equal(dispatched.length, 1, "fresh usage alone never restarts");
+      f.controller.approveCodingRestart(f.delivery.id);
       const resumed = await f.controller.codeFeature(f.delivery.id);
       assert.equal(resumed.feature.session.intent, "resume");
       assert.equal(dispatched[1].threadId, firstThread);
+      assert.deepEqual(
+        resumed.feature.restartApprovals.map(
+          ({ interruptedOperationId, operationId }) => ({
+            interruptedOperationId,
+            operationId,
+          }),
+        ),
+        [
+          {
+            interruptedOperationId: dispatched[0].operationId,
+            operationId: dispatched[1].operationId,
+          },
+        ],
+        "the approval is recorded and consumed by exactly one re-dispatch",
+      );
     },
   );
+
+test("a restart approval never overrides exhaustion and survives a refused re-dispatch", async (t) => {
+  const { f, dispatched } = await monitoredTurn(t, async (f) => {
+    f.usedPercent = 100;
+  });
+  const approved = f.controller.approveCodingRestart(f.delivery.id);
+  assert.equal(approved.feature.restartApprovals.length, 1);
+  assert.equal(approved.feature.restartApprovals[0].operationId, undefined);
+  assert.equal(
+    approved.feature.restartApprovals[0].accountId,
+    approved.feature.usageAccountId,
+  );
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+  assert.equal(dispatched.length, 1);
+  assert.equal(
+    f.controller.status(f.delivery.id).feature.restartApprovals[0].operationId,
+    undefined,
+    "a refused re-dispatch consumes nothing",
+  );
+  assert.throws(
+    () => f.controller.approveCodingRestart(f.delivery.id),
+    /restart/,
+    "one pending approval per interruption",
+  );
+  f.usedPercent = 10;
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched.length, 2);
+});
+
+test("each usage interruption needs its own restart approval", async (t) => {
+  let interrupt = true;
+  const { f, dispatched } = await monitoredTurn(t, async (f) => {
+    f.usedPercent = 100;
+  });
+  f.usedPercent = 10;
+  f.controller.approveCodingRestart(f.delivery.id);
+  // The restarted turn completes, then usage lapses again before collection.
+  const normal = f.runtime.execute.bind(f.runtime);
+  f.runtime.execute = async (request) => {
+    const result = await normal(request);
+    if (interrupt) f.usedPercent = 100;
+    return result;
+  };
+  const second = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(second.feature.usageInterruptions.length, 2);
+  interrupt = false;
+  f.usedPercent = 10;
+  await assert.rejects(
+    f.controller.codeFeature(f.delivery.id),
+    /restart approval/,
+  );
+  f.controller.approveCodingRestart(f.delivery.id);
+  const third = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(third.feature.outcome, "admitted");
+  assert.equal(third.feature.restartApprovals.length, 2);
+  assert.equal(dispatched.length, 3);
+});
+
+test("a usage interruption is durable before the worker is stopped and survives a new controller", async (t) => {
+  let seenAtStop;
+  const { f } = await monitoredTurn(t, async (f) => {
+    const stop = f.runtime.stop;
+    f.runtime.stop = async (request) => {
+      seenAtStop = f.controller.status(f.delivery.id).feature
+        .usageInterruptions;
+      return stop(request);
+    };
+    f.usedPercent = 100;
+  });
+  assert.equal(seenAtStop?.length, 1, "recorded before the stop");
+  f.usedPercent = 10;
+  const fresh = new DeliveryController(f.state, f.options, {
+    featurePlanner: f.criteria,
+    featureRuntime: f.runtime,
+    subscription: () => f.subscription(),
+    validationRuntime: f.validation,
+    clock: () => f.now,
+  });
+  await assert.rejects(fresh.codeFeature(f.delivery.id), /restart approval/);
+  fresh.approveCodingRestart(f.delivery.id);
+  assert.equal(
+    f.controller.status(f.delivery.id).feature.restartApprovals.length,
+    1,
+    "the approval is durable evidence",
+  );
+});
+
+test("a restart refused before dispatch leaves its approval for the next attempt", async (t) => {
+  const { f, dispatched } = await monitoredTurn(t, async (f) => {
+    f.usedPercent = 100;
+  });
+  f.usedPercent = 10;
+  f.controller.approveCodingRestart(f.delivery.id);
+  const normal = f.runtime.execute.bind(f.runtime);
+  f.runtime.execute = async () => {
+    throw Error("synthetic refusal before dispatch");
+  };
+  // The refused resume never started, so the guest returns its home.
+  f.runtime.recover = async (session) => ({
+    operationId: session.operationId,
+    fence: session.fence,
+    recovered: true,
+  });
+  const refused = await f.controller.codeFeature(f.delivery.id);
+  const [approval] = refused.feature.restartApprovals;
+  assert.equal(approval.operationId, refused.feature.session.operationId);
+  assert.equal(approval.dispatched, undefined, "nothing was dispatched");
+  f.runtime.execute = async (request) => {
+    assert.equal(request.mayDispatch(), true);
+    return normal(request);
+  };
+  const restarted = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(restarted.feature.restartApprovals.length, 1);
+  assert.equal(restarted.feature.restartApprovals[0].dispatched, true);
+  assert.equal(
+    restarted.feature.restartApprovals[0].operationId,
+    restarted.feature.session.operationId,
+  );
+  assert.equal(dispatched.length, 2, "only the first turn and the restart ran");
+});
+
+test("a restart that reaches dispatch spends its approval even if the turn then fails", async (t) => {
+  const { f } = await monitoredTurn(t, async (f) => {
+    f.usedPercent = 100;
+  });
+  f.usedPercent = 10;
+  f.controller.approveCodingRestart(f.delivery.id);
+  f.runtime.execute = async (request) => {
+    assert.equal(request.mayDispatch(), true);
+    throw Error("synthetic failure after dispatch");
+  };
+  f.runtime.recover = async (session) => ({
+    operationId: session.operationId,
+    fence: session.fence,
+    recovered: true,
+  });
+  const failed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(failed.feature.restartApprovals[0].dispatched, true);
+  assert.throws(
+    () => f.controller.approveCodingRestart(f.delivery.id),
+    /restart/,
+    "the interruption has been restarted past",
+  );
+});
+
+test("a coding restart approval needs an owned delivery stopped by a usage interruption", async (t) => {
+  const f = codingFixture(t);
+  await planAndValidate(f);
+  assert.throws(
+    () => f.controller.approveCodingRestart(f.delivery.id),
+    /restart/,
+    "nothing was interrupted",
+  );
+  const { f: g } = await monitoredTurn(t, async (g) => {
+    g.usedPercent = 100;
+  });
+  await g.controller.release(g.delivery.id);
+  assert.throws(
+    () => g.controller.approveCodingRestart(g.delivery.id),
+    /restart/,
+    "a released delivery is not owned",
+  );
+  const { f: h } = await monitoredTurn(t, async (h) => {
+    h.usedPercent = 100;
+  });
+  await h.controller.cancel(h.delivery.id);
+  assert.throws(
+    () => h.controller.approveCodingRestart(h.delivery.id),
+    /restart/,
+    "a cancelled delivery never restarts",
+  );
+});
 
 test("monitoring keeps a healthy, approved coding turn running across polls", async (t) => {
   const f = codingFixture(t),
