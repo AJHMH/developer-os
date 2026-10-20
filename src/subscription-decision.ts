@@ -36,12 +36,17 @@ export interface SubscriptionDecisionPins {
   files: { path: string; sha256: string }[];
   directories: { path: string; access: "private" | "readable" }[];
 }
-const hex = (value: unknown) =>
+export const hex = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-const uuid = (value: unknown) =>
+export const uuid = (value: unknown): value is string =>
   typeof value === "string" &&
   /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
 const within = pathContains;
+
+/** The protected mediation decision record for a delivery, in the controller's
+ * resolved state directory. */
+export const subscriptionDecisionPath = (state: string, deliveryId: string) =>
+  join(state, "subscription-decision-" + deliveryId + ".json");
 
 export function subscriptionDecisionScope(binding?: Record<string, string>) {
   if (
@@ -114,9 +119,9 @@ export function projectSubscriptionDecision(
       return bytes;
     };
     if (within(repository, realpathSync(state))) throw Error();
-    const recordPath = join(
+    const recordPath = subscriptionDecisionPath(
       realpathSync(state),
-      "subscription-decision-" + delivery.id + ".json",
+      delivery.id,
     );
     const r = JSON.parse(read(recordPath).toString("utf8"));
     if (

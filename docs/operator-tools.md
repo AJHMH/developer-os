@@ -104,3 +104,35 @@ A closed PR is not reopened, and ambiguous branch history requires a new branch.
 After publication attach the PR to the chat and monitor its exact-head checks.
 Current-head human approval, main verification and production qualification remain
 independent. Neither tool approves, merges, reruns checks or supplies flake waivers.
+
+## Usage-account endorsement
+
+A protected mediation decision record must name the usage reader's account for
+the same subscription (`usageAccountId`). Usage observations and the vault
+credential identify accounts differently, so the owner endorses the link:
+
+```sh
+# Preview: prints the observed usage account hash and writes nothing.
+node scripts/endorse-subscription-usage.mjs --state-dir <controller-state> \
+  --delivery <delivery-id> --codex-executable <pinned-codex-executable>
+# Write: requires the previewed hash.
+node scripts/endorse-subscription-usage.mjs --state-dir <controller-state> \
+  --delivery <delivery-id> --codex-executable <pinned-codex-executable> \
+  --expect <usage-account-hash> --confirm true
+```
+
+The usage observation comes from your own Codex login, read through the pinned
+executable. The command refuses:
+
+- an observation that is missing, stale or unmeasured;
+- an unexpected account;
+- a record that isn't this delivery's decision or isn't private;
+- a record already endorsed for another account.
+
+On macOS and Linux it writes the endorsed record to a private temporary file in
+the state directory and renames it over the original, so an interrupted write
+leaves the original record and a re-run is safe. On Windows a new file would
+take the shell's default owner (Administrators when elevated), so it rewrites
+the record in place to keep its owner and access rules. An interrupted Windows
+write leaves an unparsable record, which fails closed. Re-run `qualify`
+afterwards.
