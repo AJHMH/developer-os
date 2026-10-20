@@ -40,7 +40,9 @@ throughout the turn:
   anything, and the next turn takes its own fresh check anyway.
 - **Workers are unchanged.** Worker runs keep their own 30-second
   `monitorUsage`, which pauses the worker.
-- **Not yet covered:** binding to the qualified mediation account, and
+- **Not yet covered:** binding to the qualified mediation account (now
+  addressed by the
+  [mediation account receipt](ticket04-coding-mediation-account-receipt.md)), and
   restart and re-dispatch authorization for production adapters.
 
 ## Evidence

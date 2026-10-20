@@ -37,7 +37,8 @@ operation.
 - **No monitoring during a turn.** Coding doesn't poll usage while it runs.
   That belongs to the separate item covering general-session usage monitoring,
   exhaustion with work preservation, and restart authorization.
-- **No link to the mediation account.** The account isn't yet tied to the
+- **No link to the mediation account.** (Addressed by the
+  [mediation account receipt](ticket04-coding-mediation-account-receipt.md).) The account isn't yet tied to the
   delivery's qualified model-only mediation account. Coding transports don't
   carry a mediated credential yet, so that binding belongs to production
   integration.

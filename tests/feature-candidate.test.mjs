@@ -15,6 +15,7 @@ import { spawnSync } from "node:child_process";
 import { DeliveryController } from "../dist/controller.js";
 
 import { fixture, codingFixture } from "./helpers/feature-fixture.mjs";
+import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
 
 test("ordinary requests retain observable criteria and verification across restart without approval", async (t) => {
   const f = fixture(t);
@@ -1857,4 +1858,51 @@ test("a slow usage observation is never polled concurrently during a coding turn
   await planAndValidate(f);
   await f.controller.codeFeature(f.delivery.id);
   assert.equal(most, 1, "one usage poll at a time");
+});
+
+const mediatedAccount = "c".repeat(64);
+// Usage observations from the given account, at each controller's clock.
+function observeAccount(f, accountId) {
+  const healthy = f.subscription;
+  f.subscription = async (at) => ({ ...(await healthy(at)), accountId });
+}
+
+test("coding usage must come from the qualified mediation account", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  await mediatedCoding(f, t, mediatedAccount);
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /mediation/i);
+  assert.deepEqual(dispatched, []);
+  observeAccount(f, mediatedAccount);
+  const coded = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(coded.feature.outcome, "admitted");
+  assert.equal(dispatched.length, 1);
+});
+
+test("a mediation-linked feature refuses coding after its decision is withdrawn", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  f.runtime.execute = async (request) => {
+    dispatched.push(request.operationId);
+    return failedTurn(request);
+  };
+  const mediation = await mediatedCoding(f, t, mediatedAccount);
+  observeAccount(f, mediatedAccount);
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched.length, 1);
+  await mediation.withdraw();
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /mediation/i);
+  assert.equal(dispatched.length, 1, "no turn without the linked decision");
+});
+
+test("a mediation-linked feature re-qualifies before coding and refuses regressed evidence", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  f.runtime.execute = async (request) => {
+    dispatched.push(request.operationId);
+    return failedTurn(request);
+  };
+  const mediation = await mediatedCoding(f, t, mediatedAccount);
+  observeAccount(f, mediatedAccount);
+  await f.controller.codeFeature(f.delivery.id);
+  mediation.regress();
+  await assert.rejects(f.controller.codeFeature(f.delivery.id), /mediation/i);
+  assert.equal(dispatched.length, 1, "no turn on stale mediation evidence");
 });
