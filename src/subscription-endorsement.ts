@@ -32,10 +32,12 @@ export class EndorsementRefusal extends Error {
 /** Owner-run endorsement of which usage-reader account a protected mediation
  * decision record belongs to. It reads a fresh, measured usage observation,
  * previews its account by default, and writes `usageAccountId` only with
- * `confirm`, which also requires the previewed account. The new record is
- * written to a private temporary file and renamed over the old one, so an
- * interrupted write leaves the original record. It never re-binds a record
- * already endorsed for another account. */
+ * `confirm`, which also requires the previewed account. On POSIX the new
+ * record is written to a private temporary file and renamed over the old one,
+ * so an interrupted write leaves the original record. On Windows it is
+ * rewritten in place to keep its owner and access rules; an interrupted write
+ * there leaves an unparsable record, which fails closed. It never re-binds a
+ * record already endorsed for another account. */
 export async function endorseUsageAccount(options: {
   state: string;
   deliveryId: string;
@@ -91,19 +93,25 @@ export async function endorseUsageAccount(options: {
   }
   if (!options.confirm)
     return { usageAccountId, written: false, alreadyEndorsed: false };
+  const endorsed = JSON.stringify({ ...record, usageAccountId });
   const temporary = join(state, ".pending-endorsement-" + randomUUID());
   try {
-    writeFileSync(temporary, JSON.stringify({ ...record, usageAccountId }), {
-      flag: "wx",
-      mode: 0o600,
-      flush: true,
-    });
-    // The temporary file inherits the private directory's access; refuse
-    // before replacing the record if it did not.
-    assertPrivateAuthStorage(temporary, "file", 65536);
-    renameSync(temporary, recordPath);
+    if (process.platform === "win32") {
+      // A new Windows file takes the process's default owner, which an
+      // elevated shell sets to Administrators, so only an in-place rewrite
+      // keeps the record's owner and access rules.
+      writeFileSync(recordPath, endorsed, { flush: true });
+    } else {
+      writeFileSync(temporary, endorsed, {
+        flag: "wx",
+        mode: 0o600,
+        flush: true,
+      });
+      assertPrivateAuthStorage(temporary, "file", 65536);
+      renameSync(temporary, recordPath);
+    }
   } catch {
-    refuse("the endorsement could not be written; the record is unchanged");
+    refuse("the endorsement could not be written");
   } finally {
     rmSync(temporary, { force: true });
   }

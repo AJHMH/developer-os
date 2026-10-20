@@ -24,10 +24,14 @@ over a decision-record writer.
 - write `usageAccountId` only with explicit confirmation (`--confirm true`) and
   the previewed hash (`--expect`), so a login switched between preview and
   write can't be endorsed;
-- write the new record to an exclusive `0600` temporary file in the private
-  state directory, check that file's privacy (it inherits the directory's
-  Windows ACL), and rename it over the record. An interrupted write leaves the
-  original record;
+- on macOS and Linux, write the new record to an exclusive `0600` temporary
+  file in the private state directory, check its privacy and rename it over
+  the record, so an interrupted write leaves the original record;
+- on Windows, rewrite the record in place. A new file takes the shell's
+  default owner (Administrators when elevated), which the privacy check
+  rightly refuses; hosted Windows CI caught this. Rewriting in place keeps the
+  owner and access rules, and an interrupted write leaves an unparsable record,
+  which fails closed;
 - never re-bind: re-endorsing the same account is a no-op reported as
   `alreadyEndorsed`, and a record already endorsed for another account refuses.
 
@@ -66,9 +70,10 @@ and a distinct already-endorsed result. All are done.
 
 Mutation checks: each guard was removed in turn and the focused tests rerun;
 every guard has a failing test, except the temporary file's privacy check,
-which only an inherited non-private ACL can reach. The module has full line
-and branch coverage. Windows ACL
-refusal and survival are left to native Windows acceptance.
+which only an inherited non-private ACL can reach. On Linux the module's
+only uncovered lines are the Windows in-place write, which the hosted Windows
+shard runs through the same tests. Windows ACL refusal is left to native
+Windows acceptance.
 
 No Codex binary, credentials, online inference or real VM was used.
 

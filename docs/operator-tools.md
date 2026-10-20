@@ -129,6 +129,10 @@ executable. The command refuses:
 - a record that isn't this delivery's decision or isn't private;
 - a record already endorsed for another account.
 
-It writes the endorsed record to a private temporary file in the state
-directory and renames it over the original, so an interrupted write leaves the
-original record and a re-run is safe. Re-run `qualify` afterwards.
+On macOS and Linux it writes the endorsed record to a private temporary file in
+the state directory and renames it over the original, so an interrupted write
+leaves the original record and a re-run is safe. On Windows a new file would
+take the shell's default owner (Administrators when elevated), so it rewrites
+the record in place to keep its owner and access rules. An interrupted Windows
+write leaves an unparsable record, which fails closed. Re-run `qualify`
+afterwards.
