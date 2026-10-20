@@ -437,3 +437,14 @@ observed usage uses it, across inference, the online canary, polling, coding
 and unknown-usage endorsement. Plans still record the vault account. Records
 without the endorsement stop qualifying until re-endorsed. See the
 [reconciliation receipt](../ticket04-account-id-reconciliation-receipt.md).
+
+## 19 October: owner re-endorsement of decision records
+
+Records without `usageAccountId` stopped qualifying, and nothing writes
+mediation decisions. The owner chose a re-endorsement tool:
+`scripts/endorse-subscription-usage.mjs` previews the usage account from a
+fresh, measured observation through the pinned host Codex, and writes it into
+the protected record only with explicit confirmation. It refuses invalid or
+non-private records, unusable observations, an unexpected account and any
+re-binding. See the
+[endorsement receipt](../ticket04-decision-endorsement-receipt.md).

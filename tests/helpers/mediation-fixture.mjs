@@ -25,7 +25,8 @@ const macosNative =
 
 /** Give a coding fixture a worker probe and an owner-endorsed macOS mediation
  * decision endorsing `usageAccountId` as its usage-reader account, through
- * the public qualification path. Returns
+ * the public qualification path; without `usageAccountId` the record awaits
+ * endorsement and does not qualify. Returns `recordPath`,
  * `regress()`, which fails the probe's gateway evidence, and `withdraw()`,
  * which removes the protected decision record again. */
 export async function mediatedCoding(f, t, usageAccountId) {
@@ -79,7 +80,8 @@ export async function mediatedCoding(f, t, usageAccountId) {
       observedAt: new Date().toISOString(),
       // The vault credential account differs from the usage-reader account.
       accountId: "a".repeat(64),
-      usageAccountId,
+      // Omitted for a record that still awaits the owner's endorsement.
+      ...(usageAccountId === undefined ? {} : { usageAccountId }),
       policyPath: policy,
       policySha256: probe.policySha256,
       bindingSha256: probe.bindingSha256,
@@ -111,10 +113,11 @@ export async function mediatedCoding(f, t, usageAccountId) {
   const qualified = await f.controller.qualify(id);
   assert.equal(
     qualified.qualification.subscriptionMediation.mechanismDecision?.qualified,
-    true,
-    "the synthetic decision must genuinely qualify",
+    usageAccountId === undefined ? undefined : true,
+    "the synthetic decision must genuinely qualify once endorsed",
   );
   return {
+    recordPath,
     // The host evidence regresses; the protected record stays untouched.
     regress: () => (probe.subscriptionMediation.gatewayIntegration = "failed"),
     withdraw: async () => {
