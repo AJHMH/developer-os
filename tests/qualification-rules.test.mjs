@@ -51,6 +51,8 @@ function onlineEvidence() {
   d.onlineAccess = {
     runId: "run",
     accountId: "owner",
+    // The run's endorsed usage-reader account differs from its vault account.
+    usageAccountId: "owner-usage",
     usageScope: scope,
     mode: "controlled",
     state: "stopped",
@@ -74,7 +76,7 @@ function onlineEvidence() {
         checkedAt: new Date(now).toISOString(),
         decision: "ready",
         scope,
-        accountId: "owner",
+        accountId: "owner-usage",
       },
     },
   };

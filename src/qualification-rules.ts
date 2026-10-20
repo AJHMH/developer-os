@@ -316,9 +316,11 @@ function checkUsage(context: Context): QualificationCheck {
     Number.isFinite(authorizationTime) &&
     authorizationTime <= now &&
     usage?.checkId &&
+    // Usage identifies the run's endorsed usage-reader account.
+    online.usageAccountId &&
     new UsageApprovalGate(() => authorizationTime).permits(usage, {
       operationId: online.runId,
-      accountId: online.accountId,
+      accountId: online.usageAccountId,
       scope: online.usageScope,
     });
   return check(

@@ -125,6 +125,7 @@ export function projectSubscriptionDecision(
       r.repositorySha256 !== hash(repository) ||
       !uuid(r.runId) ||
       !hex(r.accountId) ||
+      !hex(r.usageAccountId) ||
       !hex(r.bindingSha256) ||
       !hex(r.workerExecutableSha256) ||
       !Number.isFinite(Date.parse(r.observedAt)) ||
@@ -171,6 +172,7 @@ export function projectSubscriptionDecision(
       runId: r.runId,
       observedAt: r.observedAt,
       accountId: r.accountId,
+      usageAccountId: r.usageAccountId,
       requestSha256: r.requestSha256,
       gatewayVersion: r.gatewayVersion,
       workerExecutableSha256: r.workerExecutableSha256,

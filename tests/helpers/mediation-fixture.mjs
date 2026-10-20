@@ -24,10 +24,11 @@ const macosNative =
   "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7";
 
 /** Give a coding fixture a worker probe and an owner-endorsed macOS mediation
- * decision for `accountId`, through the public qualification path. Returns
+ * decision endorsing `usageAccountId` as its usage-reader account, through
+ * the public qualification path. Returns
  * `regress()`, which fails the probe's gateway evidence, and `withdraw()`,
  * which removes the protected decision record again. */
-export async function mediatedCoding(f, t, accountId) {
+export async function mediatedCoding(f, t, usageAccountId) {
   const owner = realpathSync(mkdtempSync(join(tmpdir(), "aios-mediation-")));
   t.after(() => rmSync(owner, { recursive: true, force: true }));
   if (process.platform === "win32") initializeWindowsAuthDirectory(owner);
@@ -76,7 +77,9 @@ export async function mediatedCoding(f, t, accountId) {
       repositorySha256: hash(realpathSync(f.repository)),
       runId: run,
       observedAt: new Date().toISOString(),
-      accountId,
+      // The vault credential account differs from the usage-reader account.
+      accountId: "a".repeat(64),
+      usageAccountId,
       policyPath: policy,
       policySha256: probe.policySha256,
       bindingSha256: probe.bindingSha256,

@@ -89,6 +89,8 @@ for (const target of ["macos", "windows"])
       runId: run,
       observedAt: new Date().toISOString(),
       accountId: "c".repeat(64),
+      // The owner endorses which usage-reader account this credential is.
+      usageAccountId: "b".repeat(64),
       policyPath: policy,
       policySha256: q.policySha256,
       bindingSha256: q.bindingSha256,
@@ -122,6 +124,22 @@ for (const target of ["macos", "windows"])
         .mechanismDecision,
       undefined,
     );
+    // Without an endorsed usage-reader account the decision never qualifies.
+    const { usageAccountId, ...unendorsed } = record;
+    assert.ok(usageAccountId);
+    writeFileSync(recordPath, JSON.stringify(unendorsed), { mode: 0o600 });
+    ownWindowsFixturePaths([
+      state,
+      policy,
+      registration,
+      recordPath,
+      join(state, "inference-" + run + ".consumed"),
+    ]);
+    assert.equal(
+      (await c.qualify(d.id)).qualification.subscriptionMediation
+        .mechanismDecision,
+      undefined,
+    );
     writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
     ownWindowsFixturePaths([
       state,
@@ -134,6 +152,11 @@ for (const target of ["macos", "windows"])
     assert.equal(
       result.qualification.subscriptionMediation.mechanismDecision.qualified,
       true,
+    );
+    assert.equal(
+      result.qualification.subscriptionMediation.mechanismDecision
+        .usageAccountId,
+      record.usageAccountId,
     );
     assert.equal(
       result.qualification.subscriptionMediation.mechanismDecision
@@ -209,6 +232,7 @@ for (const target of ["macos", "windows"])
       "workerExecutableSha256",
       "requestSha256",
       "accountId",
+      "usageAccountId",
     ]) {
       writeFileSync(
         recordPath,
@@ -222,6 +246,7 @@ for (const target of ["macos", "windows"])
       );
     }
     for (const patch of [
+      { usageAccountId: undefined },
       { deliveryId: run },
       { repositorySha256: "d".repeat(64) },
       { subscriptionInference: "unverified" },

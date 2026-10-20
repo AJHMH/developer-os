@@ -18,7 +18,11 @@ export interface SubscriptionMediationReport {
       | "windows-fixed-codex-subscription";
     runId: string;
     observedAt: string;
+    /** The vault credential account the mediated relay uses. */
     accountId: string;
+    /** The owner-endorsed usage-reader account for that same subscription:
+     * usage observations identify accounts in a different identity space. */
+    usageAccountId: string;
     requestSha256: string;
     gatewayVersion: string;
     workerExecutableSha256: string;
