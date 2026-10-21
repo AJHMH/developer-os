@@ -30,6 +30,21 @@ reviewed copies with the intended repository, state, delivery, account, policy
 and distinct receipt paths. Keep originals and refusals intact. The manifest
 pins each reviewed copy's bytes; it does not configure constants inside a script.
 
+## General coding session acceptance (Issue 04)
+
+The offline coding session acceptance described in the
+[macOS runbook](macos-worker-qualification.md) also runs on Windows against the
+dedicated Hyper-V VM. From the repository checkout, in PowerShell:
+
+```powershell
+git checkout main; git pull; npm ci --ignore-scripts; npm run build; podman machine list; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-coding-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/issue04-session-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
+```
+
+It needs no credentials, sends no inference and never starts the VM. On 21
+October 2026 every stage passed; see the
+[native session acceptance receipt](../.scratch/aios-v1-implementation/ticket04-native-session-acceptance-receipt.md).
+The report is evidence only: `productionEnabled` and `qualified` stay false.
+
 ## Prepare the operator manifest
 
 Build and validate the final source before enrollment or preparation. Use an

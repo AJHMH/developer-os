@@ -507,3 +507,19 @@ remain open. Production remains disabled. See the
 recovery and resume reconciliation (adopted and unresolved), alongside the
 earlier usage interruption, coding restart approval, base move, retired resume
 lineage and lineage cleanup entries. Documentation only.
+
+## 21 October: native Windows acceptance of coding sessions
+
+The owner ran the same offline acceptance on the Windows PC against
+`aios-podman-noshare`, from `main` at `1b34398`. Every stage passed with
+identical runner and transport builds to the final Mac run, in about 4.4
+minutes. No Windows-specific change was needed. Both hosts have now observed:
+- offline threads;
+- resume onto a moved main;
+- refused reuse;
+- recovery;
+- reconciliation, retirement and lineage cleanup.
+
+Credentialed resumed turns and production integration remain open. Production
+remains disabled. See the
+[native session acceptance receipt](../ticket04-native-session-acceptance-receipt.md).
