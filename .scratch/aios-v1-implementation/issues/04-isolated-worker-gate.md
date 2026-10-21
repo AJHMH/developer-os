@@ -471,3 +471,14 @@ as tombstones that are never resumed. The delivery records the cleanup once,
 and an unverified cleanup records nothing. Native qualification remains open.
 Production remains disabled. See the
 [cleanup receipt](../ticket04-retired-lineage-cleanup-receipt.md).
+
+## 20 October: resuming a coding conversation onto a moved main
+
+Before any candidate exists, a moved main can be revalidated, and coding then
+builds from the new main and advances the feature branch, which must still be
+an ancestor. A resume whose predecessor used another revision names the exact
+`{ from, to }` move. The pinned runtime binds it, the native guest accepts the
+predecessor only for that move, Codex is told, and the delivery records it. No
+extra owner approval is needed; every other turn check still applies. Base
+refresh after admission stays with repair. Production remains disabled. See the
+[base move receipt](../ticket04-base-move-resume-receipt.md).

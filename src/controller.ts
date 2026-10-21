@@ -30,6 +30,8 @@ import {
   candidateSource,
   codingBinding,
   codingTurn,
+  advanceFeatureBranch,
+  featureBranchAdvance,
   featureBranch,
   needsResumeRecovery,
   unrestartedInterruption,
@@ -318,12 +320,28 @@ function recordInterruption(delivery: Delivery, session: CodingSession) {
     });
 }
 
-/** A restart approval is spent once its re-dispatch reaches dispatch. */
-function spendRestart(delivery: Delivery, operationId: string) {
-  const approval = delivery.feature?.restartApprovals?.find(
+/** Before any candidate or repair exists, coding may follow a moved main;
+ * an admitted candidate refreshes its base through repair instead. */
+function mayMoveBase(delivery: Delivery, repairId?: string): boolean {
+  return !delivery.feature?.candidate && !delivery.repair && !repairId;
+}
+
+/** Once a coding operation reaches dispatch, it spends its restart approval
+ * and its base move becomes evidence, each once. */
+function reachedDispatch(delivery: Delivery, operationId: string) {
+  const f = delivery.feature;
+  const approval = f?.restartApprovals?.find(
     (a) => a.operationId === operationId,
   );
   if (approval) approval.dispatched = true;
+  const move =
+    f?.session?.operationId === operationId ? f.session.baseMove : undefined;
+  if (move && !f!.baseMoves?.some((m) => m.operationId === operationId))
+    (f!.baseMoves ??= []).push({
+      operationId,
+      ...move,
+      at: new Date().toISOString(),
+    });
 }
 
 /** Public durable delivery controls. The CLI supplies no live worker adapter. */
@@ -1728,9 +1746,16 @@ export class DeliveryController {
       snapshot.repository,
       onboarding.canonicalRepository!.defaultBranch,
     );
+    // After coding started, a new baseline is only for a moved main before any
+    // candidate exists; an admitted candidate refreshes through repair.
+    const mainMoved =
+      mayMoveBase(snapshot) &&
+      !!snapshot.feature.sourceRevision &&
+      snapshot.feature.sourceRevision !== source.revision;
     if (
       stage === "baseline" &&
       snapshot.feature.session &&
+      !mainMoved &&
       !(
         repairId &&
         snapshot.repair?.attempts.at(-1)?.baseRefresh?.to === source.revision
@@ -2512,9 +2537,16 @@ export class DeliveryController {
       throw new DeliveryError(
         "Feature onboarding authority is unavailable or changed.",
       );
+    // Coding stays on the feature's revision, except that before any
+    // candidate exists it may continue on a moved main; the baseline check
+    // below then requires that new main to have passed validation.
+    const mayMove = mayMoveBase(snapshot, repairId);
     let source: ReturnType<typeof candidateSource>;
     try {
-      source = candidateSource(snapshot.repository, feature.sourceRevision);
+      source = candidateSource(
+        snapshot.repository,
+        mayMove ? undefined : feature.sourceRevision,
+      );
     } catch {
       throw new DeliveryError(
         "Feature source is changed or unsafe; preserve repository work.",
@@ -2562,6 +2594,19 @@ export class DeliveryController {
       throw new DeliveryError(
         "Main changed before coding dispatch; validate the new baseline.",
       );
+    // Refuse before any durable effect if the feature branch can't follow.
+    if (mayMove)
+      try {
+        featureBranchAdvance(
+          snapshot.repository,
+          `codex/feature-${id}`,
+          source.revision,
+        );
+      } catch {
+        throw new DeliveryError(
+          "The feature branch has its own commits or main moved backwards; it can't follow the new main.",
+        );
+      }
     validationContract(
       this.onboardingOptions.policyPath,
       snapshot.authorityPolicySha256 ?? undefined,
@@ -2661,11 +2706,27 @@ export class DeliveryController {
         !!prior?.threadId &&
         !!predecessor &&
         prior.resumeRecovery !== "retired";
+      // A recovered resume never ran, so its predecessor's revision is the one
+      // it recorded; otherwise the predecessor built its own workspace.
+      // A session recorded before revisions were kept names no move; the
+      // guest then refuses a predecessor on another revision.
+      const predecessorRevision =
+        prior?.resumeRecovery === "recovered"
+          ? (prior.baseMove?.from ?? prior.sourceRevision)
+          : prior?.sourceRevision;
+      const moved =
+        resuming &&
+        predecessorRevision !== undefined &&
+        predecessorRevision !== source.revision;
       f.session = {
         operationId: randomUUID(),
         fence: delivery.ownership.fence,
         state: "running",
         intent: resuming ? "resume" : "start",
+        sourceRevision: source.revision,
+        ...(moved
+          ? { baseMove: { from: predecessorRevision!, to: source.revision } }
+          : {}),
         ...(resuming
           ? {
               threadId: prior!.threadId,
@@ -2757,6 +2818,8 @@ export class DeliveryController {
         criteria: feature.criteria,
         verification: feature.verification,
         clarifications: feature.clarifications ?? [],
+        // A resumed conversation is told its workspace now starts from a new main.
+        ...(session.baseMove ? { baseMove: session.baseMove } : {}),
         ...(repairId
           ? { repairFindings: snapshot.repair!.attempts.at(-1)!.findings }
           : {}),
@@ -2826,6 +2889,12 @@ export class DeliveryController {
         this.featureBudget(prepared).activeMs,
     );
     try {
+      if (mayMove)
+        advanceFeatureBranch(
+          snapshot.repository,
+          prepared.feature!.branch!,
+          source.revision,
+        );
       featureBranch(
         snapshot.repository,
         prepared.feature!.branch!,
@@ -2866,7 +2935,7 @@ export class DeliveryController {
                   throw new DeliveryError("Coding session identity changed.");
                 delivery.feature.session.threadId = threadId;
                 delivery.feature.session.threadStarted = true;
-                spendRestart(delivery, session.operationId);
+                reachedDispatch(delivery, session.operationId);
               }
             });
             return (
@@ -2904,7 +2973,7 @@ export class DeliveryController {
               });
             if (permitted)
               this.change(id, (delivery) =>
-                spendRestart(delivery, session.operationId),
+                reachedDispatch(delivery, session.operationId),
               );
             return permitted;
           },
@@ -2926,7 +2995,7 @@ export class DeliveryController {
         if (delivery.feature?.session?.operationId === session.operationId) {
           delivery.feature.session.threadId = turn.threadId;
           delivery.feature.session.threadStarted = true;
-          spendRestart(delivery, session.operationId);
+          reachedDispatch(delivery, session.operationId);
         }
       });
       checkpoint();

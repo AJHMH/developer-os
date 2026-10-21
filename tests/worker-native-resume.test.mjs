@@ -1297,3 +1297,85 @@ test("lineage cleanup treats an unrecognized guest receipt as uncertain", async 
   );
   assert.equal(fixture.requests.length, 1);
 });
+
+// A resume onto a moved main: the predecessor launched on revision "b…".
+const movedBase = { from: "b".repeat(40), to: "c".repeat(40) };
+
+test(
+  "a resume onto a moved main names the exact move and the guest records it",
+  posixGuest,
+  async (t) => {
+    const { transport, root } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
+    await transport.run(
+      await nativeResumeRequest(transport, {
+        sourceRevision: movedBase.to,
+        baseMove: movedBase,
+      }),
+      () => {},
+    );
+    const record = guestSessions(root)
+      .records.map((path) => JSON.parse(realReadFileSync(path, "utf8")))
+      .find((r) => r.admission?.resumeFrom);
+    assert.deepEqual(record.admission.baseMove, movedBase);
+    assert.equal(record.admission.sourceRevision, movedBase.to);
+  },
+);
+
+test(
+  "native resume refuses a move from a revision the predecessor never used",
+  posixGuest,
+  async (t) => {
+    const { transport, root } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
+    const before = sessionHomes(root);
+    await assert.rejects(
+      transport.run(
+        await nativeResumeRequest(transport, {
+          sourceRevision: movedBase.to,
+          baseMove: { from: "d".repeat(40), to: movedBase.to },
+        }),
+        () => {},
+      ),
+    );
+    assert.deepEqual(sessionHomes(root), before, "the home was never moved");
+  },
+);
+
+test("native resume rejects a malformed base move before guest effects", async (t) => {
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const resume = await nativeResumeRequest(transport, {
+    sourceRevision: movedBase.to,
+  });
+  const launch = await launchRequest(transport, {
+    sourceRevision: movedBase.to,
+  });
+  const before = fixture.requests.length;
+  for (const baseMove of [
+    { from: movedBase.from, to: "e".repeat(40) },
+    { from: movedBase.to, to: movedBase.to },
+    { from: "not-a-revision", to: movedBase.to },
+    { ...movedBase, extra: true },
+    "moved",
+  ])
+    await assert.rejects(
+      transport.run({ ...resume, baseMove }, () => {}),
+      /Unsupported native coding/,
+    );
+  await assert.rejects(
+    transport.run({ ...launch, baseMove: movedBase }, () => {}),
+    /Unsupported native coding/,
+    "a first launch never names a base move",
+  );
+  assert.equal(fixture.requests.length, before);
+});

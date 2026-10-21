@@ -50,6 +50,8 @@ export interface FeatureEvidence extends FeaturePlan {
   mediationUsageAccountId?: string;
   /** The model-only subscription account the first coding launch used. */
   usageAccountId?: string;
+  /** Resumes that continued a conversation onto a moved main. */
+  baseMoves?: { operationId: string; from: string; to: string; at: string }[];
   /** Owner decisions retiring an unresolved resume lineage. `session` is the
    * retired successor's binding; `cleanedAt` and `cleaned` record the owner's
    * later cleanup of the whole lineage. */
@@ -120,6 +122,10 @@ export interface CodingSession {
   /** Durable: an interrupted resume returned its home to `resumeFrom`, or
    * the owner retired its lineage so coding restarts without resuming. */
   resumeRecovery?: "recovered" | "retired";
+  /** The main revision this operation's workspace was built from. */
+  sourceRevision?: string;
+  /** A resume onto a moved main: the predecessor's revision and this one's. */
+  baseMove?: { from: string; to: string };
 }
 /** The latest usage interruption, unless an owner-approved restart has
  * already dispatched past it. */
@@ -511,6 +517,48 @@ export function featureBranch(
       "0".repeat(40),
     ]);
 }
+/** The earlier main the feature branch must advance from to reach
+ * `revision`, or undefined when it already points there or doesn't exist yet.
+ * A branch with its own commits, or a main that moved backwards, refuses. */
+export function featureBranchAdvance(
+  repository: string,
+  branch: string,
+  revision: string,
+): string | undefined {
+  const current = spawnSync(
+    "git",
+    ["-C", repository, "rev-parse", "--verify", "refs/heads/" + branch],
+    { encoding: "utf8", timeout: 5000 },
+  );
+  const previous = current.stdout?.trim();
+  if (current.status !== 0 || previous === revision) return undefined;
+  if (
+    !/^[a-f0-9]{40}$/.test(previous) ||
+    spawnSync(
+      "git",
+      ["-C", repository, "merge-base", "--is-ancestor", previous, revision],
+      { encoding: "utf8", timeout: 5000 },
+    ).status !== 0
+  )
+    throw Error("Feature branch changed");
+  return previous;
+}
+/** Before any candidate exists, move the feature branch from an earlier main
+ * to the current one with a compare-and-swap. */
+export function advanceFeatureBranch(
+  repository: string,
+  branch: string,
+  revision: string,
+) {
+  const previous = featureBranchAdvance(repository, branch, revision);
+  if (previous)
+    candidateGit(repository, [
+      "update-ref",
+      "refs/heads/" + branch,
+      revision,
+      previous,
+    ]);
+}
 export function candidateOutput(receipt: CodingCollection): string {
   if (
     receipt.complete !== true ||
@@ -608,6 +656,7 @@ function codingLaunchBinding(request: CodingRequest): string {
       intent: request.intent,
       threadId: request.threadId,
       resumeFrom: request.resumeFrom && codingBinding(request.resumeFrom),
+      baseMove: request.baseMove,
       branch: request.branch,
       sourceRevision: request.sourceRevision,
       inputSha256: request.inputSha256,
@@ -665,6 +714,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       ...(request.resumeFrom
         ? { resumeFrom: codingBinding(request.resumeFrom) }
         : {}),
+      ...(request.baseMove ? { baseMove: { ...request.baseMove } } : {}),
       files: copyFiles(request.files),
       ...(request.baseRefresh
         ? {
