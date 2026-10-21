@@ -500,3 +500,10 @@ regenerated `skills/.system`, `tmp` and `.tmp` before reusing a home, while
 still refusing any other configuration or link. Windows and credentialed runs
 remain open. Production remains disabled. See the
 [native session acceptance receipt](../ticket04-native-session-acceptance-receipt.md).
+
+## 21 October: resume vocabulary in the glossary
+
+`CONTEXT.md` now defines coding-session resume, retained session home, resume
+recovery and resume reconciliation (adopted and unresolved), alongside the
+earlier usage interruption, coding restart approval, base move, retired resume
+lineage and lineage cleanup entries. Documentation only.
