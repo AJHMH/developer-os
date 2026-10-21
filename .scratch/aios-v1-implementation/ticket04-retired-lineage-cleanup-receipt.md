@@ -95,3 +95,17 @@ qualification.
 - Real Windows and macOS qualification of resume, recovery, reconciliation,
   restart and cleanup.
 - Production remains disabled, and the parent ticket stays partial.
+
+## Windows shard rebalance
+
+Hosted Windows shard 7 hit its 10-minute job limit on this PR. It runs
+`feature-candidate.test.mjs` alongside `worker-native-resume.test.mjs`, and it
+had already been close to the limit (9m57s on PR #82). The coding-session tests
+(resume, recovery, reconciliation, lineage cleanup, usage authority,
+monitoring, restart approval and the mediation link) moved unchanged to
+`tests/zz-feature-coding-session.test.mjs`. The `zz-` prefix sorts it near the
+end, so Node's `--test-shard` assignment changes for one other file only:
+`zz-operator-tools.test.mjs` moves from shard 1 to shard 2 (checked with
+`node --test --test-shard` before and after). The new file lands on shard 1,
+which finished in about 4 minutes on this run; shard 2 took about 3. The two halves take about the same time locally
+(10s and 13s). No timeout, deadline or test assertion changed.
