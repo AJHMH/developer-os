@@ -1,5 +1,6 @@
 import { realpathSync } from "node:fs";
 import { redact } from "./redaction.js";
+import type { CodingAdmission } from "./coding-admission.js";
 
 export interface FeaturePlan {
   requires?: ("browser" | "database")[];
@@ -262,6 +263,15 @@ export interface FeatureRuntime {
   }>;
   collect(session: CodingSession): Promise<CodingCollection>;
 }
+
+export const codingPinFields = Object.freeze([
+  "cliVersion",
+  "cliSha256",
+  "policySha256",
+  "bindingSha256",
+] as const);
+/** While a turn streams, a record read this recently still admits it. */
+const admissionStreamMaxAgeMs = 1000;
 
 export function validCodingPins(pins: CodingPins): boolean {
   return Boolean(
@@ -678,24 +688,43 @@ function codingLaunchBinding(request: CodingRequest): string {
   );
 }
 /** Executable pinned CLI adapter; the transport owns the independently qualified
- * isolation boundary. This controlled adapter never proves native compatibility. */
+ * isolation boundary. A controlled transport never proves native compatibility.
+ * A live transport is admitted only by an owner record naming these exact pins.
+ * The record is re-read before dispatch, on results and receipts, and at least
+ * once a second while a turn streams, so revoking or changing it stops further
+ * work. Either way the runtime keeps the controller's controlled contract; an
+ * admitted live transport claims no native qualification. */
 export class PinnedCodingRuntime implements FeatureRuntime {
   readonly mode = "controlled" as const;
   readonly pins: CodingPins;
   constructor(
     pins: CodingPins,
     private readonly transport: IsolatedCodingTransport,
+    private readonly admission?: CodingAdmission,
   ) {
-    if (!validCodingPins(pins) || transport.mode !== "controlled")
-      throw Error("Unqualified coding transport");
     this.pins = Object.freeze(structuredClone(pins));
+    if (!validCodingPins(pins) || !this.admitted())
+      throw Error("Unqualified coding transport");
+  }
+  /** The transport is controlled, or the owner record still names these pins. */
+  private admitted(maxAgeMs = 0): boolean {
+    if (this.transport.mode === "controlled") return !this.admission;
+    if (this.transport.mode !== "live" || !this.admission) return false;
+    try {
+      const admitted = this.admission.pins(maxAgeMs);
+      return codingPinFields.every(
+        (field) => admitted[field] === this.pins[field],
+      );
+    } catch {
+      return false;
+    }
   }
   async execute(request: CodingRequest): Promise<CodingResult> {
     const expected = JSON.stringify(this.pins);
     const admittedLaunch = codingLaunchBinding(request);
     const { mayDispatch, checkpoint, onEvent } = request;
     if (
-      this.transport.mode !== "controlled" ||
+      !this.admitted() ||
       JSON.stringify(request.pins) !== expected ||
       JSON.stringify(await this.transport.inspect(request)) !== expected ||
       codingLaunchBinding(request) !== admittedLaunch ||
@@ -732,11 +761,14 @@ export class PinnedCodingRuntime implements FeatureRuntime {
         : {}),
       mayDispatch: () =>
         launchUnchanged() && mayDispatch() && launchUnchanged(),
-      checkpoint: () => launchUnchanged() && checkpoint() && launchUnchanged(),
+      checkpoint: () =>
+        launchUnchanged(admissionStreamMaxAgeMs) &&
+        checkpoint() &&
+        launchUnchanged(admissionStreamMaxAgeMs),
       onEvent,
     };
-    const launchUnchanged = () =>
-      this.transport.mode === "controlled" &&
+    const launchUnchanged = (maxAgeMs = 0) =>
+      this.admitted(maxAgeMs) &&
       JSON.stringify(this.pins) === expected &&
       codingLaunchBinding(launch) === admittedLaunch;
     Object.freeze(launch);
@@ -796,7 +828,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
   private async inspectSession(session: CodingSession): Promise<void> {
     const observed = await this.transport.inspect(session);
     if (
-      this.transport.mode !== "controlled" ||
+      !this.admitted() ||
       JSON.stringify(observed) !== JSON.stringify(this.pins)
     )
       throw Error("Coding management binding changed");

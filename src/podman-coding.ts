@@ -610,7 +610,8 @@ export interface NativeSessionObservation {
 }
 
 /** Offline native transport groundwork; never a production qualification.
- * The controller's controlled-only gate deliberately rejects this live adapter. */
+ * The pinned runtime rejects this live adapter unless an owner coding admission
+ * record names its exact fresh pins; production stays disabled either way. */
 export class NativePodmanCodingTransport implements IsolatedCodingTransport {
   readonly mode = "live" as const;
   readonly productionEnabled = false;
