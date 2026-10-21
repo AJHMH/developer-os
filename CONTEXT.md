@@ -116,6 +116,13 @@ feature's account, which every turn must use anyway. The one re-dispatch that
 passes the controller's dispatch recheck spends it, and it never replaces the
 fresh usage authority every turn needs.
 
+**Base move**: A coding resume that continues its conversation onto a main
+that moved since its predecessor's turn. It names the exact old and new
+revisions, needs a passed baseline for the new main, builds its workspace from
+the new main and tells Codex the base changed. Only allowed before any
+candidate exists; an admitted candidate refreshes through repair.
+_Avoid_: Base refresh (that is repair's merge-base refresh)
+
 **Retired resume lineage**: A resumed coding session the owner retired because
 its launched resume never reported a thread, together with every predecessor
 it was resumed from. It is never resumed again; coding restarts fresh.

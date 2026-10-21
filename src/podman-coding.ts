@@ -347,12 +347,15 @@ else:
     oldIdentity=h(json.dumps(dict(operationId=oldId,fence=oldFence),sort_keys=True).encode())
     if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') or predecessor.get('reconciled') or predecessor.get('threadId')!=thread or predecessor['binding']!=binding or predecessor.get('pins')!=R['pins'] or predecessor.get('lease') or not gone(predecessor): fail()
     oldAdmission=predecessor.get('admission',{})
-    if oldAdmission.get('sourceRevision')!=R['sourceRevision'] or oldAdmission.get('branch')!=branch: fail()
+    # A resume onto a moved main names exactly the predecessor's revision.
+    base=R.get('baseMove')
+    if base is not None and (not isinstance(base,dict) or set(base)!={'from','to'} or not all(isinstance(v,str) and re.fullmatch('[a-f0-9]{40}',v) for v in base.values()) or base['to']!=R['sourceRevision'] or base['from']==base['to']): fail()
+    if oldAdmission.get('sourceRevision')!=(base['from'] if base else R['sourceRevision']) or oldAdmission.get('branch')!=branch: fail()
     if not stopped_container(oldName,oldIdentity): fail()
     units_quiet(oldName)
     oldHome=root+'/'+oldName+'/home';retained_home(oldHome)
-    admission.update(threadId=thread,resumeFrom=previous)
-   elif R['session']['intent']!='start' or R.get('threadId') is not None or R.get('resumeFrom') is not None: fail()
+    admission.update(threadId=thread,resumeFrom=previous,**({'baseMove':base} if base else {}))
+   elif R['session']['intent']!='start' or R.get('threadId') is not None or R.get('resumeFrom') is not None or R.get('baseMove') is not None: fail()
    total=0;names=set();inputs=[];manifest=[]
    if not isinstance(R['files'],list) or len(R['files'])>1000: fail()
    for file in R['files']:
@@ -735,8 +738,18 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
           request.resumeFrom!.operationId === request.operationId ||
           request.resumeFrom!.fence > request.fence ||
           request.resumeFrom!.state !== "stopped" ||
-          !["start", "resume"].includes(request.resumeFrom!.intent)
-        : request.threadId !== undefined || request.resumeFrom !== undefined
+          !["start", "resume"].includes(request.resumeFrom!.intent) ||
+          // A base move names exactly the predecessor's and this turn's main.
+          (request.baseMove !== undefined &&
+            (!record(request.baseMove) ||
+              JSON.stringify(Object.keys(request.baseMove).sort()) !==
+                '["from","to"]' ||
+              !/^[a-f0-9]{40}$/.test(String(request.baseMove.from)) ||
+              request.baseMove.to !== request.sourceRevision ||
+              request.baseMove.from === request.baseMove.to))
+        : request.threadId !== undefined ||
+          request.resumeFrom !== undefined ||
+          request.baseMove !== undefined
     )
       throw Error("Unsupported native coding resume");
     // `exec resume` has no --sandbox flag; pin the same mode by explicit override.
@@ -757,6 +770,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
           "--sandbox",
           "workspace-write",
         ];
+    const base = request.baseMove;
     if (
       request.baseRefresh ||
       !["start", "resume"].includes(request.intent) ||
@@ -806,6 +820,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
             resumeFrom: this.session(request.resumeFrom!),
           }
         : {}),
+      ...(base ? { baseMove: { from: base.from, to: base.to } } : {}),
     });
     const prepared = payload(),
       binding = JSON.stringify(prepared);
@@ -857,6 +872,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
             ...(resuming
               ? { threadId: prepared.threadId, resumeFrom: prepared.resumeFrom }
               : {}),
+            ...(prepared.baseMove ? { baseMove: prepared.baseMove } : {}),
           },
         },
         () => permit(mayDispatch) && performance.now() < deadline,

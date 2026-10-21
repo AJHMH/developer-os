@@ -7,6 +7,8 @@ import { planAndValidate } from "./helpers/validation-fixture.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
@@ -68,6 +70,215 @@ async function resumable(t) {
     next: (behavior) => (turn = behavior),
   };
 }
+
+// Advance the fixture repository's main by one ordinary commit that leaves
+// the feature's mutable page unchanged.
+function moveMain(f) {
+  writeFileSync(join(f.repository, "notes.txt"), "Main moved.\n");
+  f.git("add", "notes.txt");
+  f.git(
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "core.hooksPath=/nonexistent",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-m",
+    "main moved",
+  );
+  return f.git("rev-parse", "HEAD");
+}
+
+test("after main moves, a revalidated baseline lets coding resume the conversation onto the new base", async (t) => {
+  const { f, origin, next } = await resumable(t);
+  const from = f.git("rev-parse", "HEAD");
+  const to = moveMain(f);
+  await assert.rejects(
+    f.controller.codeFeature(f.delivery.id),
+    /baseline/i,
+    "the new main must be validated first",
+  );
+  const launches = [];
+  const normal = f.runtime.execute;
+  f.runtime.execute = async (request) => {
+    launches.push(
+      structuredClone({
+        sourceRevision: request.sourceRevision,
+        baseMove: request.baseMove,
+        threadId: request.threadId,
+        prompt: JSON.parse(request.argv.at(-1)),
+      }),
+    );
+    return normal(request);
+  };
+  await f.controller.validateBaseline(f.delivery.id);
+  next("normal");
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(resumed.feature.outcome, "admitted");
+  assert.equal(resumed.feature.session.intent, "resume");
+  assert.deepEqual(launches, [
+    {
+      sourceRevision: to,
+      baseMove: { from, to },
+      threadId: origin.threadId,
+      prompt: { ...launches[0].prompt, baseMove: { from, to } },
+    },
+  ]);
+  assert.deepEqual(
+    resumed.feature.baseMoves.map(({ operationId, from: a, to: b }) => ({
+      operationId,
+      from: a,
+      to: b,
+    })),
+    [{ operationId: resumed.feature.session.operationId, from, to }],
+    "the move is recorded",
+  );
+});
+
+// A commit object only the feature branch holds, on top of `parent`.
+function ownCommit(f, parent) {
+  return f.git(
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit-tree",
+    f.git("rev-parse", parent + "^{tree}"),
+    "-p",
+    parent,
+    "-m",
+    "feature-only",
+  );
+}
+
+for (const [name, arrange] of [
+  [
+    "has its own commits",
+    (f, branch) => {
+      f.git("update-ref", branch, ownCommit(f, f.git("rev-parse", "HEAD")));
+      moveMain(f);
+    },
+  ],
+  [
+    "is ahead of a main that moved backwards",
+    async (f, branch, next) => {
+      const from = f.git("rev-parse", "HEAD");
+      moveMain(f);
+      await f.controller.validateBaseline(f.delivery.id);
+      // The resume onto the new main fails, so no candidate exists.
+      next(failedTurn);
+      await f.controller.codeFeature(f.delivery.id);
+      assert.notEqual(f.git("rev-parse", branch), from, "the branch followed");
+      f.git("reset", "--hard", from);
+    },
+  ],
+])
+  test(`a feature branch that ${name} is never moved and nothing is dispatched`, async (t) => {
+    const { f, next, requests } = await resumable(t);
+    const branch = "refs/heads/codex/feature-" + f.delivery.id;
+    await arrange(f, branch, next);
+    const before = f.git("rev-parse", branch),
+      dispatched = requests.length,
+      moves = f.controller.status(f.delivery.id).feature.baseMoves;
+    await f.controller.validateBaseline(f.delivery.id);
+    next("normal");
+    await assert.rejects(
+      f.controller.codeFeature(f.delivery.id),
+      /feature branch/,
+    );
+    assert.equal(f.git("rev-parse", branch), before, "the branch is unchanged");
+    assert.equal(requests.length, dispatched, "nothing was dispatched");
+    assert.deepEqual(
+      f.controller.status(f.delivery.id).feature.baseMoves,
+      moves,
+      "no move is recorded",
+    );
+  });
+
+test("a fresh start on a moved main builds from the new main and names no move", async (t) => {
+  const f = codingFixture(t);
+  const normal = f.runtime.execute.bind(f.runtime);
+  const launches = [];
+  f.runtime.execute = async (request) => {
+    launches.push(
+      structuredClone({
+        intent: request.intent,
+        sourceRevision: request.sourceRevision,
+        baseMove: request.baseMove,
+      }),
+    );
+    return launches.length === 1 ? unlaunchedTurn(request) : normal(request);
+  };
+  await planAndValidate(f);
+  await f.controller.codeFeature(f.delivery.id);
+  const to = moveMain(f);
+  await f.controller.validateBaseline(f.delivery.id);
+  const fresh = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(fresh.feature.outcome, "admitted");
+  assert.deepEqual(launches[1], {
+    intent: "start",
+    sourceRevision: to,
+    baseMove: undefined,
+  });
+  assert.equal(fresh.feature.baseMoves, undefined);
+});
+
+test("a resume on an unchanged base names no base move", async (t) => {
+  const { f, next } = await resumable(t);
+  let launched;
+  const normal = f.runtime.execute;
+  f.runtime.execute = async (request) => {
+    launched = request;
+    return normal(request);
+  };
+  next("normal");
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(launched.baseMove, undefined);
+  assert.equal(JSON.parse(launched.argv.at(-1)).baseMove, undefined);
+  assert.equal(resumed.feature.baseMoves, undefined);
+});
+
+test("a recovered resume onto a moved base still names its predecessor's revision", async (t) => {
+  const { f, next, requests } = await resumable(t);
+  const from = f.git("rev-parse", "HEAD");
+  const to = moveMain(f);
+  await f.controller.validateBaseline(f.delivery.id);
+  next(unlaunchedTurn);
+  const recovered = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(recovered.feature.session.resumeRecovery, "recovered");
+  let launched;
+  const normal = f.runtime.execute;
+  f.runtime.execute = async (request) => {
+    launched = request;
+    return normal(request);
+  };
+  next("normal");
+  await f.controller.codeFeature(f.delivery.id);
+  assert.deepEqual(launched.baseMove, { from, to });
+  assert.equal(requests.length, 3);
+});
+
+test("a baseline after coding is refused unless main moved, and never after admission", async (t) => {
+  const { f, next } = await resumable(t);
+  await assert.rejects(
+    f.controller.validateBaseline(f.delivery.id),
+    /Baseline must precede coding/,
+    "main has not moved",
+  );
+  next("normal");
+  await f.controller.codeFeature(f.delivery.id);
+  moveMain(f);
+  await assert.rejects(
+    f.controller.validateBaseline(f.delivery.id),
+    /Baseline must precede coding/,
+    "an admitted candidate refreshes through repair, not a new baseline",
+  );
+});
 
 test("a resumed coding turn names its exact stopped predecessor session", async (t) => {
   const { f, requests, origin, next } = await resumable(t);
@@ -322,6 +533,46 @@ test("the pinned adapter refuses a predecessor changed during pin inspection", a
   await f.controller.codeFeature(f.delivery.id);
   await f.controller.codeFeature(f.delivery.id);
   assert.equal(dispatches, 1, "a changed predecessor never dispatches");
+});
+
+test("the pinned adapter refuses a base move changed during pin inspection and passes an unchanged one", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const dispatched = [];
+  let tamper = true;
+  const transport = {
+    ...turnTransport(f, async (request) => {
+      dispatched.push(structuredClone(request.baseMove));
+      return failedTurn(request);
+    }),
+    async inspect(request) {
+      if (tamper && request.baseMove) request.baseMove.from = "f".repeat(40);
+      return { ...f.runtime.pins };
+    },
+    // The refused resume never launched, so its home is returned.
+    async recoverInterruptedResume(session) {
+      return {
+        operationId: session.operationId,
+        fence: session.fence,
+        recovered: true,
+        pins: { ...f.runtime.pins },
+      };
+    },
+  };
+  f.controller = controllerFor(
+    f,
+    new PinnedCodingRuntime(f.runtime.pins, transport),
+  );
+  await planAndValidate(f);
+  const from = f.git("rev-parse", "HEAD");
+  await f.controller.codeFeature(f.delivery.id);
+  const to = moveMain(f);
+  await f.controller.validateBaseline(f.delivery.id);
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(dispatched.length, 1, "a changed base move never dispatches");
+  tamper = false;
+  await f.controller.codeFeature(f.delivery.id);
+  assert.deepEqual(dispatched.at(-1), { from, to });
 });
 
 test("a paused, lost resume blocks resumption and release until its home is recovered", async (t) => {
