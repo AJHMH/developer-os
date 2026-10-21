@@ -125,13 +125,23 @@ def retained_home(path):
  s=os.lstat(path)
  if not stat.S_ISDIR(s.st_mode): fail()
  directory(path)
+ # Codex recreates these on every start; a prior turn's copies never carry
+ # over. Everything else is checked before anything is removed.
+ regenerated=['skills','tmp','.tmp']
+ skills=path+'/skills'
+ if os.path.lexists(skills):
+  if not stat.S_ISDIR(os.lstat(skills).st_mode): fail()
+  with os.scandir(skills) as entries:
+   if [e.name for e in entries]!=['.system']: fail()
  # Codex loads these from CODEX_HOME; a prior turn must not configure the next.
  with os.scandir(path) as entries:
-  if any(e.name.lower() in ['config.toml','hooks.json','agents.md','agents.override.md','skills','rules'] for e in entries): fail()
+  if any(e.name not in regenerated and e.name.lower() in ['config.toml','hooks.json','agents.md','agents.override.md','skills','rules'] for e in entries): fail()
  pending=[path];count=0;total=0
  while pending:
-  with os.scandir(pending.pop()) as entries:
+  current=pending.pop()
+  with os.scandir(current) as entries:
    for entry in entries:
+    if current==path and entry.name in regenerated: continue
     count+=1
     if count>4096: fail()
     s=entry.stat(follow_symlinks=False)
@@ -141,6 +151,8 @@ def retained_home(path):
      ordinary(entry.path)
      total+=s.st_size
      if s.st_size>4194304 or total>16777216: fail()
+ for name in regenerated:
+  if os.path.lexists(path+'/'+name): remove_tree(path+'/'+name)
 def save(path,value):
  temp=path+'.new-'+uuid.uuid4().hex
  fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
@@ -167,12 +179,19 @@ def stopped_container(name,sessionIdentity):
  return True
 def remove_tree(path):
  # Never follows links; owned directories a worker made read-only are opened.
- info=os.lstat(path)
- if not stat.S_ISDIR(info.st_mode): os.unlink(path);return
- if info.st_uid==os.getuid(): os.chmod(path,stat.S_IMODE(info.st_mode)|0o700)
- with os.scandir(path) as entries: children=[e.path for e in entries]
- for child in children: remove_tree(child)
- os.rmdir(path)
+ # The whole tree is scanned within fixed bounds before anything is removed.
+ order=[];pending=[(path,0)]
+ while pending:
+  current,depth=pending.pop()
+  if len(order)>=65536 or depth>256: fail()
+  info=os.lstat(current)
+  order.append((current,stat.S_ISDIR(info.st_mode)))
+  if stat.S_ISDIR(info.st_mode):
+   if info.st_uid==os.getuid(): os.chmod(current,stat.S_IMODE(info.st_mode)|0o700)
+   with os.scandir(current) as entries: pending.extend((e.path,depth+1) for e in entries)
+ for current,folder in reversed(order):
+  if folder: os.rmdir(current)
+  else: os.unlink(current)
 def read(path):
  ordinary(path)
  with open(path) as f: return json.load(f)

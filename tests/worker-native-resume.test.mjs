@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { resolve } from "node:path";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
+import { sessionAcceptance } from "../scripts/run-native-coding-acceptance.mjs";
 import {
   realTemporaryDirectory,
   realSpawnSync,
@@ -112,12 +113,182 @@ test(
   },
 );
 
+// What Codex 0.161 writes into its home on every start, observed natively.
+function plantRegenerated(home) {
+  const system = `${home}/skills/.system/imagegen`;
+  realMkdirSync(system, { recursive: true });
+  realWriteFileSync(`${system}/SKILL.md`, "built-in skill");
+  realWriteFileSync(`${home}/skills/.system/.codex-system-skills.marker`, "x");
+  const arg0 = `${home}/tmp/arg0/codex-arg0abc`;
+  realMkdirSync(arg0, { recursive: true });
+  realWriteFileSync(`${arg0}/.lock`, "");
+  for (const name of ["apply_patch", "codex-linux-sandbox"])
+    realSpawnSync("ln", ["-s", "/codex", `${arg0}/${name}`]);
+  realMkdirSync(`${home}/.tmp`, { recursive: true });
+  realWriteFileSync(`${home}/.tmp/plugins.sync.lock`, "");
+  realMkdirSync(`${home}/sessions/2026/10/21`, { recursive: true });
+  realWriteFileSync(`${home}/sessions/2026/10/21/rollout.jsonl`, "{}\n");
+  realWriteFileSync(`${home}/state_5.sqlite`, "conversation state");
+}
+
+test(
+  "native resume strips what Codex regenerates and carries the conversation over",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
+    const originalHome = read().container.Mounts.find(
+      (m) => m.Destination === "/session",
+    ).Source;
+    plantRegenerated(originalHome);
+    await transport.run(await nativeResumeRequest(transport), () => {});
+    const resumedHome = read().container.Mounts.find(
+      (m) => m.Destination === "/session",
+    ).Source;
+    assert.notEqual(
+      resumedHome,
+      originalHome,
+      "the home moved to the successor",
+    );
+    const listing = realSpawnSync("find", [resumedHome], { encoding: "utf8" })
+      .stdout.split("\n")
+      .filter(Boolean)
+      .map((path) => path.slice(resumedHome.length))
+      .sort();
+    for (const regenerated of ["/skills", "/tmp", "/.tmp"])
+      assert.ok(
+        !listing.some(
+          (path) => path.startsWith(regenerated + "/") || path === regenerated,
+        ),
+        `${regenerated} was removed before reuse`,
+      );
+    assert.ok(listing.includes("/sessions/2026/10/21/rollout.jsonl"));
+    assert.ok(listing.includes("/state_5.sqlite"));
+  },
+);
+
+test(
+  "native resume refuses a planted skill beside the built-in ones and removes nothing",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
+    const originalHome = read().container.Mounts.find(
+      (m) => m.Destination === "/session",
+    ).Source;
+    plantRegenerated(originalHome);
+    realMkdirSync(`${originalHome}/skills/planted`, { recursive: true });
+    realWriteFileSync(`${originalHome}/skills/planted/SKILL.md`, "planted");
+    await assert.rejects(
+      transport.run(await nativeResumeRequest(transport), () => {}),
+    );
+    assert.equal(
+      realReadFileSync(
+        `${originalHome}/skills/.system/imagegen/SKILL.md`,
+        "utf8",
+      ),
+      "built-in skill",
+      "nothing is removed from a refused home",
+    );
+  },
+);
+
+for (const [name, arrange] of [
+  [
+    "a configuration file",
+    (home) => realWriteFileSync(`${home}/config.toml`, "x"),
+  ],
+  [
+    "a capitalized skills folder",
+    (home) => realMkdirSync(`${home}/Skills/planted`, { recursive: true }),
+  ],
+  [
+    "a skills link",
+    (home) => {
+      realSpawnSync("rm", ["-rf", `${home}/skills`]);
+      realSpawnSync("ln", ["-s", "/etc", `${home}/skills`]);
+    },
+  ],
+])
+  test(
+    `native resume refuses ${name} beside Codex's regenerated files and removes nothing`,
+    posixGuest,
+    async (t) => {
+      const { transport, read } = await launchedGuest(t, {
+        threadId: resumeThread,
+      });
+      const home = read().container.Mounts.find(
+        (m) => m.Destination === "/session",
+      ).Source;
+      plantRegenerated(home);
+      arrange(home);
+      await assert.rejects(
+        transport.run(await nativeResumeRequest(transport), () => {}),
+      );
+      assert.equal(
+        realSpawnSync("test", ["-e", `${home}/tmp/arg0/codex-arg0abc/.lock`])
+          .status,
+        0,
+        "the regenerated files are still there",
+      );
+    },
+  );
+
+test(
+  "removing a regenerated link never touches its target",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
+    const home = read().container.Mounts.find(
+      (m) => m.Destination === "/session",
+    ).Source;
+    plantRegenerated(home);
+    const outside = realMkdtempSync(`${realTemporaryDirectory}/aios-outside-`);
+    t.after(() => realSpawnSync("rm", ["-rf", outside]));
+    realWriteFileSync(`${outside}/keep`, "outside the home");
+    realSpawnSync("ln", ["-s", outside, `${home}/tmp/outside`]);
+    await transport.run(await nativeResumeRequest(transport), () => {});
+    assert.equal(
+      realReadFileSync(`${outside}/keep`, "utf8"),
+      "outside the home",
+    );
+  },
+);
+
+test(
+  "native resume still refuses a link outside what Codex regenerates",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
+    const originalHome = read().container.Mounts.find(
+      (m) => m.Destination === "/session",
+    ).Source;
+    plantRegenerated(originalHome);
+    realSpawnSync("ln", ["-s", "/etc", `${originalHome}/sessions/link`]);
+    await assert.rejects(
+      transport.run(await nativeResumeRequest(transport), () => {}),
+    );
+    assert.equal(
+      read().commands.filter((args) => args[1] === "create").length,
+      1,
+      "no resumed worker is created",
+    );
+  },
+);
+
 for (const planted of [
   "config.toml",
   "hooks.json",
   "AGENTS.md",
   "AGENTS.override.md",
   "skills/planted/SKILL.md",
+  "rules/default.rules",
 ])
   test(
     `native explicit resume refuses retained worker-writable Codex configuration ${planted}`,
@@ -1378,4 +1549,79 @@ test("native resume rejects a malformed base move before guest effects", async (
     "a first launch never names a base move",
   );
   assert.equal(fixture.requests.length, before);
+});
+
+test(
+  "the owner-run native session acceptance passes against the guest fixture",
+  posixGuest,
+  async (t) => {
+    const { transport, root } = guestFixture(t, { threadId: resumeThread });
+    const persisted = [];
+    const report = await sessionAcceptance(transport, {
+      persist: (r) => persisted.push(r.stages.length),
+    });
+    assert.equal(
+      report.outcome,
+      "observed-offline-session-acceptance",
+      report.error,
+    );
+    assert.equal(report.productionEnabled, false);
+    assert.equal(report.qualified, false);
+    assert.ok(
+      report.stages.every((s) => s.outcome === "passed"),
+      JSON.stringify(report.stages.filter((s) => s.outcome !== "passed")),
+    );
+    assert.ok(persisted.length > report.stages.length, "persisted per stage");
+    assert.ok(
+      guestSessions(root).folders.length >= 4,
+      "lineage A's session folders remain",
+    );
+  },
+);
+
+test(
+  "the native session acceptance reports a missing offline thread as blocked before any resume",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t);
+    const report = await sessionAcceptance(transport);
+    assert.equal(report.outcome, "blocked-before-thread");
+    assert.deepEqual(
+      report.stages
+        .filter((s) => !s.name.startsWith("final-stop"))
+        .map((s) => [s.name, s.outcome]),
+      [
+        ["fresh-pins", "passed"],
+        ["lineage-a-first-launch-thread", "blocked"],
+      ],
+    );
+    assert.ok(
+      report.stages
+        .filter((s) => s.name.startsWith("final-stop"))
+        .every((s) => s.outcome === "passed"),
+    );
+  },
+);
+
+test("the native session acceptance command needs a machine, a new report and explicit approval", () => {
+  for (const args of [
+    [],
+    ["aios-macos-noshare", "/tmp/report.json"],
+    ["not-a-machine", "/tmp/report.json", "--approve-offline-native-run"],
+    ["aios-macos-noshare", "/tmp/report.json", "--approve"],
+    [
+      "aios-macos-noshare",
+      "/tmp/report.json",
+      "--approve-offline-native-run",
+      "extra",
+    ],
+  ]) {
+    const result = realSpawnSync(
+      process.execPath,
+      ["scripts/run-native-coding-acceptance.mjs", ...args],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 1, args.join(" "));
+    assert.match(result.stderr, /approve-offline-native-run/);
+  }
 });

@@ -1,0 +1,80 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "sourceRevision": "49248e2c9fecb89495ad8ad629d2108ff0efeeca",
+  "sourceDirty": true,
+  "runnerSha256": "121b487536ec218f5ed8c210ef091b9b5bb73de8ce0a080f49a15f6ac912117d",
+  "transportBuildSha256": "222fd7aa5a9c8d0b48b6ffecc58c604d94f2dc4c7cc9426270e4dfd52e852a45",
+  "scope": "native-coding-offline-session-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "outcome": "blocked",
+  "revisions": {
+    "first": "f032711e4b45d99528f99258498472421e5a318a",
+    "moved": "9bc4d74740f2e557123173415e290b8c668cd2e6"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 1102
+    },
+    {
+      "name": "lineage-a-first-launch-thread",
+      "outcome": "passed",
+      "startedMs": 1102,
+      "finishedMs": 10040
+    },
+    {
+      "name": "lineage-a-first-stopped",
+      "outcome": "passed",
+      "startedMs": 10040,
+      "finishedMs": 11019
+    },
+    {
+      "name": "lineage-a-resume-onto-moved-main",
+      "outcome": "blocked",
+      "startedMs": 11020,
+      "error": "Native coding prepare observation unavailable",
+      "finishedMs": 14581
+    },
+    {
+      "name": "final-stop-0d9b3ae1-dc17-4d43-a938-703ee8b4fb00",
+      "outcome": "passed",
+      "startedMs": 14581,
+      "finishedMs": 15522
+    },
+    {
+      "name": "final-stop-a330d99b-1451-4e2b-855c-19352a7546d5",
+      "outcome": "passed",
+      "startedMs": 15522,
+      "finishedMs": 16399
+    }
+  ],
+  "turns": [
+    {
+      "fence": 1,
+      "outputBytes": 392,
+      "threads": 1
+    },
+    {
+      "fence": 2,
+      "outputBytes": 0,
+      "threads": 0
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "6c992cca60b6e77bd82cf6a85bd433f95bdd7f0dff76bb74d35c005fb6740f91",
+    "bindingSha256": "146cffa572c94136933007454c2f4841958344d7dce84a0cb32056998cba603f"
+  },
+  "error": "Native coding prepare observation unavailable"
+}
