@@ -523,3 +523,15 @@ minutes. No Windows-specific change was needed. Both hosts have now observed:
 Credentialed resumed turns and production integration remain open. Production
 remains disabled. See the
 [native session acceptance receipt](../ticket04-native-session-acceptance-receipt.md).
+
+## 21 October: owner coding admission
+
+The pinned coding runtime now accepts a live VM transport when an owner coding
+admission record names its exact fresh pins. The record is a private,
+owner-written file per host, kept outside any repository. It is re-read at
+every check, so removing or editing it, or any pin change, stops further
+coding. The controller, CLI and production default are unchanged; production
+delivery remains disabled. A new owner-run offline acceptance drives one
+controller coding turn through the real transport, with synthetic planning,
+validation, onboarding and usage. Native runs on both hosts remain. See the
+[coding admission receipt](../ticket04-coding-admission-receipt.md).

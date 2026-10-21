@@ -110,6 +110,15 @@ lapsed during the turn or before its output was collected (exhaustion, an
 account change or a lost observation). The thread is preserved, and coding
 stays blocked until a coding restart approval.
 
+**Owner coding admission**: An owner-written record, kept privately on one
+host and never in a repository, that names the exact pins (CLI version and
+digest, management policy, host and VM binding) of one live coding transport.
+The pinned coding runtime re-reads it before dispatch, on results and
+receipts, and at least once a second while a turn streams, so editing or
+removing it, or any pin change, stops further coding. It admits coding turns
+only; it never enables production delivery.
+_Avoid_: enablement flag, production switch
+
 **Coding restart approval**: The owner's decision to restart coding after a
 usage interruption. It names the interrupted operation and records the
 feature's account, which every turn must use anyway. The one re-dispatch that

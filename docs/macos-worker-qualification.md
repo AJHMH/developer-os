@@ -182,6 +182,55 @@ On 20 October 2026 every stage passed on this Mac; see the
 Before reusing a session home, the guest removes what Codex regenerates on every
 start (`skills/.system`, `tmp`, `.tmp`) and refuses any other configuration.
 
+## Owner coding admission acceptance (Issue 04)
+
+The delivery controller runs a coding turn on a live VM transport only when an
+owner coding admission record names that transport's exact fresh pins. The
+record is a private file you write yourself, outside any repository, readable
+only by you, in a folder only you can change:
+
+```json
+{
+  "scope": "aios-native-coding-admission-v1",
+  "approvedAt": "2026-10-21T18:00:00.000Z",
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "<64 hex>",
+    "policySha256": "<64 hex>",
+    "bindingSha256": "<64 hex>"
+  }
+}
+```
+
+No other fields are accepted. `approvedAt` must be a canonical UTC time that
+is not in the future. The runtime re-reads the record before dispatch, on the
+turn's result, when it trusts a stop or other receipt, and at least once a
+second while a turn streams. Removing or editing it stops further coding. A
+session stopped while its record is missing or different stays uncertain until
+the matching record is restored and the session is recovered. Any pin change,
+such as a new CLI, guest policy, Podman, VM or host, needs a new record.
+Production delivery stays disabled either way.
+
+The offline acceptance drives one controller turn through the real transport
+under the record. Planning, validation, onboarding facts and usage are
+synthetic stand-ins, and the turn has a one-minute allowance because offline
+Codex never finishes. If the record is missing or names other pins, the run
+stops before any coding and prints the fresh pins so that you can check or
+write the record:
+
+```sh
+cd ~/Repos/developer-os
+npm ci --ignore-scripts && npm run build
+/opt/podman/bin/podman machine list   # aios-macos-noshare must be running
+mkdir -m 700 -p "$HOME/.developer-os/admission"
+# Write $HOME/.developer-os/admission/coding-admission.json yourself; chmod 600.
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" \
+  scripts/run-native-coding-admission-acceptance.mjs -- aios-macos-noshare \
+  "$HOME/.developer-os/admission/coding-admission.json" \
+  "$HOME/.developer-os/issue04-admission-acceptance-$(date +%Y%m%d-%H%M%S).json" \
+  --approve-offline-native-run
+```
+
 ## Authentication capability
 
 The official `@openai/codex@0.161.0-darwin-arm64` package was downloaded without
