@@ -1,0 +1,221 @@
+{
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26300",
+    "machine": "aios-podman-noshare"
+  },
+  "authority": "40601adbb6d3289093752fe4308b0c7f4491c4338d5dc24c51cbef428e5de252",
+  "sourceRevision": "1b343983f9879a71445cf72d230d8aa693134b59",
+  "sourceDirty": true,
+  "runnerSha256": "121b487536ec218f5ed8c210ef091b9b5bb73de8ce0a080f49a15f6ac912117d",
+  "transportBuildSha256": "613404839726bb5b5e23b4623fff43a90e2e03b149dcea3def00bd10547c4b68",
+  "scope": "native-coding-offline-session-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "outcome": "observed-offline-session-acceptance",
+  "revisions": {
+    "first": "f032711e4b45d99528f99258498472421e5a318a",
+    "moved": "9bc4d74740f2e557123173415e290b8c668cd2e6"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 4182
+    },
+    {
+      "name": "lineage-a-first-launch-thread",
+      "outcome": "passed",
+      "startedMs": 4182,
+      "finishedMs": 31000
+    },
+    {
+      "name": "lineage-a-first-stopped",
+      "outcome": "passed",
+      "startedMs": 31001,
+      "finishedMs": 34578
+    },
+    {
+      "name": "lineage-a-resume-onto-moved-main",
+      "outcome": "passed",
+      "startedMs": 34578,
+      "finishedMs": 60300
+    },
+    {
+      "name": "lineage-a-moved-input-collected",
+      "outcome": "passed",
+      "startedMs": 60301,
+      "finishedMs": 70813
+    },
+    {
+      "name": "lineage-a-consumed-predecessor-refused",
+      "outcome": "passed",
+      "startedMs": 70813,
+      "finishedMs": 85112
+    },
+    {
+      "name": "lineage-a-stranded-resume",
+      "outcome": "passed",
+      "startedMs": 85113,
+      "finishedMs": 103683
+    },
+    {
+      "name": "lineage-a-recovery-returns-home",
+      "outcome": "passed",
+      "startedMs": 103683,
+      "finishedMs": 107323
+    },
+    {
+      "name": "lineage-a-resume-after-recovery",
+      "outcome": "passed",
+      "startedMs": 107324,
+      "finishedMs": 132661
+    },
+    {
+      "name": "lineage-b-first-launch-thread",
+      "outcome": "passed",
+      "startedMs": 132662,
+      "finishedMs": 158382
+    },
+    {
+      "name": "lineage-b-resume-stopped-after-launch",
+      "outcome": "passed",
+      "startedMs": 158382,
+      "finishedMs": 184197
+    },
+    {
+      "name": "lineage-b-launched-resume-is-never-recovered",
+      "outcome": "passed",
+      "startedMs": 184198,
+      "finishedMs": 187837
+    },
+    {
+      "name": "lineage-b-unresolved-then-retired",
+      "outcome": "passed",
+      "startedMs": 187838,
+      "finishedMs": 195200
+    },
+    {
+      "name": "lineage-b-cleanup",
+      "outcome": "passed",
+      "startedMs": 195201,
+      "finishedMs": 202800
+    },
+    {
+      "name": "lineage-b-never-resumed-after-cleanup",
+      "outcome": "passed",
+      "startedMs": 202801,
+      "finishedMs": 231091
+    },
+    {
+      "name": "final-stop-72fc5ea9-9685-46fe-82df-df1be7afc7ce",
+      "outcome": "passed",
+      "startedMs": 231091,
+      "finishedMs": 234750
+    },
+    {
+      "name": "final-stop-8f8574b3-e3fd-424a-b371-a694eb0ba997",
+      "outcome": "passed",
+      "startedMs": 234751,
+      "finishedMs": 238376
+    },
+    {
+      "name": "final-stop-35dbc117-2dd3-4586-bc19-f03cfea8f756",
+      "outcome": "passed",
+      "startedMs": 238377,
+      "finishedMs": 241955
+    },
+    {
+      "name": "final-stop-a7098ff5-472a-4eaa-9d25-7f24b548edde",
+      "outcome": "passed",
+      "startedMs": 241956,
+      "finishedMs": 245465
+    },
+    {
+      "name": "final-stop-0dbc92bc-1fa5-4658-b3ca-5e82634fceb1",
+      "outcome": "passed",
+      "startedMs": 245465,
+      "finishedMs": 249229
+    },
+    {
+      "name": "final-stop-1a9dda54-e723-4db6-9a98-a33e43969020",
+      "outcome": "passed",
+      "startedMs": 249229,
+      "finishedMs": 252792
+    },
+    {
+      "name": "final-stop-e8b7025f-73a4-4374-9fc3-28f808f9dc04",
+      "outcome": "passed",
+      "startedMs": 252793,
+      "finishedMs": 256368
+    },
+    {
+      "name": "final-stop-88aa7fdd-63d6-4e4a-855a-6d465849bfaf",
+      "outcome": "passed",
+      "startedMs": 256368,
+      "finishedMs": 259957
+    },
+    {
+      "name": "final-stop-8e416215-25a3-44fe-a194-7df6f1248d54",
+      "outcome": "passed",
+      "startedMs": 259958,
+      "finishedMs": 263581
+    }
+  ],
+  "turns": [
+    {
+      "fence": 1,
+      "outputBytes": 392,
+      "threads": 1
+    },
+    {
+      "fence": 2,
+      "outputBytes": 392,
+      "threads": 1
+    },
+    {
+      "fence": 3,
+      "outputBytes": 0,
+      "threads": 0
+    },
+    {
+      "fence": 4,
+      "outputBytes": 0,
+      "threads": 0
+    },
+    {
+      "fence": 5,
+      "outputBytes": 392,
+      "threads": 1
+    },
+    {
+      "fence": 6,
+      "outputBytes": 392,
+      "threads": 1
+    },
+    {
+      "fence": 7,
+      "outputBytes": 0,
+      "threads": 0
+    },
+    {
+      "fence": 8,
+      "outputBytes": 0,
+      "threads": 0
+    },
+    {
+      "fence": 9,
+      "outputBytes": 0,
+      "threads": 0
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+    "policySha256": "ede4001575500b702adf528553fdfdeb6862d07f049eec207bdd0609a28c50ba",
+    "bindingSha256": "90aef18689b3eeadc1b525cc767eb8919c153e2f0f342c6f7800e7f91eccd7aa"
+  }
+}

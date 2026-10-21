@@ -1,8 +1,9 @@
 # Issue 04: native macOS acceptance of general coding sessions
 
-Status: observed on the owner's Mac on 20 October 2026, offline, with
-`productionEnabled: false` and `qualified: false`. Windows and credentialed
-(inference) observation remain open. Production remains disabled.
+Status: observed on the owner's Mac on 20 October 2026 and on the owner's
+Windows PC on 21 October 2026, offline, with `productionEnabled: false` and
+`qualified: false`. Credentialed (inference) observation remains open.
+Production remains disabled.
 
 ## What ran
 
@@ -42,6 +43,25 @@ Lineage B, about 35 seconds:
 
 All nine attempted sessions were stopped at the end with no remaining
 processes. Lineage A's stopped sessions remain in the VM, as earlier runs' do.
+
+## Windows result: every stage passed
+
+On 21 October the owner ran the same command on the Windows PC (Windows
+10.0.26300, x64) against the dedicated Hyper-V VM `aios-podman-noshare`, from
+`main` at `1b34398`. Codex 0.161.0 there is the x64 build (`9a820c17…`). The
+report is `.scratch/aios-v1-implementation/windows/issue04-session-acceptance-20261021-100937.json`.
+Its runner hash `121b4875…` and transport build hash `61340483…` are the same
+as the final Mac run's, so both hosts ran identical code. No Windows-specific
+change was needed.
+
+Every stage passed, in the same order as on the Mac. It took about 4.4
+minutes, against about 1.5 on the Mac:
+- each turn that reported a thread took about 25 seconds, against about 9;
+- each guest action took about 3.5 seconds, against about 1.
+
+The Windows coding authority (`40601adb…`, derived from the same label and
+this machine name) was set up by this first run. All nine attempted sessions
+were stopped with no remaining processes.
 
 ## Findings fixed along the way
 
@@ -84,7 +104,7 @@ processes. Lineage A's stopped sessions remain in the VM, as earlier runs' do.
 
 ## Still open
 
-- Windows native acceptance, and credentialed (inference) resumed turns.
+- Credentialed (inference) resumed turns on either host.
 - Adversarial isolation of resumed workers through this transport.
 - Production integration; production remains disabled, and the parent ticket
   stays partial.
