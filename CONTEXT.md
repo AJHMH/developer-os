@@ -116,6 +116,30 @@ feature's account, which every turn must use anyway. The one re-dispatch that
 passes the controller's dispatch recheck spends it, and it never replaces the
 fresh usage authority every turn needs.
 
+**Coding-session resume**: A new coding turn that continues the Codex
+conversation of an exact stopped predecessor session, named to the coding VM
+by operation and fence rather than by a "last session" lookup. It needs fresh
+authority like any turn, and repair turns never resume.
+_Avoid_: Resume (unqualified; a delivery's resumption leaves a pause)
+
+**Retained session home**: A stopped coding session's private Codex home in
+the coding VM. A resume reserves it, one successor at a time, and moves it into
+its own session. Codex's regenerated `skills/.system` and temp folders are
+removed first; any other configuration, link or unusual file refuses the
+resume.
+
+**Resume recovery**: Settling a resume that stopped before it launched: any
+retained session home it had taken returns to its predecessor and the
+reservation is released, so the predecessor can be resumed again. The
+recovered resume itself is never resumed.
+
+**Resume reconciliation**: Settling a resume that launched but never reported
+its thread to the controller, by the coding VM's own record. Adopted: the VM
+recorded the expected thread, so the resume becomes the next predecessor.
+Unresolved: it recorded none, or reconciliation can't be verified, so coding
+stays blocked until the owner retires the lineage (see Retired resume
+lineage).
+
 **Base move**: A coding resume that continues its conversation onto a main
 that moved since its predecessor's turn. It names the exact old and new
 revisions, needs a passed baseline for the new main, builds its workspace from
