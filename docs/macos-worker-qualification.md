@@ -144,6 +144,44 @@ recovery. The isolation runner verifies six synthetic denial controls with
 reachable positive controls before/after denial plus four bounded escape
 attempts. These are explicit host acceptance scripts, not automatic tests.
 
+## General coding session acceptance (Issue 04)
+
+`scripts/run-native-coding-acceptance.mjs` drives the general coding transport
+against the dedicated VM in two synthetic lineages, offline and without
+credentials:
+
+- Lineage A: a first launch, a resume onto a moved main (a named base move), a
+  check that the moved main's input was kept, a refused reuse of a
+  consumed predecessor, a resume stranded after preparation and recovered, and
+  a resume after recovery.
+- Lineage B: a resume stopped right after launch, never recovered, reconciled
+  as unresolved, retired, cleaned up (idempotently), and never resumed again.
+
+It uses the VM's existing coding authority, never provisions or starts the VM,
+refuses to overwrite a report, and stops every attempted session at the end.
+Each refusal it expects must happen for the expected reason. The first launch
+must report an offline thread; if it runs but reports none, the outcome is
+`blocked-before-thread`. Run it through the shared runner, which takes the
+acceptance lock and keeps the Mac awake:
+
+```sh
+cd ~/Repos/developer-os
+npm ci --ignore-scripts && npm run build
+/opt/podman/bin/podman machine list   # aios-macos-noshare must be running
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" \
+  scripts/run-native-coding-acceptance.mjs -- aios-macos-noshare \
+  "$HOME/.developer-os/issue04-session-acceptance-$(date +%Y%m%d-%H%M%S).json" \
+  --approve-offline-native-run
+```
+
+Lineage A's stopped session folders and containers stay in the VM after a run,
+as earlier coding acceptance runs' do; lineage B's are cleaned up.
+The report is evidence only: `productionEnabled` and `qualified` stay false.
+On 20 October 2026 every stage passed on this Mac; see the
+[native session acceptance receipt](../.scratch/aios-v1-implementation/ticket04-native-session-acceptance-receipt.md).
+Before reusing a session home, the guest removes what Codex regenerates on every
+start (`skills/.system`, `tmp`, `.tmp`) and refuses any other configuration.
+
 ## Authentication capability
 
 The official `@openai/codex@0.161.0-darwin-arm64` package was downloaded without

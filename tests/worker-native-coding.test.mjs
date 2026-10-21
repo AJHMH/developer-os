@@ -1437,3 +1437,27 @@ test(
     assert.equal(file.links, 1);
   },
 );
+
+test("native coding refuses malformed file lists and timer names before host effects", async (t) => {
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const request = await launchRequest(transport);
+  const before = fixture.requests.length;
+  for (const files of ["index.html", Array(1001).fill(request.files[0])])
+    await assert.rejects(
+      transport.run({ ...request, files }, () => {}),
+      /file limit/,
+    );
+  await assert.rejects(
+    transport.observeTimerExecution(session, "renewal"),
+    /timer execution/,
+  );
+  assert.equal(fixture.requests.length, before);
+});

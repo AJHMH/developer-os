@@ -482,3 +482,21 @@ predecessor only for that move, Codex is told, and the delivery records it. No
 extra owner approval is needed; every other turn check still applies. Base
 refresh after admission stays with repair. Production remains disabled. See the
 [base move receipt](../ticket04-base-move-resume-receipt.md).
+
+## 20 October: native macOS acceptance of coding sessions
+
+The owner ran `scripts/run-native-coding-acceptance.mjs` on the Mac against
+`aios-macos-noshare`, offline and without credentials. Every stage passed:
+- offline threads;
+- resume onto a moved main;
+- refused reuse of a consumed predecessor;
+- recovery of a stranded resume;
+- reconciliation, retirement and idempotent cleanup of a launched,
+  thread-less resume.
+
+Two real findings were fixed on the way. Turns now end once Codex reports its
+thread, because offline Codex never exits. The guest now strips Codex's
+regenerated `skills/.system`, `tmp` and `.tmp` before reusing a home, while
+still refusing any other configuration or link. Windows and credentialed runs
+remain open. Production remains disabled. See the
+[native session acceptance receipt](../ticket04-native-session-acceptance-receipt.md).

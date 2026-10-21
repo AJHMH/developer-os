@@ -1,0 +1,44 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "sourceRevision": "49248e2c9fecb89495ad8ad629d2108ff0efeeca",
+  "sourceDirty": true,
+  "runnerSha256": "b8848906452caf4aae398a33db583ecfd1564764ad4d2a9c6f93c10915283ce0",
+  "transportBuildSha256": "222fd7aa5a9c8d0b48b6ffecc58c604d94f2dc4c7cc9426270e4dfd52e852a45",
+  "scope": "native-coding-offline-session-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "outcome": "blocked",
+  "revisions": {
+    "first": "f032711e4b45d99528f99258498472421e5a318a",
+    "moved": "9bc4d74740f2e557123173415e290b8c668cd2e6"
+  },
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed"
+    },
+    {
+      "name": "lineage-a-first-launch-thread",
+      "outcome": "blocked",
+      "error": "Native coding run stopped by its gate"
+    },
+    {
+      "name": "final-stop-73904169-506d-47c8-a173-0bac2726dab8",
+      "outcome": "passed"
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "6c992cca60b6e77bd82cf6a85bd433f95bdd7f0dff76bb74d35c005fb6740f91",
+    "bindingSha256": "146cffa572c94136933007454c2f4841958344d7dce84a0cb32056998cba603f"
+  },
+  "error": "Native coding run stopped by its gate"
+}
