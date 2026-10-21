@@ -9,6 +9,7 @@ import {
   symlinkSync,
   realpathSync,
 } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -1522,6 +1523,187 @@ test("an unresolved launched resume stays blocked until the owner retires it, th
   assert.equal(requests[2].intent, "start");
   assert.equal(requests[2].threadId, undefined);
   assert.equal(requests[2].resumeFrom, undefined);
+});
+
+// A retired lineage, with a controlled cleanup that answers `receipt`.
+async function retiredLineage(
+  t,
+  receipt = (session) => ({
+    operationId: session.operationId,
+    fence: session.fence,
+    cleaned: 2,
+  }),
+) {
+  const lineage = await unobservedLaunch(t, (retire) =>
+    retire ? "retired" : "unresolved",
+  );
+  const cleanups = [];
+  lineage.f.runtime.cleanup = async (session) => {
+    cleanups.push(structuredClone(session));
+    return receipt(session);
+  };
+  await lineage.f.controller.retireResume(lineage.f.delivery.id);
+  return { ...lineage, cleanups };
+}
+
+test("the owner cleans up a retired resume lineage once and the evidence records it", async (t) => {
+  const { f, successor, cleanups, next } = await retiredLineage(t);
+  const cleaned = await f.controller.cleanupRetiredLineage(
+    f.delivery.id,
+    successor.operationId,
+  );
+  assert.deepEqual(cleanups, [
+    {
+      ...named(successor),
+      threadId: successor.threadId,
+      resumeFrom: successor.resumeFrom,
+    },
+  ]);
+  const [retirement] = cleaned.feature.retirements;
+  assert.equal(retirement.cleaned, 2);
+  assert.ok(Date.parse(retirement.cleanedAt));
+  await assert.rejects(
+    f.controller.cleanupRetiredLineage(f.delivery.id, successor.operationId),
+    /retired/,
+    "a lineage is cleaned up once",
+  );
+  assert.equal(cleanups.length, 1);
+  next("normal");
+  const fresh = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(fresh.feature.outcome, "admitted", "fresh coding continues");
+});
+
+for (const [name, receipt] of [
+  [
+    "another operation",
+    (session) => ({
+      operationId: randomUUID(),
+      fence: session.fence,
+      cleaned: 2,
+    }),
+  ],
+  ["nothing cleaned", (session) => ({ ...session, cleaned: 0 })],
+  [
+    "a failed cleanup",
+    () => {
+      throw Error("Native lineage cleanup is uncertain");
+    },
+  ],
+])
+  test(`a retired lineage cleanup with ${name} records nothing and can be retried`, async (t) => {
+    const { f, successor, cleanups } = await retiredLineage(t, receipt);
+    await assert.rejects(
+      f.controller.cleanupRetiredLineage(f.delivery.id, successor.operationId),
+      /cleanup/i,
+    );
+    const [retirement] = f.controller.status(f.delivery.id).feature.retirements;
+    assert.equal(retirement.cleanedAt, undefined);
+    f.runtime.cleanup = async (session) => ({
+      operationId: session.operationId,
+      fence: session.fence,
+      cleaned: 2,
+    });
+    const retried = await f.controller.cleanupRetiredLineage(
+      f.delivery.id,
+      successor.operationId,
+    );
+    assert.equal(retried.feature.retirements[0].cleaned, 2);
+    assert.equal(cleanups.length, 1);
+  });
+
+test("retired lineage cleanup needs an owned delivery, a retired operation and a cleanup runtime", async (t) => {
+  const { f, successor, cleanups } = await retiredLineage(t);
+  await assert.rejects(
+    f.controller.cleanupRetiredLineage(f.delivery.id, randomUUID()),
+    /retired/,
+    "only a recorded retirement",
+  );
+  await assert.rejects(
+    f.controller.cleanupRetiredLineage(
+      f.delivery.id,
+      f.controller.status(f.delivery.id).feature.retirements[0].session
+        .resumeFrom.operationId,
+    ),
+    /retired/,
+    "a predecessor is cleaned through its retired successor",
+  );
+  const cleanup = f.runtime.cleanup;
+  delete f.runtime.cleanup;
+  await assert.rejects(
+    f.controller.cleanupRetiredLineage(f.delivery.id, successor.operationId),
+    /retired/,
+    "a runtime without cleanup",
+  );
+  f.runtime.cleanup = cleanup;
+  f.controller.release(f.delivery.id);
+  await assert.rejects(
+    f.controller.cleanupRetiredLineage(f.delivery.id, successor.operationId),
+    /retired/,
+    "a released delivery",
+  );
+  assert.equal(cleanups.length, 0);
+});
+
+test("the pinned adapter trusts a lineage cleanup receipt only for the exact session and pins", async (t) => {
+  const f = codingFixture(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const retired = {
+    operationId: randomUUID(),
+    fence: 2,
+    state: "stopped",
+    intent: "resume",
+    threadId: firstThread,
+    resumeFrom: {
+      operationId: randomUUID(),
+      fence: 1,
+      state: "stopped",
+      intent: "start",
+    },
+  };
+  const exact = (session) => ({
+    operationId: session.operationId,
+    fence: session.fence,
+    cleaned: 2,
+    pins: { ...f.runtime.pins },
+  });
+  const requests = [];
+  const runtime = (receipt) =>
+    new PinnedCodingRuntime(f.runtime.pins, {
+      mode: "controlled",
+      async inspect() {
+        return { ...f.runtime.pins };
+      },
+      async cleanupRetiredLineage(session) {
+        requests.push(session);
+        return receipt(session);
+      },
+    });
+  assert.deepEqual(await runtime(exact).cleanup(retired), {
+    operationId: retired.operationId,
+    fence: retired.fence,
+    cleaned: 2,
+  });
+  assert.deepEqual(requests[0], retired, "the exact retired binding");
+  for (const receipt of [
+    (s) => ({ ...exact(s), fence: 3 }),
+    (s) => ({ ...exact(s), operationId: randomUUID() }),
+    (s) => ({ ...exact(s), cleaned: 0 }),
+    (s) => ({ ...exact(s), cleaned: 1.5 }),
+    (s) => ({
+      ...exact(s),
+      pins: { ...f.runtime.pins, cliSha256: "f".repeat(64) },
+    }),
+  ])
+    await assert.rejects(runtime(receipt).cleanup(retired), /cleanup/);
+  await assert.rejects(
+    new PinnedCodingRuntime(f.runtime.pins, {
+      mode: "controlled",
+      async inspect() {
+        return { ...f.runtime.pins };
+      },
+    }).cleanup(retired),
+    /unsupported/,
+  );
 });
 
 test("retiring a resume refuses when no interrupted resume needs it", async (t) => {

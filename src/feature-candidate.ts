@@ -50,8 +50,16 @@ export interface FeatureEvidence extends FeaturePlan {
   mediationUsageAccountId?: string;
   /** The model-only subscription account the first coding launch used. */
   usageAccountId?: string;
-  /** Owner decisions retiring an unresolved resume lineage. */
-  retirements?: { operationId: string; at: string }[];
+  /** Owner decisions retiring an unresolved resume lineage. `session` is the
+   * retired successor's binding; `cleanedAt` and `cleaned` record the owner's
+   * later cleanup of the whole lineage. */
+  retirements?: {
+    operationId: string;
+    at: string;
+    session?: CodingSession;
+    cleanedAt?: string;
+    cleaned?: number;
+  }[];
   clarifications?: string[];
   allowanceMs: number;
   activeMs: number;
@@ -167,6 +175,13 @@ export interface CodingReconciliation {
   fence: number;
   outcome: ResumeReconciliation;
 }
+/** A retired lineage's session folders and stopped containers were removed;
+ * `cleaned` counts its sessions, whose guest records remain as tombstones. */
+export interface CodingCleanup {
+  operationId: string;
+  fence: number;
+  cleaned: number;
+}
 export interface CodingRequest extends CodingSession {
   baseRefresh?: {
     from: {
@@ -230,6 +245,9 @@ export interface FeatureRuntime {
     resumeFrom: CodingSession,
     retire: boolean,
   ): Promise<CodingReconciliation>;
+  /** Remove a retired lineage's session folders and stopped containers on
+   * the owner's explicit decision; guest records stay as tombstones. */
+  cleanup?(session: CodingSession): Promise<CodingCleanup>;
   stop(session: CodingSession): Promise<{
     operationId: string;
     fence: number;
@@ -567,6 +585,9 @@ export interface IsolatedCodingTransport {
     resumeFrom: CodingSession,
     retire: boolean,
   ): Promise<CodingReconciliation & { pins: CodingPins }>;
+  cleanupRetiredLineage?(
+    session: CodingSession,
+  ): Promise<CodingCleanup & { pins: CodingPins }>;
   stop: FeatureRuntime["stop"];
   collect: FeatureRuntime["collect"];
 }
@@ -792,6 +813,27 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       operationId: receipt.operationId,
       fence: receipt.fence,
       outcome: receipt.outcome,
+    };
+  }
+  async cleanup(session: CodingSession): Promise<CodingCleanup> {
+    const binding = Object.freeze(codingBinding(session));
+    if (!this.transport.cleanupRetiredLineage)
+      throw Error("Retired lineage cleanup is unsupported by this transport");
+    await this.inspectSession(binding);
+    const receipt = await this.transport.cleanupRetiredLineage(binding);
+    if (
+      receipt.operationId !== binding.operationId ||
+      receipt.fence !== binding.fence ||
+      !Number.isSafeInteger(receipt.cleaned) ||
+      receipt.cleaned < 1 ||
+      JSON.stringify(receipt.pins) !== JSON.stringify(this.pins)
+    )
+      throw Error("Retired lineage cleanup binding changed");
+    await this.inspectSession(binding);
+    return {
+      operationId: receipt.operationId,
+      fence: receipt.fence,
+      cleaned: receipt.cleaned,
     };
   }
   async collect(session: CodingSession) {
