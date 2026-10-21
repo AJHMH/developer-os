@@ -19,6 +19,15 @@ import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+const uuid = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
+/** An explicit coding session identity: a UUID operation and a positive fence. */
+const sessionIdentity = (value: CodingSession | undefined) =>
+  !!value &&
+  uuid(value.operationId) &&
+  Number.isSafeInteger(value.fence) &&
+  value.fence >= 1;
 const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 const armTemplate =
@@ -102,7 +111,7 @@ def snapshot():
   if h(f.read())!=R['cliSha256']: fail()
  return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],template=R['template'],hostId=h(command(['sudo','-n','cat','/sys/class/dmi/id/product_uuid'])))
 
-import fcntl,uuid,base64,re,time
+import fcntl,uuid,base64,re,time,shutil
 
 def directory(path):
  os.makedirs(path,mode=0o700,exist_ok=True)
@@ -145,6 +154,25 @@ def predecessor_of(previous):
  name='aios-coding-'+h((R['authority']+previous['operationId']).encode())[:32]
  identity=h(json.dumps(dict(operationId=previous['operationId'],fence=previous['fence']),sort_keys=True).encode())
  return name,root+'/'+name+'.json',read(root+'/'+name+'.json'),identity
+def units_quiet(name):
+ for suffix in ['-lease.timer','-deadline.timer','-lease.service','-deadline.service']:
+  if timer_state(name+suffix)['ActiveState'] not in ['inactive','failed']: fail()
+def stopped_container(name,sessionIdentity):
+ # The exact session's stopped container; False when the engine has none.
+ exists=subprocess.run(['/usr/bin/podman','container','exists',name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+ if exists.returncode==1: return False
+ if exists.returncode!=0: fail()
+ c=obj('inspect',name)[0]
+ if c['Config'].get('Labels',{})!={'aios.coding.authority':R['authority'],'aios.coding.session':sessionIdentity} or c['State'].get('Running') is not False or c['State'].get('Pid')!=0: fail()
+ return True
+def remove_tree(path):
+ # Never follows links; owned directories a worker made read-only are opened.
+ info=os.lstat(path)
+ if not stat.S_ISDIR(info.st_mode): os.unlink(path);return
+ if info.st_uid==os.getuid(): os.chmod(path,stat.S_IMODE(info.st_mode)|0o700)
+ with os.scandir(path) as entries: children=[e.path for e in entries]
+ for child in children: remove_tree(child)
+ os.rmdir(path)
 def read(path):
  ordinary(path)
  with open(path) as f: return json.load(f)
@@ -320,10 +348,8 @@ else:
     if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy') or predecessor.get('reconciled') or predecessor.get('threadId')!=thread or predecessor['binding']!=binding or predecessor.get('pins')!=R['pins'] or predecessor.get('lease') or not gone(predecessor): fail()
     oldAdmission=predecessor.get('admission',{})
     if oldAdmission.get('sourceRevision')!=R['sourceRevision'] or oldAdmission.get('branch')!=branch: fail()
-    oldContainer=obj('inspect',oldName)[0]
-    if oldContainer['Config'].get('Labels',{})!={'aios.coding.authority':R['authority'],'aios.coding.session':oldIdentity} or oldContainer['State'].get('Running') is not False or oldContainer['State'].get('Pid')!=0: fail()
-    for suffix in ['-lease.timer','-deadline.timer','-lease.service','-deadline.service']:
-     if timer_state(oldName+suffix)['ActiveState'] not in ['inactive','failed']: fail()
+    if not stopped_container(oldName,oldIdentity): fail()
+    units_quiet(oldName)
     oldHome=root+'/'+oldName+'/home';retained_home(oldHome)
     admission.update(threadId=thread,resumeFrom=previous)
    elif R['session']['intent']!='start' or R.get('threadId') is not None or R.get('resumeFrom') is not None: fail()
@@ -495,6 +521,31 @@ else:
      record['reconciled']='retired';save(recordPath,record);outcome='retired'
     else: outcome='unresolved'
     result=dict(outcome=outcome)
+   elif R['action']=='cleanup-retired':
+    # Remove a retired lineage's session folders and stopped containers on the
+    # owner's decision. The retired successor and each predecessor reserved by
+    # the session after it must be stopped and gone; every check runs before
+    # anything is removed. Records stay as tombstones and are never resumed.
+    if record.get('reconciled')!='retired' or record['phase']!='stopped' or not gone(record): fail()
+    lineage=[(R['name'],recordPath,record,identity)]
+    while isinstance(lineage[-1][2].get('admission',{}).get('resumeFrom'),dict):
+     if len(lineage)>=256: fail()
+     oldName,oldPath,predecessor,oldIdentity=predecessor_of(lineage[-1][2]['admission']['resumeFrom'])
+     if predecessor['identity']!=oldIdentity or predecessor['phase']!='stopped' or predecessor.get('resumedBy')!=lineage[-1][3] or not gone(predecessor): fail()
+     lineage.append((oldName,oldPath,predecessor,oldIdentity))
+    present=[]
+    for name,_,_,sessionIdentity in lineage:
+     units_quiet(name)
+     if stopped_container(name,sessionIdentity): present.append(name)
+     folder=root+'/'+name
+     if os.path.lexists(folder):
+      info=os.lstat(folder)
+      if not stat.S_ISDIR(info.st_mode) or info.st_uid!=os.getuid(): fail()
+    for name,path,entry,_ in lineage:
+     if name in present: pod('rm',name)
+     if os.path.lexists(root+'/'+name): remove_tree(root+'/'+name)
+     entry['cleaned']=True;save(path,entry)
+    result=dict(cleaned=len(lineage))
    else: fail()
 print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha256'],**(result if 'result' in globals() else {}),**(dict(stopped=True,remainingProcesses=0) if R['action']=='stop' else {}))))
 
@@ -677,22 +728,14 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
   }
   async run(request: NativeCodingRequest, stdout: (bytes: Buffer) => void) {
     const resuming = request.intent === "resume";
-    const uuid = (value: unknown): value is string =>
-      typeof value === "string" &&
-      /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-        value,
-      );
     if (
       resuming
         ? !uuid(request.threadId) ||
-          !request.resumeFrom ||
-          !uuid(request.resumeFrom.operationId) ||
-          request.resumeFrom.operationId === request.operationId ||
-          !Number.isSafeInteger(request.resumeFrom.fence) ||
-          request.resumeFrom.fence < 1 ||
-          request.resumeFrom.fence > request.fence ||
-          request.resumeFrom.state !== "stopped" ||
-          !["start", "resume"].includes(request.resumeFrom.intent)
+          !sessionIdentity(request.resumeFrom) ||
+          request.resumeFrom!.operationId === request.operationId ||
+          request.resumeFrom!.fence > request.fence ||
+          request.resumeFrom!.state !== "stopped" ||
+          !["start", "resume"].includes(request.resumeFrom!.intent)
         : request.threadId !== undefined || request.resumeFrom !== undefined
     )
       throw Error("Unsupported native coding resume");
@@ -1054,22 +1097,41 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       pins,
     };
   }
+  /** Remove a retired lineage's session folders and stopped containers. The
+   * guest walks the retired successor's recorded predecessors, each reserved
+   * by the session after it, and refuses unless all are stopped and gone.
+   * Records stay as tombstones, so the lineage is never resumed. */
+  async cleanupRetiredLineage(session: CodingSession): Promise<{
+    operationId: string;
+    fence: number;
+    cleaned: number;
+    pins: CodingPins;
+  }> {
+    if (
+      !sessionIdentity(session) ||
+      session.state !== "stopped" ||
+      session.intent !== "resume"
+    )
+      throw Error("Unsupported native lineage cleanup");
+    const bound = this.session(session);
+    const { result, pins } = await this.invoke("cleanup-retired", bound);
+    if (!Number.isSafeInteger(result.cleaned) || (result.cleaned as number) < 1)
+      throw Error("Native lineage cleanup is uncertain");
+    return {
+      operationId: bound.operationId,
+      fence: bound.fence,
+      cleaned: result.cleaned as number,
+      pins,
+    };
+  }
   /** Validate an explicit successor/predecessor pair before guest effects. */
   private resumePair(
     session: CodingSession,
     resumeFrom: CodingSession,
   ): CodingSession {
-    const uuid =
-      /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
-    const identity = (value: CodingSession | undefined) =>
-      !!value &&
-      typeof value.operationId === "string" &&
-      uuid.test(value.operationId) &&
-      Number.isSafeInteger(value.fence) &&
-      value.fence >= 1;
     if (
-      !identity(session) ||
-      !identity(resumeFrom) ||
+      !sessionIdentity(session) ||
+      !sessionIdentity(resumeFrom) ||
       resumeFrom.operationId === session.operationId ||
       resumeFrom.fence > session.fence ||
       resumeFrom.state !== "stopped" ||

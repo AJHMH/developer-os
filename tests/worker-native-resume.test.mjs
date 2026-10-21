@@ -1065,3 +1065,235 @@ test("resume reconciliation requires an explicit retire decision before guest ef
     );
   assert.equal(fixture.requests.length, 0);
 });
+
+// Session folders and records in the guest's external management state.
+function guestSessions(root) {
+  const listing = realSpawnSync(
+    "find",
+    [`${root}/.local/state/aios-coding-v1`, "-mindepth", "1", "-maxdepth", "1"],
+    { encoding: "utf8" },
+  ).stdout.split("\n");
+  return {
+    folders: listing.filter((p) => /\/aios-coding-[a-f0-9]+$/.test(p)).sort(),
+    records: listing.filter((p) => /\/aios-coding-[a-f0-9]+\.json$/.test(p)),
+  };
+}
+async function retiredResume(t) {
+  const fixture = await launchedResume(t, { threadRecorded: false });
+  const { outcome } = await fixture.transport.reconcileInterruptedResume(
+    launchedSuccessor,
+    namedPredecessor,
+    true,
+  );
+  assert.equal(outcome, "retired");
+  return fixture;
+}
+
+test(
+  "cleanup removes a retired lineage's session folders and containers and keeps tombstone records",
+  posixGuest,
+  async (t) => {
+    const { transport, root, read } = await retiredResume(t);
+    const before = guestSessions(root);
+    assert.equal(before.folders.length, 2, "the successor and its predecessor");
+    const receipt = await transport.cleanupRetiredLineage(launchedSuccessor);
+    assert.equal(receipt.operationId, launchedSuccessor.operationId);
+    assert.equal(receipt.cleaned, 2);
+    const after = guestSessions(root);
+    assert.deepEqual(after.folders, [], "every lineage folder is gone");
+    assert.deepEqual(sessionHomes(root), []);
+    assert.equal(after.records.length, 2, "records stay as tombstones");
+    for (const path of after.records)
+      assert.equal(JSON.parse(realReadFileSync(path, "utf8")).cleaned, true);
+    assert.deepEqual(
+      Object.keys(read().containers ?? {}),
+      [],
+      "the stopped containers are removed",
+    );
+    assert.equal(
+      (await transport.cleanupRetiredLineage(launchedSuccessor)).cleaned,
+      2,
+      "a repeated cleanup is idempotent",
+    );
+    for (const resumeFrom of [namedPredecessor, launchedSuccessor])
+      await assert.rejects(
+        transport.run(
+          await nativeResumeRequest(transport, {
+            operationId: laterOperation,
+            fence: 3,
+            resumeFrom: { ...resumeFrom, threadId: undefined },
+          }),
+          () => {},
+        ),
+        "a cleaned lineage is never resumed",
+      );
+  },
+);
+
+test(
+  "an interrupted cleanup completes on a re-run, including directories a worker made read-only",
+  posixGuest,
+  async (t) => {
+    const { transport, root, read, write } = await retiredResume(t);
+    const [predecessorFolder] = guestSessions(root).folders.filter(
+      (folder) => !sessionHomes(root)[0].startsWith(folder),
+    );
+    // A worker-made directory without write permission in a workspace.
+    const locked = `${predecessorFolder}/workspace/locked`;
+    realMkdirSync(locked);
+    realWriteFileSync(`${locked}/file`, "x");
+    fs.chmodSync(locked, 0o555);
+    const predecessorName = predecessorFolder.split("/").at(-1);
+    write({ ...read(), rmRefused: predecessorName });
+    await assert.rejects(transport.cleanupRetiredLineage(launchedSuccessor));
+    assert.deepEqual(
+      guestSessions(root).folders,
+      [predecessorFolder],
+      "the engine refused partway; only the successor is gone",
+    );
+    write({ ...read(), rmRefused: undefined });
+    assert.equal(
+      (await transport.cleanupRetiredLineage(launchedSuccessor)).cleaned,
+      2,
+    );
+    assert.deepEqual(guestSessions(root).folders, []);
+  },
+);
+
+for (const [name, arrange] of [
+  [
+    "an unresolved resume",
+    async (t) => launchedResume(t, { threadRecorded: false }),
+  ],
+  [
+    "an adopted resume",
+    async (t) => {
+      const fixture = await launchedResume(t, { threadRecorded: true });
+      await fixture.transport.reconcileInterruptedResume(
+        launchedSuccessor,
+        namedPredecessor,
+        false,
+      );
+      return fixture;
+    },
+  ],
+  [
+    "a predecessor reserved by another session",
+    async (t) => {
+      const fixture = await retiredResume(t);
+      // Fault injection into the external guest state, not an assertion source.
+      const homes = sessionHomes(fixture.root);
+      const predecessorRecord = guestSessions(fixture.root).records.find(
+        (path) => !homes[0].startsWith(path.replace(/\.json$/, "")),
+      );
+      const record = JSON.parse(realReadFileSync(predecessorRecord, "utf8"));
+      record.resumedBy = "f".repeat(64);
+      realWriteFileSync(predecessorRecord, JSON.stringify(record));
+      return fixture;
+    },
+  ],
+  [
+    "a lineage container that still has a process",
+    async (t) => {
+      const fixture = await retiredResume(t);
+      const state = fixture.read();
+      // The predecessor, which a cleanup without the check would reach after
+      // already removing the successor. A running container would also change
+      // the engine binding, so this one reports a process while not running.
+      for (const name of Object.keys(state.containers))
+        if (name !== state.containerName) state.containers[name].State.Pid = 99;
+      fixture.write(state);
+      return fixture;
+    },
+  ],
+  [
+    "an active lineage timer",
+    async (t) => {
+      const fixture = await retiredResume(t);
+      const state = fixture.read();
+      const [name] = Object.keys(state.containers);
+      state.timers = {
+        ...state.timers,
+        [`${name}-lease.timer`]: { active: "active" },
+      };
+      fixture.write(state);
+      return fixture;
+    },
+  ],
+  [
+    "a lineage container with a foreign label",
+    async (t) => {
+      const fixture = await retiredResume(t);
+      const state = fixture.read();
+      for (const name of Object.keys(state.containers))
+        if (name !== state.containerName)
+          state.containers[name].Config.Labels["aios.extra"] = "1";
+      fixture.write(state);
+      return fixture;
+    },
+  ],
+  [
+    "a lineage folder replaced by a link",
+    async (t) => {
+      const fixture = await retiredResume(t);
+      const [predecessorFolder] = guestSessions(fixture.root).folders.filter(
+        (folder) => !sessionHomes(fixture.root)[0].startsWith(folder),
+      );
+      const elsewhere = realMkdtempSync(
+        `${realTemporaryDirectory}/aios-elsewhere-`,
+      );
+      t.after(() => realRmSync(elsewhere, { recursive: true, force: true }));
+      // The fixture mocks parts of fs, so use real external commands.
+      realSpawnSync("rm", ["-rf", predecessorFolder]);
+      realSpawnSync("ln", ["-s", elsewhere, predecessorFolder]);
+      return fixture;
+    },
+  ],
+])
+  test(`cleanup refuses ${name} and removes nothing`, posixGuest, async (t) => {
+    const fixture = await arrange(t);
+    const before = guestSessions(fixture.root);
+    await assert.rejects(
+      fixture.transport.cleanupRetiredLineage(launchedSuccessor),
+    );
+    assert.deepEqual(guestSessions(fixture.root), before);
+  });
+
+test("lineage cleanup rejects a malformed session before guest effects", async (t) => {
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+    cleaned: 2,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  for (const session of [
+    { ...launchedSuccessor, operationId: "not-a-uuid" },
+    { ...launchedSuccessor, fence: 0 },
+    { ...launchedSuccessor, state: "running" },
+    { ...launchedSuccessor, intent: "start" },
+  ])
+    await assert.rejects(transport.cleanupRetiredLineage(session));
+  assert.equal(fixture.requests.length, 0);
+});
+
+test("lineage cleanup treats an unrecognized guest receipt as uncertain", async (t) => {
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+    cleaned: "all",
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  await assert.rejects(
+    transport.cleanupRetiredLineage(launchedSuccessor),
+    /uncertain/,
+  );
+  assert.equal(fixture.requests.length, 1);
+});

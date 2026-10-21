@@ -460,3 +460,14 @@ overridden. Pause, cancel and recovery restarts are unchanged. Native
 qualification of usage and restart controls through a production adapter
 remains open. Production remains disabled. See the
 [restart authorization receipt](../ticket04-restart-authorization-receipt.md).
+
+## 20 October: owner cleanup of a retired resume lineage
+
+Retirement now keeps the retired session's binding, and the owner can call
+`cleanupRetiredLineage(id, operationId)`. The guest checks that the retired
+session and every predecessor are stopped, gone and reserved in order, then
+removes their session folders and stopped containers and keeps their records
+as tombstones that are never resumed. The delivery records the cleanup once,
+and an unverified cleanup records nothing. Native qualification remains open.
+Production remains disabled. See the
+[cleanup receipt](../ticket04-retired-lineage-cleanup-receipt.md).

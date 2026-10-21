@@ -187,6 +187,12 @@ def run(args, **kwargs):
                 c['State'].update(Running=False, Pid=0, Status='exited', ExitCode=1);set_alive(c, False)
         elif action == 'stop': c['State'].update(Running=False, Pid=0, Status='exited');set_alive(c, bool(state.get('orphan')))
         elif action == 'container': code = 0 if containers().get(args[-1]) else 1
+        elif action == 'rm':
+            name = args[-1]
+            if not containers().get(name) or containers()[name]['State']['Running'] or state.get('rmRefused') == name: code = 1
+            else:
+                state.get('containers', {}).pop(name, None)
+                if state.get('containerName') == name: state['containerName'] = None; state['container'] = None
         else: raise RuntimeError('Unexpected external command: ' + repr(args))
     else: raise RuntimeError('Unexpected external command: ' + repr(args))
     state_path.write_text(json.dumps(state))

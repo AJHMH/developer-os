@@ -36,6 +36,7 @@ import {
   featurePlan,
   validCodingPins,
   type CodingResult,
+  type CodingCleanup,
   type CodingSession,
   type ResumeReconciliation,
   type FeatureEvidence,
@@ -4127,6 +4128,54 @@ export class DeliveryController {
     return this.reconcileResume(id, session, true);
   }
 
+  /** The owner's explicit cleanup of a retired resume lineage: the guest
+   * removes the session folders and stopped containers of the retired
+   * successor and every predecessor in its chain, keeping their records as
+   * tombstones. Recorded once; an unverified cleanup records nothing. */
+  async cleanupRetiredLineage(
+    id: string,
+    operationId: string,
+  ): Promise<Delivery> {
+    const snapshot = this.status(id),
+      runtime = this.coordination.featureRuntime,
+      retirement = snapshot.feature?.retirements?.find(
+        (r) => r.operationId === operationId,
+      ),
+      retired = retirement?.session;
+    if (
+      !retired ||
+      retirement!.cleanedAt ||
+      !snapshot.ownership.held ||
+      !sessionsQuiescent(snapshot) ||
+      !this.sameCodingRuntime(snapshot) ||
+      !runtime!.cleanup
+    )
+      throw new DeliveryError(
+        "Clean up only a retired resume lineage with a recorded binding, once, for an owned quiescent delivery with the same trusted coding runtime.",
+      );
+    let receipt: CodingCleanup | undefined;
+    try {
+      receipt = await this.observe(runtime!.cleanup(retired));
+    } catch {}
+    if (
+      !sameOperation(receipt, retired) ||
+      !Number.isSafeInteger(receipt!.cleaned) ||
+      receipt!.cleaned < 1
+    )
+      throw new DeliveryError(
+        "Retired lineage cleanup is unverified; nothing was recorded, and it can be retried.",
+      );
+    // Retirements are never removed; a concurrent duplicate cleanup only
+    // re-records the same idempotent removal.
+    return this.change(id, (delivery) => {
+      const retirement = delivery.feature!.retirements!.find(
+        (r) => r.operationId === operationId,
+      )!;
+      retirement.cleanedAt = new Date().toISOString();
+      retirement.cleaned = receipt!.cleaned;
+    });
+  }
+
   /** Callers have checked that `session` still needs resume recovery;
    * settlement re-checks it inside the durable transaction. */
   private async reconcileResume(
@@ -4181,6 +4230,7 @@ export class DeliveryController {
         (delivery.feature!.retirements ??= []).push({
           operationId: current.operationId,
           at: new Date().toISOString(),
+          session: codingBinding(current),
         });
       if (
         delivery.blocker.code === "UNCERTAIN_SESSION" &&
