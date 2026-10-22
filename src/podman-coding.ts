@@ -747,7 +747,8 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     return { result, pins };
   }
   async inspect(session: CodingSession): Promise<CodingPins> {
-    return (await this.invoke("inspect", structuredClone(session))).pins;
+    // Callers may pass a whole launch request; only its identity crosses.
+    return (await this.invoke("inspect", this.session(session))).pins;
   }
   async run(request: NativeCodingRequest, stdout: (bytes: Buffer) => void) {
     const resuming = request.intent === "resume";

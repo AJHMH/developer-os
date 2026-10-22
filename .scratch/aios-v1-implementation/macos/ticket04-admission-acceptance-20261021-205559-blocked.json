@@ -1,0 +1,78 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "sourceRevision": "7411ab2a8c53feca79a896ad451509fe50f6d67b",
+  "sourceDirty": false,
+  "runnerSha256": "e9921393f0acfa263cc832f1f6f11d1b080b66c0169bd3320be6aa04699daf5b",
+  "buildSha256": {
+    "podman-coding": "81d4a4c2ebda49cd02eed84f70687196616ba94b282c9a38c5beec8cd16c2819",
+    "feature-candidate": "905d5e51a49e99f8b1de4ae36c8cdf20cb0dd273c53049a6e9de57ec96393d53",
+    "coding-admission": "071ea18827c62b01650dd88013d022abbfcfb32402cca56e46254e4a18d2011b",
+    "controller": "72dd0d9056910ecee37261bea9ba400fedd11fb4e500cdfb1581b4b0efeaa77b"
+  },
+  "scope": "native-coding-offline-admission-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "synthetic": [
+    "planning",
+    "validation",
+    "onboarding",
+    "usage"
+  ],
+  "outcome": "blocked",
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 2301
+    },
+    {
+      "name": "owner-record-names-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 2301,
+      "finishedMs": 2308
+    },
+    {
+      "name": "admitted-runtime",
+      "outcome": "passed",
+      "startedMs": 2309,
+      "finishedMs": 2326
+    },
+    {
+      "name": "controller-coding-turn",
+      "outcome": "passed",
+      "startedMs": 2326,
+      "finishedMs": 4488
+    },
+    {
+      "name": "controller-recorded-stopped-thread",
+      "outcome": "blocked",
+      "startedMs": 4488,
+      "error": "No coding thread recorded",
+      "finishedMs": 4489
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "ede4001575500b702adf528553fdfdeb6862d07f049eec207bdd0609a28c50ba",
+    "bindingSha256": "45fe7baab2fe106fe1fb59961a0f3ff8bedcfa42fba6c3cbd8dafc2b3496bcff"
+  },
+  "delivery": {
+    "phase": "blocked",
+    "blocker": "DELIVERY_NOT_ENABLED",
+    "outcome": "failed",
+    "sessionState": "stopped",
+    "threadStarted": false,
+    "candidate": false
+  },
+  "error": "No coding thread recorded",
+  "interrupted": false
+}

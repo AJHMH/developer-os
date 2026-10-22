@@ -1,0 +1,18 @@
+    11ms diag start machine=aios-macos-noshare
+    31ms inspect start intent=start state=running thread=none
+  1031ms inspect ok
+  1391ms inspect start intent=start state=running thread=none
+  1391ms inspect THREW: (event) => {
+                        if (!checkpoint() || !event || typeof event !== "object")
+                ...<omitted>... } could not be cloned.
+  1391ms stop start intent=start state=running thread=none
+  2273ms stop ok stopped=true remaining=0
+  2274ms inspect start intent=start state=running thread=none
+  3096ms inspect ok
+  3108ms stage fresh-pins passed
+  3108ms stage owner-record-names-fresh-pins passed
+  3108ms stage admitted-runtime passed
+  3109ms stage controller-coding-turn passed
+  3109ms stage controller-recorded-stopped-thread blocked: No coding thread recorded
+  3109ms delivery {"phase":"blocked","blocker":"DELIVERY_NOT_ENABLED","outcome":"failed","sessionState":"stopped","threadStarted":false,"candidate":false}
+  3109ms outcome blocked: No coding thread recorded
