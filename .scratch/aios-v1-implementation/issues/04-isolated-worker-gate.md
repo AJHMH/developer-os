@@ -535,3 +535,16 @@ delivery remains disabled. A new owner-run offline acceptance drives one
 controller coding turn through the real transport, with synthetic planning,
 validation, onboarding and usage. Native runs on both hosts remain. See the
 [coding admission receipt](../ticket04-coding-admission-receipt.md).
+
+## 21 October: native inspection sends only the session identity
+
+The owner's admission acceptance on the Mac, from a clean `main` at `7411ab2`,
+admitted the runtime but recorded no coding thread. A diagnostic wrapper,
+run from outside the repository, showed the cause. Before launch, the pinned
+runtime re-inspects pins with the whole request, callbacks included, and the
+native transport's `inspect` tried to `structuredClone` it. The transport now
+sends only the session identity, as its stop and launch-time inspection
+already did. A new native-fixture test reproduces the failure. The runtime,
+controller and existing assertions are unchanged, and production remains
+disabled. The owner's native admission runs on both hosts follow the merge. See
+the [inspection identity receipt](../ticket04-admission-inspect-identity-receipt.md).

@@ -709,6 +709,27 @@ test("rewritten native log prefixes refuse completion and still stop the exact w
   );
 });
 
+test("native inspection of a live launch request sends only the session identity", async (t) => {
+  // The pinned runtime re-inspects with the controller's whole request,
+  // callbacks included, just before launch.
+  const fixture = nativeHost(t, (request) => ({
+    session: request.session,
+    binding: observation,
+    cliSha256: request.cliSha256,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const request = await launchRequest(transport);
+  const pins = await transport.inspect(request);
+  assert.deepEqual(pins, request.pins);
+  const inspected = fixture.requests.at(-1);
+  assert.equal(inspected.action, "inspect");
+  // No prompt, input bytes or callbacks cross into management for inspection.
+  assert.deepEqual(inspected.session, session);
+});
+
 test("native process failures and forged observation bindings refuse inspection", async (t) => {
   for (const failure of [
     "json",
