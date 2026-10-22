@@ -102,3 +102,54 @@ under the owner's own admission record. The outcome was
 
 The Windows admission run, a native validation executor, credentialed resumed
 turns and production enablement remain open. Production remains disabled.
+
+## Native Windows admission acceptance (22 October 2026)
+
+The owner ran the same acceptance on the Windows PC (Windows 10.0.26300, x64)
+against the dedicated Hyper-V VM `aios-podman-noshare`, from `main` at
+`389dc7b`, under a Windows owner record. The record was written by the owner,
+in a folder owned by the owner, with access limited to the owner, SYSTEM and
+Administrators.
+
+- The first run, with no record, stopped before coding and printed the fresh
+  pins:
+  - CLI `0.161.0` (`9a820c17…`), the Windows binary pinned in
+    `src/host-target.ts`;
+  - policy `ede40015…`, the same as the Mac;
+  - binding `90aef186…`.
+- The second run was blocked at the record. The record named the right pins
+  and passed the ownership and ACL checks, but its `approvedAt` was
+  `"20261022-134907"`, a report-file timestamp rather than a canonical UTC
+  time. The gate refused it as "missing or invalid" before any coding.
+  - A read-only checker, run on the PC, ran each record check separately and
+    named `approvedAt` as the only failure.
+  - The owner rewrote that field. Kept as
+    `windows/ticket04-admission-acceptance-20261022-151328-blocked.json`.
+- The third run had the outcome `observed-offline-admission-acceptance`, and
+  every stage passed:
+  - fresh pins;
+  - the record naming those pins;
+  - the admitted runtime, refusing each changed pin;
+  - one controller coding turn through the real transport, in about 72 s;
+  - a recorded, stopped coding thread.
+  - Delivery stayed blocked at `DELIVERY_NOT_ENABLED`, and the outcome was
+    `exhausted` with no candidate, as on the Mac. The report confirms
+    `productionEnabled: false`, `qualified: false` and
+    `inferenceAuthorized: false`.
+  - Kept as `windows/ticket04-admission-acceptance-20261022-154337.json`
+    (SHA-256 `8bc8ffe8…09c2`).
+- The passing report records `sourceDirty: true`, and the cause was not
+  identified:
+  - The blocked run 30 minutes earlier recorded a clean tree.
+  - `git status --short` was empty when the owner checked shortly after the
+    run.
+  - The runner digest and all four built module digests (`podman-coding`
+    `1fb3696b…`, `feature-candidate` `905d5e51…`, `coding-admission`
+    `071ea188…`, `controller` `72dd0d90…`) equal those of the clean-tree Mac
+    run.
+  - The 21 October Windows session acceptance also recorded an unexplained
+    dirty flag.
+
+Both hosts have now observed owner coding admission end to end. A native
+validation executor, credentialed resumed turns and production enablement
+remain open. Production remains disabled.

@@ -561,3 +561,18 @@ candidate was produced. Planning, validation, onboarding and usage were
 synthetic, with no credentials or inference. The Windows admission run remains.
 Production remains disabled. See the
 [coding admission receipt](../ticket04-coding-admission-receipt.md).
+
+## 22 October: native Windows admission acceptance
+
+The owner ran the coding admission acceptance on the Windows PC against
+`aios-podman-noshare`, from `main` at `389dc7b`, under a Windows record they
+wrote themselves. The record's folder and file are owned by the owner and
+grant access only to the owner, SYSTEM and Administrators. One run was refused
+before coding because the record's `approvedAt` was not a canonical UTC time.
+After the owner corrected it, every stage passed. One controller coding turn
+ran through the real transport for about 72 seconds, a stopped thread was
+recorded, and delivery stayed blocked at `DELIVERY_NOT_ENABLED`. The passing
+report shows a dirty tree whose cause was not identified. Its built module
+digests equal those of the clean Mac run. Both hosts have now observed owner
+coding admission. Production remains disabled. See the
+[coding admission receipt](../ticket04-coding-admission-receipt.md).
