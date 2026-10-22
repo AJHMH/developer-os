@@ -142,9 +142,12 @@ def podman(args):
         c['State'].update(Running=False, Pid=0, ExitCode=137); return args[-1]
     if sub == 'unshare':
         # Root over the user's own files: unreadable and deep trees still go.
+        # The guest's GNU flags are checked, then removed portably, because
+        # this simulator also runs on macOS, whose BSD rm has no long options.
+        if args[1:-1] != ['rm', '-rf', '--one-file-system', '--']: raise LookupError('unexpected unshare')
         path = args[-1]
         real_popen(['chmod', '-R', 'u+rwx', path], stderr=subprocess.DEVNULL).wait()
-        real_popen(['rm', '-rf', '--one-file-system', '--', path]).wait()
+        real_popen(['rm', '-rf', path]).wait()
         return ''
     if sub == 'container' and args[1] == 'exists':
         return None if args[2] in state['containers'] else LookupError

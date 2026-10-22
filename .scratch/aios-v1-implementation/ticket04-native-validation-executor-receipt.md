@@ -161,6 +161,16 @@ The owner chose this scope:
 - The existing native coding (106), coding admission (33) and feature
   candidate suites pass unchanged after the plumbing extraction.
 
+## CI follow-up
+
+On PR #93's first run, the macOS CI job failed 17 simulator tests; every
+other job passed. The simulator removed workspaces with the host's
+`rm -rf --one-file-system`, a GNU-only option that macOS's BSD `rm` rejects,
+so the guest correctly refused to continue. The real guest runs only inside
+the Fedora CoreOS VM, which has GNU `rm`, and is unchanged. The simulator now
+checks that the guest sent exactly that command, then removes the folder
+portably.
+
 ## Remaining
 
 The owner's native run of the validation acceptance remains, on the Mac and
