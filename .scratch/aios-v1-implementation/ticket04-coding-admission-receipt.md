@@ -70,3 +70,35 @@ Date: 21 October 2026. Branch `codex/issue04-native-coding-admission`.
 The owner's native run of the admission acceptance on the Mac and Windows hosts,
 a native validation executor, credentialed resumed turns and production
 enablement remain open. Production remains disabled.
+
+## Native macOS admission acceptance (22 October 2026)
+
+The owner ran `scripts/run-native-coding-admission-acceptance.mjs` on the Mac
+against `aios-macos-noshare`. The run used a clean `main` at `3a4863c`, after
+the [inspection identity fix](ticket04-admission-inspect-identity-receipt.md),
+under the owner's own admission record. The outcome was
+`observed-offline-admission-acceptance`.
+
+- Every stage passed:
+  - fresh pins;
+  - the owner record naming those pins;
+  - the admitted runtime, refusing each changed pin;
+  - one controller coding turn through the real transport, in about 65 s;
+  - a recorded, stopped coding thread.
+- The pins were CLI `0.161.0` (`0129f94f…`), policy `ede40015…` and binding
+  `45fe7baa…`. The binding pin had changed from `146cffa5…` the day before,
+  so the owner wrote a new record.
+- Delivery stayed blocked at `DELIVERY_NOT_ENABLED`. The feature outcome was
+  `exhausted`, because offline Codex retries the provider until the one-minute
+  allowance ends, so no candidate was produced. The report confirms
+  `threadStarted: true`, `sessionState: stopped`, `productionEnabled: false`,
+  `qualified: false` and `inferenceAuthorized: false`.
+- Planning, validation, onboarding and usage were synthetic. There were no
+  credentials and no inference.
+- The report is retained as
+  `macos/ticket04-admission-acceptance-20261022-094540.json` (SHA-256
+  `a70a9336…8eb0`). The earlier blocked runs are recorded in the inspection
+  identity receipt.
+
+The Windows admission run, a native validation executor, credentialed resumed
+turns and production enablement remain open. Production remains disabled.

@@ -548,3 +548,16 @@ already did. A new native-fixture test reproduces the failure. The runtime,
 controller and existing assertions are unchanged, and production remains
 disabled. The owner's native admission runs on both hosts follow the merge. See
 the [inspection identity receipt](../ticket04-admission-inspect-identity-receipt.md).
+
+## 22 October: native macOS admission acceptance
+
+The owner ran the coding admission acceptance on the Mac against
+`aios-macos-noshare`, from a clean `main` at `3a4863c`, under their own record.
+Every stage passed. The admitted runtime refused each changed pin, one
+controller coding turn ran through the real transport for about 65 seconds, and
+the controller recorded a stopped coding thread. Delivery stayed blocked at
+`DELIVERY_NOT_ENABLED`. Offline Codex exhausted its one-minute allowance, so no
+candidate was produced. Planning, validation, onboarding and usage were
+synthetic, with no credentials or inference. The Windows admission run remains.
+Production remains disabled. See the
+[coding admission receipt](../ticket04-coding-admission-receipt.md).
