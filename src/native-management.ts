@@ -1,0 +1,134 @@
+import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { hostname } from "node:os";
+import { podmanMachine, podmanCommand } from "./podman-platform.js";
+
+const digest = (value: string | Buffer) =>
+  createHash("sha256").update(value).digest("hex");
+
+/** Host facts every native management call binds: the dedicated machine's
+ * configuration, the engine executable's bytes and the engine client version. */
+export function managementHost(machine: string) {
+  const host = podmanMachine(machine);
+  const executable = digest(readFileSync(host.executable));
+  const version = JSON.parse(
+    podmanCommand(host, [
+      "--connection",
+      machine,
+      "version",
+      "--format",
+      "json",
+    ]),
+  ).Client?.Version;
+  if (!/^\d+\.\d+\.\d+$/.test(version))
+    throw Error("Invalid native engine version");
+  return { machine, host, executable, version: version as string };
+}
+export type ManagementHost = ReturnType<typeof managementHost>;
+
+/** Runs a fixed trusted management `program` in the VM over `podman machine
+ * ssh`. The request crosses only as base64 JSON data bound to `R`; output and
+ * time are bounded. `label` names the transport in refusals, e.g. "coding". */
+export function runManagement(
+  { machine, host }: ManagementHost,
+  request: Record<string, unknown>,
+  program: string,
+  label: string,
+  action: string,
+  permit?: () => boolean,
+): Promise<unknown> {
+  const input = `import json,base64\nR=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n${program}`;
+  return new Promise((accept, reject) => {
+    if (permit && !permit()) {
+      reject(Error(`Native ${label} authority changed`));
+      return;
+    }
+    const child = spawn(
+      host.executable,
+      ["machine", "ssh", machine, "/usr/bin/python3", "-I"],
+      {
+        cwd: host.cwd,
+        env: host.env,
+        shell: false,
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    let size = 0,
+      output = "";
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(Error(`Native ${label} observation timed out`));
+    }, 45000);
+    const failed = () => {
+      clearTimeout(timer);
+      reject(Error(`Native ${label} ${action} observation unavailable`));
+    };
+    child.on("error", failed);
+    child.stdin.on("error", failed);
+    child.stdout.on("data", (bytes: Buffer) => {
+      if ((size += bytes.length) > 8 * 1024 * 1024) {
+        child.kill();
+        failed();
+      } else output += bytes.toString("utf8");
+    });
+    child.stderr.on("data", () => {});
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        failed();
+        return;
+      }
+      try {
+        accept(JSON.parse(output));
+      } catch {
+        failed();
+      }
+    });
+    child.stdin.end(input);
+  });
+}
+
+/** True when the guest's VM observation has the expected shape and the host
+ * engine executable is still the one measured before the call. */
+export function validGuestBinding(
+  { host, executable }: ManagementHost,
+  binding: unknown,
+): binding is Record<string, unknown> {
+  if (!binding || typeof binding !== "object" || Array.isArray(binding))
+    return false;
+  const guest = binding as Record<string, unknown>;
+  return (
+    /^[a-f0-9]{64}$/.test(String(guest.vmImageSha256)) &&
+    /^[a-f0-9]{64}$/.test(String(guest.hostId)) &&
+    /^\d+\.\d+\.\d+$/.test(String(guest.engineVersion)) &&
+    digest(readFileSync(host.executable)) === executable
+  );
+}
+
+/** The binding digest of a host, its engine, the dedicated VM, the authority
+ * and the guest's own observation. Any change requires new owner admission. */
+export function managementBindingSha256(
+  { machine, host, executable, version }: ManagementHost,
+  authority: string,
+  guest: unknown,
+): string {
+  return digest(
+    JSON.stringify({
+      host: {
+        platform: host.platform,
+        arch: host.arch,
+        osVersion: host.osVersion,
+        provider: host.provider,
+        machine,
+        config: host.config,
+        executable,
+        version,
+        hostname: hostname(),
+      },
+      authority,
+      guest,
+    }),
+  );
+}

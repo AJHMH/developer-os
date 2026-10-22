@@ -576,3 +576,22 @@ report shows a dirty tree whose cause was not identified. Its built module
 digests equal those of the clean Mac run. Both hosts have now observed owner
 coding admission. Production remains disabled. See the
 [coding admission receipt](../ticket04-coding-admission-receipt.md).
+
+## 22 October: offline native validation executor
+
+At the owner's direction, validation gained a native executor. It is offline
+only, runs checks in the image the owner's contract declares and loaded
+themselves, and is admitted by a separate per-host owner validation record.
+`PinnedValidationRuntime` implements `ValidationRuntime` over
+`NativePodmanValidationTransport`:
+- each check runs in a fresh offline, read-only, unprivileged container over
+  exactly the transferred tree;
+- a guest timer bounds each check at its timeout;
+- stop removes every container and measures the final tree.
+
+Contracts declaring registries, caches or another image are refused before any
+check. The shared host plumbing was extracted from the coding transport
+without changing coding behavior or pins. The controller, the CLI and
+production are unchanged. The owner's native acceptance runs on both hosts
+follow. See the
+[native validation executor receipt](../ticket04-native-validation-executor-receipt.md).
