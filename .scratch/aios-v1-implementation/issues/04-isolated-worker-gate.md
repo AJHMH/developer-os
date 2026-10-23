@@ -609,3 +609,16 @@ refused at the record before any check, because the record had been saved
 over the coding record's file with a mistyped pin. The Windows validation run
 remains. Production remains disabled. See the
 [native validation executor receipt](../ticket04-native-validation-executor-receipt.md).
+
+## 23 October: stable VM identity in the native binding
+
+The owner's Mac coding record was refused after a VM restart because the
+binding moved. Apple's hypervisor gives the VM a new hardware UUID on every
+boot, and both guest management programs bound that UUID. The owner confirmed
+this across a stop and start. At the owner's direction, both programs now name
+the VM by its `/etc/machine-id`, which survives restarts and differs for a new
+VM. Both programs changed, so each host's coding and validation records need
+one re-approval by the owner. The older qualification path in
+`src/vm-management.ts` still binds the hardware UUID; changing it is the
+owner's call. Production remains disabled. See the
+[stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).

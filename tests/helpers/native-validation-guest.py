@@ -186,7 +186,7 @@ def respond(args):
         return json.dumps({'deployments': [{'booted': True, 'unlocked': 'none', 'container-image-reference': request['imageReference'], 'container-image-reference-digest': 'sha256:' + '1' * 64}]})
     if name == 'sudo':
         if rest[1] == 'podman': return '[]'
-        return '11111111-2222-3333-4444-555555555555'
+        return state.get('productUuid', '11111111-2222-3333-4444-555555555555')
     if name == 'podman': return podman(rest)
     if name == 'systemd-run':
         unit = next(a for a in rest if a.startswith('--unit='))[7:]
@@ -250,6 +250,7 @@ def read_text(path, *args, **kwargs):
     p = str(path)
     if p.endswith('/sys_vendor'): return 'Apple Inc.'
     if p.endswith('/product_name'): return 'Apple Virtualization Generic Platform'
+    if p == '/etc/machine-id': return state.get('machineId', '0123456789abcdef0123456789abcdef') + '\n'
     if p == '/usr/share/containers/seccomp.json':
         return json.dumps({'defaultAction': 'SCMP_ACT_ERRNO', 'syscalls': [{'names': ['read', 'unshare', 'setns'], 'action': 'SCMP_ACT_ALLOW'}]})
     match = re.fullmatch(r'/proc/(\d+)/(status|cgroup|stat)', p)

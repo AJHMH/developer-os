@@ -84,6 +84,32 @@ test("native inspection independently binds each supported host and the guest ex
     });
 });
 
+test(
+  "the native coding binding names the VM by its machine ID, which survives a restart",
+  posixGuest,
+  async (t) => {
+    const { transport, read, write } = guestFixture(t);
+    const first = await transport.inspect(session);
+    // Apple's hypervisor gives the VM a new hardware UUID on every boot.
+    write({ ...read(), productUuid: "restarted-vm-uuid" });
+    assert.deepEqual(await transport.inspect(session), first);
+    // A recreated VM gets a new machine ID, so it needs a new record.
+    write({ ...read(), machineId: "f".repeat(32) });
+    const recreated = await transport.inspect(session);
+    assert.notEqual(recreated.bindingSha256, first.bindingSha256);
+    assert.equal(recreated.policySha256, first.policySha256);
+    for (const machineId of [
+      "",
+      "F".repeat(32),
+      "0".repeat(31),
+      "0".repeat(33),
+    ]) {
+      write({ ...read(), machineId });
+      await assert.rejects(transport.inspect(session));
+    }
+  },
+);
+
 test("native launch transfers only data, streams bounded output and stops before collection", async (t) => {
   const fixture = nativeHost(t, (r) => ({
     session: r.session,

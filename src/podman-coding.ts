@@ -111,7 +111,9 @@ def snapshot():
  fd=os.open(binary,os.O_RDONLY|os.O_NOFOLLOW)
  with os.fdopen(fd,'rb') as f:
   if h(f.read())!=R['cliSha256']: fail()
- return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],template=R['template'],hostId=h(command(['sudo','-n','cat','/sys/class/dmi/id/product_uuid'])))
+ machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
+ if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
+ return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],template=R['template'],hostId=h(machine_id.encode()))
 
 import fcntl,uuid,base64,re,time,shutil
 
