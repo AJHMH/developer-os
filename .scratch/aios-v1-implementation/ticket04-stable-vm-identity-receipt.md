@@ -147,3 +147,43 @@ Still open:
   Hyper-V configuration; and the Mac's hostname, which can follow the network.
   Each is left in the binding until a measurement shows it moves on a plain
   restart.
+
+## Native macOS restart proof (23 October 2026)
+
+After PR #96 merged at `4e52d7d`, the owner re-approved both Mac records from a
+clean `main`, then proved the restart on the real VM. All reports are under
+`macos/`.
+
+**Owner coding admission:**
+- `ticket04-admission-acceptance-20261023-100836-blocked.json`: refused, as
+  expected. The policy was unchanged at `0e5c9a9e…`, and only the binding
+  moved, to `aac1b6b5…`.
+- `ticket04-admission-acceptance-20261023-101335.json`: passed under the
+  updated record.
+- `ticket04-admission-acceptance-20261023-101808-after-restart.json` (SHA-256
+  `d61e702a…`): the owner ran `podman machine stop` and then `start`, then ran
+  the acceptance again **without touching the record**. It passed all five
+  stages with the same binding, `aac1b6b5…`. The coding turn stopped cleanly,
+  and delivery stayed blocked on `DELIVERY_NOT_ENABLED`.
+
+**Owner validation admission**, re-approved for the new guest program, with
+the same image `171e6526…`:
+- `ticket04-validation-acceptance-20261023-102811-blocked.json`: refused, as
+  expected, with the new policy `c213f918…` and binding `ac8967ce…`.
+- `ticket04-validation-acceptance-20261023-103209-blocked.json`: refused at the
+  record. The edited `policySha256` had 65 characters, with a leading `a` left
+  from the old value. The gate did its job.
+- `ticket04-validation-acceptance-20261023-103734.json` (SHA-256 `acbf464c…`):
+  passed after the owner corrected the pin. All five isolation probes passed,
+  and the attempt stopped with the tested tree unchanged (`ba14975e…`).
+
+A plain restart of the Mac VM no longer voids the owner's records.
+
+Still open:
+- the Windows records, both of which need re-approval for the new guest
+  programs;
+- a restart check on Windows;
+- checking that a recreated VM gets a new machine ID;
+- the unmeasured fields listed above.
+
+Production remains disabled.
