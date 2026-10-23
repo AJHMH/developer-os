@@ -55,3 +55,129 @@ native worker execution are authorized by this controlled test receipt.
 [Bounded repair](bounded-repair.md) now handles failed candidate batches. Once
 repair begins, local revalidation runs through the repair cycle so it cannot bypass
 the persisted allowance. Native and hosted qualification requirements remain open.
+
+## Offline native validation executor (Issue 04)
+
+`PinnedValidationRuntime` satisfies `ValidationRuntime` over the native
+validation transport (`NativePodmanValidationTransport`). It offers one
+environment only, the offline validation environment:
+
+```json
+{
+  "imageSha256": "<the owner-loaded image ID>",
+  "networkPolicySha256": "3f47dc245fe9636077d62d81fbd415d14acb3e5e33787b1d9cd515ef189585d3",
+  "registries": [],
+  "caches": [],
+  "browser": false,
+  "database": false,
+  "synthetic": true
+}
+```
+
+An owner contract must declare exactly that environment, or the controller
+refuses validation before any check runs. The network policy digest is fixed:
+it measures "no network, no registries, no caches".
+
+How each check runs:
+- Each local check runs in a fresh container from the owner-loaded image, by
+  ID, with no network, a read-only root, a private `/tmp`, all capabilities
+  dropped, no new privileges, the derived seccomp profile, user `65534`, and
+  process (256) and memory (1 GiB) limits.
+- Each check gets its own fresh copy of the transferred tree, so no check sees
+  another's output. That copy is the only mount.
+- The argv runs as inert data after `/bin/sh -c 'exec "$@"'`, so the image
+  needs `/bin/sh`.
+- A guest timer kills the check at its timeout, even if the controller is
+  gone. Only that timer's own kill counts as a timeout; any other exit 137 is
+  a failure.
+
+How the tree is bound and measured:
+- The transferred files must hash to the manifest the host computed from the
+  controller's bytes. They are kept as a pristine input that is never mounted
+  and never replaced.
+- After each check exits, its copy is measured with the same manifest, then
+  removed.
+- Stop fences the attempt, kills and removes every check container, confirms
+  no process remains, and removes the attempt's files. It reports the tested
+  tree only if every check left its copy unchanged. Any new, changed, linked,
+  re-moded, unreadable or oversized content reports a different tree, so the
+  controller marks the attempt incomplete.
+- A check cannot make stop fail. Unreadable or deeply nested trees are removed
+  inside the user namespace, and a full disk cannot block shutdown.
+
+Limits:
+- **Transfer size:** the same as coding. At most 1,000 files, 256 KiB each and
+  1 MiB in total; larger trees are refused before any VM effect.
+- **One run at a time:** inspection refuses while any other container runs in
+  the dedicated VM, so validation never overlaps coding or another attempt.
+
+A live transport runs only under an owner validation admission record, which
+is separate from the coding record. The record is a private file you write
+yourself, outside any repository, readable only by you, in a folder only you
+can change:
+
+```json
+{
+  "scope": "aios-native-validation-admission-v1",
+  "approvedAt": "2026-10-22T18:00:00.000Z",
+  "pins": {
+    "imageSha256": "<64 hex>",
+    "policySha256": "<64 hex>",
+    "bindingSha256": "<64 hex>"
+  }
+}
+```
+
+The runtime re-reads the record before each check, at every effect and poll of
+a running check, on results, and when it trusts a stop. Removing or editing the
+record stops further checks, and a stop is then never trusted. Any pin change
+needs a new record: a different image, management program, Podman, VM or host.
+Production delivery stays disabled either way.
+
+### Owner acceptance
+
+The offline acceptance validates unchanged main of a synthetic repository
+through the real transport. Its five baseline checks are shell probes that pass
+only when isolation holds:
+- the tree is present;
+- there is no network;
+- the root filesystem is read-only;
+- the user is unprivileged;
+- no engine socket is visible.
+
+Any image with `/bin/sh` works. The pinned Alpine image already in each VM is
+enough, so nothing needs to be loaded. If the record is missing or names other
+pins, the run stops before any check and prints the fresh pins.
+
+macOS (Terminal):
+
+```sh
+cd ~/Repos/developer-os
+npm ci --ignore-scripts && npm run build
+IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f)"
+echo "$IMAGE"
+mkdir -m 700 -p "$HOME/.developer-os/admission"
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "$IMAGE" "$HOME/.developer-os/issue04-validation-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+```
+
+Windows (PowerShell, not elevated), from the checkout:
+
+```powershell
+npm ci --ignore-scripts; npm run build; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764; $image; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-validation-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
+```
+
+Write `validation-admission.json` yourself from the printed pins, with the same
+private permissions as the coding record. It needs no credentials, sends no
+inference and never starts the VM.
+
+### Remaining
+
+The following remain open:
+- dependency installs through declared registries, and caches;
+- disposable browser and database fixtures;
+- hosted checks;
+- native qualification of this executor on both hosts.
+
+Build or coverage output written into the tree currently invalidates the tested
+tree by design. Real repositories need an owner contract whose checks leave the
+tree unchanged, until a later slice defines declared output paths.

@@ -1,7 +1,4 @@
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { hostname } from "node:os";
 import {
   resumeReconciliations,
   type CodingPins,
@@ -11,7 +8,12 @@ import {
   type IsolatedCodingTransport,
   type ResumeReconciliation,
 } from "./feature-candidate.js";
-import { podmanMachine, podmanCommand } from "./podman-platform.js";
+import {
+  managementBindingSha256,
+  managementHost,
+  runManagement,
+  validGuestBinding,
+} from "./native-management.js";
 import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
 import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
@@ -635,19 +637,8 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       session.fence < 1
     )
       throw Error("Invalid native coding session");
-    const host = podmanMachine(this.machine);
-    const executable = digest(readFileSync(host.executable));
-    const version = JSON.parse(
-      podmanCommand(host, [
-        "--connection",
-        this.machine,
-        "version",
-        "--format",
-        "json",
-      ]),
-    ).Client?.Version;
-    if (!/^\d+\.\d+\.\d+$/.test(version))
-      throw Error("Invalid native engine version");
+    const managed = managementHost(this.machine);
+    const { host } = managed;
     const cliSha256 = codexWorkerSha256(host.platform, host.arch)!;
     const request = {
       action,
@@ -661,63 +652,17 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       cliSha256,
       ...payload,
     };
-    const input = `import json,base64\nR=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n${management}`;
-    const result: unknown = await new Promise((accept, reject) => {
-      if (permit && !permit()) {
-        reject(Error("Native coding authority changed"));
-        return;
-      }
-      const child = spawn(
-        host.executable,
-        ["machine", "ssh", this.machine, "/usr/bin/python3", "-I"],
-        {
-          cwd: host.cwd,
-          env: host.env,
-          shell: false,
-          windowsHide: true,
-          stdio: ["pipe", "pipe", "pipe"],
-        },
-      );
-      let size = 0,
-        output = "";
-      const timer = setTimeout(() => {
-        child.kill();
-        reject(Error("Native coding observation timed out"));
-      }, 45000);
-      const failed = () => {
-        clearTimeout(timer);
-        reject(Error(`Native coding ${action} observation unavailable`));
-      };
-      child.on("error", failed);
-      child.stdin.on("error", failed);
-      child.stdout.on("data", (bytes: Buffer) => {
-        if ((size += bytes.length) > 8 * 1024 * 1024) {
-          child.kill();
-          failed();
-        } else output += bytes.toString("utf8");
-      });
-      child.stderr.on("data", () => {});
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code !== 0) {
-          failed();
-          return;
-        }
-        try {
-          accept(JSON.parse(output));
-        } catch {
-          failed();
-        }
-      });
-      child.stdin.end(input);
-    });
+    const result: unknown = await runManagement(
+      managed,
+      request,
+      management,
+      "coding",
+      action,
+      permit,
+    );
     if (
       !record(result) ||
-      !record(result.binding) ||
-      !/^[a-f0-9]{64}$/.test(String(result.binding.vmImageSha256)) ||
-      !/^[a-f0-9]{64}$/.test(String(result.binding.hostId)) ||
-      !/^\d+\.\d+\.\d+$/.test(String(result.binding.engineVersion)) ||
-      digest(readFileSync(host.executable)) !== executable ||
+      !validGuestBinding(managed, result.binding) ||
       JSON.stringify(result.session) !== JSON.stringify(session) ||
       result.cliSha256 !== cliSha256
     )
@@ -726,22 +671,10 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       cliVersion: "0.161.0",
       cliSha256,
       policySha256: digest(management),
-      bindingSha256: digest(
-        JSON.stringify({
-          host: {
-            platform: host.platform,
-            arch: host.arch,
-            osVersion: host.osVersion,
-            provider: host.provider,
-            machine: this.machine,
-            config: host.config,
-            executable,
-            version,
-            hostname: hostname(),
-          },
-          authority: this.authority,
-          guest: result.binding,
-        }),
+      bindingSha256: managementBindingSha256(
+        managed,
+        this.authority,
+        result.binding,
       ),
     };
     return { result, pins };

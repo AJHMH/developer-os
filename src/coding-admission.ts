@@ -21,15 +21,17 @@ import {
 
 const scope = "aios-native-coding-admission-v1";
 
-/** An owner-written, per-host record that admits one live coding transport at
+/** An owner-written, per-host record that admits one live transport at
  * exactly these pins. Editing or removing the file, or any pin change, revokes
  * admission at the next check. It never lives in a repository. */
-export interface CodingAdmission {
+export interface OwnerAdmission<P> {
   readonly path: string;
   /** The admitted pins, read afresh unless a read succeeded within
    * `maxAgeMs`; throws when the record is unusable. */
-  pins(maxAgeMs?: number): CodingPins;
+  pins(maxAgeMs?: number): P;
 }
+/** Owner coding admission: one live coding transport at exact coding pins. */
+export type CodingAdmission = OwnerAdmission<CodingPins>;
 
 /** True when `folder`, or any folder above it, holds a Git repository. Real
  * paths are walked too, so a symlinked ancestor cannot hide a repository. */
@@ -70,18 +72,31 @@ function readRecord(file: string): unknown {
   }
 }
 
-export function ownerCodingAdmission(
+/** What an owner record admits: its scope, exact pin fields and pin check.
+ * `label` names the record in refusals, for example "coding". */
+export interface OwnerAdmissionKind<P> {
+  readonly scope: string;
+  readonly label: string;
+  readonly fields: readonly (keyof P & string)[];
+  valid(pins: P): boolean;
+}
+
+/** A private, owner-written per-host record admitting exactly `kind`'s pins.
+ * It is re-read at every check unless a read succeeded within `maxAgeMs`. */
+export function ownerAdmission<P>(
   path: string,
+  kind: OwnerAdmissionKind<P>,
   options: { clock?: () => number } = {},
-): CodingAdmission {
+): OwnerAdmission<P> {
   const clock = options.clock ?? Date.now;
+  const title = kind.label[0]!.toUpperCase() + kind.label.slice(1);
   if (typeof path !== "string" || !isAbsolute(path))
-    throw Error("Coding admission record path must be absolute");
+    throw Error(`${title} admission record path must be absolute`);
   const file = resolve(path);
   if (insideRepository(dirname(file)))
-    throw Error("Coding admission records never live in a repository");
-  let last: { at: number; pins: CodingPins } | undefined;
-  const admission: CodingAdmission = {
+    throw Error(`${title} admission records never live in a repository`);
+  let last: { at: number; pins: P } | undefined;
+  const admission: OwnerAdmission<P> = {
     path: file,
     pins(maxAgeMs = 0) {
       const now = clock();
@@ -94,29 +109,44 @@ export function ownerCodingAdmission(
         if (!value || typeof value !== "object" || Array.isArray(value))
           throw Error();
         const record = value as Record<string, unknown>;
-        const pins = record.pins as CodingPins;
+        const pins = record.pins as P;
         if (
           Object.keys(record).sort().join() !== "approvedAt,pins,scope" ||
-          record.scope !== scope ||
+          record.scope !== kind.scope ||
           typeof record.approvedAt !== "string" ||
           new Date(record.approvedAt).toISOString() !== record.approvedAt ||
           Date.parse(record.approvedAt) > now ||
           !pins ||
           typeof pins !== "object" ||
-          Object.keys(pins).sort().join() !==
-            [...codingPinFields].sort().join() ||
-          !validCodingPins(pins)
+          Object.keys(pins).sort().join() !== [...kind.fields].sort().join() ||
+          !kind.valid(pins)
         )
           throw Error();
         const admitted = Object.fromEntries(
-          codingPinFields.map((field) => [field, pins[field]]),
-        ) as unknown as CodingPins;
+          kind.fields.map((field) => [field, pins[field]]),
+        ) as P;
         last = { at: now, pins: admitted };
         return { ...admitted };
       } catch {
-        throw Error("Owner coding admission is missing or invalid");
+        throw Error(`Owner ${kind.label} admission is missing or invalid`);
       }
     },
   };
   return Object.freeze(admission);
+}
+
+export function ownerCodingAdmission(
+  path: string,
+  options: { clock?: () => number } = {},
+): CodingAdmission {
+  return ownerAdmission(
+    path,
+    {
+      scope,
+      label: "coding",
+      fields: codingPinFields,
+      valid: validCodingPins,
+    },
+    options,
+  );
 }

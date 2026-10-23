@@ -119,6 +119,23 @@ removing it, or any pin change, stops further coding. It admits coding turns
 only; it never enables production delivery.
 _Avoid_: enablement flag, production switch
 
+**Owner validation admission**: An owner-written record, kept privately on one
+host and never in a repository, that names the exact pins (validation image ID,
+management policy, host and VM binding) of one live validation transport. It
+is separate from owner coding admission. The pinned validation runtime re-reads
+it before each check, at every effect and poll of a running check, on results
+and when trusting a stop, so editing or removing it, or any pin change, stops
+further checks. It admits offline validation checks only; it never enables
+production delivery.
+_Avoid_: validation enablement, coding record
+
+**Offline validation environment**: The only validation environment the native
+validation runtime offers: the owner-loaded image by ID, the fixed "no
+network" policy digest, no registries, no caches and no browser or database
+fixtures. An owner contract must declare exactly this environment; any other
+declaration is refused before a check runs.
+_Avoid_: sandbox profile, network allowlist
+
 **Coding restart approval**: The owner's decision to restart coding after a
 usage interruption. It names the interrupted operation and records the
 feature's account, which every turn must use anyway. The one re-dispatch that
