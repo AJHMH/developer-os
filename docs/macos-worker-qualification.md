@@ -210,8 +210,9 @@ session stopped while its record is missing or different stays uncertain until
 the matching record is restored and the session is recovered. Any pin change,
 such as a new CLI, guest policy, Podman, VM or host, needs a new record.
 The binding names the VM by its `/etc/machine-id`, not its hardware UUID,
-which Apple's hypervisor changes on every boot. Restarting the VM keeps the
-record valid; recreating it needs a new one.
+which Apple's hypervisor changes on every boot. It also leaves out the time
+Podman records for the VM's last start. Restarting the VM keeps the record
+valid; recreating it needs a new one.
 Production delivery stays disabled either way.
 
 The offline acceptance drives one controller turn through the real transport

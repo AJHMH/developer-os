@@ -86,3 +86,64 @@ re-approval, written by the owner.
   records still change here because both programs changed.
 
 Production remains disabled.
+
+## Follow-up: Podman's last-start time (23 October 2026)
+
+Branch `codex/issue04-binding-ignores-last-up`.
+
+After PR #95 merged at `9516b10`, the owner re-approved the Mac owner
+coding admission:
+- `macos/ticket04-admission-acceptance-20261023-090638-blocked.json`: refused,
+  with the expected new policy `0e5c9a9e…` and binding `bc61d760…`.
+- `macos/ticket04-admission-acceptance-20261023-091229.json`: passed under the
+  updated record.
+
+The owner then stopped and started the VM, and the next run was refused again
+with a new binding, `5eab1bca…`
+(`macos/ticket04-admission-acceptance-20261023-091502-restart-blocked.json`).
+
+**Measured, not guessed.** The owner copied the machine's Podman
+configuration, `~/.config/containers/podman/machine/applehv/aios-macos-noshare.json`,
+and the guest's `/etc/machine-id`, once before and once after another restart.
+- The machine ID was unchanged.
+- Of the configuration's 33 fields, only `LastUp` changed: `09:14:51` became
+  `09:26:15`.
+
+The binding hashed the whole configuration, so Podman's record of each start
+moved it. The machine ID change was needed but was not enough.
+
+**Fix.** `managementBindingSha256` in `src/native-management.ts` leaves out
+`LastUp` and nothing else. Any other configuration change still needs a new
+record. The guest programs are unchanged, so `policySha256` is unchanged. The
+binding changes once, so each record needs one more update. The older
+qualification path in `src/podman-host.ts` reads only named configuration
+fields, so it is unaffected.
+
+**Evidence.**
+- The two restart tests now also change `LastUp` across the restart. They
+  also check that a changed resource setting still moves the binding.
+- Before the fix, both tests failed at the restart step, matching the Mac.
+- Mutants were killed: hashing `LastUp` again, and dropping the whole
+  configuration.
+- Formatting and typecheck pass, and the affected suites pass, 184 of 184.
+- The full suite under c8 on Node 24.22.1 ran 1,019 tests: 1,015 passed,
+  4 skipped, 0 failed.
+- Coverage:
+  - gate 1: lines went from 20,987 of 21,552 to 20,990 of 21,555, and branches
+    stayed at 5,714 of 6,162;
+  - gate 2: the changed `src` lines are covered, and the change adds no
+    branches.
+- Review:
+  - Fixed: the fixture's `machine` was renamed `machineConfig`, since
+    `machine` already means the machine's name; the glossary term is now used;
+    the two docs now match.
+  - Left as is: the two tests still mirror each other.
+
+Still open:
+- **Real-host proof.** A real host has not yet shown that a restart keeps the
+  binding. That needs the owner to update the record and then restart.
+- **Other possible changes on restart.** The Spec review raised fields that
+  were not measured: the SSH port, if Podman reassigns it at start; Windows'
+  Hyper-V configuration; and the Mac's hostname, which can follow the network.
+  Each is left in the binding until a measurement shows it moves on a plain
+  restart.

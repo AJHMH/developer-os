@@ -108,12 +108,15 @@ export function validGuestBinding(
 }
 
 /** The binding digest of a host, its engine, the dedicated VM, the authority
- * and the guest's own observation. Any change requires new owner admission. */
+ * and the guest's own observation. Any change requires new owner admission,
+ * except Podman's own record of when the VM last started, so a restart keeps
+ * the owner's records valid. */
 export function managementBindingSha256(
   { machine, host, executable, version }: ManagementHost,
   authority: string,
   guest: unknown,
 ): string {
+  const { LastUp: _lastUp, ...config } = host.config;
   return digest(
     JSON.stringify({
       host: {
@@ -122,7 +125,7 @@ export function managementBindingSha256(
         osVersion: host.osVersion,
         provider: host.provider,
         machine,
-        config: host.config,
+        config,
         executable,
         version,
         hostname: hostname(),

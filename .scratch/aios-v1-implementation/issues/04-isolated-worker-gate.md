@@ -622,3 +622,14 @@ one re-approval by the owner. The older qualification path in
 `src/vm-management.ts` still binds the hardware UUID; changing it is the
 owner's call. Production remains disabled. See the
 [stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).
+
+## 23 October: the binding ignores Podman's last-start time
+
+After the machine ID change, a restart still moved the Mac binding. The owner
+compared the machine's Podman configuration and machine ID across a restart.
+The machine ID held, but Podman rewrites `LastUp` in the configuration on
+every start, and the binding hashed the whole configuration. The binding now
+leaves out `LastUp` and nothing else. Every other configuration change still
+needs a new record. The policy pins are unchanged, and each record needs one
+binding update. See the
+[stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).
