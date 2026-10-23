@@ -1,0 +1,96 @@
+{
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26300",
+    "machine": "aios-podman-noshare"
+  },
+  "authority": "5be6cd73777cee67557a1d02067d7506f2e6f3c6b0a543237655496d53c126ed",
+  "imageSha256": "c83674e1999044d33d751661371b873539f47e5b5c5ca3320c7e0377acca6238",
+  "sourceRevision": "d73b1d804248d6e4f8e4ea7ffa77fdc1873da60f",
+  "sourceDirty": false,
+  "runnerSha256": "39813c57661b99820b7506ea60251a775b310408c575c7291ff287bf2535a7a7",
+  "buildSha256": {
+    "podman-validation": "4116a58e187041c7f290536e72c1a31162740101f52955b154ffcae437c80ff5",
+    "native-validation": "e83d7da7cc1d7213b3848bbca605d6d59a7faa5c737f7d1f63f9c531ebf5f104",
+    "native-management": "1300f7ebb857af4d0a7674f0662579f79278b278b0773dc2bf695ebe83026d36",
+    "coding-admission": "5782eb3b8fccabbb4d6cf14503134988e94e8a2058d3cfe343e9853f9528e97c",
+    "controller": "72dd0d9056910ecee37261bea9ba400fedd11fb4e500cdfb1581b4b0efeaa77b"
+  },
+  "scope": "native-validation-offline-admission-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "synthetic": [
+    "planning",
+    "onboarding"
+  ],
+  "outcome": "observed-offline-validation-admission-acceptance",
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed",
+      "startedMs": 1,
+      "finishedMs": 3278
+    },
+    {
+      "name": "owner-record-names-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 3278,
+      "finishedMs": 3897
+    },
+    {
+      "name": "admitted-runtime",
+      "outcome": "passed",
+      "startedMs": 3897,
+      "finishedMs": 6047
+    },
+    {
+      "name": "controller-baseline-validation",
+      "outcome": "passed",
+      "startedMs": 6047,
+      "finishedMs": 134881
+    },
+    {
+      "name": "controller-recorded-passed-baseline",
+      "outcome": "passed",
+      "startedMs": 134881,
+      "finishedMs": 134882
+    }
+  ],
+  "pins": {
+    "imageSha256": "c83674e1999044d33d751661371b873539f47e5b5c5ca3320c7e0377acca6238",
+    "policySha256": "c213f918bc9246cb061e54cab06574639cf2e9ab5a91e710d69ff11a4a61f5b2",
+    "bindingSha256": "7e94bc117f333d2a57a58e6914be70ec517e3e308debb4b6e09442d93c9e6af4"
+  },
+  "validation": {
+    "outcome": "passed",
+    "state": "stopped",
+    "results": [
+      {
+        "checkId": "format",
+        "status": "success"
+      },
+      {
+        "checkId": "lint",
+        "status": "success"
+      },
+      {
+        "checkId": "type",
+        "status": "success"
+      },
+      {
+        "checkId": "coverage",
+        "status": "success"
+      },
+      {
+        "checkId": "build",
+        "status": "success"
+      }
+    ],
+    "treeSha256": "ba14975e23677d7d803e2b95ae479b058683c0bdd6e29903b9e04436b6314a7e",
+    "environmentSha256": "7d794e348356c0eaf9b547a11ace4868542a38d4db5cb1c32823a13621e96b16",
+    "bindingSha256": "58ad880e923a8a0d6df1dd46c63acae8380b3b3e2513aa425a027df24dbc178a"
+  },
+  "interrupted": false
+}

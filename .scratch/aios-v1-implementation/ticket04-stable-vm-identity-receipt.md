@@ -187,3 +187,61 @@ Still open:
 - the unmeasured fields listed above.
 
 Production remains disabled.
+
+## Native Windows restart proof and validation acceptance (23 October 2026)
+
+The owner re-approved both Windows records on the PC (Windows 10.0.26300,
+x64, Hyper-V VM `aios-podman-noshare`) from a clean `main` at `d73b1d8`, then
+proved the restart there. Reports are under `windows/`.
+
+**A stale build, caught by its pins.** The first coding run was started from
+Command Prompt, not PowerShell. Command Prompt passed
+`npm ci --ignore-scripts; npm run build` to `npm ci` as one command, so `dist/`
+was never rebuilt, and `$(Get-Date …)` ended up in the report's file name
+literally. That run executed the previous day's build under a clean
+`d73b1d8`. It produced the old pins (policy `ede40015…`, binding `90aef186…`,
+`podman-coding` build `1fb3696b…`). Those still matched the old Windows
+record, so it passed. Kept as
+`ticket04-admission-acceptance-20261023-stale-build.json`; it is not evidence
+for the fix. After a rebuild in PowerShell, the owner confirmed both fixes
+were present in `dist/`.
+
+**Owner coding admission:**
+- `issue04-admission-acceptance-20261023-114724.json` (summary seen, file not
+  kept): refused, as expected. The policy was `0e5c9a9e…`, the same as on the
+  Mac, and the new Windows binding was `f6dbbfd8…`.
+- `issue04-admission-acceptance-20261023-115122.json` (summary seen, file not
+  kept): passed under the updated record.
+- `ticket04-admission-acceptance-20261023-115502-after-restart.json`: the
+  owner stopped and started the VM, then ran again **without touching the
+  record**. It passed all five stages with the same binding, `f6dbbfd8…`.
+  Delivery stayed blocked on `DELIVERY_NOT_ENABLED`, and `sourceDirty` was
+  `false`.
+
+**Owner validation admission**, the first on Windows:
+- The owner wrote a new record in the same private admission folder, using
+  the fresh pins from a run with no record.
+- `ticket04-validation-acceptance-20261023-120635.json`: passed on the first
+  run with a record. The pins were:
+  - the Windows Alpine image `c83674e1…`, the x64 image, which differs from
+    the Mac's arm64 image;
+  - policy `c213f918…`, the same as on the Mac;
+  - binding `7e94bc11…`.
+
+  All five isolation probes passed, and the attempt stopped with the tested
+  tree unchanged (`ba14975e…`, the same as on the Mac). Production stayed
+  disabled.
+
+Both owner records are now re-approved on both hosts, and a plain VM restart
+keeps them valid on both.
+
+Still open:
+- **Stale builds.** The acceptance runners record the source revision but do
+  not check that the build they run was built from it, so a stale build can
+  pass under a clean revision. The pins caught it here, but only because they
+  were stale too.
+- Checking that a recreated VM gets a new machine ID.
+- The unmeasured fields listed above.
+- The previous Windows `sourceDirty` question. It did not recur today.
+
+Production remains disabled.
