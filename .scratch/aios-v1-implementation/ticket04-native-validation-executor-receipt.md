@@ -169,11 +169,19 @@ other job passed. The simulator removed workspaces with the host's
 so the guest correctly refused to continue. The real guest runs only inside
 the Fedora CoreOS VM, which has GNU `rm`, and is unchanged. The simulator now
 checks that the guest sent exactly that command, then removes the folder
-portably. The next run passed all but the tree nested past the path limit,
-which macOS's `rm` cannot remove beyond its 1,024-byte path limit. The
-simulator now removes trees with relative steps only, one directory at a time,
-so neither depth nor path length matters on either system. The same test
-passes past Linux's 4,096-byte limit as well.
+portably.
+
+The next two runs still failed one test, the tree of folders nested 2,100
+levels deep. The simulator drops the guest's error output, so a diagnosis loop
+was run natively on the owner's Mac (Python 3.9.6). It ran that scenario with
+the output kept, and showed stop's removal giving up at the guest's own
+15-second command bound after 23.6 s. Building and removing 2,100 levels is
+slow enough on macOS to outrun that bound; the guest behaved correctly. Path
+length was not the cause: on the same Mac, 21 levels of 200-character names
+(past both systems' limits) stopped in 40 ms and 300 short levels in 111 ms,
+while 2,100 levels still failed. The test now covers depth with 300 levels and
+path length with long names. Its earlier "relative steps" simulator change
+stays, as it is path-length safe.
 
 ## Remaining
 

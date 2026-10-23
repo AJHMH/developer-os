@@ -2,7 +2,8 @@
 No VM, provider, image or owner credential is involved. Scripted check
 commands stand in for real processes:
   true | false | exit N | write PATH TEXT | chmod PATH | link PATH | hang
-  absent PATH (exit 1 if PATH exists) | present PATH | lock PATH (mode 000) | deep N (nested dirs)
+  absent PATH (exit 1 if PATH exists) | present PATH | lock PATH (mode 000) |
+  deep LEVELS [NAME_LENGTH] (nested dirs)
 """
 import sys, os, json, pathlib, subprocess, time, types, re, signal, errno
 
@@ -68,11 +69,13 @@ def run_check(name, c):
     elif verb == 'present': code = 0 if (work / argv[1]).is_file() else 1
     elif verb == 'lock': (work / argv[1]).chmod(0)
     elif verb == 'deep':
-        # Built by descriptor, so it can pass the path-length limit.
+        # deep LEVELS [NAME_LENGTH]: built by descriptor, so it can pass the
+        # path-length limit with few levels when names are long.
         fd = os.open(str(work), os.O_RDONLY | os.O_DIRECTORY)
+        name = 'd' * (int(argv[2]) if len(argv) > 2 else 1)
         for _ in range(int(argv[1])):
-            os.mkdir('d', dir_fd=fd)
-            next_fd = os.open('d', os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd); os.close(fd); fd = next_fd
+            os.mkdir(name, dir_fd=fd)
+            next_fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd); os.close(fd); fd = next_fd
         os.close(fd)
     elif verb != 'true': code = 127
     c['State'].update(Running=False, Pid=0, ExitCode=code)

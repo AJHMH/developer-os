@@ -208,7 +208,10 @@ test(
 
 for (const [name, command, engine] of [
   ["an unreadable workspace", ["lock", "."], {}],
-  ["folders nested past the path limit", ["deep", "2100"], {}],
+  // Deep, and past the path limit of macOS (1 KiB) and Linux (4 KiB) with
+  // few levels, so the simulator stays within the guest's 15 s command bound.
+  ["folders nested 300 deep", ["deep", "300"], {}],
+  ["a path past the length limit", ["deep", "21", "200"], {}],
   ["a full disk at its first write", ["true"], { diskFullOnce: true }],
 ])
   test(`a check cannot wedge stop with ${name}`, posixGuest, async (t) => {
