@@ -85,14 +85,24 @@ test("native inspection independently binds each supported host and the guest ex
 });
 
 test(
-  "the native coding binding names the VM by its machine ID, which survives a restart",
+  "the native coding binding names the VM by its machine ID and survives a restart",
   posixGuest,
   async (t) => {
-    const { transport, read, write } = guestFixture(t);
+    const { transport, read, write, machineConfig } = guestFixture(t);
+    machineConfig.LastUp = "2026-10-23T09:14:51.505287-05:00";
     const first = await transport.inspect(session);
-    // Apple's hypervisor gives the VM a new hardware UUID on every boot.
+    // Apple's hypervisor gives the VM a new hardware UUID on every boot, and
+    // Podman stamps each start in the machine's configuration.
     write({ ...read(), productUuid: "restarted-vm-uuid" });
+    machineConfig.LastUp = "2026-10-23T09:26:15.056198-05:00";
     assert.deepEqual(await transport.inspect(session), first);
+    // Any other configuration change still needs a new record.
+    machineConfig.Resources = { USBs: [], CPUs: 4 };
+    assert.notEqual(
+      (await transport.inspect(session)).bindingSha256,
+      first.bindingSha256,
+    );
+    delete machineConfig.Resources;
     // A recreated VM gets a new machine ID, so it needs a new record.
     write({ ...read(), machineId: "f".repeat(32) });
     const recreated = await transport.inspect(session);

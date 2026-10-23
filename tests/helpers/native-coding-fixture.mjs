@@ -27,6 +27,8 @@ export function nativeHost(t, respond, platform = "darwin") {
   const requests = [],
     programs = [];
   const processEffects = { kills: 0 };
+  // Fields a test adds to, or changes in, the machine's Podman configuration.
+  const machineConfig = {};
   t.mock.method(os, "platform", () => platform);
   t.mock.method(os, "arch", () => (platform === "darwin" ? "arm64" : "x64"));
   t.mock.method(os, "release", () =>
@@ -54,6 +56,7 @@ export function nativeHost(t, respond, platform = "darwin") {
           ImportNativeCA: false,
           Ansible: null,
           Resources: { USBs: [] },
+          ...machineConfig,
         })
       : Buffer.from("trusted-host-executable"),
   );
@@ -116,7 +119,7 @@ export function nativeHost(t, respond, platform = "darwin") {
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  return { requests, programs, processEffects };
+  return { requests, programs, processEffects, machineConfig };
 }
 export const session = {
   operationId: "12345678-1234-4234-8234-123456789abc",
@@ -188,6 +191,7 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
   return {
     root,
     requests: fixture.requests,
+    machineConfig: fixture.machineConfig,
     transport: new NativePodmanCodingTransport("aios-test", "a".repeat(64)),
     read: () => JSON.parse(realReadFileSync(statePath, "utf8")),
     write: (state) => realWriteFileSync(statePath, JSON.stringify(state)),

@@ -133,8 +133,9 @@ a running check, on results, and when it trusts a stop. Removing or editing the
 record stops further checks, and a stop is then never trusted. Any pin change
 needs a new record: a different image, management program, Podman, VM or host.
 As with coding, the VM is named by its `/etc/machine-id`, not its hardware
-UUID, which Apple's hypervisor changes on every boot. A restart keeps the
-record valid; a recreated VM needs a new one.
+UUID, which Apple's hypervisor changes on every boot, and the binding leaves
+out Podman's record of the last start. A restart keeps the record valid; a
+recreated VM needs a new one.
 Production delivery stays disabled either way.
 
 ### Owner acceptance

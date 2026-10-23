@@ -37,6 +37,7 @@ export function validationGuest(t, engine = {}) {
   return {
     root,
     requests: host.requests,
+    machineConfig: host.machineConfig,
     transport: new NativePodmanValidationTransport(
       "aios-test",
       "a".repeat(64),
