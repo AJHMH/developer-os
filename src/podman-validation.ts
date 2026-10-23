@@ -111,7 +111,9 @@ def snapshot():
  if not re.fullmatch('[a-f0-9]{64}',R['imageSha256']): fail()
  checked=obj('image','inspect',R['imageSha256'])[0]
  if checked.get('Id')!=R['imageSha256'] or checked.get('Architecture')!=R['guestArch']: fail()
- return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],image=R['imageSha256'],hostId=h(command(['sudo','-n','cat','/sys/class/dmi/id/product_uuid'])))
+ machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
+ if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
+ return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],image=R['imageSha256'],hostId=h(machine_id.encode()))
 
 def directory(path):
  os.makedirs(path,mode=0o700,exist_ok=True)

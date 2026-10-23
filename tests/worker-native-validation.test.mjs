@@ -74,6 +74,32 @@ test(
   },
 );
 
+test(
+  "the native validation binding names the VM by its machine ID, which survives a restart",
+  posixGuest,
+  async (t) => {
+    const g = validationGuest(t);
+    const first = await g.transport.inspect();
+    // Apple's hypervisor gives the VM a new hardware UUID on every boot.
+    g.write({ productUuid: "99999999-8888-7777-6666-555555555555" });
+    assert.deepEqual(await g.transport.inspect(), first);
+    // A recreated VM gets a new machine ID, so it needs a new record.
+    g.write({ machineId: "f".repeat(32) });
+    const recreated = await g.transport.inspect();
+    assert.notEqual(recreated.bindingSha256, first.bindingSha256);
+    assert.equal(recreated.policySha256, first.policySha256);
+    for (const machineId of [
+      "",
+      "F".repeat(32),
+      "0".repeat(31),
+      "0".repeat(33),
+    ]) {
+      g.write({ machineId });
+      await assert.rejects(g.transport.inspect());
+    }
+  },
+);
+
 for (const [name, engine] of [
   ["a missing image", { imageMissing: true }],
   ["an engine answering for another image", { imageIdDrift: true }],
