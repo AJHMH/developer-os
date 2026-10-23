@@ -656,3 +656,14 @@ Command Prompt, and its old pins exposed that. It is kept as evidence of an
 open gap: the acceptance runners do not check that their build matches the
 source revision they report. Production remains disabled. See the
 [stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).
+
+## 23 October: native acceptance refuses a stale build
+
+At the owner's direction, the stale-build gap exposed on Windows was closed
+before further native qualification. The native coding, coding admission and
+validation admission acceptance runners now compile `src/` into a private
+temporary folder first. They refuse unless `dist/` is exactly that build,
+before reading the record, creating the report or touching the VM. Reports
+record the build they ran and the digest of the check itself. Production
+remains disabled. See the
+[fresh-build receipt](../ticket04-fresh-build-receipt.md).
