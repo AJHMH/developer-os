@@ -140,6 +140,13 @@ Production delivery stays disabled either way.
 
 ### Owner acceptance
 
+The native coding, coding admission and validation admission acceptance
+runners first compile `src/` into a private temporary folder. Before
+touching the record, the report or the VM, they refuse unless `dist/` is
+exactly that build. A report therefore names both the source revision and the
+build it ran: `buildFresh`, `distSha256`, and the check's own
+`freshBuildSha256`. If a runner refuses, run `npm run build` and try again.
+
 The offline acceptance validates unchanged main of a synthetic repository
 through the real transport. Its five baseline checks are shell probes that pass
 only when isolation holds:
@@ -164,7 +171,8 @@ mkdir -m 700 -p "$HOME/.developer-os/admission"
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "$IMAGE" "$HOME/.developer-os/issue04-validation-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
-Windows (PowerShell, not elevated), from the checkout:
+Windows (PowerShell, not elevated), from the checkout. Command Prompt does not
+split commands on `;`, so there it never runs the build:
 
 ```powershell
 npm ci --ignore-scripts; npm run build; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764; $image; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-validation-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run

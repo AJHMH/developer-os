@@ -24,6 +24,7 @@ import {
 import { arch, platform, release, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { freshBuild } from "./fresh-build.mjs";
 
 const usage =
   "Usage: node scripts/run-native-validation-admission-acceptance.mjs <aios-machine> <owner-validation-admission.json> <image-id> <new-report.json> --approve-offline-native-run";
@@ -301,7 +302,9 @@ function sourceEvidence(root) {
       encoding: "utf8",
       timeout: 5000,
     });
+  const build = freshBuild(root);
   return {
+    ...build,
     sourceRevision: git("rev-parse", "HEAD").stdout.trim(),
     sourceDirty: git("status", "--porcelain").stdout.trim() !== "",
     runnerSha256: sha256(readFileSync(new URL(import.meta.url))),
@@ -335,6 +338,9 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  // The build must be what this source compiles to, before anything from it
+  // runs or any evidence, record or VM is touched.
+  const source = sourceEvidence(fileURLToPath(new URL("..", import.meta.url)));
   const { NativePodmanValidationTransport } = await import(
     "../dist/podman-validation.js"
   );
@@ -357,7 +363,7 @@ async function main() {
     host: { platform: platform(), arch: arch(), release: release(), machine },
     authority,
     imageSha256,
-    ...sourceEvidence(fileURLToPath(new URL("..", import.meta.url))),
+    ...source,
   };
   // A signal never abandons a check: it ends within its timeout, then the
   // exact attempt is stopped before the run reports interrupted.

@@ -220,7 +220,8 @@ under the record. Planning, validation, onboarding facts and usage are
 synthetic stand-ins, and the turn has a one-minute allowance because offline
 Codex never finishes. If the record is missing or names other pins, the run
 stops before any coding and prints the fresh pins so that you can check or
-write the record:
+write the record. Before anything else, it also refuses unless `dist/` is
+exactly what `src/` compiles to, which `npm run build` fixes:
 
 ```sh
 cd ~/Repos/developer-os
