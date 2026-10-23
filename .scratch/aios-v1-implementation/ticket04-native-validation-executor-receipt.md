@@ -194,3 +194,39 @@ on Windows. Also open:
 - production enablement.
 
 Production remains disabled.
+
+## Native macOS validation acceptance (22 October 2026)
+
+The owner ran `scripts/run-native-validation-admission-acceptance.mjs` on the
+Mac against `aios-macos-noshare`, from a clean `main` at `4c3cab5`, under a
+separate owner validation record. The image was the pinned Alpine image
+already in the VM (ID `171e6526…72dc`). The outcome was
+`observed-offline-validation-admission-acceptance`.
+
+- Every stage passed:
+  - fresh pins: image `171e6526…`, policy `ae9e9976…` and binding
+    `241ef6ed…`;
+  - the record naming those pins;
+  - the admitted runtime, refusing each changed pin;
+  - the controller's baseline validation through the real transport, in about
+    35 s;
+  - a recorded, passed baseline.
+- All five isolation probes succeeded, each in a fresh container:
+  - the transferred tree was present;
+  - there was no network;
+  - the root filesystem was read-only;
+  - the user was 65534;
+  - no engine socket was visible.
+- The attempt stopped with the tested tree unchanged (`ba14975e…`), the runner
+  released its lock, and production stayed disabled.
+- An earlier run that day was refused at the record before any check. The
+  validation record had been saved over the coding record's file, and one pin
+  was missing a character. Kept as
+  `macos/ticket04-validation-acceptance-20261022-201003-blocked.json`.
+- The passing report is kept as
+  `macos/ticket04-validation-acceptance-20261022-202259.json` (SHA-256
+  `e2ec4011…7eb1`).
+
+The Windows validation run remains, as do dependency installs, caches,
+browser and database fixtures, declared output paths, hosted checks and
+production enablement. Production remains disabled.

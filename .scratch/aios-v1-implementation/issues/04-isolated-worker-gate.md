@@ -595,3 +595,17 @@ without changing coding behavior or pins. The controller, the CLI and
 production are unchanged. The owner's native acceptance runs on both hosts
 follow. See the
 [native validation executor receipt](../ticket04-native-validation-executor-receipt.md).
+
+## 22 October: native macOS validation acceptance
+
+The owner ran the offline validation acceptance on the Mac against
+`aios-macos-noshare`, from a clean `main` at `4c3cab5`, under their own
+validation record. The checks ran in the pinned Alpine image already in the
+VM. Every stage passed. The controller's baseline validation ran its five
+isolation probes through the real executor, each in a fresh container: tree
+present, no network, read-only root, unprivileged user and no engine socket.
+The attempt stopped with the tested tree unchanged. One earlier run was
+refused at the record before any check, because the record had been saved
+over the coding record's file with a mistyped pin. The Windows validation run
+remains. Production remains disabled. See the
+[native validation executor receipt](../ticket04-native-validation-executor-receipt.md).
