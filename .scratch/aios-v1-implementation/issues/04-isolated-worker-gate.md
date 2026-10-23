@@ -633,3 +633,14 @@ leaves out `LastUp` and nothing else. Every other configuration change still
 needs a new record. The policy pins are unchanged, and each record needs one
 binding update. See the
 [stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).
+
+## 23 October: a Mac VM restart keeps the owner's records
+
+After both binding fixes merged, the owner re-approved the Mac coding and
+validation records from a clean `main` at `4e52d7d`. Then they stopped and
+started the VM and ran the coding acceptance again without touching the record.
+It passed with the same binding. The validation acceptance passed under its
+re-approved record, after one refusal caught a mistyped pin. The Windows
+records still need re-approval for the new guest programs, and a Windows
+restart check remains. Production remains disabled. See the
+[stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).

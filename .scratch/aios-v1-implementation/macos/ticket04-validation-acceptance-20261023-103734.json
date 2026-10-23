@@ -1,0 +1,96 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "c08ed78a4eb1b7b796b07c1d1a0046c2704a43292edb6bb24f7e2676f89c2669",
+  "imageSha256": "171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc",
+  "sourceRevision": "4e52d7df9403989aa20bc22d8d97702b62bb8d6d",
+  "sourceDirty": false,
+  "runnerSha256": "39813c57661b99820b7506ea60251a775b310408c575c7291ff287bf2535a7a7",
+  "buildSha256": {
+    "podman-validation": "4116a58e187041c7f290536e72c1a31162740101f52955b154ffcae437c80ff5",
+    "native-validation": "e83d7da7cc1d7213b3848bbca605d6d59a7faa5c737f7d1f63f9c531ebf5f104",
+    "native-management": "1300f7ebb857af4d0a7674f0662579f79278b278b0773dc2bf695ebe83026d36",
+    "coding-admission": "5782eb3b8fccabbb4d6cf14503134988e94e8a2058d3cfe343e9853f9528e97c",
+    "controller": "72dd0d9056910ecee37261bea9ba400fedd11fb4e500cdfb1581b4b0efeaa77b"
+  },
+  "scope": "native-validation-offline-admission-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "synthetic": [
+    "planning",
+    "onboarding"
+  ],
+  "outcome": "observed-offline-validation-admission-acceptance",
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 813
+    },
+    {
+      "name": "owner-record-names-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 813,
+      "finishedMs": 819
+    },
+    {
+      "name": "admitted-runtime",
+      "outcome": "passed",
+      "startedMs": 819,
+      "finishedMs": 833
+    },
+    {
+      "name": "controller-baseline-validation",
+      "outcome": "passed",
+      "startedMs": 833,
+      "finishedMs": 31349
+    },
+    {
+      "name": "controller-recorded-passed-baseline",
+      "outcome": "passed",
+      "startedMs": 31349,
+      "finishedMs": 31349
+    }
+  ],
+  "pins": {
+    "imageSha256": "171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc",
+    "policySha256": "c213f918bc9246cb061e54cab06574639cf2e9ab5a91e710d69ff11a4a61f5b2",
+    "bindingSha256": "ac8967ce1e572606221c8c503125f07589e3d359d0694239497472798e39c72f"
+  },
+  "validation": {
+    "outcome": "passed",
+    "state": "stopped",
+    "results": [
+      {
+        "checkId": "format",
+        "status": "success"
+      },
+      {
+        "checkId": "lint",
+        "status": "success"
+      },
+      {
+        "checkId": "type",
+        "status": "success"
+      },
+      {
+        "checkId": "coverage",
+        "status": "success"
+      },
+      {
+        "checkId": "build",
+        "status": "success"
+      }
+    ],
+    "treeSha256": "ba14975e23677d7d803e2b95ae479b058683c0bdd6e29903b9e04436b6314a7e",
+    "environmentSha256": "63c13538bca40f07347d59e7f202b6e035cdc1d99718d96b64f25e06c8ca8da8",
+    "bindingSha256": "91342d668ff3c4b62e01548e0494afaf71817be7fd65f680752f26c3f0bfa8e5"
+  },
+  "interrupted": false
+}
