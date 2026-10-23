@@ -19,7 +19,6 @@ time.monotonic = lambda: real_monotonic() + state.get('timeOffset', 0)
 real_read = pathlib.Path.read_text
 real_exists = pathlib.Path.exists
 real_rglob = pathlib.Path.rglob
-real_popen = subprocess.Popen
 real_open = os.open
 source = sys.stdin.read()
 namespace = {}
@@ -77,6 +76,28 @@ def run_check(name, c):
         os.close(fd)
     elif verb != 'true': code = 127
     c['State'].update(Running=False, Pid=0, ExitCode=code)
+
+def remove_owned_tree(path):
+    """Remove a tree the user owns, however deep or locked, using only
+    relative steps: no long path is ever built and one handle is kept."""
+    home = os.open('.', os.O_RDONLY)
+    try:
+        os.chmod(path, 0o700); os.chdir(path)
+        names = []
+        while True:
+            os.chmod('.', 0o700)
+            child = None
+            for entry in os.scandir('.'):
+                if entry.is_dir(follow_symlinks=False):
+                    child = entry.name; break
+                os.unlink(entry.name)
+            if child is not None:
+                os.chmod(child, 0o700); os.chdir(child); names.append(child); continue
+            if not names: break
+            os.chdir('..'); os.rmdir(names.pop())
+    finally:
+        os.fchdir(home); os.close(home)
+    os.rmdir(path)
 
 def podman(args):
     fire_due_timers()
@@ -142,12 +163,11 @@ def podman(args):
         c['State'].update(Running=False, Pid=0, ExitCode=137); return args[-1]
     if sub == 'unshare':
         # Root over the user's own files: unreadable and deep trees still go.
-        # The guest's GNU flags are checked, then removed portably, because
-        # this simulator also runs on macOS, whose BSD rm has no long options.
+        # The guest's GNU flags are checked, then the tree is removed portably,
+        # because this simulator also runs on macOS, whose rm has no long
+        # options and cannot remove trees past its 1024-byte path limit.
         if args[1:-1] != ['rm', '-rf', '--one-file-system', '--']: raise LookupError('unexpected unshare')
-        path = args[-1]
-        real_popen(['chmod', '-R', 'u+rwx', path], stderr=subprocess.DEVNULL).wait()
-        real_popen(['rm', '-rf', path]).wait()
+        remove_owned_tree(args[-1])
         return ''
     if sub == 'container' and args[1] == 'exists':
         return None if args[2] in state['containers'] else LookupError

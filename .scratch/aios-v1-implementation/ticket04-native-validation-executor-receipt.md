@@ -169,7 +169,11 @@ other job passed. The simulator removed workspaces with the host's
 so the guest correctly refused to continue. The real guest runs only inside
 the Fedora CoreOS VM, which has GNU `rm`, and is unchanged. The simulator now
 checks that the guest sent exactly that command, then removes the folder
-portably.
+portably. The next run passed all but the tree nested past the path limit,
+which macOS's `rm` cannot remove beyond its 1,024-byte path limit. The
+simulator now removes trees with relative steps only, one directory at a time,
+so neither depth nor path length matters on either system. The same test
+passes past Linux's 4,096-byte limit as well.
 
 ## Remaining
 
