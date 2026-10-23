@@ -644,3 +644,15 @@ re-approved record, after one refusal caught a mistyped pin. The Windows
 records still need re-approval for the new guest programs, and a Windows
 restart check remains. Production remains disabled. See the
 [stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).
+
+## 23 October: a Windows VM restart keeps the owner's records
+
+The owner re-approved the Windows coding record from a clean `main` at
+`d73b1d8`. After a VM stop and start, the coding acceptance passed with the
+same binding without touching the record. The first Windows validation
+record passed on its first run, with the same policy pin and tested tree as on
+the Mac. One earlier run used a stale build because it was started from
+Command Prompt, and its old pins exposed that. It is kept as evidence of an
+open gap: the acceptance runners do not check that their build matches the
+source revision they report. Production remains disabled. See the
+[stable VM identity receipt](../ticket04-stable-vm-identity-receipt.md).

@@ -1,0 +1,76 @@
+{
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26300",
+    "machine": "aios-podman-noshare"
+  },
+  "authority": "40601adbb6d3289093752fe4308b0c7f4491c4338d5dc24c51cbef428e5de252",
+  "sourceRevision": "d73b1d804248d6e4f8e4ea7ffa77fdc1873da60f",
+  "sourceDirty": false,
+  "runnerSha256": "e9921393f0acfa263cc832f1f6f11d1b080b66c0169bd3320be6aa04699daf5b",
+  "buildSha256": {
+    "podman-coding": "1fb3696b29d243d059a78460d3788fbc7597eaad75e6eb2a44a6a0eb28fdd204",
+    "feature-candidate": "905d5e51a49e99f8b1de4ae36c8cdf20cb0dd273c53049a6e9de57ec96393d53",
+    "coding-admission": "071ea18827c62b01650dd88013d022abbfcfb32402cca56e46254e4a18d2011b",
+    "controller": "72dd0d9056910ecee37261bea9ba400fedd11fb4e500cdfb1581b4b0efeaa77b"
+  },
+  "scope": "native-coding-offline-admission-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "synthetic": [
+    "planning",
+    "validation",
+    "onboarding",
+    "usage"
+  ],
+  "outcome": "observed-offline-admission-acceptance",
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed",
+      "startedMs": 1,
+      "finishedMs": 4139
+    },
+    {
+      "name": "owner-record-names-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 4139,
+      "finishedMs": 4749
+    },
+    {
+      "name": "admitted-runtime",
+      "outcome": "passed",
+      "startedMs": 4750,
+      "finishedMs": 7069
+    },
+    {
+      "name": "controller-coding-turn",
+      "outcome": "passed",
+      "startedMs": 7069,
+      "finishedMs": 79127
+    },
+    {
+      "name": "controller-recorded-stopped-thread",
+      "outcome": "passed",
+      "startedMs": 79128,
+      "finishedMs": 79128
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+    "policySha256": "ede4001575500b702adf528553fdfdeb6862d07f049eec207bdd0609a28c50ba",
+    "bindingSha256": "90aef18689b3eeadc1b525cc767eb8919c153e2f0f342c6f7800e7f91eccd7aa"
+  },
+  "delivery": {
+    "phase": "blocked",
+    "blocker": "DELIVERY_NOT_ENABLED",
+    "outcome": "exhausted",
+    "sessionState": "stopped",
+    "threadStarted": true,
+    "candidate": false
+  },
+  "interrupted": false
+}
