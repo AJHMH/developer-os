@@ -286,24 +286,33 @@ test("a blocked report names every stage that never ran", async () => {
   );
 });
 
-test("a validation probe check passes only on its own probe's verdict", () => {
-  const { command } = probeCheck(boundaryProbe, "network");
-  assert.ok(command.length <= 32);
-  assert.ok(
-    command.every((a) => a.length <= 2000 && !/[\u0000-\u001f]/.test(a)),
-  );
-  const run = (verdicts) =>
-    spawnSync("/bin/sh", [
-      "-c",
-      command[2],
-      command[3],
-      `printf '%s\\n' ${verdicts}`,
-      ...command.slice(5),
-    ]).status;
-  assert.equal(run("passed-tools passed-network"), 0);
-  assert.equal(run("passed-tools failed-network"), 1);
-  assert.equal(run("passed-tools passed-network-extra"), 1);
-});
+// The check's shell runs inside the Linux worker, so it is exercised on POSIX.
+const posix = {
+  skip: process.platform === "win32" ? "The check is a POSIX shell" : false,
+};
+
+test(
+  "a validation probe check passes only on its own probe's verdict",
+  posix,
+  () => {
+    const { command } = probeCheck(boundaryProbe, "network");
+    assert.ok(command.length <= 32);
+    assert.ok(
+      command.every((a) => a.length <= 2000 && !/[\u0000-\u001f]/.test(a)),
+    );
+    const run = (verdicts) =>
+      spawnSync("/bin/sh", [
+        "-c",
+        command[2],
+        command[3],
+        `printf '%s\\n' ${verdicts}`,
+        ...command.slice(5),
+      ]).status;
+    assert.equal(run("passed-tools passed-network"), 0);
+    assert.equal(run("passed-tools failed-network"), 1);
+    assert.equal(run("passed-tools passed-network-extra"), 1);
+  },
+);
 
 test("the qualification runs only with explicit, well-formed arguments", () => {
   const record = "/r.json";

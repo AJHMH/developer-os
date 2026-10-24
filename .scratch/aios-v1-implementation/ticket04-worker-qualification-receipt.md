@@ -142,3 +142,13 @@ hosts follow after merge.
 - The coverage items listed under the runbook's limits.
 
 Production remains disabled.
+
+## CI follow-up
+
+On PR #100's first run, only Windows CLI tests (5/8) failed, together with
+the Windows summary check that depends on it. The owner provided the job log:
+`not ok 124 - a validation probe check passes only on its own probe's verdict`,
+with an exit status of `null`. That test runs the check's shell through
+`/bin/sh`, which Windows does not have. It now carries the same POSIX-only
+skip as the other shell-based probe tests. The check's shell only ever runs
+inside the Linux worker, so nothing else changes.
