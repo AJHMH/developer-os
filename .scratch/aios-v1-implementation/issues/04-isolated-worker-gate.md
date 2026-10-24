@@ -713,3 +713,27 @@ This is offline evidence toward criteria 1, 2, 3, 5 and 6, within the
 runbook's stated limits. Criterion 4 needs the credentialed slice. Production
 remains disabled. See the
 [worker qualification receipt](../ticket04-worker-qualification-receipt.md).
+
+## 24 October: plan and ADR for the credentialed general session
+
+The owner approved a five-slice plan for the remaining credentialed scope
+(`plan-04-credentialed-general-session.md`):
+- model-only authority for each launch and resume;
+- native usage, exhaustion with work preservation, and restart;
+- criterion 4.
+
+The plan's decisions:
+- **Route:** the fixed worker's natively proven relay inside the worker's
+  network namespace, with no mount, no in-worker binary, and the network left
+  `none`.
+- **Gateway:** a separate general-session gateway that checks usage and the
+  mediation decision at every provider request.
+- **Live budget:** at most two live turns per host, launch and resume, each
+  under a fresh one-shot approval.
+- **Usage and model:** `UsageApprovalGate` is reused unchanged, and the model
+  is pinned.
+
+Slice 1 is
+[ADR 0002](../../../docs/adr/0002-mediated-general-coding-session.md),
+proposed for the owner's acceptance. No credentials or inference are used
+before the final native slice. Production remains disabled.
