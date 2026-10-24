@@ -699,3 +699,17 @@ probe now matches the guest's policy and names each check separately. The
 Mac run is repeated, and the Windows run follows, after the coding records
 are re-approved. Production remains disabled. See the
 [worker qualification receipt](../ticket04-worker-qualification-receipt.md).
+
+## 24 October: native qualification passes on both hosts
+
+After the probe correction, the offline general-worker qualification passed
+on the Mac and on Windows. Both hosts ran the same probe and the same pins
+from a clean, freshly built `main` at `4f0dc83`. All 20 probes passed in each
+worker. Every lifecycle control held: pins refused, the exact stop removing
+descendants, the guest deadline, a stop mid-check, the fenced late check, and
+a changed tree never reported as tested. The blocked runs from a skipped
+record confirmation, and an interrupted Windows run, are kept as evidence.
+This is offline evidence toward criteria 1, 2, 3, 5 and 6, within the
+runbook's stated limits. Criterion 4 needs the credentialed slice. Production
+remains disabled. See the
+[worker qualification receipt](../ticket04-worker-qualification-receipt.md).

@@ -1,0 +1,55 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "authority": "1ca9afc56094e339e1d1a4b09a82f122a19dff69d52fc16b47fccd3820e7ef23",
+  "buildFresh": true,
+  "freshBuildSha256": "4347151de38ca208fe5ccdf992bc3f000f008952020572f2cd716cd5f250e692",
+  "distSha256": "9a69fd1fe1d85e0ac488d3d537158d9c8684fee65052d042743301511f7f61df",
+  "sourceRevision": "4f0dc836cd2957b310e4b3728001e51f9bf4388b",
+  "sourceDirty": false,
+  "runnerSha256": "11c3af7237bf7022b4b4f0e22bec53ad9b79a12a64c1c594f164731233e0b465",
+  "buildSha256": {
+    "podman-coding": "022522ab1bb8fe58f62e32f6031ffd0ab832060778bb8e039682450431188291",
+    "feature-candidate": "905d5e51a49e99f8b1de4ae36c8cdf20cb0dd273c53049a6e9de57ec96393d53",
+    "coding-admission": "5782eb3b8fccabbb4d6cf14503134988e94e8a2058d3cfe343e9853f9528e97c",
+    "controller": "72dd0d9056910ecee37261bea9ba400fedd11fb4e500cdfb1581b4b0efeaa77b"
+  },
+  "scope": "native-coding-offline-admission-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "synthetic": [
+    "planning",
+    "validation",
+    "onboarding",
+    "usage"
+  ],
+  "outcome": "blocked",
+  "stages": [
+    {
+      "name": "fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 1139
+    },
+    {
+      "name": "owner-record-names-fresh-pins",
+      "outcome": "blocked",
+      "startedMs": 1139,
+      "error": "The owner coding admission does not name the fresh pins",
+      "finishedMs": 1149
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    "policySha256": "c941c723026234ee06650d1bdfa6de360317860c3d7e111eb6a8e2a746195bbb",
+    "bindingSha256": "aac1b6b50fe6bdd0937d3fc71f6ee35422c2f98f3c5eaa098dbcbdfaeeea6daa"
+  },
+  "error": "The owner coding admission does not name the fresh pins",
+  "interrupted": false
+}

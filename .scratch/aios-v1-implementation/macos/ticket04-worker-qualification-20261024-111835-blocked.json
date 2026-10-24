@@ -1,0 +1,86 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "imageSha256": "171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc",
+  "probeSha256": "b30a0b391bbf40e0e55f7141527bbba80aa4f5c3df21725696715d8da0c62006",
+  "buildFresh": true,
+  "freshBuildSha256": "4347151de38ca208fe5ccdf992bc3f000f008952020572f2cd716cd5f250e692",
+  "distSha256": "9a69fd1fe1d85e0ac488d3d537158d9c8684fee65052d042743301511f7f61df",
+  "sourceRevision": "4f0dc836cd2957b310e4b3728001e51f9bf4388b",
+  "sourceDirty": false,
+  "runnerSha256": "1eaad34bc16957ce848eda9373e453abf403a8d3014513a8f8c2d094a2db362c",
+  "scope": "native-worker-offline-qualification",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "outcome": "blocked",
+  "stages": [
+    {
+      "name": "coding-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 1133
+    },
+    {
+      "name": "validation-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 1133,
+      "finishedMs": 1890
+    },
+    {
+      "name": "owner-records-name-fresh-pins",
+      "outcome": "blocked",
+      "startedMs": 1891,
+      "error": "Owner coding admission is missing or invalid",
+      "finishedMs": 1900
+    },
+    {
+      "name": "changed-pins-refused",
+      "outcome": "not-run"
+    },
+    {
+      "name": "coding-live-boundary-probe",
+      "outcome": "not-run"
+    },
+    {
+      "name": "coding-exact-stop-removes-descendants",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-boundary-probe",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-deadline-kills-descendants",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-stop-mid-check-and-fence",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-changed-tree-never-tested",
+      "outcome": "not-run"
+    }
+  ],
+  "pins": {
+    "coding": {
+      "cliVersion": "0.161.0",
+      "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+      "policySha256": "c941c723026234ee06650d1bdfa6de360317860c3d7e111eb6a8e2a746195bbb",
+      "bindingSha256": "aac1b6b50fe6bdd0937d3fc71f6ee35422c2f98f3c5eaa098dbcbdfaeeea6daa"
+    },
+    "validation": {
+      "imageSha256": "171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc",
+      "policySha256": "c213f918bc9246cb061e54cab06574639cf2e9ab5a91e710d69ff11a4a61f5b2",
+      "bindingSha256": "ac8967ce1e572606221c8c503125f07589e3d359d0694239497472798e39c72f"
+    }
+  },
+  "coding": {},
+  "validation": {},
+  "interrupted": false
+}
