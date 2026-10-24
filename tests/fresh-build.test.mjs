@@ -134,6 +134,13 @@ const runners = {
     "a".repeat(64),
     report,
   ],
+  "run-native-worker-qualification.mjs": (record, report) => [
+    "aios-test",
+    record,
+    record,
+    "a".repeat(64),
+    report,
+  ],
 };
 
 for (const [runner, argumentsOf] of Object.entries(runners))

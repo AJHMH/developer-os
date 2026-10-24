@@ -667,3 +667,22 @@ before reading the record, creating the report or touching the VM. Reports
 record the build they ran and the digest of the check itself. Production
 remains disabled. See the
 [fresh-build receipt](../ticket04-fresh-build-receipt.md).
+
+## 23 October: offline general-worker qualification, built
+
+At the owner's direction, both general workers gained an offline adversarial
+qualification in one slice. A fixed boundary probe runs inside each worker's
+own container: in a live coding session through a new guest action, and as
+validation checks. The new owner-run runner adds checks for:
+- changed and missing pins;
+- coding descendants removed by the exact stop;
+- validation descendants killed at the guest deadline;
+- a stop mid-check;
+- a fenced late check;
+- a changed tree never reported as tested.
+
+The coding policy pin changes, so each host's coding record needs
+re-approval. The native runs on both hosts follow. Production remains
+disabled. See the
+[worker qualification receipt](../ticket04-worker-qualification-receipt.md)
+and [runbook](../../../docs/worker-qualification.md).

@@ -17,6 +17,7 @@ import {
 import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
 import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
+import { boundaryProbe, boundaryProbeOutcomes } from "./worker-probes.js";
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -41,6 +42,8 @@ const management = String.raw`
 import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time
 
 def fail(): raise RuntimeError('Native coding observation unavailable')
+# The fixed boundary probe (src/worker-probes.ts), part of this program's pin.
+PROBE=${JSON.stringify(boundaryProbe)}
 def h(b): return hashlib.sha256(b).hexdigest()
 def command(args):
  args=[args[0] if args[0].startswith('/') else '/usr/bin/'+args[0],*args[1:]]
@@ -481,6 +484,25 @@ else:
      record['threadId']=threads[0];save(recordPath,record)
     if not c['State']['Running'] and record['admission'].get('threadId') and not threads: fail()
     result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(logs).decode())
+   elif R['action']=='probe-boundary':
+    # Qualification only: the fixed probe in the exact live session, then a
+    # detached descendant that only this session's exact stop may remove.
+    if record['phase']!='running' or not isinstance(R.get('admittedPath'),str) or not path_ok(R['admittedPath']): fail()
+    c=container()
+    if not c['State'].get('Running') or group(c['State']['Pid'])!=record['group']: fail()
+    effective(c,True)
+    # Positive controls: both files exist, so only isolation can hide one.
+    if not os.path.isfile(work+'/'+R['admittedPath']) or os.path.islink(work+'/'+R['admittedPath']) or not os.path.isfile(recordPath): fail()
+    probe=pod('exec',R['name'],'/bin/sh','-c',PROBE,'--','/workspace/'+R['admittedPath'],recordPath).decode()
+    before=set(census(record['group']))
+    pod('exec','-d',R['name'],'setsid','sleep','3600')
+    for _ in range(50):
+     now=census(record['group'])
+     if set(now)-before: break
+     time.sleep(0.1)
+    else: fail()
+    record['pids'].update(now);save(recordPath,record)
+    result=dict(probe=probe,processes=len(now))
    elif R['action']=='observe-timer-execution':
     container() # Verify current authority/session labels before reading units.
     result=timer_execution()
@@ -959,6 +981,30 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       timers: structuredClone(
         result.timers,
       ) as NativeSessionObservation["timers"],
+      pins,
+    };
+  }
+  /** Qualification evidence: runs the fixed boundary probe inside the exact
+   * live session, with `admittedFile` as its positive control, then leaves a
+   * detached descendant that the session's exact stop must remove. */
+  async probeBoundary(session: CodingSession, admittedFile: string) {
+    if (typeof admittedFile !== "string" || !admittedPath(admittedFile))
+      throw Error("Invalid native boundary probe");
+    const bound = this.session(session);
+    const { result, pins } = await this.invoke("probe-boundary", bound, {
+      admittedPath: admittedFile,
+    });
+    if (
+      typeof result.probe !== "string" ||
+      result.probe.length > 4096 ||
+      !Number.isSafeInteger(result.processes) ||
+      (result.processes as number) < 2 ||
+      (result.processes as number) > 4096
+    )
+      throw Error("Native boundary probe unavailable");
+    return {
+      probes: boundaryProbeOutcomes(result.probe),
+      processes: result.processes as number,
       pins,
     };
   }
