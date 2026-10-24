@@ -192,3 +192,9 @@ passing fixed canary does not qualify production delivery or another platform.
 
 **Canary**: A bounded fixed challenge using synthetic inputs, capabilities and
 controlled peers to test a specific boundary without owner credentials/inference.
+
+**Boundary probe**: The fixed canary script that each general worker runs inside
+its own hardened container. It has a positive control (the admitted file is
+visible and alone), and it shows denial of host and guest content, sockets,
+credentials, network and escapes. A passing probe is qualification evidence,
+not a qualification decision.

@@ -51,14 +51,14 @@ def read_text(path, *args, **kwargs):
         return json.dumps({'defaultAction': 'SCMP_ACT_ERRNO', 'syscalls': [{'names': ['read','unshare','setns'], 'action': 'SCMP_ACT_ALLOW'}]})
     match = re.fullmatch(r'/proc/(\d+)/(status|cgroup|stat)', p)
     if match:
-        c = next((c for c in containers().values() if c.get('FixturePid') == int(match[1])), None)
+        c = next((c for c in containers().values() if c.get('FixturePid') == int(match[1]) or int(match[1]) in c.get('FixtureExtraPids', [])), None)
         if not c or not alive(c): raise FileNotFoundError(p)
         if match[2] == 'status': return 'NoNewPrivs:\t1\nSeccomp:\t2\nCapEff:\t00000000\n'
         if match[2] == 'cgroup': return '0::/machine.slice/'+c['FixtureGroup']+'\n'
         return match[1]+' (worker) ' + ' '.join(['0'] * 19 + ['12345'])
     if p.startswith('/sys/fs/cgroup/') and p.endswith('/cgroup.procs'):
         c = next((c for c in containers().values() if p.endswith('/'+c.get('FixtureGroup', '')+'/cgroup.procs')), None)
-        return str(c['FixturePid'])+'\n' if c and alive(c) else ''
+        return ''.join(str(pid)+'\n' for pid in [c['FixturePid'], *c.get('FixtureExtraPids', [])]) if c and alive(c) else ''
     return real_read(path, *args, **kwargs)
 pathlib.Path.read_text = read_text
 pathlib.Path.exists = lambda path: True if str(path).startswith('/sys/fs/cgroup/') else real_exists(path)
@@ -129,7 +129,7 @@ def run(args, **kwargs):
         else: raise RuntimeError('Unexpected systemctl action')
     elif args[0] == 'podman':
         action = args[1]
-        c = containers().get(args[-1] if action == 'stop' else args[2]) if action in ['inspect','start','exec','logs','stop'] else state['container']
+        c = containers().get(args[-1] if action == 'stop' else args[3] if args[2:3] == ['-d'] else args[2]) if action in ['inspect','start','exec','logs','stop'] else state['container']
         if action == 'info':
             info = {'host': {'security': {'rootless': True}, 'cgroupVersion': 'v2'}, 'version': {'Version': '6.1.1'}}
             if state.get('oversizedObservation') == 'stdout': info['padding'] = 'x' * (8*1024*1024)
@@ -168,6 +168,16 @@ def run(args, **kwargs):
             else: output = json.dumps([c]).encode()
         elif action == 'start' and state.get('startUnavailable'): code = 1  # external engine fails to start
         elif action == 'start': c['State'].update(Running=True, Pid=c['FixturePid'], Status='running');set_alive(c, True)
+        elif action == 'exec' and args[3:5] == ['/bin/sh', '-c'] and '--' in args:
+            # The fixed boundary probe: echo a configured verdict, or run it.
+            state.setdefault('probes', []).append(args[args.index('--')+1:])
+            if 'probeOutput' in state: output = state['probeOutput'].encode()
+            else:
+                with real_popen(['/bin/sh', *args[4:]], stdout=subprocess.PIPE) as probe: output = probe.communicate(timeout=30)[0]
+        elif action == 'exec' and args[2:3] == ['-d']:
+            # A detached descendant joins the session's process census.
+            if not state.get('descendantInvisible'):
+                c.setdefault('FixtureExtraPids', []).append(900 + len(c.get('FixtureExtraPids', [])))
         elif action == 'exec':
             state['timeOffset'] = state.get('timeOffset', 0) + state.get('advanceAfterLaunch', 0)
             if state.get('loseTimerAfterLaunch'):

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
 import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
+import { boundaryProbe, boundaryProbeNames } from "../dist/worker-probes.js";
 import {
   realTemporaryDirectory,
   realSpawnSync,
@@ -1517,4 +1518,134 @@ test("native coding refuses malformed file lists and timer names before host eff
     /timer execution/,
   );
   assert.equal(fixture.requests.length, before);
+});
+
+const allProbesPassed =
+  boundaryProbeNames.map((name) => `passed-${name}`).join("\n") + "\n";
+
+/** A live session, held running while the test acts on it. */
+async function liveSession(t, engine = {}) {
+  const fixture = guestFixture(t, {
+    keepRunning: true,
+    stopAfterPolls: 4,
+    probeOutput: allProbesPassed,
+    ...engine,
+  });
+  const request = await launchRequest(fixture.transport, {
+    allowanceMs: 60000,
+  });
+  const running = fixture.transport.run(request, () => {});
+  for (let i = 0; i < 200 && !fixture.read().container?.State.Running; i++)
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(fixture.read().container.State.Running, true);
+  return { ...fixture, request, running };
+}
+
+test(
+  "the boundary probe runs the fixed script in the exact live session and plants a descendant only an exact stop removes",
+  posixGuest,
+  async (t) => {
+    const { transport, read, request, running } = await liveSession(t);
+    const probed = await transport.probeBoundary(session, "index.html");
+    assert.deepEqual(
+      probed.probes.map((p) => [p.name, p.outcome]),
+      boundaryProbeNames.map((name) => [name, "passed"]),
+    );
+    assert.deepEqual(probed.pins, request.pins);
+    // The fixed script, never caller text, with the admitted file and a
+    // guest-private management file as its only arguments.
+    const exec = read().commands.find(
+      (args) => args[1] === "exec" && args[3] === "/bin/sh",
+    );
+    assert.equal(exec[5], boundaryProbe);
+    const [admitted, guestPrivate] = read().probes[0];
+    assert.equal(admitted, "/workspace/index.html");
+    assert.match(guestPrivate, /\/aios-coding-[a-f0-9]{32}\.json$/);
+    assert.equal(read().container.FixtureExtraPids.length, 1);
+    assert.ok(probed.processes >= 2);
+    await running;
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+    const observed = await transport.observeSession({
+      ...session,
+      state: "uncertain",
+    });
+    assert.equal(observed.remainingProcesses, 0);
+    assert.equal(observed.processesGone, true);
+  },
+);
+
+test(
+  "a failed probe is reported as failed, never as a pass",
+  posixGuest,
+  async (t) => {
+    const { transport, running } = await liveSession(t, {
+      probeOutput: allProbesPassed.replace("passed-network", "failed-network"),
+    });
+    const probed = await transport.probeBoundary(session, "index.html");
+    assert.equal(
+      probed.probes.find((p) => p.name === "network").outcome,
+      "failed",
+    );
+    await running;
+    await transport.stop(session);
+  },
+);
+
+test(
+  "the boundary probe refuses anything but a live session and an admitted file",
+  posixGuest,
+  async (t) => {
+    const idle = guestFixture(t);
+    await assert.rejects(idle.transport.probeBoundary(session, "index.html"));
+    const { transport, read, running } = await liveSession(t);
+    for (const path of ["", ".git/config", "../index.html", "/etc/passwd"])
+      await assert.rejects(transport.probeBoundary(session, path), path);
+    await assert.rejects(transport.probeBoundary(session, "missing.html"));
+    await assert.rejects(
+      transport.probeBoundary(
+        { ...session, fence: session.fence + 1 },
+        "index.html",
+      ),
+    );
+    assert.equal(read().probes, undefined, "no probe ran");
+    await running;
+    await transport.stop(session);
+  },
+);
+
+for (const [name, engine] of [
+  ["malformed probe output", { probeOutput: "passed-tools\n" }],
+  ["an unobserved descendant", { descendantInvisible: true }],
+])
+  test(`the boundary probe refuses ${name}`, posixGuest, async (t) => {
+    const { transport, running } = await liveSession(t, engine);
+    await assert.rejects(transport.probeBoundary(session, "index.html"));
+    await running.catch(() => {});
+    await transport.stop({ ...session, state: "uncertain" });
+  });
+
+test("a guest answering a boundary probe out of shape is refused", async (t) => {
+  for (const shape of [
+    { probe: 7, processes: 3 },
+    { probe: "x".repeat(4097), processes: 3 },
+    { probe: allProbesPassed, processes: 1 },
+    { probe: allProbesPassed, processes: 4097 },
+    { probe: allProbesPassed, processes: 2.5 },
+  ])
+    await t.test(JSON.stringify(shape).slice(0, 40), async (t) => {
+      nativeHost(t, (request) => ({
+        session: request.session,
+        binding: observation,
+        cliSha256: request.cliSha256,
+        ...shape,
+      }));
+      const transport = new NativePodmanCodingTransport(
+        "aios-test",
+        "a".repeat(64),
+      );
+      await assert.rejects(
+        transport.probeBoundary(session, "index.html"),
+        /Native boundary probe unavailable/,
+      );
+    });
 });

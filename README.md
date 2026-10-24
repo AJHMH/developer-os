@@ -55,6 +55,7 @@ Host-only authentication uses macOS Keychain or Windows protected storage. Worke
 
 - [Windows worker qualification](docs/windows-worker-qualification.md)
 - [macOS worker qualification](docs/macos-worker-qualification.md)
+- [Offline general-worker qualification](docs/worker-qualification.md)
 
 Both platforms have independent fixed-worker passing receipts. These are version-bound results; historical approvals authorize no new inference. `qualification-report` never enables production.
 
