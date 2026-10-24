@@ -204,3 +204,83 @@ Checks on Node 24.22.1: formatting and typecheck pass. The full suite ran
 1,060 tests: 1,056 passed, 4 skipped, 0 failed. The only `src/` change is the
 probe table in `src/worker-probes.ts`, which the probe tests run in full.
 Production remains disabled.
+
+## Native qualification on both hosts (24 October 2026)
+
+After PR #101 merged at `4f0dc83`, the owner re-approved each host's coding
+record for the corrected probe and ran the qualification. Both hosts passed.
+Both used the same probe (`probeSha256` `b30a0b39…`) and the same runner, with
+the same coding policy pin (`c941c723…`) and validation policy pin
+(`c213f918…`). Each ran from a clean tree with `buildFresh: true`.
+
+### macOS (`aios-macos-noshare`), reports under `macos/`
+
+- **Coding record re-approval:**
+  - `ticket04-admission-acceptance-20261024-110803-blocked.json`: refused, as
+    expected. Only the policy pin moved, to `c941c723…`; the binding stayed
+    `aac1b6b5…`.
+  - The confirming acceptance run after the edit was skipped. Two
+    qualification runs, `…111626-blocked.json` and `…111835-blocked.json`,
+    were then refused at the record with "Owner coding admission is missing
+    or invalid", before any worker started.
+  - The owner corrected the file at 11:23. It then passed every field check.
+    The confirming run, `ticket04-admission-acceptance-20261024-112544.json`,
+    passed.
+- **Qualification:** `ticket04-worker-qualification-20261024-112721.json`
+  (SHA-256 `a27c73e5…`), outcome `observed-offline-worker-qualification`.
+  - All ten stages passed.
+  - All 20 coding probes passed, including `codex-skills`, `mcp-config` and
+    `hooks-rules-agents`. That confirms the 23 October failure came from the
+    probe being stricter than the guest's policy, not from the boundary.
+  - All 20 validation probes passed.
+  - The coding descendant was removed by the exact stop.
+  - The guest deadline ended the validation descendants (exit 137, 0
+    remaining).
+  - A stop mid-check left 0 processes and the check did not pass.
+  - The late check was fenced.
+  - The changed tree was not reported as tested.
+
+### Windows (`aios-podman-noshare`), reports under `windows/`
+
+- **Coding record:** re-approved by the owner; the confirming acceptance
+  reports were not provided. The qualification's pins show the record named
+  policy `c941c723…` and the unchanged Windows binding `f6dbbfd8…`.
+- **Interrupted run:**
+  `ticket04-worker-qualification-20261024-114105-interrupted.json`. Its first
+  nine stages passed, then it was cut off during the last one, the changed-tree
+  stage, about 7 minutes in. The report still reads `running`, and the
+  wrapper's lock was retained, as it is only on interruption.
+  - Before the lock was cleared, the owner confirmed no `node` process from
+    the run remained and no worker container was running. No
+    `aios-validation-…` container existed at all.
+  - That attempt never reached its stop, so its private workspace copy may
+    remain in the VM's validation state. It is bound to that attempt's own ID.
+- **Qualification:** `ticket04-worker-qualification-20261024-115704.json`
+  (SHA-256 `650f6c9f…`), outcome `observed-offline-worker-qualification`.
+  - All ten stages passed, and all 20 probes passed in each worker.
+  - The lifecycle results matched the Mac: descendant removed, deadline kill,
+    stop mid-check, fence, changed tree never reported as tested.
+  - The validation probes take about 5½ minutes on Windows, against 2 on the
+    Mac. The whole run takes about 8 minutes.
+
+### Against Issue 04's criteria
+
+This is offline evidence on both hosts for:
+- **criterion 1:** changed and missing pins refuse;
+- **criterion 2:** only the admitted file enters;
+- **criterion 3:** no shares, sockets, credentials, management or network;
+- **criterion 5:** descendant stopping, the deadline, mid-check stop and
+  fencing;
+- **criterion 6:** independent retained results, including failed, blocked
+  and interrupted attempts.
+
+The runbook's stated limits still apply:
+- recovery and safe import;
+- coding fencing beyond the session acceptance;
+- effective configuration is not kept in the report;
+- the validation private path cannot be confirmed;
+- `escape-unshare`'s option risk.
+
+Criterion 4 (credentials, model-only mediation, usage) is not covered and
+needs the credentialed slice. Whether these results let the Issue 04
+checkboxes be ticked is the owner's decision. Production remains disabled.
