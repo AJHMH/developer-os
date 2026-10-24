@@ -25,7 +25,10 @@ tool exists, so a missing tool fails instead of passing. It checks:
   - no owner home or guest-private management state;
   - no `.ssh`, `.gnupg`, `.gitconfig`, `gh` config, `.netrc` or `.aws` in the
     worker's home;
-  - no MCP servers, skills or hooks in the worker's home;
+  - in the worker's home: no MCP servers in `config.toml`; no `hooks.json`,
+    `rules` or `AGENTS.md`; and a `skills` folder only if its sole entry is
+    `.system`, Codex's own bundled skills, which it regenerates on every
+    start;
   - no engine or management sockets;
   - no credential variables.
 - **Mounts and network:** no host-share mounts, loopback-only networking, and
