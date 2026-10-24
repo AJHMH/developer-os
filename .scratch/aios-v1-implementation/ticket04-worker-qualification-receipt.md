@@ -152,3 +152,55 @@ with an exit status of `null`. That test runs the check's shell through
 `/bin/sh`, which Windows does not have. It now carries the same POSIX-only
 skip as the other shell-based probe tests. The check's shell only ever runs
 inside the Linux worker, so nothing else changes.
+
+## First native run on macOS, and the probe correction (23 October 2026)
+
+After PR #100 merged at `3d02d39`, the owner re-approved the Mac coding
+record. All reports are under `macos/`.
+- `ticket04-admission-acceptance-20261023-204118-blocked.json`: refused, as
+  expected. Only the policy pin moved, to `fa91be00…`; the binding stayed
+  `aac1b6b5…`.
+- `ticket04-admission-acceptance-20261023-204459.json`: passed under the
+  updated record, with `buildFresh: true` and a clean tree.
+
+The owner then ran the qualification
+(`ticket04-worker-qualification-20261023-204634-failed.json`, SHA-256
+`61c01003…`). **Every stage passed:**
+- **Pins:** each changed and missing pin was refused for both workers.
+- **Coding:** the planted descendant was censused, and the exact stop left no
+  process.
+- **Validation:** all 18 probes passed. The guest deadline ended the forked
+  descendants (`timedOut`, exit 137, 0 remaining). A stop mid-check left 0
+  processes and the check did not pass. The late check was fenced. The
+  changed tree was not reported as tested.
+
+The outcome was `failed`, for one coding probe: `skills-mcp-hooks`. The coding
+guest's own retained-home rules, in `src/podman-coding.ts`, explain the
+likely cause. Codex regenerates `$CODEX_HOME/skills/.system`, its bundled
+system skills, on every start. The guest admits exactly that folder, and
+refuses anything else under `skills/` and any `config.toml`, `hooks.json`,
+`AGENTS.md` or `rules`. The probe failed on any `skills` folder at all, which
+is stricter than that policy. But the probe combined three checks, so the
+report could not show which one failed.
+
+**Correction** (branch `codex/issue04-probe-codex-skills`):
+- The probe is split into `codex-skills`, `mcp-config` and
+  `hooks-rules-agents`, so the next run names the exact cause.
+- `codex-skills` passes only when the folder is absent or holds exactly
+  `.system`, matching the guest's policy.
+- `hooks-rules-agents` also covers `rules`, `AGENTS.md` and
+  `AGENTS.override.md`, as the guest does.
+- The probe is now 20 probes in 1,857 characters, within validation's argv
+  bounds.
+- New tests run the real probe against a real `HOME` folder: an empty home;
+  `skills/.system` alone; `skills` with extra or other entries; `config.toml`
+  with and without MCP servers; and each instruction or hook file.
+
+The coding `policySha256` changes again, so each host's coding record needs
+one more re-approval. The macOS run is repeated after merge, and the Windows
+run follows on the same probe.
+
+Checks on Node 24.22.1: formatting and typecheck pass. The full suite ran
+1,060 tests: 1,056 passed, 4 skipped, 0 failed. The only `src/` change is the
+probe table in `src/worker-probes.ts`, which the probe tests run in full.
+Production remains disabled.

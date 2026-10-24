@@ -1,0 +1,273 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.2.0",
+    "machine": "aios-macos-noshare"
+  },
+  "imageSha256": "171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc",
+  "probeSha256": "e95947abc8da2ba2cb1b01a1e72f4dc5f06be588caa357930d2b92d1b2f7a5ca",
+  "buildFresh": true,
+  "freshBuildSha256": "4347151de38ca208fe5ccdf992bc3f000f008952020572f2cd716cd5f250e692",
+  "distSha256": "dccad3de6c14ba2733174ff5dfb48a5ab2e612696519b6940748372bc5f80dc4",
+  "sourceRevision": "3d02d3947866e74f5b397cb63033f8fb6a90a001",
+  "sourceDirty": false,
+  "runnerSha256": "1eaad34bc16957ce848eda9373e453abf403a8d3014513a8f8c2d094a2db362c",
+  "scope": "native-worker-offline-qualification",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "outcome": "failed",
+  "stages": [
+    {
+      "name": "coding-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 1003
+    },
+    {
+      "name": "validation-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 1003,
+      "finishedMs": 1672
+    },
+    {
+      "name": "owner-records-name-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 1673,
+      "finishedMs": 1686
+    },
+    {
+      "name": "changed-pins-refused",
+      "outcome": "passed",
+      "startedMs": 1686,
+      "finishedMs": 1711
+    },
+    {
+      "name": "coding-live-boundary-probe",
+      "outcome": "passed",
+      "startedMs": 1712,
+      "finishedMs": 17815
+    },
+    {
+      "name": "coding-exact-stop-removes-descendants",
+      "outcome": "passed",
+      "startedMs": 17817,
+      "finishedMs": 18634
+    },
+    {
+      "name": "validation-boundary-probe",
+      "outcome": "passed",
+      "startedMs": 18634,
+      "finishedMs": 120990
+    },
+    {
+      "name": "validation-deadline-kills-descendants",
+      "outcome": "passed",
+      "startedMs": 120990,
+      "finishedMs": 127573
+    },
+    {
+      "name": "validation-stop-mid-check-and-fence",
+      "outcome": "passed",
+      "startedMs": 127573,
+      "finishedMs": 136039
+    },
+    {
+      "name": "validation-changed-tree-never-tested",
+      "outcome": "passed",
+      "startedMs": 136039,
+      "finishedMs": 140772
+    }
+  ],
+  "pins": {
+    "coding": {
+      "cliVersion": "0.161.0",
+      "cliSha256": "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+      "policySha256": "fa91be00cdcdfbee0297bc5b6529d4302f194a72cab880ce2b0f8ca157f5b768",
+      "bindingSha256": "aac1b6b50fe6bdd0937d3fc71f6ee35422c2f98f3c5eaa098dbcbdfaeeea6daa"
+    },
+    "validation": {
+      "imageSha256": "171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc",
+      "policySha256": "c213f918bc9246cb061e54cab06574639cf2e9ab5a91e710d69ff11a4a61f5b2",
+      "bindingSha256": "ac8967ce1e572606221c8c503125f07589e3d359d0694239497472798e39c72f"
+    }
+  },
+  "coding": {
+    "probes": [
+      {
+        "name": "tools",
+        "outcome": "passed"
+      },
+      {
+        "name": "admitted-visible",
+        "outcome": "passed"
+      },
+      {
+        "name": "only-admitted",
+        "outcome": "passed"
+      },
+      {
+        "name": "guest-private",
+        "outcome": "passed"
+      },
+      {
+        "name": "owner-home",
+        "outcome": "passed"
+      },
+      {
+        "name": "credential-files",
+        "outcome": "passed"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "failed"
+      },
+      {
+        "name": "credential-env",
+        "outcome": "passed"
+      },
+      {
+        "name": "engine-sockets",
+        "outcome": "passed"
+      },
+      {
+        "name": "guest-management",
+        "outcome": "passed"
+      },
+      {
+        "name": "host-shares",
+        "outcome": "passed"
+      },
+      {
+        "name": "loopback-only",
+        "outcome": "passed"
+      },
+      {
+        "name": "network",
+        "outcome": "passed"
+      },
+      {
+        "name": "read-only-root",
+        "outcome": "passed"
+      },
+      {
+        "name": "unprivileged",
+        "outcome": "passed"
+      },
+      {
+        "name": "escape-unshare",
+        "outcome": "passed"
+      },
+      {
+        "name": "escape-chroot",
+        "outcome": "passed"
+      },
+      {
+        "name": "escape-cgroup",
+        "outcome": "passed"
+      }
+    ],
+    "processesWithDescendant": 2,
+    "stopped": {
+      "phase": "stopped",
+      "remainingProcesses": 0,
+      "processesGone": true
+    }
+  },
+  "validation": {
+    "probes": [
+      {
+        "name": "tools",
+        "outcome": "passed"
+      },
+      {
+        "name": "admitted-visible",
+        "outcome": "passed"
+      },
+      {
+        "name": "only-admitted",
+        "outcome": "passed"
+      },
+      {
+        "name": "guest-private",
+        "outcome": "passed"
+      },
+      {
+        "name": "owner-home",
+        "outcome": "passed"
+      },
+      {
+        "name": "credential-files",
+        "outcome": "passed"
+      },
+      {
+        "name": "skills-mcp-hooks",
+        "outcome": "passed"
+      },
+      {
+        "name": "credential-env",
+        "outcome": "passed"
+      },
+      {
+        "name": "engine-sockets",
+        "outcome": "passed"
+      },
+      {
+        "name": "guest-management",
+        "outcome": "passed"
+      },
+      {
+        "name": "host-shares",
+        "outcome": "passed"
+      },
+      {
+        "name": "loopback-only",
+        "outcome": "passed"
+      },
+      {
+        "name": "network",
+        "outcome": "passed"
+      },
+      {
+        "name": "read-only-root",
+        "outcome": "passed"
+      },
+      {
+        "name": "unprivileged",
+        "outcome": "passed"
+      },
+      {
+        "name": "escape-unshare",
+        "outcome": "passed"
+      },
+      {
+        "name": "escape-chroot",
+        "outcome": "passed"
+      },
+      {
+        "name": "escape-cgroup",
+        "outcome": "passed"
+      }
+    ],
+    "deadline": {
+      "timedOut": true,
+      "exitCode": 137,
+      "remainingProcesses": 0
+    },
+    "midStop": {
+      "stopped": true,
+      "remainingProcesses": 0,
+      "checkPassed": false
+    },
+    "lateCheckFenced": true,
+    "changedTree": {
+      "exitCode": 0,
+      "reportedTested": false
+    }
+  },
+  "failedProbes": [
+    "coding:skills-mcp-hooks"
+  ],
+  "interrupted": false
+}

@@ -27,9 +27,16 @@ const probes = [
     "credential-files",
     'for p in .ssh .gnupg .gitconfig .config/gh .netrc .aws; do ! test -e "$HOME/$p" || exit 1; done',
   ],
+  // Codex regenerates its own bundled skills here on every start; the coding
+  // guest admits exactly that folder and nothing else.
   [
-    "skills-mcp-hooks",
-    '! grep -qs mcp_servers "$HOME/config.toml" && ! test -e "$HOME/skills" && ! test -e "$HOME/hooks.json"',
+    "codex-skills",
+    'test ! -e "$HOME/skills" || test "$(ls -A "$HOME/skills")" = .system',
+  ],
+  ["mcp-config", '! grep -qs mcp_servers "$HOME/config.toml"'],
+  [
+    "hooks-rules-agents",
+    'for p in hooks.json rules AGENTS.md AGENTS.override.md; do ! test -e "$HOME/$p" || exit 1; done',
   ],
   [
     "credential-env",

@@ -686,3 +686,16 @@ re-approval. The native runs on both hosts follow. Production remains
 disabled. See the
 [worker qualification receipt](../ticket04-worker-qualification-receipt.md)
 and [runbook](../../../docs/worker-qualification.md).
+
+## 23 October: first native qualification on macOS
+
+The first Mac run passed every stage. That covers changed and missing pins,
+coding descendants removed by the exact stop, every validation probe, the
+guest deadline, a stop mid-check, the fenced late check, and the changed tree
+never being reported as tested. One coding probe failed. It flagged Codex's
+own bundled `skills/.system` folder, which the coding guest deliberately
+admits, but it combined three checks, so the cause was not certain. The
+probe now matches the guest's policy and names each check separately. The
+Mac run is repeated, and the Windows run follows, after the coding records
+are re-approved. Production remains disabled. See the
+[worker qualification receipt](../ticket04-worker-qualification-receipt.md).
