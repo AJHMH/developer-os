@@ -193,6 +193,13 @@ passing fixed canary does not qualify production delivery or another platform.
 **Canary**: A bounded fixed challenge using synthetic inputs, capabilities and
 controlled peers to test a specific boundary without owner credentials/inference.
 
+**General session gateway**: The host side of a mediated general coding
+session (ADR 0002). It carries a session's Responses requests for the pinned
+model only, within a session grant: one delivery, coding session, account and
+deadline, with a request budget. Fresh authority must permit each request,
+and it revokes the grant irreversibly on anything else. It is separate from the
+fixed-worker gateway and never lets the credential reach the VM.
+
 **Boundary probe**: The fixed canary script that each general worker runs inside
 its own hardened container. It has a positive control (the admitted file is
 visible and alone), and it shows denial of host and guest content, sockets,
