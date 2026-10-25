@@ -289,6 +289,9 @@ for (const planted of [
   "AGENTS.override.md",
   "skills/planted/SKILL.md",
   "rules/default.rules",
+  ".env",
+  "managed_config.toml",
+  "prompts/planted.md",
 ])
   test(
     `native explicit resume refuses retained worker-writable Codex configuration ${planted}`,

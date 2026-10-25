@@ -570,6 +570,54 @@ operatorTest(
   },
 );
 
+operatorTest(
+  "App keys and state refuse links and parents other users can write",
+  async (t) => {
+    const f = fixture(t),
+      shared = join(f.root, "shared");
+    mkdirSync(shared, { mode: 0o700 });
+    const keyPath = join(shared, "app.pem");
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    writeFileSync(
+      keyPath,
+      privateKey.export({ format: "pem", type: "pkcs8" }),
+      { mode: 0o600 },
+    );
+    const remote = new GitHubPublisher();
+    remote.request = async () => {
+      throw Error("Credential loaded");
+    };
+    const input = {
+      ...f.options,
+      bot: "ajhmh-software-factory[bot]",
+      appId: "5180250",
+      installationId: "167664341",
+      additions: [{ path: "a.txt" }],
+      deletions: [],
+    };
+    const link = join(f.root, "linked.pem");
+    symlinkSync(keyPath, link);
+    await assert.rejects(remote.authenticate(input, link));
+    chmodSync(shared, 0o777);
+    await assert.rejects(
+      remote.authenticate(input, keyPath),
+      /Trusted parent directories/,
+    );
+    assert.throws(
+      () => stateDirectory(join(shared, "state"), f.repo),
+      /Trusted parent directories/,
+    );
+    assert.equal(existsSync(join(shared, "state")), false);
+    // A sticky shared directory, like /tmp, still keeps entries owner-only.
+    chmodSync(shared, 0o1777);
+    await assert.rejects(
+      remote.authenticate(input, keyPath),
+      /Credential loaded/,
+    );
+    stateDirectory(join(shared, "state"), f.repo);
+  },
+);
+
 operatorTest("state size refusal preserves the last readable record", (t) => {
   const f = fixture(t);
   writeState(f.directory, "bounded.json", { previous: true });
@@ -688,6 +736,42 @@ operatorTest(
     await transport.adopt(manifest, revision);
     assert.equal(f.g("rev-parse", "HEAD"), revision);
     assert.equal(f.g("diff", "--cached", "--name-only"), "");
+  },
+);
+
+operatorTest(
+  "the adoption askpass helper answers only GitHub's own credential prompts",
+  async (t) => {
+    const f = fixture(t),
+      remote = gateway(f),
+      prepared = await preparePublication(f.options, remote);
+    const manifest = readState(f.directory, prepared.digest + ".proposal.json"),
+      transport = new GitHubPublisher();
+    transport.stateRoot = f.directory;
+    transport.token = randomBytes(24).toString("hex");
+    const answers = {};
+    transport.fetchInto = async (_transfer, _proposal, credentials) => {
+      for (const prompt of [
+        "Username for 'https://github.com': ",
+        "Password for 'https://x-access-token@github.com': ",
+        "Password for 'https://x-access-token@attacker.example': ",
+        "Username for 'https://github.com.attacker.example': ",
+      ]) {
+        const r = spawnSync(credentials.GIT_ASKPASS, [prompt], {
+          env: { OPERATOR_TOKEN: credentials.OPERATOR_TOKEN },
+          encoding: "utf8",
+        });
+        answers[prompt] = r.status === 0 ? r.stdout.trim() : null;
+      }
+      throw Error("Stop after observing the helper");
+    };
+    await assert.rejects(transport.adopt(manifest, f.parent));
+    assert.deepEqual(Object.values(answers), [
+      "x-access-token",
+      transport.token,
+      null,
+      null,
+    ]);
   },
 );
 

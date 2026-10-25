@@ -234,6 +234,14 @@ for (const [platform, arch] of [
           }),
           400,
         );
+        // A forged hit without the exchange's state cannot consume the
+        // single callback before the browser's real one arrives.
+        for (const state of [undefined, "forged-state"]) {
+          const forged = new URL(callback);
+          if (state) forged.searchParams.set("state", state);
+          forged.searchParams.set("code", "forged-code");
+          assert.equal((await fetch(forged)).status, 400);
+        }
         callback.searchParams.set(
           "state",
           authorization.searchParams.get("state"),

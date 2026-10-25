@@ -3,7 +3,6 @@ import { createPrivateKey, createSign } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
-  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -14,10 +13,11 @@ import { devNull } from "node:os";
 import {
   digest,
   locked,
-  privateFile,
+  readPrivateFile,
   readState,
   requireValue as check,
   stateDirectory,
+  trustedAncestors,
   within,
   writeState,
 } from "./state.mjs";
@@ -472,12 +472,12 @@ export class GitHubPublisher {
         "Native Windows publication is not qualified",
       );
       const keyPath = resolve(path);
-      privateFile(keyPath);
+      trustedAncestors(keyPath);
       check(
         !within(proposal.repo, realpathSync(keyPath)),
         "App key must remain outside the source repository",
       );
-      const key = createPrivateKey(readFileSync(keyPath));
+      const key = createPrivateKey(readPrivateFile(keyPath));
       check(key.asymmetricKeyType === "rsa", "External RSA App key required");
       const b64 = (value) =>
           Buffer.from(JSON.stringify(value)).toString("base64url"),
@@ -604,6 +604,9 @@ export class GitHubPublisher {
     git(
       transfer,
       [
+        // A redirect must not carry the credential prompt to another host.
+        "-c",
+        "http.followRedirects=false",
         "fetch",
         "--depth=1",
         `https://github.com/${proposal.repository}.git`,
@@ -625,7 +628,11 @@ export class GitHubPublisher {
     );
     writeFileSync(
       helper,
-      '#!/bin/sh\ncase "$1" in *Username*) printf "%s\\n" x-access-token;; *) printf "%s\\n" "$OPERATOR_TOKEN";; esac\n',
+      // Answers only GitHub's own prompts; any other host gets no credential.
+      '#!/bin/sh\ncase "$1" in\n' +
+        "\"Username for 'https://github.com': \") printf '%s\\n' x-access-token;;\n" +
+        "\"Password for 'https://x-access-token@github.com': \") printf '%s\\n' \"$OPERATOR_TOKEN\";;\n" +
+        "*) exit 1;;\nesac\n",
       { flag: "wx", mode: 0o700 },
     );
     chmodSync(helper, 0o700);

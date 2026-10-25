@@ -2,6 +2,7 @@ import {
   createHash,
   createPublicKey,
   randomBytes,
+  timingSafeEqual,
   verify,
   type JsonWebKey,
 } from "node:crypto";
@@ -139,6 +140,17 @@ export class SubscriptionAuthBroker {
       callbackUri: url.href,
       deliveryEnabled: false,
     };
+  }
+  /** Whether a callback carries this exchange's state. It consumes nothing,
+   * so a forged local hit cannot use up the pending exchange. */
+  matches(callbackUri: string): boolean {
+    const expected = Buffer.from(this.pending?.state ?? "");
+    const states = new URL(callbackUri).searchParams.getAll("state");
+    if (!expected.length || states.length !== 1) return false;
+    const observed = Buffer.from(states[0]!);
+    return (
+      observed.length === expected.length && timingSafeEqual(observed, expected)
+    );
   }
   async complete(callbackUri: string): Promise<ValidatedAccount> {
     const pending = this.pending;
