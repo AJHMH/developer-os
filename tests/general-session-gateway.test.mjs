@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   GeneralSessionGateway,
@@ -51,6 +52,21 @@ const request = (changes = {}) =>
     stream: true,
     ...changes,
   });
+/** Requests Codex 0.161.0 really sent in code mode (ADR 0002 amendment),
+ * captured offline and trimmed: structure, keys and fixed values are kept, and
+ * free text, opaque values and identifiers are synthetic. */
+const captured = ["launch", "resume"].map((phase) =>
+  readFileSync(
+    new URL(`./fixtures/codex-0.161.0-${phase}-request.json`, import.meta.url),
+    "utf8",
+  ),
+);
+const withoutMetadata = (raw) => {
+  const { client_metadata: _, ...body } = JSON.parse(raw);
+  return JSON.stringify(body);
+};
+const additionalTools = (tools) =>
+  request({ input: [{ type: "additional_tools", role: "developer", tools }] });
 const sse = [
   Buffer.from('data: {"type":"response.created"}\n\n'),
   Buffer.from('data: {"type":"response.completed"}\n\n'),
@@ -107,7 +123,7 @@ const drain = async (stream) => {
   return Buffer.concat(chunks);
 };
 
-test("a session request reaches the provider unchanged, with only the host token", async () => {
+test("a session request reaches the provider as inspected, with only the host token", async () => {
   const h = harness();
   const raw = request();
   const body = await drain(await h.respond(raw));
@@ -175,6 +191,99 @@ for (const [name, raw, changes, refusal] of [
   ["a request that is not JSON", "{not json", {}, "request-shape"],
   ["a JSON array", "[]", {}, "request-shape"],
   ["an unknown field", request({ background: true }), {}, "field"],
+  [
+    "client metadata that is not an object",
+    request({ client_metadata: "x" }),
+    {},
+    "request-shape",
+  ],
+  [
+    "another reasoning context",
+    request({ reasoning: { context: "current_turn" } }),
+    {},
+    "value",
+  ],
+  [
+    "a hosted tool among additional tools",
+    additionalTools([{ type: "web_search" }]),
+    {},
+    "tool",
+  ],
+  [
+    "a hosted tool inside a tool namespace",
+    additionalTools([
+      { type: "namespace", name: "functions", tools: [{ type: "mcp" }] },
+    ]),
+    {},
+    "tool",
+  ],
+  [
+    "a hosted tool inside a top-level tool namespace",
+    request({
+      tools: [
+        { type: "namespace", name: "functions", tools: [{ type: "mcp" }] },
+      ],
+    }),
+    {},
+    "tool",
+  ],
+  [
+    "a local shell inside a tool namespace",
+    additionalTools([
+      {
+        type: "namespace",
+        name: "functions",
+        tools: [{ type: "local_shell" }],
+      },
+    ]),
+    {},
+    "tool",
+  ],
+  [
+    "a tool namespace with a field beyond its name and tools",
+    additionalTools([
+      {
+        type: "namespace",
+        name: "functions",
+        server_url: "https://x",
+        tools: [],
+      },
+    ]),
+    {},
+    "tool",
+  ],
+  [
+    "an additional tools item with a field beyond its tools",
+    request({
+      input: [{ type: "additional_tools", server_url: "https://x", tools: [] }],
+    }),
+    {},
+    "item",
+  ],
+  [
+    "a namespace inside a namespace",
+    additionalTools([
+      {
+        type: "namespace",
+        name: "outer",
+        tools: [{ type: "namespace", name: "inner", tools: [] }],
+      },
+    ]),
+    {},
+    "tool",
+  ],
+  [
+    "additional tools that are not a list",
+    request({ input: [{ type: "additional_tools", tools: {} }] }),
+    {},
+    "request-shape",
+  ],
+  [
+    "a tool namespace whose tools are not a list",
+    additionalTools([{ type: "namespace", name: "functions", tools: {} }]),
+    {},
+    "request-shape",
+  ],
   ["a paid tier field", request({ service_tier: "priority" }), {}, "field"],
   [
     "a hosted web tool",
@@ -364,6 +473,67 @@ test("what a coding turn replays is admitted", async () => {
   });
   await drain(await h.respond(raw));
   assert.equal(h.effects.provider[0].body, raw);
+});
+
+test("Codex 0.161.0's captured requests are admitted, and client metadata never reaches the provider", async () => {
+  const h = harness();
+  for (const raw of captured) {
+    assert.ok(JSON.parse(raw).client_metadata);
+    await drain(await h.respond(raw));
+    const forwarded = h.effects.provider.at(-1).body;
+    assert.equal(forwarded, withoutMetadata(raw));
+    assert.equal(forwarded.includes("client_metadata"), false);
+  }
+  assert.equal(
+    h.gateway.observation.requestBytes,
+    Buffer.byteLength(captured.map(withoutMetadata).join("")),
+  );
+});
+
+test("worker tools in a namespace, at the top level or among additional tools, are admitted", async () => {
+  const h = harness();
+  const namespace = {
+    type: "namespace",
+    name: "functions",
+    tools: [
+      { type: "custom", name: "exec" },
+      { type: "function", name: "exec_command" },
+    ],
+  };
+  for (const raw of [
+    request({ tools: [namespace] }),
+    additionalTools([namespace, { type: "function", name: "sleep" }]),
+  ]) {
+    await drain(await h.respond(raw));
+    assert.equal(h.effects.provider.at(-1).body, raw);
+  }
+});
+
+test("a worker tool may name a parameter like a file field, and the all-turns reasoning context is admitted", async () => {
+  const h = harness();
+  for (const raw of [
+    additionalTools([
+      {
+        type: "function",
+        name: "read",
+        parameters: { type: "object", properties: { file_id: {} } },
+      },
+    ]),
+    request({ reasoning: { context: "all_turns" } }),
+  ]) {
+    await drain(await h.respond(raw));
+    assert.equal(h.effects.provider.at(-1).body, raw);
+  }
+});
+
+test("the provider gets the body that was inspected, not a duplicate key the gateway never saw", async () => {
+  const h = harness();
+  // An earlier duplicate `model`; JSON.parse keeps the later, pinned one.
+  const raw = `{"model":"gpt-other",${request().slice(1)}`;
+  await drain(await h.respond(raw));
+  const forwarded = h.effects.provider[0].body;
+  assert.equal(forwarded, JSON.stringify(JSON.parse(raw)));
+  assert.equal(forwarded.includes("gpt-other"), false);
 });
 
 test("plain-text input, no input, and a named worker tool choice are admitted", async () => {

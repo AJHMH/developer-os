@@ -73,7 +73,8 @@ changed or reused for general turns.**
 - **Binding:** it binds one delivery, one host-selected account, one session
   capability and a deadline.
 - **Requests:**
-  - It forwards only the Responses request body.
+  - It forwards only the Responses request body, re-serialized from what it
+    inspected and without `client_metadata` (see the amendment).
   - It replaces the worker's headers with its own.
   - It uses the fixed provider origin, with no redirects, refresh, retries or
     paid fallback.
@@ -186,10 +187,21 @@ argv's `workspace-write` sandbox.
 
 - About 67 MB more per host goes into guest management storage, and the
   Windows guest needs the `linux-x64` package's host binary.
-- Changing the gateway's allowlists is a separate slice 3 step. All the
-  captured shapes need `client_metadata`, `reasoning.context` and the
-  `additional_tools` item. Whether to strip `client_metadata` or allow it
-  is still open.
+- **The gateway follows the captured shape.** It admits the
+  `additional_tools` item and `reasoning.context: "all_turns"`. Tools in that
+  item, and in top-level `tools`, may be worker tools or one level of
+  `namespace` groups. A group holds only function and custom tools and
+  carries no field beyond its name, description and tools, because the
+  provider decides what a group means. The item carries only its type, id,
+  role and tools. Hosted tools are never admitted. Tool definitions are held
+  to this tool rule, not scanned as conversation content.
+- **`client_metadata` never reaches the provider (owner decision).** It
+  carries Codex's installation, window, session, thread and turn
+  identifiers, and the provider needs none of them to answer a turn. The
+  gateway admits it only as an object, then removes it.
+- **The forwarded body is the inspected one.** The gateway re-serializes the
+  body it parsed rather than forwarding the worker's bytes. The provider then
+  can't read a duplicate key that the gateway's parser resolved differently.
 
 ### Alternatives rejected
 

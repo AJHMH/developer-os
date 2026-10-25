@@ -46,13 +46,32 @@ const allowedFields = new Set([
   "include",
   "prompt_cache_key",
   "text",
+  // Admitted only to be removed: it never reaches the provider.
+  "client_metadata",
 ]);
 /** Only tools the worker runs itself. Hosted tools would let the provider
  * reach the web, files or services on the worker's behalf. */
 const allowedToolTypes = new Set(["function", "custom", "local_shell"]);
+/** A named group of function and custom tools, with no other fields: the
+ * provider decides what a group means, so nothing may make one hosted.
+ * Groups do not nest. */
+const namespaceToolType = "namespace";
+const namespaceKeys = new Set(["type", "name", "description", "tools"]);
+const namespacedToolTypes = new Set(["function", "custom"]);
+const workerTool = (tool: unknown, nested: boolean) =>
+  object(tool) &&
+  (nested
+    ? namespacedToolTypes.has(String(tool.type))
+    : allowedToolTypes.has(String(tool.type)) ||
+      (tool.type === namespaceToolType &&
+        Object.keys(tool).every((k) => namespaceKeys.has(k))));
 /** Conversation items a coding turn replays. Item references, files and
- * hosted-tool calls are not among them. */
+ * hosted-tool calls are not among them. Codex 0.161.0 sends its tools as an
+ * `additional_tools` item, whose tools are held to the same rule. */
+const additionalToolsType = "additional_tools";
+const additionalToolsKeys = new Set(["type", "id", "role", "tools"]);
 const allowedItemTypes = new Set([
+  additionalToolsType,
   "message",
   "reasoning",
   "function_call",
@@ -235,7 +254,7 @@ export class GeneralSessionGateway {
     if (this.counts.requests >= g.maxRequests) this.refuse("request-budget");
     if (this.inFlight) this.refuse("concurrent");
     this.counts.requests++;
-    this.inspect(raw);
+    const body = this.inspect(raw);
     // Reserve before authority and credential access: one request at a time.
     this.inFlight = true;
     let iterator: AsyncIterator<Uint8Array> | undefined;
@@ -264,8 +283,8 @@ export class GeneralSessionGateway {
       const timeout = AbortSignal.timeout(Math.max(1, deadline - now));
       const signal = AbortSignal.any([this.cancellation.signal, timeout]);
       this.counts.providerRequests++;
-      this.counts.requestBytes += Buffer.byteLength(raw);
-      iterator = this.provider(account.accessToken, raw, signal)[
+      this.counts.requestBytes += Buffer.byteLength(body);
+      iterator = this.provider(account.accessToken, body, signal)[
         Symbol.asyncIterator
       ]();
       const first = await this.step(iterator, signal, timeout, 0);
@@ -361,7 +380,10 @@ export class GeneralSessionGateway {
     return stream;
   }
 
-  private inspect(raw: string) {
+  /** Returns the body to forward: the one inspected, re-serialized so the
+   * provider never reads a duplicate key the gateway did not, and without
+   * `client_metadata`. */
+  private inspect(raw: string): string {
     if (
       typeof raw !== "string" ||
       Buffer.byteLength(raw) > generalSessionLimits.requestBytes
@@ -374,6 +396,8 @@ export class GeneralSessionGateway {
       this.refuse("request-shape");
     }
     if (!object(body)) this.refuse("request-shape");
+    if (body.client_metadata !== undefined && !object(body.client_metadata))
+      this.refuse("request-shape");
     const unknown = Object.keys(body).filter((k) => !allowedFields.has(k));
     if (unknown.length) {
       for (const field of unknown)
@@ -395,31 +419,38 @@ export class GeneralSessionGateway {
       if (
         !object(reasoning) ||
         Object.keys(reasoning).some(
-          (k) => !["effort", "summary"].includes(k),
+          (k) => !["effort", "summary", "context"].includes(k),
         ) ||
         (reasoning.effort !== undefined &&
-          !allowedEfforts.has(String(reasoning.effort)))
+          !allowedEfforts.has(String(reasoning.effort))) ||
+        (reasoning.context !== undefined && reasoning.context !== "all_turns")
       )
         this.refuse("value");
     }
     this.inspectTools(body.tools, body.tool_choice);
     this.inspectInput(body.input);
+    const { client_metadata: _, ...forwarded } = body;
+    return JSON.stringify(forwarded);
+  }
+
+  /** Worker tools only, directly or in one level of namespace. */
+  private inspectToolList(tools: unknown, nested = false) {
+    if (!Array.isArray(tools)) this.refuse("request-shape");
+    const hosted = tools.filter((tool) => !workerTool(tool, nested));
+    if (hosted.length) {
+      for (const tool of hosted)
+        this.refusedNames.tools.add(
+          String(object(tool) ? tool.type : tool).slice(0, 64),
+        );
+      this.refuse("tool");
+    }
+    for (const tool of tools)
+      if (tool.type === namespaceToolType)
+        this.inspectToolList(tool.tools, true);
   }
 
   private inspectTools(tools: unknown, choice: unknown) {
-    if (tools !== undefined) {
-      if (!Array.isArray(tools)) this.refuse("request-shape");
-      const hosted = tools.filter(
-        (tool) => !object(tool) || !allowedToolTypes.has(String(tool.type)),
-      );
-      if (hosted.length) {
-        for (const tool of hosted)
-          this.refusedNames.tools.add(
-            String(object(tool) ? tool.type : tool).slice(0, 64),
-          );
-        this.refuse("tool");
-      }
-    }
+    if (tools !== undefined) this.inspectToolList(tools);
     // A tool choice may not name a hosted tool absent from `tools`.
     if (
       choice !== undefined &&
@@ -447,6 +478,13 @@ export class GeneralSessionGateway {
           String(object(item) ? item.type : item).slice(0, 64),
         );
         this.refuse("item");
+      }
+      if (item.type === additionalToolsType) {
+        if (Object.keys(item).some((k) => !additionalToolsKeys.has(k))) {
+          this.refusedNames.items.add(additionalToolsType);
+          this.refuse("item");
+        }
+        this.inspectToolList(item.tools);
       }
     }
     const visit = (value: unknown, depth: number): void => {
@@ -476,12 +514,14 @@ export class GeneralSessionGateway {
         visit(entry, depth + 1);
       }
     };
-    visit(input, 0);
+    // Tool definitions answer to the tool rule, as top-level `tools` do.
+    for (const item of input)
+      if (item.type !== additionalToolsType) visit(item, 1);
   }
 }
 
 /** The fixed subscription origin, streamed. No redirects, refresh, retries or
- * paid fallback; the body is exactly what the gateway inspected. */
+ * paid fallback; the body is exactly what the gateway forwards. */
 export function generalSessionResponses(
   fetchResponse: typeof fetch = fetch,
 ): GeneralSessionProvider {
