@@ -351,19 +351,27 @@ import { createHash } from "node:crypto";
 import { admitFiles, admittedPath } from "./workspace.js";
 export const candidateDigest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
-function candidateGit(repository: string, args: string[]): Buffer {
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([key]) => !key.toUpperCase().startsWith("GIT_"),
+/** The ambient environment without any GIT_* input, plus fixed settings. It
+ * is built on first use and reused: reading every variable of `process.env`
+ * costs as much as starting git itself, and a variable set later never
+ * reaches git, so GIT_* input stays excluded. */
+let candidateEnvironment: Readonly<Record<string, string | undefined>>;
+function candidateGitEnvironment() {
+  return (candidateEnvironment ??= Object.freeze({
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key]) => !key.toUpperCase().startsWith("GIT_"),
+      ),
     ),
-  );
-  Object.assign(env, {
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
     GIT_TERMINAL_PROMPT: "0",
     GIT_ATTR_NOSYSTEM: "1",
     GIT_OPTIONAL_LOCKS: "0",
-  });
+  }));
+}
+function candidateGit(repository: string, args: string[]): Buffer {
+  const env = candidateGitEnvironment();
   const result = spawnSync(
     "git",
     [
@@ -388,6 +396,15 @@ function candidateGit(repository: string, args: string[]): Buffer {
   return result.stdout;
 }
 export function candidateSource(repository: string, expected?: string) {
+  return observedSource(repository, expected);
+}
+/** One observation of a clean checkout. With `mainBranch`, the same rev-parse
+ * that reads HEAD also reads that branch, which must name the same commit. */
+function observedSource(
+  repository: string,
+  expected?: string,
+  mainBranch?: string,
+) {
   // status may run clean/process filters. Reject helper/include declarations
   // before any working-tree observation can start a helper.
   // candidateGit excludes system/global configuration and ambient GIT_* input.
@@ -414,13 +431,21 @@ export function candidateSource(repository: string, expected?: string) {
     "rev-parse",
     "--show-toplevel",
     "HEAD",
+    // `--` makes rev-parse refuse anything that is not a revision.
+    ...(mainBranch === undefined ? [] : ["refs/heads/" + mainBranch, "--"]),
   ])
     .toString()
-    .trimEnd();
-  // Split at the final delimiter so an embedded newline in the root survives.
-  const separator = identity.lastIndexOf("\n");
-  const top = identity.slice(0, separator).trim();
-  const revision = identity.slice(separator + 1);
+    .trimEnd()
+    .split("\n");
+  // Read from the end so an embedded newline in the root survives.
+  if (mainBranch !== undefined) {
+    // The echoed `--`, then the branch's commit, then HEAD's.
+    identity.pop();
+    if (identity.pop() !== identity.at(-1))
+      throw Error("Baseline must be unchanged main");
+  }
+  const revision = identity.pop()!;
+  const top = identity.join("\n").trim();
   if (
     (process.platform === "win32"
       ? realpathSync.native(top).toLowerCase()
@@ -928,14 +953,5 @@ export class PinnedCodingRuntime implements FeatureRuntime {
 }
 
 export function candidateMainSource(repository: string, defaultBranch: string) {
-  const source = candidateSource(repository);
-  const main = candidateGit(repository, [
-    "rev-parse",
-    "--verify",
-    "refs/heads/" + defaultBranch,
-  ])
-    .toString()
-    .trim();
-  if (main !== source.revision) throw Error("Baseline must be unchanged main");
-  return source;
+  return observedSource(repository, undefined, defaultBranch);
 }

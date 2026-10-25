@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -13,16 +14,26 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { freshBuild } from "../scripts/fresh-build.mjs";
 
 const repository = fileURLToPath(new URL("..", import.meta.url));
 
-/** A tiny TypeScript checkout whose dist/ is compiled from its src/. */
+/** A tiny TypeScript checkout whose dist/ is compiled from its src/. It is
+ * compiled once per file and copied, so each case pays only for the check. */
+let template;
+after(() => template && rmSync(template, { recursive: true, force: true }));
 function checkout(t) {
+  template ??= compiledCheckout();
   const root = mkdtempSync(join(tmpdir(), "aios-fresh-build-test-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
+  cpSync(template, root, { recursive: true });
+  return root;
+}
+
+function compiledCheckout() {
+  const root = mkdtempSync(join(tmpdir(), "aios-fresh-build-template-"));
   mkdirSync(join(root, "src", "nested"), { recursive: true });
   writeFileSync(
     join(root, "tsconfig.json"),

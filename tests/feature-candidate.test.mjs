@@ -542,8 +542,100 @@ test(
     const source = candidateSource(moved, revision);
     assert.equal(source.revision, revision);
     assert.equal(source.files[0].bytes.toString(), "<h1>Contact</h1>\n");
+    const { candidateMainSource } = await import(
+      "../dist/feature-candidate.js"
+    );
+    assert.deepEqual(candidateMainSource(moved, "main"), source);
   },
 );
+
+test("ambient Git variables never redirect a source observation", async (t) => {
+  const f = fixture(t);
+  const other = fixture(t);
+  other.git(
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "other",
+  );
+  const revision = f.git("rev-parse", "HEAD");
+  // A fresh process, so the variables are present from its first observation.
+  const observe = `
+    import { candidateMainSource, candidateSource } from ${JSON.stringify(
+      new URL("../dist/feature-candidate.js", import.meta.url).href,
+    )};
+    const [repository, revision] = process.argv.slice(1);
+    process.stdout.write(JSON.stringify([
+      candidateSource(repository, revision),
+      candidateMainSource(repository, "main"),
+    ].map((s) => [s.revision, s.digest])));`;
+  const run = (env) => {
+    const result = spawnSync(
+      process.execPath,
+      ["--input-type=module", "-e", observe, f.repository, revision],
+      { encoding: "utf8", env: { ...process.env, ...env } },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  };
+  const clean = run({});
+  assert.equal(clean[0][0], revision);
+  assert.deepEqual(clean[1], clean[0]);
+  assert.deepEqual(
+    run({
+      GIT_DIR: join(other.repository, ".git"),
+      GIT_WORK_TREE: other.repository,
+      GIT_INDEX_FILE: join(other.root, "missing-index"),
+      GIT_CONFIG_PARAMETERS: "'core.bare'='true'",
+    }),
+    clean,
+  );
+});
+
+test("a main baseline is the checked-out default branch, and nothing else", async (t) => {
+  const f = fixture(t);
+  const { candidateMainSource, candidateSource } = await import(
+    "../dist/feature-candidate.js"
+  );
+  const revision = f.git("rev-parse", "HEAD");
+  const source = candidateMainSource(f.repository, "main");
+  assert.equal(source.revision, revision);
+  assert.deepEqual(source, candidateSource(f.repository, revision));
+  // A default branch that does not exist is never an unchanged main.
+  assert.throws(
+    () => candidateMainSource(f.repository, "trunk"),
+    /observation failed/,
+  );
+  // HEAD on another commit than main is refused, in both directions.
+  f.git("checkout", "-q", "-b", "other");
+  f.git(
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "other",
+  );
+  assert.throws(
+    () => candidateMainSource(f.repository, "main"),
+    /Baseline must be unchanged main/,
+  );
+  f.git("checkout", "-q", "main");
+  f.git("update-ref", "refs/heads/main", f.git("rev-parse", "other"));
+  f.git("checkout", "-q", "--detach", revision);
+  assert.throws(
+    () => candidateMainSource(f.repository, "main"),
+    /Baseline must be unchanged main/,
+  );
+});
 
 test("source admission refuses include declarations in both local and worktree scopes", async (t) => {
   for (const scope of ["--local", "--worktree"])
