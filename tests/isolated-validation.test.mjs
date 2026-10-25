@@ -275,6 +275,23 @@ test("owner policy must declare PR and main checks with trusted publishers", asy
   );
 });
 
+for (const path of [
+  ".github/workflows/ci.yml",
+  ".GitHub/Actions/setup/action.yml",
+  ".husky/pre-commit",
+  "packages/app/.vscode/tasks.json",
+])
+  test(`owner policy cannot declare auto-run file ${path} mutable`, async (t) => {
+    const f = validationFixture(t, (p) => {
+      p.validationContract.mutablePaths.push(path);
+    });
+    await f.controller.planFeature(f.delivery.id);
+    await assert.rejects(
+      f.controller.validateBaseline(f.delivery.id),
+      /Invalid owner validation contract/,
+    );
+  });
+
 test("CLI validation commands reach the controlled-adapter gate without accepting repository executors", async (t) => {
   const f = validationFixture(t);
   await f.controller.planFeature(f.delivery.id);

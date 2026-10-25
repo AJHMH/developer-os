@@ -6,6 +6,7 @@ import {
   type FeatureEvidence,
 } from "./feature-candidate.js";
 import { redact } from "./redaction.js";
+import { autoRunPath } from "./workspace.js";
 
 export type ValidationStage = "baseline" | "candidate";
 export type CheckStatus =
@@ -150,6 +151,7 @@ export function validationContract(
         text(p) &&
         !p.startsWith("/") &&
         !p.includes("\\") &&
+        !autoRunPath(p) &&
         p
           .split("/")
           .every((part) => part !== "." && part !== ".." && part !== ""),

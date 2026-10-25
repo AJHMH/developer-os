@@ -33,6 +33,21 @@ export function admittedPath(path: string): boolean {
         ),
   );
 }
+/** Files that CI, Git hooks or an editor run without review once published or
+ * opened. A candidate may carry them unchanged but never declare them mutable. */
+export function autoRunPath(path: string): boolean {
+  const lower = path.normalize("NFC").toLowerCase();
+  return (
+    /^(?:\.github\/(?:workflows|actions)\/|\.gitlab-ci\.yml$|\.circleci\/)/.test(
+      lower,
+    ) ||
+    lower
+      .split("/")
+      .some((part) =>
+        [".husky", ".githooks", ".vscode", ".devcontainer"].includes(part),
+      )
+  );
+}
 function ordinary(path: string, directory: boolean): void {
   const entry = lstatSync(path),
     canonical = realpathSync(path);

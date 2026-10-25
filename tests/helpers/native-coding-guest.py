@@ -284,6 +284,21 @@ def popen(args, **kwargs):
 
 subprocess.Popen = popen
 subprocess.run = run
+
+# A worker that filled the shared disk: creating management files fails until
+# the management program releases its own reserve.
+real_open = os.open
+real_unlink = os.unlink
+headroom = {'free': not state.get('diskFull')}
+def guest_open(path, flags, *args, **kwargs):
+    if not headroom['free'] and flags & os.O_CREAT and '/aios-coding-v1/' in str(path):
+        raise OSError(28, 'No space left on device', str(path))
+    return real_open(path, flags, *args, **kwargs)
+def guest_unlink(path, *args, **kwargs):
+    real_unlink(path, *args, **kwargs)
+    if str(path).endswith('/aios-coding-v1/reserve'): headroom['free'] = True
+os.open = guest_open
+os.unlink = guest_unlink
 import io, contextlib
 output = io.StringIO()
 with contextlib.redirect_stdout(output):
