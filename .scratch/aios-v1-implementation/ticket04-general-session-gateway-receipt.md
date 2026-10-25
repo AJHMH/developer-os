@@ -66,7 +66,7 @@ of a mediated general coding session.
 
 ## Evidence
 
-- `tests/general-session-gateway.test.mjs`: 52 tests over a fake provider,
+- `tests/general-session-gateway.test.mjs`: 62 tests over a fake provider,
   account, authority and clock.
   - **The passing path:** the body arrives unchanged with only the host token,
     and the observation holds no token or content.
@@ -103,11 +103,19 @@ of a mediated general coding session.
   - formatting and typecheck pass;
   - the full suite under c8 ran 1,112 tests: 1,108 passed, 4 skipped, 0
     failed.
-- **Coverage:**
-  - gate 1: lines went from 21,132 of 21,697 to 21,644 of 22,213, and
-    branches from 5,738 of 6,186 to 5,873 of 6,333. Both percentages rose.
-  - gate 2: the new `src/general-session-gateway.ts` has 512 of 516
-    statements covered (99.2%) and 135 of 147 branches (91.8%).
+- **Coverage, by the Factory's own `measure-coverage` at `f78ebdb`,** against
+  `main` at `67a217f`: it passes.
+  - The new `src/general-session-gateway.ts` has 516 of 516 changed lines and
+    162 of 162 changed branches covered.
+  - Global lines went from 21,148 of 21,713 to 21,664 of 22,229, and global
+    branches from 5,747 of 6,193 to 5,909 of 6,355. Both percentages rose.
+  - The first CI run failed only because global branch coverage fell by
+    0.02 points (135 of 147 branches covered). Ten tests added afterwards
+    cover the rest: a tool that is not an object, a tool choice without a
+    name, input that is not a list or nested past the depth bound, plain-text
+    input, an empty response, reading a closed stream, a provider failure
+    mid-stream, a revocation while the provider is waiting, and a chunk that
+    arrives after the time bound.
 - **Review:** the Standards and Spec reviews ran in parallel.
   - **Fixed — security holes the Spec review found:**
     - unchecked `input` items could have pointed the provider at remote

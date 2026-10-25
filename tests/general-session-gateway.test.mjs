@@ -290,6 +290,33 @@ for (const [name, raw, changes, refusal] of [
     "item",
   ],
   [
+    "a tool that is not an object",
+    request({ tools: ["web_search"] }),
+    {},
+    "tool",
+  ],
+  [
+    "a tool choice naming a worker tool type without a name",
+    request({ tool_choice: { type: "function" } }),
+    {},
+    "tool",
+  ],
+  ["input that is not a list", request({ input: {} }), {}, "request-shape"],
+  ["an input item that is not an object", request({ input: [7] }), {}, "item"],
+  [
+    "input nested past the depth bound",
+    request({
+      input: [
+        {
+          role: "user",
+          content: JSON.parse("[".repeat(70) + "]".repeat(70)),
+        },
+      ],
+    }),
+    {},
+    "request-shape",
+  ],
+  [
     "an oversized request",
     request({ instructions: "x".repeat(generalSessionLimits.requestBytes) }),
     {},
@@ -337,6 +364,100 @@ test("what a coding turn replays is admitted", async () => {
   });
   await drain(await h.respond(raw));
   assert.equal(h.effects.provider[0].body, raw);
+});
+
+test("plain-text input, no input, and a named worker tool choice are admitted", async () => {
+  const h = harness();
+  for (const raw of [
+    request({ input: "synthetic turn" }),
+    request({ input: undefined }),
+    request({ tool_choice: { type: "function", name: "shell" } }),
+    request({ tool_choice: "required" }),
+  ]) {
+    await drain(await h.respond(raw));
+    assert.equal(h.effects.provider.at(-1).body, raw);
+  }
+});
+
+test("an empty response completes and frees the slot at once", async () => {
+  const h = harness({ chunks: [] });
+  const stream = await h.respond();
+  assert.equal(h.gateway.observation.completed, 1);
+  assert.equal(h.effects.closed, 1);
+  assert.deepEqual(await drain(stream), Buffer.alloc(0));
+  // Closing again, or reading past the end, stays finished.
+  await stream.return();
+  assert.deepEqual(await stream.next(), { done: true, value: undefined });
+  await drain(await h.respond());
+  assert.equal(h.gateway.observation.completed, 2);
+});
+
+test("a closed stream reads as finished", async () => {
+  const h = harness({ chunks: [sse[0], sse[1], sse[1]] });
+  const stream = await h.respond();
+  await stream.return();
+  assert.deepEqual(await stream.next(), { done: true, value: undefined });
+  assert.equal(h.effects.closed, 1);
+});
+
+test("a provider failure mid-stream is a provider refusal, and a revocation while waiting is a revocation", async () => {
+  const failing = harness({
+    chunks: [sse[0], sse[1]],
+    beforeChunk: (() => {
+      let calls = 0;
+      return async () => {
+        if (++calls === 2) throw Error("connection reset");
+      };
+    })(),
+  });
+  await assert.rejects(
+    drain(await failing.respond()),
+    (error) => error.reason === "provider",
+  );
+  assert.equal(failing.gateway.observation.refusals.provider, 1);
+  assert.equal(failing.gateway.observation.revoked, false);
+
+  let started;
+  const waiting = harness({
+    chunks: [sse[0], sse[1]],
+    beforeChunk: (signal) =>
+      started
+        ? new Promise((resolve, reject) => {
+            signal.addEventListener("abort", () => reject(signal.reason), {
+              once: true,
+            });
+            started();
+          })
+        : undefined,
+  });
+  const stream = await waiting.respond();
+  const reading = new Promise((resolve) => (started = resolve));
+  const iterator = stream[Symbol.asyncIterator]();
+  await iterator.next();
+  const rest = iterator.next();
+  await reading;
+  waiting.gateway.revoke("paused");
+  await assert.rejects(rest, (error) => error.reason === "revoked");
+  assert.equal(waiting.gateway.observation.revokedFor, "paused");
+});
+
+test("a chunk that arrives after the time bound is refused as a timeout", async () => {
+  let first = true;
+  const h = harness({
+    grant: { expiresAt: start + 50 },
+    chunks: [sse[0], sse[1]],
+    // A provider that ignores the abort signal and delivers late anyway.
+    beforeChunk: async () => {
+      if (first) return void (first = false);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    },
+  });
+  await assert.rejects(
+    drain(await h.respond()),
+    (error) => error.reason === "timeout",
+  );
+  assert.equal(h.gateway.observation.refusals.timeout, 1);
+  assert.equal(h.effects.closed, 1);
 });
 
 test("refused fields and tool types are named, never their values", async () => {
