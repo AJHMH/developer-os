@@ -151,7 +151,8 @@ export async function authorizeSubscriptionAuth(
       const observed = new URL(req.url, callbackUri);
       if (
         observed.origin !== expected.origin ||
-        observed.pathname !== "/auth/callback"
+        observed.pathname !== "/auth/callback" ||
+        !broker.matches(observed.href)
       )
         return reject();
       complete = true;

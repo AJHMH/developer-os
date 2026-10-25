@@ -158,7 +158,7 @@ def retained_home(path):
    if [e.name for e in entries]!=['.system']: fail()
  # Codex loads these from CODEX_HOME; a prior turn must not configure the next.
  with os.scandir(path) as entries:
-  if any(e.name not in regenerated and e.name.lower() in ['config.toml','hooks.json','agents.md','agents.override.md','skills','rules'] for e in entries): fail()
+  if any(e.name not in regenerated and (e.name.lower() in ['hooks.json','agents.md','agents.override.md','skills','rules','prompts','.env'] or e.name.lower().endswith('.toml')) for e in entries): fail()
  pending=[path];count=0;total=0
  while pending:
   current=pending.pop()
@@ -493,8 +493,10 @@ else:
     if not record['group'] and c['State'].get('Status') not in ['created','configured']: fail()
    elif exists.returncode!=1: fail()
    if not gone(record): fail()
-   if record.get('lease'): stop_timers()
+   # The worker is gone, so the headroom now goes to these records. A worker
+   # that exited before the disk filled never reached the early release above.
    reserve(False)
+   if record.get('lease'): stop_timers()
    record['phase']='stopped';save(recordPath,record)
    # Restore headroom for the next session when collection leaves room.
    try: reserve(True)
