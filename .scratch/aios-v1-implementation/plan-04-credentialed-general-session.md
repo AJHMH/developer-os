@@ -100,10 +100,11 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
 "Amendment: tools and sandbox". The remaining steps, each written test-first:
 
 1. **Gateway allowlists match the captured shape.**
-   - Admit the `additional_tools` input item, `reasoning.context` (only
-     `"all_turns"`) and `client_metadata`. Stripping or allowing
-     `client_metadata` is still open, and the owner decides it before this
-     step.
+   - Admit the `additional_tools` input item and `reasoning.context` (only
+     `"all_turns"`).
+   - Strip `client_metadata` (owner decision): it is admitted only as an
+     object and never reaches the provider. The gateway forwards the body it
+     inspected, re-serialized.
    - Inside `additional_tools`, keep the rule of tools the worker runs itself:
      `function`, `custom` and `namespace` groups of those, and nothing hosted.
    - The captured bodies become trimmed test fixtures, with prompt text
