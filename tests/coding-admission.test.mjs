@@ -19,6 +19,7 @@ import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 
 const pins = Object.freeze({
   cliSha256: "c".repeat(64),
+  codeModeHostSha256: "b".repeat(64),
   cliVersion: "0.161.0",
   policySha256: "d".repeat(64),
   bindingSha256: "e".repeat(64),
@@ -255,6 +256,12 @@ test("the owner record must be a strict, approved, absolute private file outside
     "approval not text": (r) => r.write({ approvedAt: 1 }),
     "extra pin": (r) => r.write({ pins: { ...pins, extra: "x" } }),
     "malformed pin": (r) => r.write({ pins: { ...pins, cliSha256: "x" } }),
+    "malformed code-mode host pin": (r) =>
+      r.write({ pins: { ...pins, codeModeHostSha256: "x" } }),
+    "missing code-mode host pin": (r) => {
+      const { codeModeHostSha256: _, ...rest } = pins;
+      r.write({ pins: rest });
+    },
     "no pins": (r) => r.write({ pins: null }),
     array: (r) => writeFileSync(r.path, "[]"),
     "not JSON": (r) => writeFileSync(r.path, "{"),

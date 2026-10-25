@@ -8,6 +8,18 @@ import {
   validEffectiveControls,
 } from "../dist/host-target.js";
 
+test("each target pins the code-mode host from the same official package as its worker CLI", () => {
+  // @openai/codex@0.161.0-linux-x64 and -linux-arm64: bin/codex-code-mode-host.
+  assert.equal(
+    hostTargets.win32.codeModeHostSha256,
+    "e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b",
+  );
+  assert.equal(
+    hostTargets.darwin.codeModeHostSha256,
+    "64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0",
+  );
+});
+
 for (const [platform, minimum, previous] of [
   ["win32", "10.0.22000", "10.0.21999"],
   ["darwin", "23.0.0", "22.9.9"],

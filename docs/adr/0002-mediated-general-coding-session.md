@@ -186,7 +186,8 @@ argv's `workspace-write` sandbox.
 ### Consequences
 
 - About 67 MB more per host goes into guest management storage, and the
-  Windows guest needs the `linux-x64` package's host binary.
+  Windows guest needs the `linux-x64` package's host binary
+  (`e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b`).
 - **The gateway follows the captured shape.** It admits the
   `additional_tools` item and `reasoning.context: "all_turns"`. Tools in that
   item, and in top-level `tools`, may be worker tools or one level of

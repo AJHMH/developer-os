@@ -103,6 +103,7 @@ function codingFixture(t, configurePolicy = () => {}) {
     mode: "controlled",
     pins: {
       cliSha256: "c".repeat(64),
+      codeModeHostSha256: "b".repeat(64),
       cliVersion: "0.161.0",
       policySha256: "d".repeat(64),
       bindingSha256: "e".repeat(64),
