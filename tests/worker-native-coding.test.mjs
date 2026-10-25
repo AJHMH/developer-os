@@ -617,6 +617,29 @@ test(
 );
 
 test(
+  "a worker that fills the shared disk cannot block its own native shutdown",
+  posixGuest,
+  async (t) => {
+    const { transport, read, write, root } = guestFixture(t, {
+      keepRunning: true,
+    });
+    let checkpoints = 0;
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      checkpoint: () => {
+        if (++checkpoints === 1) write({ ...read(), diskFull: true });
+        return checkpoints < 3;
+      },
+    });
+    await transport.run(request, () => {}).catch(() => {});
+    assert.equal((await transport.stop(session)).remainingProcesses, 0);
+    assert.equal(read().container.State.Running, false);
+    const reserve = `${root}/.local/state/aios-coding-v1/reserve`;
+    assert.equal(realReadFileSync(reserve).length, 8 * 1024 * 1024);
+  },
+);
+
+test(
   "native orphan evidence blocks collection until independent exact-session recovery",
   posixGuest,
   async (t) => {

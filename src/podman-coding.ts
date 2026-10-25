@@ -184,6 +184,20 @@ def save(path,value):
  fd=os.open(os.path.dirname(path),os.O_RDONLY|os.O_DIRECTORY)
  try: os.fsync(fd)
  finally: os.close(fd)
+def reserve(keep):
+ # Disk headroom that only stop spends. Workspaces share this filesystem, so
+ # a worker that fills it must not also block its own shutdown records.
+ path=root+'/reserve'
+ if not keep:
+  if os.path.lexists(path): os.unlink(path)
+  return
+ if os.path.lexists(path): return ordinary(path)
+ try:
+  fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+  with os.fdopen(fd,'wb') as f: f.write(bytes(8388608));f.flush();os.fsync(f.fileno())
+ except OSError:
+  if os.path.lexists(path): os.unlink(path)
+  raise
 def predecessor_of(previous):
  # The explicitly named predecessor's record, path, directory name and identity.
  name='aios-coding-'+h((R['authority']+previous['operationId']).encode())[:32]
@@ -449,6 +463,7 @@ else:
    for rule in profile['syscalls']: rule['names']=[n for n in rule['names'] if n not in ['unshare','setns']]
    profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
    save(root+'/seccomp.json',profile)
+   reserve(True)
    # Bootstrap waits before any candidate-controlled Codex input is executed.
    pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session','--env','CODEX_HOME=/session',*(['--env','${modelRouteVariable}='+route['capability']] if route else []),'--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate','--volume',binary+':/codex:ro,Z,rprivate','--volume',codeModeHost+':/codex-code-mode-host:ro,Z,rprivate',R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
    effective(container(),False)
@@ -456,13 +471,22 @@ else:
   elif R['action']=='stop':
    if record is None:
     record=dict(identity=identity,binding={},phase='revoked',group='',pids={})
-   record['phase']='revoked';save(recordPath,record)
+   # Fence when the disk allows; a full disk must never prevent shutdown.
+   try: record['phase']='revoked';save(recordPath,record)
+   except OSError: pass
    # Absence is an independently observed result, not a swallowed inspect error.
    exists=subprocess.run(['/usr/bin/podman','container','exists',R['name']],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
    if exists.returncode==0:
     c=container()
     if c['State'].get('Running'):
-     record['group']=group(c['State']['Pid']);record['pids'].update(census(record['group']));save(recordPath,record)
+     record['group']=group(c['State']['Pid']);record['pids'].update(census(record['group']))
+     try: save(recordPath,record)
+     except OSError: pass
+     # Kill without writing first, so a worker still filling the disk cannot
+     # consume the headroom released for the engine and the records below.
+     try: pathlib.Path('/sys/fs/cgroup'+record['group']+'/cgroup.kill').write_text('1')
+     except OSError: pass
+     reserve(False)
      pod('stop','--time','2',R['name'])
     c=container()
     if c['State'].get('Running') or c['State'].get('Pid')!=0: fail()
@@ -470,7 +494,11 @@ else:
    elif exists.returncode!=1: fail()
    if not gone(record): fail()
    if record.get('lease'): stop_timers()
+   reserve(False)
    record['phase']='stopped';save(recordPath,record)
+   # Restore headroom for the next session when collection leaves room.
+   try: reserve(True)
+   except OSError: pass
    binding=snapshot()
    if record['binding'] and record['binding']!=binding: fail()
   else:

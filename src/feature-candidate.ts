@@ -427,6 +427,7 @@ export function codingTurn(
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { admitFiles, admittedPath } from "./workspace.js";
+import { hostGitCwd } from "./host-git.js";
 export const candidateDigest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 /** The ambient environment without any GIT_* input, plus fixed settings. It
@@ -448,9 +449,11 @@ function candidateGitEnvironment() {
     GIT_OPTIONAL_LOCKS: "0",
   }));
 }
-function candidateGit(repository: string, args: string[]): Buffer {
+/** One hardened git process: no hooks, fsmonitor or attribute files, no
+ * ambient GIT_* input, and a trusted working directory. */
+function candidateGitProcess(repository: string, args: string[]) {
   const env = candidateGitEnvironment();
-  const result = spawnSync(
+  return spawnSync(
     "git",
     [
       "-c",
@@ -467,8 +470,17 @@ function candidateGit(repository: string, args: string[]): Buffer {
       repository,
       ...args,
     ],
-    { env, timeout: 5000, maxBuffer: 128 * 1024 * 1024, windowsHide: true },
+    {
+      env,
+      cwd: hostGitCwd,
+      timeout: 5000,
+      maxBuffer: 128 * 1024 * 1024,
+      windowsHide: true,
+    },
   );
+}
+function candidateGit(repository: string, args: string[]): Buffer {
+  const result = candidateGitProcess(repository, args);
   if (result.status !== 0)
     throw Error("Candidate repository observation failed");
   return result.stdout;
@@ -614,13 +626,13 @@ export function featureBranch(
   branch: string,
   revision: string,
 ) {
-  const current = spawnSync(
-    "git",
-    ["-C", repository, "rev-parse", "--verify", "refs/heads/" + branch],
-    { encoding: "utf8", timeout: 5000 },
-  );
+  const current = candidateGitProcess(repository, [
+    "rev-parse",
+    "--verify",
+    "refs/heads/" + branch,
+  ]);
   if (current.status === 0) {
-    if (current.stdout.trim() !== revision)
+    if (current.stdout.toString().trim() !== revision)
       throw Error("Feature branch changed");
   } else
     candidateGit(repository, [
@@ -638,20 +650,21 @@ export function featureBranchAdvance(
   branch: string,
   revision: string,
 ): string | undefined {
-  const current = spawnSync(
-    "git",
-    ["-C", repository, "rev-parse", "--verify", "refs/heads/" + branch],
-    { encoding: "utf8", timeout: 5000 },
-  );
-  const previous = current.stdout?.trim();
+  const current = candidateGitProcess(repository, [
+    "rev-parse",
+    "--verify",
+    "refs/heads/" + branch,
+  ]);
+  const previous = current.stdout?.toString().trim();
   if (current.status !== 0 || previous === revision) return undefined;
   if (
     !/^[a-f0-9]{40}$/.test(previous) ||
-    spawnSync(
-      "git",
-      ["-C", repository, "merge-base", "--is-ancestor", previous, revision],
-      { encoding: "utf8", timeout: 5000 },
-    ).status !== 0
+    candidateGitProcess(repository, [
+      "merge-base",
+      "--is-ancestor",
+      previous,
+      revision,
+    ]).status !== 0
   )
     throw Error("Feature branch changed");
   return previous;

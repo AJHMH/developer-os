@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { hostGitCwd } from "./host-git.js";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
@@ -76,6 +77,7 @@ export function inspectLocalRepository(
   const read = (args: string[]) => {
     const result = spawnSync("git", ["-C", repository, ...args], {
       env,
+      cwd: hostGitCwd,
       encoding: "utf8",
       timeout: 5000,
       maxBuffer: 65536,
