@@ -25,7 +25,11 @@ import { redact } from "./redaction.js";
 import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
 import { codeModeHostSha256 } from "./host-target.js";
 import { gatewayModel } from "./inference-contract.js";
-import { boundaryProbe, boundaryProbeOutcomes } from "./worker-probes.js";
+import {
+  boundaryProbeOutcomes,
+  codingBoundaryProbe,
+  codingBoundaryProbeNames,
+} from "./worker-probes.js";
 import {
   openSessionRelay,
   sessionRelayLimits,
@@ -57,8 +61,8 @@ const management = String.raw`
 import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time,sys,threading,select
 
 def fail(): raise RuntimeError('Native coding observation unavailable')
-# The fixed boundary probe (src/worker-probes.ts), part of this program's pin.
-PROBE=${JSON.stringify(boundaryProbe)}
+# The fixed coding boundary probe (src/worker-probes.ts), part of this program's pin.
+PROBE=${JSON.stringify(codingBoundaryProbe)}
 def h(b): return hashlib.sha256(b).hexdigest()
 def command(args):
  args=[args[0] if args[0].startswith('/') else '/usr/bin/'+args[0],*args[1:]]
@@ -662,7 +666,9 @@ else:
     effective(c,True)
     # Positive controls: both files exist, so only isolation can hide one.
     if not os.path.isfile(work+'/'+R['admittedPath']) or os.path.islink(work+'/'+R['admittedPath']) or not os.path.isfile(recordPath): fail()
-    probe=pod('exec',R['name'],'/bin/sh','-c',PROBE,'--','/workspace/'+R['admittedPath'],recordPath).decode()
+    # The session's own record names its mode; the caller never chooses it.
+    mode='routed' if record['admission'].get('modelRoute') else 'offline'
+    probe=pod('exec',R['name'],'/bin/sh','-c',PROBE,'--','/workspace/'+R['admittedPath'],recordPath,mode).decode()
     before=set(census(record['group']))
     pod('exec','-d',R['name'],'setsid','sleep','3600')
     for _ in range(50):
@@ -1270,7 +1276,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     )
       throw Error("Native boundary probe unavailable");
     return {
-      probes: boundaryProbeOutcomes(result.probe),
+      probes: boundaryProbeOutcomes(result.probe, codingBoundaryProbeNames),
       processes: result.processes as number,
       pins,
     };

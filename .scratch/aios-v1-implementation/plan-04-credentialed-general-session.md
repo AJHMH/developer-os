@@ -147,7 +147,8 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
    - The `CodingRequest` and launch binding carry the session capability and
      the mediation decision. `PinnedCodingRuntime`, the record and the pins
      bind them.
-4. **The boundary probe.**
+4. **The boundary probe** (done in code; see `ticket04-boundary-probe-receipt.md`.
+   The native offline check is still to run).
    - It gains a positive control for the relay port.
    - It keeps proving every other endpoint is unreachable, the npm registry
      included, and that no credential exists in the container.
