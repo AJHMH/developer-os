@@ -88,6 +88,38 @@ test("host authorization binds issued client, exact callback, nonce and PKCE bef
   );
 });
 
+test("callback matching checks only the pending state and consumes nothing", async () => {
+  const f = fixture();
+  const forged = (change) => {
+    const url = new URL(f.callback);
+    change(url.searchParams);
+    return url.href;
+  };
+  assert.equal(
+    new SubscriptionAuthBroker(
+      { hostId, agentName: "Developer OS" },
+      {},
+    ).matches(f.callback.href),
+    false,
+    "no exchange has begun",
+  );
+  assert.equal(f.broker.matches(forged((q) => q.delete("state"))), false);
+  assert.equal(f.broker.matches(forged((q) => q.set("state", "short"))), false);
+  assert.equal(
+    f.broker.matches(forged((q) => q.append("state", q.get("state")))),
+    false,
+  );
+  const state = f.callback.searchParams.get("state");
+  const altered = state.slice(0, -1) + (state.endsWith("A") ? "B" : "A");
+  assert.equal(f.broker.matches(forged((q) => q.set("state", altered))), false);
+  assert.equal(f.broker.matches(f.callback.href), true);
+  assert.equal((await f.broker.complete(f.callback.href)).subject, "owner");
+  assert.equal(
+    f.broker.matches(f.callback.href),
+    false,
+    "completion consumed it",
+  );
+});
 test("returning authorization retains issued client and refuses replacement by another verified identity", async () => {
   const f = fixture({
     account: {
