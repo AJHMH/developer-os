@@ -181,7 +181,9 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
   const fixture = nativeHost(t, (_request, program) => {
     const result = realSpawnSync(
       process.env.AIOS_TEST_PYTHON || "python3",
-      [guestHarness.pathname, root],
+      // The guest runs `python3 -I`; -S also skips the site module, which the
+      // stdlib-only program never needs, to save start-up time per request.
+      ["-I", "-S", guestHarness.pathname, root],
       { input: program, encoding: "utf8" },
     );
     return result.status === 0
