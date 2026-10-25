@@ -1,6 +1,7 @@
 import { realpathSync } from "node:fs";
 import { redact } from "./redaction.js";
 import type { CodingAdmission } from "./coding-admission.js";
+import { gatewayModel } from "./inference-contract.js";
 
 export interface FeaturePlan {
   requires?: ("browser" | "database")[];
@@ -191,6 +192,75 @@ export interface CodingCleanup {
   fence: number;
   cleaned: number;
 }
+/** ADR 0002: a coding session's only model route, the session relay on the
+ * worker's own loopback. The capability is the relay's revocable value, never
+ * the host credential, and reaches Codex only through `modelRouteVariable`. */
+export interface ModelRoute {
+  deliveryId: string;
+  capability: string;
+  decisionSha256: string;
+}
+export const modelRoutePort = 18091;
+export const modelRouteVariable = "AIOS_MODEL_ROUTE";
+export function validModelRoute(route: unknown): route is ModelRoute {
+  return (
+    !!route &&
+    typeof route === "object" &&
+    JSON.stringify(Object.keys(route).sort()) ===
+      '["capability","decisionSha256","deliveryId"]' &&
+    Object.values(route).every((value) => typeof value === "string") &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+      (route as ModelRoute).deliveryId,
+    ) &&
+    /^[a-f0-9]{64}$/.test((route as ModelRoute).capability) &&
+    /^[a-f0-9]{64}$/.test((route as ModelRoute).decisionSha256)
+  );
+}
+/** The locked Codex argv before the prompt. Offline turns keep Codex's own
+ * workspace-write sandbox. A routed turn runs with full access inside the
+ * hardened container, the only sandbox that can start there (ADR 0002
+ * amendment), and fixed provider overrides with no config file. */
+export function lockedCodingArgv(
+  threadId: string | undefined,
+  route?: ModelRoute,
+): string[] {
+  const sandbox = route ? "danger-full-access" : "workspace-write";
+  const provider = "model_providers.aios.";
+  const overrides = route
+    ? [
+        'model_provider="aios"',
+        `${provider}name="AIOS session relay"`,
+        `${provider}base_url="http://127.0.0.1:${modelRoutePort}/v1"`,
+        `${provider}env_key="${modelRouteVariable}"`,
+        `${provider}wire_api="responses"`,
+        `${provider}requires_openai_auth=false`,
+        `${provider}supports_websockets=false`,
+        `${provider}http_headers.X-AIOS-Delivery="${route.deliveryId}"`,
+        `model="${gatewayModel}"`,
+      ].flatMap((value) => ["-c", value])
+    : [];
+  // `exec resume` has no --sandbox flag; pin the same mode by explicit override.
+  return threadId
+    ? [
+        "exec",
+        "resume",
+        "--json",
+        "--skip-git-repo-check",
+        "-c",
+        `sandbox_mode="${sandbox}"`,
+        ...overrides,
+        threadId,
+      ]
+    : [
+        "exec",
+        "--json",
+        "--skip-git-repo-check",
+        "--sandbox",
+        sandbox,
+        ...overrides,
+      ];
+}
+
 export interface CodingRequest extends CodingSession {
   baseRefresh?: {
     from: {
@@ -209,6 +279,8 @@ export interface CodingRequest extends CodingSession {
   onEvent(event: unknown): boolean;
   files: { path: string; bytes: Buffer; executable: boolean }[];
   pins: CodingPins;
+  /** Present only for a mediated general session (ADR 0002). */
+  modelRoute?: ModelRoute;
   allowanceMs: number;
   mayDispatch(): boolean;
   checkpoint(): boolean;
@@ -703,6 +775,7 @@ function codingLaunchBinding(request: CodingRequest): string {
       inputSha256: request.inputSha256,
       pins: request.pins,
       argv: request.argv,
+      modelRoute: request.modelRoute,
       allowanceMs: request.allowanceMs,
       files: manifest(request.files),
       baseRefresh: request.baseRefresh && {
@@ -771,6 +844,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       ...request,
       argv: [...request.argv],
       pins: { ...request.pins },
+      ...(request.modelRoute ? { modelRoute: { ...request.modelRoute } } : {}),
       ...(request.resumeFrom
         ? { resumeFrom: codingBinding(request.resumeFrom) }
         : {}),

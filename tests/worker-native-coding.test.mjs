@@ -5,6 +5,7 @@ import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
 import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
 import { boundaryProbe, boundaryProbeNames } from "../dist/worker-probes.js";
 import { hostTargets } from "../dist/host-target.js";
+import { lockedCodingArgv } from "../dist/feature-candidate.js";
 import {
   realTemporaryDirectory,
   realSpawnSync,
@@ -240,6 +241,11 @@ test("unsafe native inputs and unsupported authority paths refuse before VM effe
   const inspected = fixture.requests.length;
   for (const override of [
     { argv: ["exec", "--dangerously-bypass-approvals-and-sandbox", "prompt"] },
+    // The routed argv never carries the capability, so only the route check refuses these.
+    { argv: routedArgv, modelRoute: { ...modelRoute, capability: "x" } },
+    { argv: routedArgv, modelRoute: { ...modelRoute, extra: true } },
+    // A prompt that Codex would parse as an option is never a prompt.
+    { argv: [...lockedCodingArgv(undefined), '-cmodel="gpt-other"'] },
     { threadId: "unapproved-thread" },
     { baseRefresh: {} },
     { allowanceMs: 0 },
@@ -707,6 +713,174 @@ test(
   async (t) => {
     const { transport, read } = guestFixture(t, { dropHostMount: true });
     const request = await launchRequest(transport, { allowanceMs: 60000 });
+    await assert.rejects(transport.run(request, () => {}));
+    assert.equal(
+      read().commands.some((args) => args[1] === "start"),
+      false,
+    );
+  },
+);
+
+const modelRoute = Object.freeze({
+  deliveryId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+  capability: "c".repeat(64),
+  decisionSha256: "d".repeat(64),
+});
+const routedArgv = [...lockedCodingArgv(undefined, modelRoute), "Change it"];
+
+test(
+  "a model route launches with the relay overrides and only the route variable added",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t);
+    await transport.run(
+      await launchRequest(transport, {
+        allowanceMs: 60000,
+        argv: routedArgv,
+        modelRoute,
+      }),
+      () => {},
+    );
+    const { Config } = read().container;
+    assert.deepEqual(Config.Cmd.slice(4), routedArgv);
+    assert.deepEqual(
+      Config.Env.filter((e) => e.startsWith("AIOS_")),
+      [`AIOS_MODEL_ROUTE=${modelRoute.capability}`],
+    );
+  },
+);
+
+test("an offline launch carries no route variable", posixGuest, async (t) => {
+  const { transport, read } = guestFixture(t);
+  await transport.run(
+    await launchRequest(transport, { allowanceMs: 60000 }),
+    () => {},
+  );
+  assert.equal(
+    read().container.Config.Env.some((e) => e.startsWith("AIOS_")),
+    false,
+  );
+});
+
+for (const [name, changes] of [
+  ["routed argv without a route", { argv: routedArgv }],
+  [
+    "a route with the offline argv",
+    { modelRoute, argv: [...lockedCodingArgv(undefined), "Change it"] },
+  ],
+  [
+    "a malformed route",
+    { argv: routedArgv, modelRoute: { ...modelRoute, capability: "x" } },
+  ],
+  [
+    "a route naming another delivery than its argv",
+    {
+      argv: routedArgv,
+      modelRoute: {
+        ...modelRoute,
+        deliveryId: "ffffffff-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      },
+    },
+  ],
+])
+  test(`${name} is refused before any worker exists`, posixGuest, async (t) => {
+    const { transport, read } = guestFixture(t);
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      ...changes,
+    });
+    await assert.rejects(transport.run(request, () => {}));
+    assert.equal(
+      read().commands.some((args) => args[1] === "create"),
+      false,
+    );
+  });
+
+for (const drift of ["routeDropped", "promptOption"])
+  test(
+    `the guest refuses ${drift === "routeDropped" ? "routed argv whose route was removed" : "an option in the prompt slot"} even past the host`,
+    posixGuest,
+    async (t) => {
+      const { transport, read } = guestFixture(t, { [drift]: true });
+      const request = await launchRequest(transport, {
+        allowanceMs: 60000,
+        argv: routedArgv,
+        modelRoute,
+      });
+      await assert.rejects(transport.run(request, () => {}));
+      assert.equal(
+        read().commands.some((args) => args[1] === "create"),
+        false,
+      );
+    },
+  );
+
+test(
+  "the guest's own locked argv matches the shared one, offline and routed, launch and resume",
+  posixGuest,
+  async (t) => {
+    const thread = "11111111-2222-4333-8444-555555555555";
+    const guest = guestFixture(t);
+    await guest.transport.inspect(session);
+    const program = guest.program();
+    const result = realSpawnSync(
+      process.env.AIOS_TEST_PYTHON || "python3",
+      [
+        "-I",
+        "-c",
+        String.raw`
+import ast,json,sys
+source=sys.stdin.read().split(chr(10),2)[2]
+tree=ast.parse(source)
+fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='locked')
+scope={}
+exec(compile(ast.Module(body=[fn],type_ignores=[]),'locked','exec'),scope)
+route=json.loads(sys.argv[1]);thread=sys.argv[2]
+print(json.dumps([scope['locked'](None,None),scope['locked'](thread,None),scope['locked'](None,route),scope['locked'](thread,route)]))
+`,
+        JSON.stringify(modelRoute),
+        thread,
+      ],
+      { input: program, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), [
+      lockedCodingArgv(undefined),
+      lockedCodingArgv(thread),
+      lockedCodingArgv(undefined, modelRoute),
+      lockedCodingArgv(thread, modelRoute),
+    ]);
+  },
+);
+
+test(
+  "the guest refuses a malformed route even if one reaches it",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t, { routeDrift: true });
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      argv: routedArgv,
+      modelRoute,
+    });
+    await assert.rejects(transport.run(request, () => {}));
+    assert.equal(
+      read().commands.some((args) => args[1] === "create"),
+      false,
+    );
+  },
+);
+
+test(
+  "a route variable that differs from the admitted route is refused before start",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t, { routeEnvDrift: true });
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      argv: routedArgv,
+      modelRoute,
+    });
     await assert.rejects(transport.run(request, () => {}));
     assert.equal(
       read().commands.some((args) => args[1] === "start"),

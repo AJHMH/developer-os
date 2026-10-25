@@ -37,6 +37,7 @@ import {
   unrestartedInterruption,
   featurePlan,
   validCodingPins,
+  lockedCodingArgv,
   type CodingResult,
   type CodingCleanup,
   type CodingSession,
@@ -2794,24 +2795,7 @@ export class DeliveryController {
         JSON.stringify(runtime.pins) === pins
       );
     };
-    // `exec resume` has no --sandbox flag; pin the first launch's mode explicitly.
-    const argv = session.threadId
-      ? [
-          "exec",
-          "resume",
-          "--json",
-          "--skip-git-repo-check",
-          "-c",
-          'sandbox_mode="workspace-write"',
-          session.threadId,
-        ]
-      : [
-          "exec",
-          "--json",
-          "--skip-git-repo-check",
-          "--sandbox",
-          "workspace-write",
-        ];
+    const argv = lockedCodingArgv(session.threadId);
     argv.push(
       JSON.stringify({
         request: snapshot.request,

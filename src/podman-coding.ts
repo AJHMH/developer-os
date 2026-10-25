@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import {
+  lockedCodingArgv,
+  modelRoutePort,
+  modelRouteVariable,
   resumeReconciliations,
+  validModelRoute,
   type CodingPins,
   type CodingCollection,
   type CodingRequest,
@@ -18,6 +22,7 @@ import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
 import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
 import { codeModeHostSha256 } from "./host-target.js";
+import { gatewayModel } from "./inference-contract.js";
 import { boundaryProbe, boundaryProbeOutcomes } from "./worker-probes.js";
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -238,10 +243,24 @@ def container():
  if c['Config'].get('Labels',{}).get('aios.coding.authority')!=R['authority'] or c['Config'].get('Labels',{}).get('aios.coding.session')!=identity: fail()
  return c
 bootstrap='while test ! -f /tmp/launch; do sleep 0.1; done; cd /workspace; exec /codex "$@"'
+# The locked argv before the prompt (lockedCodingArgv in src/feature-candidate.ts).
+def locked(thread,route):
+ sandbox='danger-full-access' if route else 'workspace-write'
+ p='model_providers.aios.'
+ values=['model_provider="aios"',p+'name="AIOS session relay"',p+'base_url="http://127.0.0.1:${modelRoutePort}/v1"',p+'env_key="${modelRouteVariable}"',p+'wire_api="responses"',p+'requires_openai_auth=false',p+'supports_websockets=false',p+'http_headers.X-AIOS-Delivery="'+route['deliveryId']+'"','model="${gatewayModel}"'] if route else []
+ overrides=[x for v in values for x in ['-c',v]]
+ return ['exec','resume','--json','--skip-git-repo-check','-c','sandbox_mode="'+sandbox+'"',*overrides,thread] if thread else ['exec','--json','--skip-git-repo-check','--sandbox',sandbox,*overrides]
+def valid_route(route):
+ return isinstance(route,dict) and sorted(route)==['capability','decisionSha256','deliveryId'] and all(isinstance(v,str) for v in route.values()) and re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}',route['deliveryId']) and re.fullmatch('[a-f0-9]{64}',route['capability']) and re.fullmatch('[a-f0-9]{64}',route['decisionSha256'])
 def effective(c,live):
  if c['Config'].get('Entrypoint') not in [None,[]] or c['Config'].get('Cmd')!=['/bin/sh','-c',bootstrap,'--',*record['argv']]: fail()
  hc=c['HostConfig'];env=dict(x.split('=',1) for x in c['Config']['Env'])
  expected={'PATH':'/usr/bin:/bin','HOME':'/session','CODEX_HOME':'/session','HOSTNAME':'aios-coding'}
+ # A routed session adds exactly its relay capability, checked by digest.
+ route=record.get('admission',{}).get('modelRoute')
+ if route:
+  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
+  env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}
  if hc.get('Privileged') or hc.get('VolumesFrom') or hc.get('PortBindings') or hc.get('Devices') or hc.get('CapAdd'): fail()
  if hc.get('NetworkMode')!='none' or hc.get('PidMode')!='private' or hc.get('IpcMode')!='private' or not hc.get('ReadonlyRootfs'): fail()
  if c['Config']['User']!='65534:65534' or env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no': fail()
@@ -369,11 +388,13 @@ else:
    if not isinstance(R.get('sourceRevision'),str) or not re.fullmatch('[a-f0-9]{40}',R['sourceRevision']) or not isinstance(R.get('inputSha256'),str) or not re.fullmatch('[a-f0-9]{64}',R['inputSha256']): fail()
    if not isinstance(branch,str) or len(branch)>240 or not re.fullmatch(r'codex/[A-Za-z0-9][A-Za-z0-9._/-]*',branch) or '..' in branch or any(not p or p.startswith('.') or p.endswith('.') or p.lower().endswith('.lock') for p in branch.split('/')): fail()
    resuming=R['session']['intent']=='resume'
-   # exec resume has no --sandbox flag; pin the same mode by explicit override.
-   expected=['exec','resume','--json','--skip-git-repo-check','-c','sandbox_mode="workspace-write"',R.get('threadId')] if resuming else ['exec','--json','--skip-git-repo-check','--sandbox','workspace-write']
-   if R['argv'][:-1]!=expected or len(R['argv'])!=len(expected)+1 or not isinstance(R['argv'][-1],str) or len(R['argv'][-1])>65536: fail()
+   route=R.get('modelRoute')
+   if route is not None and not valid_route(route): fail()
+   expected=locked(R.get('threadId') if resuming else None,route)
+   if R['argv'][:-1]!=expected or len(R['argv'])!=len(expected)+1 or not isinstance(R['argv'][-1],str) or len(R['argv'][-1])>65536 or R['argv'][-1].startswith('-'): fail()
    predecessor=None
    admission=dict(sourceRevision=R['sourceRevision'],branch=R['branch'],inputSha256=R['inputSha256'])
+   if route: admission['modelRoute']=dict(deliveryId=route['deliveryId'],decisionSha256=route['decisionSha256'],capabilitySha256=h(route['capability'].encode()))
    if resuming:
     previous=R.get('resumeFrom');thread=R.get('threadId')
     if not isinstance(previous,dict) or not isinstance(thread,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread): fail()
@@ -429,7 +450,7 @@ else:
    profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
    save(root+'/seccomp.json',profile)
    # Bootstrap waits before any candidate-controlled Codex input is executed.
-   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session','--env','CODEX_HOME=/session','--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate','--volume',binary+':/codex:ro,Z,rprivate','--volume',codeModeHost+':/codex-code-mode-host:ro,Z,rprivate',R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
+   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session','--env','CODEX_HOME=/session',*(['--env','${modelRouteVariable}='+route['capability']] if route else []),'--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate','--volume',binary+':/codex:ro,Z,rprivate','--volume',codeModeHost+':/codex-code-mode-host:ro,Z,rprivate',R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
    effective(container(),False)
    record['phase']='prepared';save(recordPath,record)
   elif R['action']=='stop':
@@ -749,24 +770,13 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
           request.baseMove !== undefined
     )
       throw Error("Unsupported native coding resume");
-    // `exec resume` has no --sandbox flag; pin the same mode by explicit override.
-    const prefix = resuming
-      ? [
-          "exec",
-          "resume",
-          "--json",
-          "--skip-git-repo-check",
-          "-c",
-          'sandbox_mode="workspace-write"',
-          request.threadId,
-        ]
-      : [
-          "exec",
-          "--json",
-          "--skip-git-repo-check",
-          "--sandbox",
-          "workspace-write",
-        ];
+    const route = request.modelRoute;
+    if (route !== undefined && !validModelRoute(route))
+      throw Error("Unsupported native coding launch");
+    const prefix = lockedCodingArgv(
+      resuming ? request.threadId : undefined,
+      route,
+    );
     const base = request.baseMove;
     if (
       request.baseRefresh ||
@@ -797,6 +807,8 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       JSON.stringify(request.argv.slice(0, -1)) !== JSON.stringify(prefix) ||
       typeof request.argv.at(-1) !== "string" ||
       request.argv.at(-1)!.length > 65536 ||
+      // Codex would read a prompt starting with "-" as one of its options.
+      request.argv.at(-1)!.startsWith("-") ||
       !Number.isSafeInteger(request.allowanceMs) ||
       request.allowanceMs < 1 ||
       request.allowanceMs > 7200000
@@ -818,6 +830,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
           }
         : {}),
       ...(base ? { baseMove: { from: base.from, to: base.to } } : {}),
+      ...(request.modelRoute ? { modelRoute: { ...request.modelRoute } } : {}),
     });
     const prepared = payload(),
       binding = JSON.stringify(prepared);
@@ -870,6 +883,15 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
               ? { threadId: prepared.threadId, resumeFrom: prepared.resumeFrom }
               : {}),
             ...(prepared.baseMove ? { baseMove: prepared.baseMove } : {}),
+            ...(prepared.modelRoute
+              ? {
+                  modelRoute: {
+                    deliveryId: prepared.modelRoute.deliveryId,
+                    decisionSha256: prepared.modelRoute.decisionSha256,
+                    capabilitySha256: digest(prepared.modelRoute.capability),
+                  },
+                }
+              : {}),
           },
         },
         () => permit(mayDispatch) && performance.now() < deadline,

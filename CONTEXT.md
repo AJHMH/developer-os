@@ -200,6 +200,13 @@ deadline, with a request budget. Fresh authority must permit each request,
 and it revokes the grant irreversibly on anything else. It is separate from the
 fixed-worker gateway and never lets the credential reach the VM.
 
+**Model route**: A general coding session's only path to the model: the session
+relay on the worker's own loopback, reached through fixed provider overrides
+in the locked argv and a revocable relay capability in `AIOS_MODEL_ROUTE`
+(ADR 0002). It names one delivery and mediation decision. It is not a
+network mode, and offline turns have none.
+_Avoid_: model network, egress
+
 **Boundary probe**: The fixed canary script that each general worker runs inside
 its own hardened container. It has a positive control (the admitted file is
 visible and alone), and it shows denial of host and guest content, sockets,
