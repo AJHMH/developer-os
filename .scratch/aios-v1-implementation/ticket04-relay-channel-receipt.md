@@ -86,7 +86,7 @@ controller's turns stay offline.
     - the bridge with a fake channel: bounded chunks, refusals kept per
       request, twelve ways to lose the relay, the stream closing when the
       relay is lost, and the ready deadline.
-  - `tests/worker-native-relay.test.mjs`, against the guest simulator:
+  - `tests/session-relay-native.test.mjs`, against the guest simulator:
     - **The routed turn.** The real relay on 18091 receives Codex 0.161.0's
       captured launch request. The gateway receives that body byte for byte,
       under its own capability, and the SSE comes back. Another capability
@@ -163,6 +163,18 @@ controller's turns stay offline.
   - an oversized line that ends in a newline;
   - a ready frame that isn't an object.
 - **The two human-approval checks** need a current-head human review.
+- **Windows shard 4/8 timing out (on `53a57f2` and `3e26967`).** The two new
+  test files shifted the sorted file list. That put the two heaviest
+  controller files, `worker-coding-lifecycle` and `zz-feature-coding-session`,
+  into one Windows shard. It took 9–10 minutes against the job's 10-minute
+  limit, where `main` takes 4–6.
+  - The simulator file is now `tests/session-relay-native.test.mjs`. It sorts
+    before both heavy files, so they stay in separate shards, and
+    `zz-feature-coding-session` gets a shard of its own.
+  - That file was already close to the limit on `main`: PR 112's own run
+    timed out once at 10 min 8 s in a shard it shared with
+    `podman-platform`.
+  - No timeout was changed.
 
 ## Review
 
