@@ -207,6 +207,13 @@ in the locked argv and a revocable relay capability in `AIOS_MODEL_ROUTE`
 network mode, and offline turns have none.
 _Avoid_: model network, egress
 
+**Session relay**: The process guest management runs inside a routed worker's
+network namespace, on the model route's port. It holds no credential and
+forwards only request bodies, over one host channel per turn, to the
+session's gateway. Codex is released only once it is ready, and losing it
+stops the session.
+_Avoid_: proxy, forwarder
+
 **Boundary probe**: The fixed canary script that each general worker runs inside
 its own hardened container. It has a positive control (the admitted file is
 visible and alone), and it shows denial of host and guest content, sockets,

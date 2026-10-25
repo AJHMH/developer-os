@@ -79,6 +79,34 @@ The general coding worker gets a **model-only mode**. It is not a network mode.
   - the session's capability and delivery header;
   - a bounded body naming the pinned model;
   - no upgrade, websocket, query string or other method.
+- **The channel (slice 3b):**
+  - Each routed turn opens one long-lived `podman machine ssh` channel, apart
+    from the short management calls. Guest management starts the relay
+    inside the worker's network namespace. It records the relay's process
+    group and start time before the relay can listen, then the listener's
+    own process once the relay is ready. The relay refuses to listen unless
+    its network namespace is the worker's, and it holds no credential.
+  - Only the request body crosses the channel, as a frame. The host passes it
+    to `GeneralSessionGateway.respond` with the gateway's own capability, and
+    streams the reply back in bounded frames. The relay writes them to the
+    socket as server-sent events, ended by closing the connection.
+  - Requests are served one at a time, matching the gateway's single request
+    slot. A body must be strict UTF-8 JSON. Unknown methods and malformed
+    requests get the same empty 403, except a request line Python reads as
+    HTTP/0.9, which gets no reply at all. A gateway refusal before any bytes
+    is an empty 403; a failure mid-stream cuts the response.
+  - **Release is separate from launch.** Launch starts the container with
+    bootstrap still waiting. A new `release` action lets Codex start, and
+    the guest refuses it for a routed session unless the relay it recorded
+    is still the live process. A poll refuses once that relay has gone.
+  - **Fail closed.** A malformed or out-of-order frame, an oversized line,
+    or the channel ending loses the relay: the host revokes the gateway and
+    stops the exact session. If the channel closes, the relay exits at once,
+    and so it does if the host is silent past the response gap. Stop kills
+    the recorded relay first, and records that it has ended once its
+    processes are gone.
+  - A route without a gateway, a gateway without a route, or a gateway
+    sharing the relay's capability is refused before any VM effect.
 
 ### The gateway
 

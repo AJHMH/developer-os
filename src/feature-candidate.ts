@@ -428,6 +428,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { admitFiles, admittedPath } from "./workspace.js";
 import { hostGitCwd } from "./host-git.js";
+import type { SessionGateway } from "./session-relay.js";
 export const candidateDigest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 /** The ambient environment without any GIT_* input, plus fixed settings. It
@@ -741,9 +742,12 @@ import { StringDecoder } from "node:string_decoder";
 export interface IsolatedCodingTransport {
   readonly mode: "controlled" | "live";
   inspect(session: CodingSession): Promise<CodingPins>;
+  /** `gateway` serves a routed request's relay; it never crosses to a
+   * worker. Slice 4 wires it; until then routed turns are refused. */
   run(
     request: CodingRequest,
     stdout: (bytes: Buffer) => void,
+    gateway?: SessionGateway,
   ): Promise<{
     operationId: string;
     fence: number;

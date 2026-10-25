@@ -21,6 +21,7 @@ import {
   launchRequest,
   guestFixture,
   posixGuest,
+  sessionGateway,
 } from "./helpers/native-coding-fixture.mjs";
 
 test("native coding transport stays outside controlled production admission", async () => {
@@ -165,7 +166,7 @@ test("native launch transfers only data, streams bounded output and stops before
   const effects = fixture.requests.filter((r) => r.action !== "inspect");
   assert.deepEqual(
     effects.map((r) => r.action),
-    ["prepare", "launch", "poll", "stop"],
+    ["prepare", "launch", "release", "poll", "stop"],
   );
   assert.equal(
     effects[0].files[0].bytes,
@@ -275,7 +276,13 @@ test("unsafe native inputs and unsupported authority paths refuse before VM effe
       ],
     },
   ])
-    await assert.rejects(transport.run({ ...request, ...override }, () => {}));
+    await assert.rejects(
+      transport.run(
+        { ...request, ...override },
+        () => {},
+        override.modelRoute ? sessionGateway() : undefined,
+      ),
+    );
   assert.equal(fixture.requests.length, inspected);
   assert.throws(
     () => new NativePodmanCodingTransport("shared", "a".repeat(64)),
@@ -786,6 +793,7 @@ test(
         modelRoute,
       }),
       () => {},
+      sessionGateway(),
     );
     const { Config } = read().container;
     assert.deepEqual(Config.Cmd.slice(4), routedArgv);
@@ -835,7 +843,13 @@ for (const [name, changes] of [
       allowanceMs: 60000,
       ...changes,
     });
-    await assert.rejects(transport.run(request, () => {}));
+    await assert.rejects(
+      transport.run(
+        request,
+        () => {},
+        request.modelRoute ? sessionGateway() : undefined,
+      ),
+    );
     assert.equal(
       read().commands.some((args) => args[1] === "create"),
       false,
@@ -853,7 +867,7 @@ for (const drift of ["routeDropped", "promptOption"])
         argv: routedArgv,
         modelRoute,
       });
-      await assert.rejects(transport.run(request, () => {}));
+      await assert.rejects(transport.run(request, () => {}, sessionGateway()));
       assert.equal(
         read().commands.some((args) => args[1] === "create"),
         false,
@@ -909,7 +923,7 @@ test(
       argv: routedArgv,
       modelRoute,
     });
-    await assert.rejects(transport.run(request, () => {}));
+    await assert.rejects(transport.run(request, () => {}, sessionGateway()));
     assert.equal(
       read().commands.some((args) => args[1] === "create"),
       false,
@@ -927,7 +941,7 @@ test(
       argv: routedArgv,
       modelRoute,
     });
-    await assert.rejects(transport.run(request, () => {}));
+    await assert.rejects(transport.run(request, () => {}, sessionGateway()));
     assert.equal(
       read().commands.some((args) => args[1] === "start"),
       false,

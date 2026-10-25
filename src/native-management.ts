@@ -90,6 +90,40 @@ export function runManagement(
   });
 }
 
+/** Opens a long-lived channel running `program` in the VM, for a management
+ * action that keeps talking after its first line (the session relay). The
+ * program and its `R` cross as one base64 stdin line, as for the fixed
+ * worker's relay; stdin then stays open for frames. */
+export function openManagementChannel(
+  { machine, host }: ManagementHost,
+  request: Record<string, unknown>,
+  program: string,
+) {
+  const input = `import json,base64\nR=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n${program}`;
+  const child = spawn(
+    host.executable,
+    [
+      "machine",
+      "ssh",
+      machine,
+      "/usr/bin/python3",
+      "-I",
+      "-u",
+      "-c",
+      "'import sys,base64;exec(base64.b64decode(sys.stdin.readline()))'",
+    ],
+    {
+      cwd: host.cwd,
+      env: host.env,
+      shell: false,
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  child.stdin.write(Buffer.from(input).toString("base64") + "\n");
+  return child;
+}
+
 /** True when the guest's VM observation has the expected shape and the host
  * engine executable is still the one measured before the call. */
 export function validGuestBinding(
