@@ -32,7 +32,8 @@ tool exists, so a missing tool fails instead of passing. It checks:
   - no engine or management sockets;
   - no credential variables.
 - **Mounts and network:** no host-share mounts, loopback-only networking, and
-  no outbound connection.
+  no outbound connection, the npm registry included. The registry check uses
+  plain HTTP, so a missing TLS client can't make it pass.
 - **Hardening:** the root mount is read-only by its own mount options, and the
   user is 65534.
 - **Escapes:** `unshare`, `chroot` and cgroup escapes are refused.
@@ -40,6 +41,39 @@ tool exists, so a missing tool fails instead of passing. It checks:
 Adding the probe changed the coding guest program, so its `policySha256`
 changed. Each host's owner coding admission therefore needs one re-approval
 before this runs.
+
+The coding worker runs the **coding probe**: the shared probes, then five of
+its own. Its third argument is the session's mode, `routed` or `offline`,
+which the guest takes from the session's own record and the caller never
+chooses.
+- **`relay-listener`:** a routed worker has exactly one listening socket, the
+  session relay on 127.0.0.1:18091. An offline worker has none. Neither has an
+  IPv6 listener.
+- **`relay-answers`:** a routed worker's GET to the relay gets the relay's
+  empty 403. That shows the route is reachable, without reaching the gateway
+  or counting a request. It is tried up to three times, five seconds each,
+  because the relay serves one request at a time. An offline worker's
+  connection must be refused, since any HTTP answer would mean something is
+  listening.
+- **`read-only-binaries`:** `/codex` and `/codex-code-mode-host` are mounted
+  read-only, according to `/proc/self/mountinfo`, and refuse writes. The mount
+  is the real check: a running executable refuses writes anyway, and the
+  container user owns the files.
+- **`hardened-process`:** the process has no effective capabilities, has
+  `NoNewPrivs` set, and runs under a seccomp filter.
+- **`writable-only-work`:** a file can be created, then removed, in
+  `/workspace` and `/session`. Writes to `/`, `/etc`, `/usr`, `/bin`, `/lib`,
+  `/root`, `/home`, `/opt`, `/var`, `/srv`, `/etc/hosts`, `/etc/hostname` and
+  `/etc/resolv.conf` are refused.
+
+  Podman's in-memory tmpfs mounts (`/tmp`, `/var/tmp`, `/run` and
+  `/dev/shm`) stay writable. They are private to the container and gone when
+  it stops, and bootstrap needs `/tmp/launch`. The guest separately pins the
+  container's bind mounts to exactly four.
+
+  Codex runs with `danger-full-access`, so these are the container's own
+  limits, whatever Codex's sandbox would allow. The probe runs as the
+  container user, the same identity Codex has.
 
 The coding guest runs the probe inside the exact live session. It passes the
 session's own management record as the private path, confirming first that the

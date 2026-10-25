@@ -499,9 +499,8 @@ async function main() {
   const { ownerValidationAdmission, PinnedValidationRuntime } = await import(
     "../dist/native-validation.js"
   );
-  const { boundaryProbe, boundaryProbeNames } = await import(
-    "../dist/worker-probes.js"
-  );
+  const { boundaryProbe, boundaryProbeNames, codingBoundaryProbe } =
+    await import("../dist/worker-probes.js");
   // The authorities each VM's management state and the owner records already
   // belong to, as in the admission acceptances.
   const coding = {
@@ -530,6 +529,8 @@ async function main() {
     host: { platform: platform(), arch: arch(), release: release(), machine },
     imageSha256,
     probeSha256: sha256(boundaryProbe),
+    // The coding worker runs the shared probes plus its own controls.
+    codingProbeSha256: sha256(codingBoundaryProbe),
     ...source,
   };
   let interrupted = false;

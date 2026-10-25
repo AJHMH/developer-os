@@ -3,7 +3,10 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
 import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
-import { boundaryProbe, boundaryProbeNames } from "../dist/worker-probes.js";
+import {
+  codingBoundaryProbe,
+  codingBoundaryProbeNames,
+} from "../dist/worker-probes.js";
 import { hostTargets } from "../dist/host-target.js";
 import { lockedCodingArgv } from "../dist/feature-candidate.js";
 import {
@@ -1850,7 +1853,7 @@ test("native coding refuses malformed file lists and timer names before host eff
 });
 
 const allProbesPassed =
-  boundaryProbeNames.map((name) => `passed-${name}`).join("\n") + "\n";
+  codingBoundaryProbeNames.map((name) => `passed-${name}`).join("\n") + "\n";
 
 /** A live session, held running while the test acts on it. */
 async function liveSession(t, engine = {}) {
@@ -1878,7 +1881,7 @@ test(
     const probed = await transport.probeBoundary(session, "index.html");
     assert.deepEqual(
       probed.probes.map((p) => [p.name, p.outcome]),
-      boundaryProbeNames.map((name) => [name, "passed"]),
+      codingBoundaryProbeNames.map((name) => [name, "passed"]),
     );
     assert.deepEqual(probed.pins, request.pins);
     // The fixed script, never caller text, with the admitted file and a
@@ -1886,9 +1889,11 @@ test(
     const exec = read().commands.find(
       (args) => args[1] === "exec" && args[3] === "/bin/sh",
     );
-    assert.equal(exec[5], boundaryProbe);
-    const [admitted, guestPrivate] = read().probes[0];
+    assert.equal(exec[5], codingBoundaryProbe);
+    const [admitted, guestPrivate, mode] = read().probes[0];
     assert.equal(admitted, "/workspace/index.html");
+    // The guest names the mode from its own record: this session is offline.
+    assert.equal(mode, "offline");
     assert.match(guestPrivate, /\/aios-coding-[a-f0-9]{32}\.json$/);
     assert.equal(read().container.FixtureExtraPids.length, 1);
     assert.ok(probed.processes >= 2);
@@ -1900,6 +1905,35 @@ test(
     });
     assert.equal(observed.remainingProcesses, 0);
     assert.equal(observed.processesGone, true);
+  },
+);
+
+test(
+  "a routed session's probe runs with the routed controls, chosen by the guest",
+  posixGuest,
+  async (t) => {
+    const fixture = guestFixture(t, {
+      keepRunning: true,
+      stopAfterPolls: 6,
+      probeOutput: allProbesPassed,
+    });
+    const request = await launchRequest(fixture.transport, {
+      allowanceMs: 60000,
+      argv: routedArgv,
+      modelRoute,
+    });
+    const running = fixture.transport.run(request, () => {}, sessionGateway());
+    for (
+      let i = 0;
+      i < 400 &&
+      !fixture.read().commands?.some((a) => a.at(-1) === "/tmp/launch");
+      i++
+    )
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    const probed = await fixture.transport.probeBoundary(session, "index.html");
+    assert.ok(probed.probes.every((p) => p.outcome === "passed"));
+    assert.equal(fixture.read().probes[0][2], "routed");
+    await running;
   },
 );
 

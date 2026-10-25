@@ -167,6 +167,17 @@ changed or reused for general turns.**
   model-only mode. It keeps proving that every other endpoint is unreachable,
   the npm registry included, and that no credential is present in the
   container.
+  - **Done in slice 3, step 4.** The coding worker runs its own probe, the
+    shared probes plus five more (`docs/worker-qualification.md`):
+    - the relay as the only listener;
+    - the relay answering with its refusal;
+    - binaries mounted read-only;
+    - a process with no capabilities, `NoNewPrivs` and seccomp;
+    - the workspace and session as the only writable places, apart from
+      Podman's private in-memory tmpfs.
+
+    The mode comes from the guest's own record. The shared probe also
+    refuses the npm registry, for both workers.
 - **Criterion 4.** The evidence will come from the native qualification on
   both hosts, within the live budget above.
 - **Separation from the fixed worker.** The fixed worker's gateway, approvals
