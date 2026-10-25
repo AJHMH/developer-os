@@ -95,17 +95,60 @@ implements the Responses contract and streaming.
 
 ### Slice 3 — Relay and container wiring (no inference)
 
-- The coding guest gains a model-only mode. The container keeps no general
-  network, and the only model route is the relay path from decision A.
-- The `CodingRequest` and launch binding carry the session capability and the
-  mediation decision. `PinnedCodingRuntime`, the record and the pins bind them.
-- The guest's effective-configuration checks and the boundary probe are
-  updated. The relay is the only new route; the probe proves that every other
-  endpoint, including the npm registry, is still unreachable, and that no
-  credential exists in the container.
-- **Tests:** in the simulator, and natively offline with a **fake provider in
-  the VM**. That shows the route works and is the only one, with no real model.
-- **Pins change.** Each host's coding record is re-approved.
+The first step, the offline capture of Codex 0.161.0's real request shape, is
+done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
+"Amendment: tools and sandbox". The remaining steps, each written test-first:
+
+1. **Gateway allowlists match the captured shape.**
+   - Admit the `additional_tools` input item, `reasoning.context` (only
+     `"all_turns"`) and `client_metadata`. Stripping or allowing
+     `client_metadata` is still open, and the owner decides it before this
+     step.
+   - Inside `additional_tools`, keep the rule of tools the worker runs itself:
+     `function`, `custom` and `namespace` groups of those, and nothing hosted.
+   - The captured bodies become trimmed test fixtures, with prompt text
+     replaced, so a later Codex pin change shows up as a fixture diff.
+2. **The code-mode host pin.**
+   - Add `codeModeHostSha256` beside `cliSha256` in the coding pins,
+     `PinnedCodingRuntime`, the launch binding and the owner coding
+     admission.
+   - Each host target gets its digest. linux-arm64 is
+     `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0`,
+     from the cached official `codex-0.161.0-linux-arm64.tgz`. linux-x64
+     comes from the official `linux-x64` package, which the owner fetches on
+     Windows.
+   - The guest checks the provisioned file
+     (`~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0`), copies
+     it into the session, and bind-mounts it read-only at
+     `/codex-code-mode-host`. The effective-configuration check then expects
+     four mounts.
+3. **Model-only mode in the guest.**
+   - Guest management starts the session relay in the worker's network
+     namespace on a fixed loopback port, before Codex is released. The relay
+     accepts only `POST /v1/responses`, and the capture shows Codex sends
+     nothing else.
+   - The locked argv gains the fixed `-c model_providers.*` overrides and
+     `danger-full-access`.
+   - The capability arrives through `env_key` in a non-credential variable,
+     and the effective env check adds exactly that variable.
+   - The `CodingRequest` and launch binding carry the session capability and
+     the mediation decision. `PinnedCodingRuntime`, the record and the pins
+     bind them.
+4. **The boundary probe.**
+   - It gains a positive control for the relay port.
+   - It keeps proving every other endpoint is unreachable, the npm registry
+     included, and that no credential exists in the container.
+   - Under `danger-full-access` it also shows that the code-mode host and
+     `/codex` are read-only, and that the workspace and session are the only
+     writable places.
+- **Tests:**
+  - in the simulator;
+  - natively offline, with the capture's fake provider in the VM. A code-mode
+    `exec` script edits through `apply_patch` and runs `exec_command`, on
+    launch and on explicit resume. That shows the route and tools work and
+    that the route is the only one, with no real model.
+- **Pins change.** Each host's coding record is re-approved once, for the new
+  guest program and `codeModeHostSha256`.
 
 ### Slice 4 — Usage, exhaustion and restart on the native session (no inference)
 
@@ -164,6 +207,15 @@ stays disabled.
 - **Runaway usage.** Every dispatch takes a fresh observation, the relay checks
   usage at each request, and the live budget is fixed. Exhaustion revokes,
   stops and preserves the workspace.
+- **The container is the only sandbox.** Codex runs with
+  `danger-full-access`, because its own sandbox can't start under the
+  seccomp profile. The boundary probe must prove each container property
+  under that mode (ADR 0002 amendment).
+- **Header dependency.** The gateway replaces worker headers. The provider
+  may need `x-openai-internal-codex-responses-lite` to read the
+  `additional_tools` item. Only slice 5's live turns can confirm this. If it
+  fails, adding a fixed gateway-side header is a reviewed change, not a pass
+  through of worker headers.
 - **Scope creep into production.** `DELIVERY_NOT_ENABLED` and
   `productionEnabled: false` stay. Production enablement is the following,
   separate design.

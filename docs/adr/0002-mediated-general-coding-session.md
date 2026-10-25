@@ -1,7 +1,7 @@
 # Mediated general coding session
 
 Date: 2026-10-24
-Status: accepted
+Status: accepted (amended 24 October 2026; see "Amendment: tools and sandbox")
 
 ## Context
 
@@ -47,7 +47,9 @@ The owner decided the following on 24 October:
 ### The route
 
 The general coding worker gets a **model-only mode**. It is not a network mode.
-- The container stays `--network=none`, with no new mount and no new binary.
+- The container stays `--network=none`. It gains no network, mount or binary
+  for the route itself. (The amendment below adds one pinned binary, for
+  tools.)
 - Guest management starts the session's relay inside the worker's network
   namespace, on a fixed loopback port, before Codex is released.
 - The relay is part of the coding guest program, so it is covered by the
@@ -127,6 +129,76 @@ changed or reused for general turns.**
 - **Separation from the fixed worker.** The fixed worker's gateway, approvals
   and evidence are untouched. The general worker reuses the pattern and the
   relay/grant primitives, never the fixed-worker approvals or evidence.
+
+## Amendment: tools and sandbox (24 October 2026)
+
+An offline capture of Codex 0.161.0 against a fake provider in the Mac VM
+found two problems with the route as first decided. The capture is recorded
+in `.scratch/aios-v1-implementation/ticket04-request-shape-capture-receipt.md`.
+This amendment reopens the earlier "no new binary" line and the locked
+argv's `workspace-write` sandbox.
+
+### Context
+
+- **The pinned model is code-mode-only.** Codex's bundled catalog gives
+  `gpt-6.1-sol` `tool_mode: "code_mode_only"`. Its only tool for editing and
+  running commands is code mode's `exec`, which needs `codex-code-mode-host`
+  next to the executable. That host isn't in the container, so every edit and
+  command failed closed. Feature flags don't change this.
+- **Codex's own sandbox can't start here.** Under `workspace-write`, Codex
+  runs commands and edits through bubblewrap. Bubblewrap needs `unshare`,
+  which the coding seccomp profile removes along with `setns`. Edits and
+  commands failed even with the packaged `bwrap` mounted.
+
+### Decisions
+
+- **The code-mode host is a second pinned binary.**
+  - The worker gets `codex-code-mode-host` from the same official package as
+    its CLI (`@openai/codex@0.161.0-<platform>`). On linux-arm64 its SHA-256
+    is `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0`.
+  - It is provisioned by the owner beside the CLI in guest management
+    storage, as the CLI is.
+  - The guest checks its hash, copies it into the session, and bind-mounts
+    it read-only at `/codex-code-mode-host`.
+- **Its digest is a pin.** A new pin, `codeModeHostSha256`, sits next to
+  `cliSha256`. The owner coding admission names it, and a mismatch stops
+  coding like any other pin change.
+- **The container is the only sandbox.** The locked argv runs Codex with
+  `danger-full-access`: `--sandbox` on launch and `-c sandbox_mode=` on
+  resume. Every isolation property comes from the hardened container:
+  - `--network=none`, a read-only root, no capabilities and
+    `no-new-privileges`;
+  - the derived seccomp profile, the user namespace and the pids and memory
+    limits;
+  - the workspace and session as the only writable mounts.
+
+  The boundary probe has to keep proving each of these properties under the
+  new mode.
+- **Unchanged:**
+  - the catalog: no `model_catalog_json` and no `config.toml`;
+  - the model's own tool mode;
+  - the relay route;
+  - the gateway's tool rule: only tools the worker runs itself.
+- **Pins.** The coding guest program changes again in the same slice, so the
+  admission is re-approved once, for both changes.
+
+### Consequences
+
+- About 67 MB more per host goes into guest management storage, and the
+  Windows guest needs the `linux-x64` package's host binary.
+- Changing the gateway's allowlists is a separate slice 3 step. All the
+  captured shapes need `client_metadata`, `reasoning.context` and the
+  `additional_tools` item. Whether to strip `client_metadata` or allow it
+  is still open.
+
+### Alternatives rejected
+
+- **A catalog override to `tool_mode: "direct"`.** It worked offline under
+  `danger-full-access`, but it adds a generated catalog file to pin and runs
+  the model outside the tool mode it is catalogued for.
+- **Keeping `workspace-write` with a packaged `bwrap`.** It would mean
+  loosening the seccomp profile to allow `unshare` and `setns`, which weakens
+  the container that is the actual boundary.
 
 ## Alternatives rejected
 
