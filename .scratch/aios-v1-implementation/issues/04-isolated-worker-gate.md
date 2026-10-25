@@ -737,3 +737,20 @@ Slice 1 is
 [ADR 0002](../../../docs/adr/0002-mediated-general-coding-session.md),
 proposed for the owner's acceptance. No credentials or inference are used
 before the final native slice. Production remains disabled.
+
+## 24 October: credentialed slice 2, the general session gateway
+
+The owner accepted ADR 0002. Slice 2 adds the host-side general session
+gateway, built test-first against a fake provider with no inference. It
+binds one delivery, session, account and deadline, with a request budget. It
+carries only the pinned model's streamed Responses requests, with:
+- no stored responses;
+- no hosted tools;
+- no file, URL or item references in replayed items;
+- bounded sizes and times;
+- no redirects, retries or refresh.
+
+Fresh authority is taken before every request, and anything but permitted
+revokes the grant irreversibly. The fixed-worker gateway is unchanged.
+Production remains disabled. See the
+[general session gateway receipt](../ticket04-general-session-gateway-receipt.md).
