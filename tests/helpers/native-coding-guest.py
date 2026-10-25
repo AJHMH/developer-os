@@ -18,6 +18,12 @@ exec(source.split('\n', 2)[0] + '\n' + source.split('\n', 2)[1], namespace)
 request = namespace['R']
 if request['action'] == 'prepare' and state.get('transferredInputDrift'):
     request['files'][0]['bytes'] = base64.b64encode(b'foreign input\n').decode()
+if request['action'] == 'prepare' and state.get('routeDropped'):
+    request.pop('modelRoute', None)
+if request['action'] == 'prepare' and state.get('promptOption'):
+    request['argv'][-1] = '-cmodel="gpt-other"'
+if request['action'] == 'prepare' and state.get('routeDrift'):
+    request['modelRoute']['capability'] = 'x'
 if request['action'] == 'launch' and state.get('launchProvenanceDrift'):
     request['admission'] = {'sourceRevision': 'f'*40, 'branch': 'codex/foreign', 'inputSha256': '0'*64}
 artifact = root / '.local/state/aios-offline-v1/codex-0.161.0'
@@ -163,7 +169,7 @@ def run(args, **kwargs):
                 if value == '--volume':
                     src, dest, opts = args[i+1].split(':')
                     mounts.append({'Type': 'bind', 'Source': src, 'Destination': dest, 'RW': 'rw' in opts.split(','), 'Propagation': 'rprivate'})
-                elif value == '--env': env.append(args[i+1])
+                elif value == '--env': env.append(args[i+1] + ('0' if state.get('routeEnvDrift') and args[i+1].startswith('AIOS_MODEL_ROUTE=') else ''))
                 elif value == '--label':
                     key, val = args[i+1].split('=',1); labels[key] = val
             if state.get('dropHostMount'): mounts = [m for m in mounts if m['Destination'] != '/codex-code-mode-host']

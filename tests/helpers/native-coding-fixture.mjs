@@ -178,7 +178,9 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
         ...engine,
       }),
     );
+  let lastProgram;
   const fixture = nativeHost(t, (_request, program) => {
+    lastProgram = program;
     const result = realSpawnSync(
       process.env.AIOS_TEST_PYTHON || "python3",
       // The guest runs `python3 -I`; -S also skips the site module, which the
@@ -195,6 +197,8 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
     requests: fixture.requests,
     machineConfig: fixture.machineConfig,
     transport: new NativePodmanCodingTransport("aios-test", "a".repeat(64)),
+    /** The last management program sent to the guest, as transported. */
+    program: () => lastProgram,
     read: () => JSON.parse(realReadFileSync(statePath, "utf8")),
     write: (state) => realWriteFileSync(statePath, JSON.stringify(state)),
   };

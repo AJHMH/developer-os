@@ -59,6 +59,20 @@ The general coding worker gets a **model-only mode**. It is not a network mode.
   it.
 - The session's capability arrives through `env_key` in a variable that is not
   a credential name. The boundary probe's credential checks stay valid.
+- **Fixed values (slice 3a):**
+  - The relay listens on `127.0.0.1:18091`, clear of the fixed worker's 18081
+    and 18082.
+  - The provider id is `aios`, and the variable is `AIOS_MODEL_ROUTE`.
+  - Codex sends the delivery as `X-AIOS-Delivery`, a fixed `http_headers`
+    override.
+  - The value in `AIOS_MODEL_ROUTE` is the relay's own random, revocable
+    capability for the session, never the gateway's capability. The
+    gateway's capability stays on the host.
+  - The guest records only the capability's digest, with the delivery and
+    the mediation decision, in the launch admission. The container's route
+    variable must match that digest.
+  - Offline turns keep `workspace-write`, add no overrides, and add no route
+    variable.
 - The relay accepts only the following, and refuses everything else with an
   empty 403:
   - `POST /v1/responses`;

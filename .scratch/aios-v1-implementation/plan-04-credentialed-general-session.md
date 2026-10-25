@@ -125,7 +125,16 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
      it into the session, and bind-mounts it read-only at
      `/codex-code-mode-host`. The effective-configuration check then expects
      four mounts.
-3. **Model-only mode in the guest.**
+3. **Model-only mode in the guest**, in two parts:
+   - **3a (done; see `ticket04-model-route-binding-receipt.md`):** the
+     request, argv and environment binding.
+   - **3b:** the relay channel. The host opens a long-lived
+     `podman machine ssh` relay for the turn, frames each request to
+     `GeneralSessionGateway.respond`, and streams the reply back. A separate
+     `release` action lets Codex start only after the relay is ready. Losing
+     the channel revokes the gateway and stops the session.
+
+   The step covers:
    - Guest management starts the session relay in the worker's network
      namespace on a fixed loopback port, before Codex is released. The relay
      accepts only `POST /v1/responses`, and the capture shows Codex sends
