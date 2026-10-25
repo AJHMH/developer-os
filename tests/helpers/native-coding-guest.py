@@ -29,6 +29,17 @@ artifact.chmod(0o700)
 # The management program still performs the real SHA-256 checks itself.
 official_pin = request['cliSha256']
 request['cliSha256'] = hashlib.sha256(b'synthetic-pinned-artifact').hexdigest()
+host_artifact = root / '.local/state/aios-offline-v1/codex-code-mode-host-0.161.0'
+if state.get('hostArtifact') == 'missing':
+    host_artifact.unlink(missing_ok=True)
+else:
+    host_artifact.write_bytes(b'foreign-code-mode-host' if state.get('hostArtifact') == 'foreign' else b'synthetic-code-mode-host')
+    host_artifact.chmod(0o740 if state.get('hostArtifact') == 'group-readable' else 0o700)
+request['codeModeHostSha256'] = hashlib.sha256(b'synthetic-code-mode-host').hexdigest()
+if request['action'] == 'launch' and state.get('tamperHostCopy'):
+    copy = root / '.local/state/aios-coding-v1' / request['name'] / 'codex-code-mode-host'
+    copy.chmod(0o700)
+    copy.write_bytes(b'foreign-code-mode-host')
 
 def containers():
     result = dict(state.get('containers', {}))
@@ -155,6 +166,7 @@ def run(args, **kwargs):
                 elif value == '--env': env.append(args[i+1])
                 elif value == '--label':
                     key, val = args[i+1].split('=',1); labels[key] = val
+            if state.get('dropHostMount'): mounts = [m for m in mounts if m['Destination'] != '/codex-code-mode-host']
             env.append('HOSTNAME=aios-coding')
             nextPid = 42 + len(containers())
             if state.get('containerName'): state.setdefault('containers', {})[state['containerName']] = state['container']

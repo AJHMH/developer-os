@@ -196,6 +196,7 @@ only by you, in a folder only you can change:
   "pins": {
     "cliVersion": "0.161.0",
     "cliSha256": "<64 hex>",
+    "codeModeHostSha256": "<64 hex>",
     "policySha256": "<64 hex>",
     "bindingSha256": "<64 hex>"
   }
@@ -208,7 +209,9 @@ turn's result, when it trusts a stop or other receipt, and at least once a
 second while a turn streams. Removing or editing it stops further coding. A
 session stopped while its record is missing or different stays uncertain until
 the matching record is restored and the session is recovered. Any pin change,
-such as a new CLI, guest policy, Podman, VM or host, needs a new record.
+such as a new CLI or code-mode host, guest policy, Podman, VM or host, needs
+a new record. The code-mode host must first be provisioned in the VM (see
+`docs/worker-qualification.md`).
 The binding names the VM by its `/etc/machine-id`, not its hardware UUID,
 which Apple's hypervisor changes on every boot. It also leaves out the time
 Podman records for the VM's last start. Restarting the VM keeps the record

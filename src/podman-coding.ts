@@ -17,6 +17,7 @@ import {
 import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
 import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
+import { codeModeHostSha256 } from "./host-target.js";
 import { boundaryProbe, boundaryProbeOutcomes } from "./worker-probes.js";
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -82,6 +83,15 @@ def ordinary(path):
  if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_uid!=os.getuid(): fail()
  return s
 
+# The owner provisions the code-mode host beside the CLI, from the same package.
+hostSource=os.path.expanduser('~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0')
+def provisioned(path,digest):
+ if ordinary(path).st_mode&0o077: fail()
+ fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+ with os.fdopen(fd,'rb') as f: data=f.read()
+ if h(data)!=digest: fail()
+ return data
+
 def snapshot():
  def mounts(entries):
   for x in entries:
@@ -114,6 +124,7 @@ def snapshot():
  fd=os.open(binary,os.O_RDONLY|os.O_NOFOLLOW)
  with os.fdopen(fd,'rb') as f:
   if h(f.read())!=R['cliSha256']: fail()
+ provisioned(hostSource,R['codeModeHostSha256'])
  machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
  if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
  return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],template=R['template'],hostId=h(machine_id.encode()))
@@ -236,8 +247,8 @@ def effective(c,live):
  if c['Config']['User']!='65534:65534' or env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no': fail()
  if hc.get('PidsLimit')!=64 or hc.get('Memory')!=536870912 or 'no-new-privileges' not in hc.get('SecurityOpt',[]) or 'seccomp='+root+'/seccomp.json' not in hc.get('SecurityOpt',[]): fail()
  mounts=c.get('Mounts',[])
- wanted={'/workspace':(work,True),'/session':(home,True),'/codex':(binary,False)}
- if len(mounts)!=3: fail()
+ wanted={'/workspace':(work,True),'/session':(home,True),'/codex':(binary,False),'/codex-code-mode-host':(codeModeHost,False)}
+ if len(mounts)!=4: fail()
  for m in mounts:
   if m.get('Type')!='bind' or m.get('Destination') not in wanted or (m.get('Source'),m.get('RW'))!=wanted[m['Destination']]: fail()
   if m.get('Propagation') not in ['rprivate','private']: fail()
@@ -350,7 +361,7 @@ else:
   record=read(recordPath) if os.path.lexists(recordPath) else None
   if record and record['identity']!=identity: fail()
   operation=root+'/'+R['name']
-  work=operation+'/workspace';home=operation+'/home';binary=operation+'/codex'
+  work=operation+'/workspace';home=operation+'/home';binary=operation+'/codex';codeModeHost=operation+'/codex-code-mode-host'
   if R['action']=='prepare':
    binding=snapshot()
    if binding!=R['expectedBinding'] or record: fail()
@@ -404,6 +415,9 @@ else:
     data=pathlib.Path(source).read_bytes()
     if h(data)!=R['cliSha256']: fail()
     f.write(data);f.flush();os.fsync(f.fileno())
+   fd=os.open(codeModeHost,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o500)
+   with os.fdopen(fd,'wb') as f:
+    f.write(provisioned(hostSource,R['codeModeHostSha256']));f.flush();os.fsync(f.fileno())
    for path,data,executable in inputs:
     target=work+'/'+path
     os.makedirs(os.path.dirname(target),mode=0o700,exist_ok=True)
@@ -415,7 +429,7 @@ else:
    profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
    save(root+'/seccomp.json',profile)
    # Bootstrap waits before any candidate-controlled Codex input is executed.
-   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session','--env','CODEX_HOME=/session','--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate','--volume',binary+':/codex:ro,Z,rprivate',R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
+   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session','--env','CODEX_HOME=/session','--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate','--volume',binary+':/codex:ro,Z,rprivate','--volume',codeModeHost+':/codex-code-mode-host:ro,Z,rprivate',R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
    effective(container(),False)
    record['phase']='prepared';save(recordPath,record)
   elif R['action']=='stop':
@@ -448,6 +462,8 @@ else:
     if record['phase']!='prepared' or not isinstance(record.get('admission'),dict) or record['admission']!=R.get('admission') or record.get('pins')!=R.get('pins'): fail()
     ordinary(binary)
     if h(pathlib.Path(binary).read_bytes())!=R['cliSha256']: fail()
+    ordinary(codeModeHost)
+    if h(pathlib.Path(codeModeHost).read_bytes())!=R['codeModeHostSha256']: fail()
     effective(container(),False)
     # Durable before start: stop rewrites the phase, and recovery must never
     # return a home that a started worker could have changed.
@@ -664,6 +680,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     const managed = managementHost(this.machine);
     const { host } = managed;
     const cliSha256 = codexWorkerSha256(host.platform, host.arch)!;
+    const hostSha256 = codeModeHostSha256(host.platform, host.arch)!;
     const request = {
       action,
       session,
@@ -674,6 +691,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       imageReference: host.imageReference,
       template: host.guestArch === "arm64" ? armTemplate : offlineTemplate,
       cliSha256,
+      codeModeHostSha256: hostSha256,
       ...payload,
     };
     const result: unknown = await runManagement(
@@ -694,6 +712,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     const pins: CodingPins = {
       cliVersion: "0.161.0",
       cliSha256,
+      codeModeHostSha256: hostSha256,
       policySha256: digest(management),
       bindingSha256: managementBindingSha256(
         managed,

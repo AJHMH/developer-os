@@ -37,6 +37,7 @@ export const passingOutcome = "observed-offline-worker-qualification";
 const codingPinFields = [
   "cliVersion",
   "cliSha256",
+  "codeModeHostSha256",
   "policySha256",
   "bindingSha256",
 ];

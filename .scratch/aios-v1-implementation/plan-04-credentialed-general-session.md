@@ -109,15 +109,17 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
      `function`, `custom` and `namespace` groups of those, and nothing hosted.
    - The captured bodies become trimmed test fixtures, with prompt text
      replaced, so a later Codex pin change shows up as a fixture diff.
-2. **The code-mode host pin.**
+2. **The code-mode host pin** (done; see
+   `ticket04-code-mode-host-pin-receipt.md`).
    - Add `codeModeHostSha256` beside `cliSha256` in the coding pins,
      `PinnedCodingRuntime`, the launch binding and the owner coding
      admission.
-   - Each host target gets its digest. linux-arm64 is
-     `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0`,
-     from the cached official `codex-0.161.0-linux-arm64.tgz`. linux-x64
-     comes from the official `linux-x64` package, which the owner fetches on
-     Windows.
+   - Each host target gets its digest, from the same official package as its
+     CLI:
+     - linux-arm64:
+       `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0`;
+     - linux-x64:
+       `e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b`.
    - The guest checks the provisioned file
      (`~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0`), copies
      it into the session, and bind-mounts it read-only at

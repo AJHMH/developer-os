@@ -260,6 +260,7 @@ test("the validation record is its own scope and never a coding record", (t) => 
       pins: {
         cliVersion: "0.161.0",
         cliSha256: "c".repeat(64),
+        codeModeHostSha256: "b".repeat(64),
         policySha256: "d".repeat(64),
         bindingSha256: "e".repeat(64),
       },

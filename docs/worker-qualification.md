@@ -52,6 +52,43 @@ private path is the guest's validation state directory. The validation guest
 cannot confirm that path to the check, so the owner-home probe is the stronger
 evidence there.
 
+## Provisioning the code-mode host
+
+The coding worker needs the code-mode host beside its CLI (ADR 0002
+amendment). It comes from the same official package as the pinned CLI. The
+guest refuses to inspect, prepare or launch unless the file is in VM
+management storage, private to the guest user, and matches its pin:
+
+| Host | Package | `codex-code-mode-host` SHA-256 |
+|---|---|---|
+| macOS | `@openai/codex@0.161.0-linux-arm64` | `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0` |
+| Windows | `@openai/codex@0.161.0-linux-x64` | `e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b` |
+
+Run each block in one terminal, in order. The copy uses a relative path from
+the folder the first line moves into, so a drive letter is never read as a
+machine name. The last command prints the guest's hash, which must match the
+table.
+
+macOS (zsh), with the VM running:
+
+```sh
+D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @openai/codex@0.161.0-linux-arm64 && tar -xzf openai-codex-0.161.0-linux-arm64.tgz && shasum -a 256 package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host
+/opt/podman/bin/podman machine cp package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host aios-macos-noshare:/var/home/core/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0
+/opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 && sha256sum ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0'
+```
+
+Windows (PowerShell, not elevated):
+
+```powershell
+$d = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ("codex-host-" + [guid]::NewGuid())); Set-Location $d; npm pack --ignore-scripts "@openai/codex@0.161.0-linux-x64"; tar -xzf openai-codex-0.161.0-linux-x64.tgz; Get-FileHash -Algorithm SHA256 package/vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host
+podman machine cp package/vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host aios-podman-noshare:/var/home/core/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0
+podman machine ssh aios-podman-noshare 'chmod 600 ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 && sha256sum ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0'
+```
+
+Both owner coding admission records then need re-approval. The new pin
+`codeModeHostSha256` is part of the record, and the coding guest program,
+and with it `policySha256`, changed.
+
 ## Running it
 
 Both owner records must name their workers' fresh pins. If either does not, the

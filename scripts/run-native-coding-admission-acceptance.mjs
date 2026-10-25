@@ -27,7 +27,13 @@ const usage =
   "Usage: node scripts/run-native-coding-admission-acceptance.mjs <aios-machine> <owner-admission.json> <new-report.json> --approve-offline-native-run";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
-const pinFields = ["cliVersion", "cliSha256", "policySha256", "bindingSha256"];
+const pinFields = [
+  "cliVersion",
+  "cliSha256",
+  "codeModeHostSha256",
+  "policySha256",
+  "bindingSha256",
+];
 const samePins = (a, b) => pinFields.every((field) => a[field] === b[field]);
 
 /** A disposable repository with synthetic onboarding facts and policy. */

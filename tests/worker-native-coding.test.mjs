@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
 import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
 import { boundaryProbe, boundaryProbeNames } from "../dist/worker-probes.js";
+import { hostTargets } from "../dist/host-target.js";
 import {
   realTemporaryDirectory,
   realSpawnSync,
@@ -37,6 +38,7 @@ test("native coding transport stays outside controlled production admission", as
         {
           cliVersion: "0.161.0",
           cliSha256: "c".repeat(64),
+          codeModeHostSha256: "b".repeat(64),
           policySha256: "d".repeat(64),
           bindingSha256: "e".repeat(64),
         },
@@ -77,6 +79,10 @@ test("native inspection independently binds each supported host and the guest ex
       const first = await transport.inspect(session);
       assert.equal(first.cliVersion, "0.161.0");
       assert.match(first.cliSha256, /^[a-f0-9]{64}$/);
+      assert.equal(
+        first.codeModeHostSha256,
+        hostTargets[platform].codeModeHostSha256,
+      );
       assert.match(first.policySha256, /^[a-f0-9]{64}$/);
       assert.match(first.bindingSha256, /^[a-f0-9]{64}$/);
       assert.equal(fixture.requests[0].action, "inspect");
@@ -385,6 +391,7 @@ function controllerLossFixture(mode = "valid", selectedTimer = "lease") {
   const pins = {
     cliVersion: "0.161.0",
     cliSha256: "a".repeat(64),
+    codeModeHostSha256: "e".repeat(64),
     policySha256: "b".repeat(64),
     bindingSha256: "c".repeat(64),
   };
@@ -631,6 +638,94 @@ test(
     assert.equal(
       (await transport.collect(session)).files[0].bytes.toString(),
       "after\n",
+    );
+  },
+);
+
+test(
+  "the pinned code-mode host is copied into the session and mounted read-only beside Codex",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t);
+    await transport.run(
+      await launchRequest(transport, { allowanceMs: 60000 }),
+      () => {},
+    );
+    const mounts = read().container.Mounts;
+    const host = mounts.find((m) => m.Destination === "/codex-code-mode-host");
+    assert.equal(host.RW, false);
+    const codex = mounts.find((m) => m.Destination === "/codex");
+    assert.equal(
+      host.Source.replace(/\/[^/]*$/, ""),
+      codex.Source.replace(/\/[^/]*$/, ""),
+    );
+    assert.equal(
+      realReadFileSync(host.Source, "utf8"),
+      "synthetic-code-mode-host",
+    );
+    assert.equal(mounts.length, 4);
+  },
+);
+
+for (const hostArtifact of ["missing", "foreign", "group-readable"])
+  test(
+    `a ${hostArtifact} code-mode host refuses at inspection, before any worker exists`,
+    posixGuest,
+    async (t) => {
+      const { transport, read } = guestFixture(t, { hostArtifact });
+      await assert.rejects(transport.inspect(session));
+      await assert.rejects(async () =>
+        transport.run(
+          await launchRequest(transport, { allowanceMs: 60000 }),
+          () => {},
+        ),
+      );
+      assert.equal(
+        read().commands.some((args) => args[1] === "create"),
+        false,
+      );
+    },
+  );
+
+test(
+  "a session copy of the code-mode host changed before launch is refused before start",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t, { tamperHostCopy: true });
+    const request = await launchRequest(transport, { allowanceMs: 60000 });
+    await assert.rejects(transport.run(request, () => {}));
+    assert.equal(
+      read().commands.some((args) => args[1] === "start"),
+      false,
+    );
+  },
+);
+
+test(
+  "a worker created without the code-mode host mount is refused before start",
+  posixGuest,
+  async (t) => {
+    const { transport, read } = guestFixture(t, { dropHostMount: true });
+    const request = await launchRequest(transport, { allowanceMs: 60000 });
+    await assert.rejects(transport.run(request, () => {}));
+    assert.equal(
+      read().commands.some((args) => args[1] === "start"),
+      false,
+    );
+  },
+);
+
+test(
+  "a code-mode host replaced after inspection refuses before the worker is created",
+  posixGuest,
+  async (t) => {
+    const { transport, read, write } = guestFixture(t);
+    const request = await launchRequest(transport, { allowanceMs: 60000 });
+    write({ ...read(), hostArtifact: "foreign" });
+    await assert.rejects(transport.run(request, () => {}));
+    assert.equal(
+      read().commands.some((args) => args[1] === "create"),
+      false,
     );
   },
 );

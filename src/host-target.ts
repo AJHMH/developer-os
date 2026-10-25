@@ -15,6 +15,9 @@ export const hostTargets = {
       "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
     codexWorkerSha256:
       "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+    // The same official package's bin/codex-code-mode-host (ADR 0002 amendment).
+    codeModeHostSha256:
+      "e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b",
     nativeCodexSha256:
       "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
     commandMs: 10_000,
@@ -35,6 +38,8 @@ export const hostTargets = {
       "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
     codexWorkerSha256:
       "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
+    codeModeHostSha256:
+      "64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0",
     nativeCodexSha256:
       "12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de",
     commandMs: 30_000,
@@ -130,6 +135,12 @@ export function codexWorkerSha256(
   arch: string,
 ): string | undefined {
   return hostTarget(platform, arch)?.codexWorkerSha256;
+}
+export function codeModeHostSha256(
+  platform: string,
+  arch: string,
+): string | undefined {
+  return hostTarget(platform, arch)?.codeModeHostSha256;
 }
 export const qualificationCheckNames = [
   "hostBinding",

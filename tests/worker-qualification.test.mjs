@@ -13,6 +13,7 @@ const image = "c".repeat(64);
 const codingPins = {
   cliVersion: "0.161.0",
   cliSha256: "1".repeat(64),
+  codeModeHostSha256: "6".repeat(64),
   policySha256: "2".repeat(64),
   bindingSha256: "3".repeat(64),
 };
