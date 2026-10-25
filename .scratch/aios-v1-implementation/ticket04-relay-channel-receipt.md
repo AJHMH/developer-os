@@ -135,13 +135,34 @@ controller's turns stay offline.
       revoking twice.
     - **Bridge:** keeping the gateway on loss; ignoring request order;
       admitting non-UTF-8; unbounded chunks.
-- **Full local suite on `201bce6`: 1,210 tests, 1,207 pass, 0 fail,
-  3 skipped,** in 225 s. It ran with the Mac settings from `ticket04-gateway-shape-receipt.md`.
+- **Full local suite on `201bce6`, with the CI fixes below: 1,217 tests,
+  1,214 pass, 0 fail, 3 skipped,** in 221 s. It ran with the Mac settings from `ticket04-gateway-shape-receipt.md`.
   Formatting is clean (`prettier --check`).
 - **Factory coverage gate:** not run on this Mac for this change. The last
   two gate runs (step 3a) ended at load-sensitive 5-second Python checks,
   with every stage within a few seconds of its 240 s limit. CI's Factory
   coverage check is the verdict.
+
+## CI on the first push (`5695018`), fixed
+
+- **Windows CLI tests.** Two relay tests failed with an unhandled
+  `read ECONNRESET`. In both, the relay exits on purpose while a client
+  connection is open, and Windows reports a reset where POSIX reports a
+  close. Those exchanges now accept either.
+- **Factory coverage.** Lines passed. Changed branches were 84/93 (90.3%)
+  against a 90% bar. Global branch coverage was 6,065/6,517 (93.06%), below
+  the 93.11% baseline, and no decrease is allowed. All 9 uncovered branches
+  were refusal or edge paths in the new code. New host-side tests now cover
+  each one:
+  - a ready frame without `ready: true`;
+  - a ready frame on another session, or bound to another VM;
+  - a release bound to another VM;
+  - authority withdrawn just before the relay opens;
+  - the bridge waiting on `drain`, and leaving no listeners afterwards;
+  - frames arriving after the relay is lost;
+  - an oversized line that ends in a newline;
+  - a ready frame that isn't an object.
+- **The two human-approval checks** need a current-head human review.
 
 ## Review
 

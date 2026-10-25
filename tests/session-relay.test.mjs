@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import net from "node:net";
-import { PassThrough } from "node:stream";
+import { PassThrough, Writable } from "node:stream";
 import { test } from "node:test";
 import {
   sessionRelayLimits,
@@ -81,6 +81,13 @@ function exchange(port, raw) {
     socket.end(raw);
   });
 }
+/** An exchange the relay cuts by exiting: Windows reports a reset where
+ * POSIX reports a close, and either ends the connection. */
+const severed = (pending) =>
+  pending.catch((error) => {
+    if (error.code !== "ECONNRESET") throw error;
+    return Buffer.alloc(0);
+  });
 /** A request with the session's headers; `null` drops one, an array repeats it. */
 function request({
   method = "POST",
@@ -217,7 +224,7 @@ test("a host refusal is an empty 403, a failure mid-stream ends the response, an
   const { head, body: cut } = split(await partial);
   assert.match(head, /^HTTP\/1\.1 200 /);
   assert.equal(cut.toString(), "data: one\n\n");
-  const stray = exchange(r.port, request());
+  const stray = severed(exchange(r.port, request()));
   assert.equal((await r.next()).request, 3);
   r.send({ request: 4, end: true });
   assert.equal(await r.exited, 1);
@@ -248,7 +255,7 @@ test("a malformed request line gets no answer but a 403, and a worker that hangs
 
 test("a host silent past the response gap ends the relay", async (t) => {
   const r = await relay(t, { responseGapMs: 200 });
-  const waiting = exchange(r.port, request());
+  const waiting = severed(exchange(r.port, request()));
   assert.equal((await r.next()).request, 1);
   assert.equal(await r.exited, 1);
   await waiting;
@@ -393,6 +400,10 @@ for (const [name, misbehave] of [
     "an endless line",
     (c) => c.stdout.write("x".repeat(sessionRelayLimits.frameChars + 1)),
   ],
+  [
+    "an oversized line",
+    (c) => c.stdout.write("x".repeat(sessionRelayLimits.frameChars + 1) + "\n"),
+  ],
   ["unbounded diagnostics", (c) => c.stderr.write(Buffer.alloc(1048577))],
   ["the channel closing", (c) => c.emit("close", 0)],
   ["a channel error", (c) => c.emit("error", Error("lost"))],
@@ -411,6 +422,12 @@ for (const [name, misbehave] of [
     misbehave(child);
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(relay.lost, true);
+    // A frame arriving once the relay is lost is ignored.
+    const calls = hold.calls.length;
+    child.emit_(requestFrame(1));
+    child.emit_(requestFrame(2));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(hold.calls.length, calls);
     assert.deepEqual(hold.revoked, ["stopped"]);
     assert.ok(child.kills >= 1);
     assert.ok(
@@ -461,4 +478,44 @@ test("a relay that never reports ready is refused and killed at its deadline", a
   const opening = openSessionRelay(closed, deliveryId, g, 5000);
   closed.emit("close", 1);
   await assert.rejects(opening);
+  const listed = channel();
+  const malformed = openSessionRelay(listed, deliveryId, g, 5000);
+  listed.emit_([ready]);
+  await assert.rejects(malformed);
+  assert.ok(listed.kills >= 1);
+});
+
+test("a full channel waits for drain, and keeps no listeners afterwards", async () => {
+  const large = Buffer.alloc(4 * sessionRelayLimits.chunkBytes, 0x61);
+  const g = gateway(async () => [large]);
+  const child = channel();
+  // A pipe that takes one frame at a time, as a slow ssh channel would.
+  const written = [];
+  child.stdin = new Writable({
+    highWaterMark: 1,
+    write(bytes, _encoding, done) {
+      written.push(bytes.toString());
+      setTimeout(done, 2);
+    },
+  });
+  const opening = openSessionRelay(child, deliveryId, g, 5000);
+  child.emit_(ready);
+  await opening;
+  child.emit_(requestFrame(1));
+  while (!written.join("").includes('"end":true'))
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  const frames = written
+    .join("")
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l));
+  assert.equal(frames.length, 5);
+  assert.deepEqual(
+    Buffer.concat(
+      frames.slice(0, 4).map((f) => Buffer.from(f.chunk, "base64")),
+    ),
+    large,
+  );
+  assert.equal(child.stdin.listenerCount("drain"), 0);
+  assert.equal(child.listenerCount("close"), 1);
 });

@@ -2,6 +2,8 @@
 // against the external guest simulator. No VM, provider or credential.
 import assert from "node:assert/strict";
 import net from "node:net";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
@@ -323,4 +325,137 @@ test("a route needs a gateway, a gateway needs a route, and the two capabilities
     fixture.requests.some((r) => r.action !== "inspect"),
     false,
   );
+});
+
+/** A channel that answers its program with one scripted ready frame. */
+function scriptedChannel(frame, opened) {
+  return () => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.stdin = new PassThrough();
+    child.kills = 0;
+    child.kill = () => {
+      child.kills++;
+      queueMicrotask(() => child.emit("close", null));
+      return true;
+    };
+    child.stdin.once("data", (line) => {
+      const source = Buffer.from(String(line), "base64").toString();
+      const request = JSON.parse(
+        Buffer.from(
+          source.match(/b64decode\('([^']+)'\)/)[1],
+          "base64",
+        ).toString(),
+      );
+      child.stdout.write(JSON.stringify(frame(request)) + "\n");
+    });
+    opened.push(child);
+    return child;
+  };
+}
+const guestAnswer = (binding) => (r) => ({
+  session: r.session,
+  binding,
+  cliSha256: r.cliSha256,
+  ...(r.action === "poll" ? { running: false, exitCode: 0, output: "" } : {}),
+  ...(r.action === "stop" ? { stopped: true, remainingProcesses: 0 } : {}),
+});
+const otherHost = { ...observation, hostId: "3".repeat(64) };
+
+for (const [name, frame, release, rejected] of [
+  [
+    "a relay that does not report ready",
+    (r) => ({
+      session: r.session,
+      binding: observation,
+      cliSha256: r.cliSha256,
+    }),
+    observation,
+    /Native coding relay unavailable/,
+  ],
+  [
+    "a relay on another session",
+    (r) => ({
+      session: { ...r.session, fence: 9 },
+      binding: observation,
+      cliSha256: r.cliSha256,
+      ready: true,
+    }),
+    observation,
+    /Native coding binding changed/,
+  ],
+  [
+    "a relay bound to another VM",
+    (r) => ({
+      session: r.session,
+      binding: otherHost,
+      cliSha256: r.cliSha256,
+      ready: true,
+    }),
+    observation,
+    /Native coding binding changed/,
+  ],
+  [
+    "a release bound to another VM",
+    (r) => ({
+      session: r.session,
+      binding: observation,
+      cliSha256: r.cliSha256,
+      ready: true,
+    }),
+    otherHost,
+    /Native coding binding changed/,
+  ],
+])
+  test(`${name} is refused, the relay closed and the session stopped`, async (t) => {
+    const opened = [];
+    const fixture = nativeHost(
+      t,
+      (r) => guestAnswer(r.action === "release" ? release : observation)(r),
+      "darwin",
+      scriptedChannel(frame, opened),
+    );
+    const transport = new NativePodmanCodingTransport(
+      "aios-test",
+      "a".repeat(64),
+    );
+    const g = gateway();
+    await assert.rejects(
+      transport.run(await routed(transport), () => {}, g),
+      rejected,
+    );
+    assert.equal(opened.length, 1);
+    assert.ok(opened[0].kills >= 1);
+    assert.deepEqual(g.revoked, ["stopped"]);
+    const actions = fixture.requests.map((r) => r.action);
+    assert.equal(actions.includes("release"), release !== observation);
+    assert.equal(actions.at(-2), "stop");
+  });
+
+test("authority withdrawn after launch opens no relay and still stops the session", async (t) => {
+  const opened = [];
+  const fixture = nativeHost(
+    t,
+    guestAnswer(observation),
+    "darwin",
+    scriptedChannel(() => ({}), opened),
+  );
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const g = gateway();
+  const launched = () => fixture.requests.some((r) => r.action === "launch");
+  await assert.rejects(
+    transport.run(
+      await routed(transport, { mayDispatch: () => !launched() }),
+      () => {},
+      g,
+    ),
+    /Native coding authority changed/,
+  );
+  assert.equal(opened.length, 0);
+  assert.deepEqual(g.revoked, ["stopped"]);
+  assert.ok(fixture.requests.some((r) => r.action === "stop"));
 });
