@@ -516,6 +516,10 @@ test("a full channel waits for drain, and keeps no listeners afterwards", async 
     ),
     large,
   );
+  // The end frame's own write still waits for drain; let it finish.
+  for (let i = 0; i < 100 && child.stdin.listenerCount("drain"); i++)
+    await new Promise((resolve) => setTimeout(resolve, 5));
   assert.equal(child.stdin.listenerCount("drain"), 0);
+  // Only the bridge's own close watch remains: no write left one behind.
   assert.equal(child.listenerCount("close"), 1);
 });
