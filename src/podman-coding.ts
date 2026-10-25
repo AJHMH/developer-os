@@ -493,8 +493,10 @@ else:
     if not record['group'] and c['State'].get('Status') not in ['created','configured']: fail()
    elif exists.returncode!=1: fail()
    if not gone(record): fail()
-   if record.get('lease'): stop_timers()
+   # The worker is gone, so the headroom now goes to these records. A worker
+   # that exited before the disk filled never reached the early release above.
    reserve(False)
+   if record.get('lease'): stop_timers()
    record['phase']='stopped';save(recordPath,record)
    # Restore headroom for the next session when collection leaves room.
    try: reserve(True)
