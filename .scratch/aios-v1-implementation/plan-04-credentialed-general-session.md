@@ -128,7 +128,8 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
 3. **Model-only mode in the guest**, in two parts:
    - **3a (done; see `ticket04-model-route-binding-receipt.md`):** the
      request, argv and environment binding.
-   - **3b:** the relay channel. The host opens a long-lived
+   - **3b (done; see `ticket04-relay-channel-receipt.md`):** the relay
+     channel. The host opens a long-lived
      `podman machine ssh` relay for the turn, frames each request to
      `GeneralSessionGateway.respond`, and streams the reply back. A separate
      `release` action lets Codex start only after the relay is ready. Losing

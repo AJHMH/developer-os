@@ -12,7 +12,9 @@ real_popen = subprocess.Popen
 real_read = pathlib.Path.read_text
 real_exists = pathlib.Path.exists
 real_rglob = pathlib.Path.rglob
-source = sys.stdin.read()
+# A management channel sends its program as one base64 line, then frames.
+channel = sys.argv[2:] == ['--channel']
+source = base64.b64decode(sys.stdin.readline()).decode() if channel else sys.stdin.read()
 namespace = {}
 exec(source.split('\n', 2)[0] + '\n' + source.split('\n', 2)[1], namespace)
 request = namespace['R']
@@ -24,6 +26,18 @@ if request['action'] == 'prepare' and state.get('promptOption'):
     request['argv'][-1] = '-cmodel="gpt-other"'
 if request['action'] == 'prepare' and state.get('routeDrift'):
     request['modelRoute']['capability'] = 'x'
+if request['action'] == 'relay' and state.get('relayCapabilityDrift'):
+    request['capability'] = 'f' * 64
+if channel:
+    state['channelPid'] = os.getpid()
+if request['action'] == state.get('relayForged'):
+    # At release, another process holds the listener's pid: its start differs.
+    # At a poll, the listener's record has gone.
+    path = root / '.local/state/aios-coding-v1' / (request['name'] + '.json')
+    saved = json.loads(path.read_text())
+    if request['action'] == 'release': saved['relay']['listener']['start'] = '0'
+    else: saved['relay'].pop('listener', None)
+    path.write_text(json.dumps(saved))
 if request['action'] == 'launch' and state.get('launchProvenanceDrift'):
     request['admission'] = {'sourceRevision': 'f'*40, 'branch': 'codex/foreign', 'inputSha256': '0'*64}
 artifact = root / '.local/state/aios-offline-v1/codex-0.161.0'
@@ -59,8 +73,19 @@ def set_alive(c, value):
     c['FixtureAlive'] = value
     if c is state['container']: state['alive'] = value
 
+def relay_running(pid):
+    # A lost channel's relay still looks alive to the guest, except to stop.
+    if state.get('loseRelay') and request['action'] != 'stop': return True
+    try: os.kill(pid, 0)
+    except ProcessLookupError: return False
+    return True
+
 def read_text(path, *args, **kwargs):
     p = str(path)
+    relay = re.fullmatch(r'/proc/(\d+)/stat', p)
+    if relay and int(relay[1]) in state.get('relayPids', []):
+        if not relay_running(int(relay[1])): raise FileNotFoundError(p)
+        return relay[1] + ' (python3) ' + ' '.join(['S'] + ['0'] * 18 + ['777'])
     if p.endswith('/sys_vendor'): return 'Apple Inc.'
     if p.endswith('/product_name'): return 'Apple Virtualization Generic Platform'
     if p == '/etc/machine-id': return state.get('machineId', '0123456789abcdef0123456789abcdef') + '\n'
@@ -210,6 +235,8 @@ def run(args, **kwargs):
             workspace = next(m['Source'] for m in c['Mounts'] if m['Destination'] == '/workspace')
             (pathlib.Path(workspace) / 'index.html').write_bytes(b'after\n')
         elif action == 'logs':
+            if (root / 'codex-exit').exists():
+                c['State'].update(Running=False, Pid=0, Status='exited', ExitCode=1);set_alive(c, False)
             output = ((json.dumps({'type':'thread.started','thread_id':state['threadId']})+'\n').encode() if state.get('threadId') else b'') + b'{"type":"turn.failed"}\n'
             state['polls'] = state.get('polls',0) + 1
             if state.get('stopAfterPolls') and state['polls'] >= state['stopAfterPolls']:
@@ -267,11 +294,28 @@ real_killpg = os.killpg
 owned_groups = set()
 def killpg(pid, sig):
     if pid == 2147483647: raise ProcessLookupError(pid)
-    if pid not in owned_groups: raise AssertionError("Unowned process group")
+    if pid not in owned_groups and pid not in state.get('relayPids', []): raise AssertionError("Unowned process group")
     return real_killpg(pid, sig)
 os.killpg = killpg
 
 def popen(args, **kwargs):
+    if args[:3] == ['/usr/bin/podman', 'unshare', 'nsenter']:
+        # The session relay, run for real but outside any namespace, on a free
+        # port that it reports in a file; the guest still sees the fixed port.
+        state['commands'].append(['podman', *args[1:-1], '<relay source>'])
+        relay = args[-1]
+        for old, new in [
+            ("if C.get('netns') is not None and os.stat('/proc/self/ns/net').st_ino!=os.stat(C['netns']).st_ino: os._exit(1)\n", ''),
+            ("server=Server(('127.0.0.1',C['port']),Handler)", "server=Server(('127.0.0.1',0),Handler);open(" + repr(str(root / 'relay-port')) + ",'w').write(str(server.server_address[1]))"),
+            ("'port':server.server_address[1]", "'port':C['port']"),
+        ]:
+            if relay.count(old) != 1: raise AssertionError('relay source changed')
+            relay = relay.replace(old, new)
+        child = real_popen([sys.executable, '-I', '-u', '-c', relay], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+        owned_groups.add(child.pid)
+        state.setdefault('relayPids', []).append(child.pid)
+        state_path.write_text(json.dumps(state))
+        return child
     if state.get('hungObservation') and args[:2] == ['/usr/bin/podman', 'info']:
         child = real_popen([sys.executable, '-c', 'import time;time.sleep(30)'], **kwargs)
         owned_groups.add(child.pid)
@@ -300,9 +344,31 @@ def guest_unlink(path, *args, **kwargs):
 os.open = guest_open
 os.unlink = guest_unlink
 import io, contextlib
+if channel:
+    # The first line is the action's result; later lines are relay frames.
+    class Frames:
+        def __init__(self): self.pending = ''
+        def write(self, text):
+            if self.pending is None: sys.__stdout__.write(text)
+            else:
+                self.pending += text
+                if '\n' in self.pending:
+                    line, rest = self.pending.split('\n', 1)
+                    observed = json.loads(line); observed['cliSha256'] = official_pin
+                    sys.__stdout__.write(json.dumps(observed) + '\n' + rest); self.pending = None
+            sys.__stdout__.flush()
+        def flush(self): sys.__stdout__.flush()
+    sys.stdout = Frames()
+    exec(source.split('\n', 2)[2], {'R': request})
+    sys.exit(0)
 output = io.StringIO()
 with contextlib.redirect_stdout(output):
     exec(source.split('\n', 2)[2], {'R': request})
 observed = json.loads(output.getvalue())
 observed['cliSha256'] = official_pin
+if request['action'] == 'release' and state.get('loseRelay'):
+    # The relay, or the channel carrying it, ends after Codex is released.
+    for pid in state.get('relayPids', []) if state['loseRelay'] == 'relay' else [state['channelPid']]:
+        try: (real_killpg if state['loseRelay'] == 'relay' else os.kill)(pid, 9)
+        except ProcessLookupError: pass
 print(json.dumps(observed))

@@ -8,6 +8,7 @@ import {
   type CodingPins,
   type CodingCollection,
   type CodingRequest,
+  type ModelRoute,
   type CodingSession,
   type IsolatedCodingTransport,
   type ResumeReconciliation,
@@ -15,6 +16,7 @@ import {
 import {
   managementBindingSha256,
   managementHost,
+  openManagementChannel,
   runManagement,
   validGuestBinding,
 } from "./native-management.js";
@@ -24,6 +26,13 @@ import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
 import { codeModeHostSha256 } from "./host-target.js";
 import { gatewayModel } from "./inference-contract.js";
 import { boundaryProbe, boundaryProbeOutcomes } from "./worker-probes.js";
+import {
+  openSessionRelay,
+  sessionRelayLimits,
+  sessionRelaySource,
+  type SessionGateway,
+  type SessionRelay,
+} from "./session-relay.js";
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -45,7 +54,7 @@ const armTemplate =
 /** Trusted VM management source. Requests are JSON data, never generated commands.
  * This separate offline scope cannot reuse fixed-worker credentials/qualification. */
 const management = String.raw`
-import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time
+import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time,sys,threading,select
 
 def fail(): raise RuntimeError('Native coding observation unavailable')
 # The fixed boundary probe (src/worker-probes.ts), part of this program's pin.
@@ -135,6 +144,8 @@ def snapshot():
  return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],template=R['template'],hostId=h(machine_id.encode()))
 
 import fcntl,uuid,base64,re,time,shutil
+# The session relay (src/session-relay.ts), part of this program's pin.
+RELAY=base64.b64decode('${Buffer.from(sessionRelaySource).toString("base64")}').decode()
 
 def directory(path):
  os.makedirs(path,mode=0o700,exist_ok=True)
@@ -288,6 +299,55 @@ def effective(c,live):
  if live:
   values={x.split(':',1)[0]:x.split(':',1)[1].strip() for x in pathlib.Path('/proc/'+str(c['State']['Pid'])+'/status').read_text().splitlines() if ':' in x}
   if values.get('NoNewPrivs')!='1' or values.get('Seccomp')!='2' or int(values.get('CapEff','f'),16)!=0: fail()
+
+def started(pid):
+ # A process's start time, or None once it has exited.
+ fields=pathlib.Path('/proc/'+str(pid)+'/stat').read_text().rsplit(')',1)[1].split()
+ return None if fields[0] in ['Z','X'] else fields[19]
+def running(p):
+ try: return started(p['pid'])==p['start']
+ except FileNotFoundError: return False
+def relay_processes(relay):
+ # The process group's leader, and the listener it reported once ready.
+ return [p for p in [relay,relay.get('listener')] if isinstance(p,dict)]
+def relay_alive(relay):
+ return isinstance(relay,dict) and not relay.get('stopped') and 'listener' in relay and all(running(p) for p in relay_processes(relay))
+def kill_relay():
+ relay=record.get('relay') if record else None
+ if not isinstance(relay,dict) or relay.get('stopped'): return
+ for p in relay_processes(relay):
+  if running(p):
+   try: (os.killpg if p is relay else os.kill)(p['pid'],signal.SIGKILL)
+   except ProcessLookupError: pass
+def stop_relay():
+ relay=record.get('relay')
+ if not isinstance(relay,dict) or relay.get('stopped'): return
+ kill_relay()
+ for _ in range(50):
+  if not any(running(p) for p in relay_processes(relay)): break
+  time.sleep(0.1)
+ else: fail()
+ relay['stopped']=True;save(recordPath,record)
+def pump(relay):
+ # Host frames in, relay frames out, each bounded; either end ending ends both.
+ def end():
+  try: os.killpg(relay.pid,signal.SIGKILL)
+  except ProcessLookupError: pass
+ def inbound():
+  try:
+   for line in sys.stdin:
+    if len(line)>${sessionRelayLimits.frameChars}: break
+    relay.stdin.write(line.encode('ascii'));relay.stdin.flush()
+  except (OSError,ValueError): pass
+  end()
+ threading.Thread(target=inbound,daemon=True).start()
+ try:
+  while True:
+   line=relay.stdout.readline(${sessionRelayLimits.frameChars}+1)
+   if not line.endswith(b'\n') or len(line)>${sessionRelayLimits.frameChars}: break
+   sys.stdout.write(line.decode('ascii'));sys.stdout.flush()
+ finally:
+  end();relay.wait()
 
 def path_ok(path):
  parts=path.split('/')
@@ -469,6 +529,8 @@ else:
    effective(container(),False)
    record['phase']='prepared';save(recordPath,record)
   elif R['action']=='stop':
+   # The relay goes first; its end is checked below.
+   kill_relay()
    if record is None:
     record=dict(identity=identity,binding={},phase='revoked',group='',pids={})
    # Fence when the disk allows; a full disk must never prevent shutdown.
@@ -496,6 +558,7 @@ else:
    # The worker is gone, so the headroom now goes to these records. A worker
    # that exited before the disk filled never reached the early release above.
    reserve(False)
+   stop_relay()
    if record.get('lease'): stop_timers()
    record['phase']='stopped';save(recordPath,record)
    # Restore headroom for the next session when collection leaves room.
@@ -524,10 +587,49 @@ else:
     if not record['pids']: fail()
     effective(c,True)
     lease(True)
+    # Running, but Codex still waits: release is a separate action.
     record['phase']='running';save(recordPath,record)
+   elif R['action']=='relay':
+    # One relay per routed session, started before Codex is released, inside
+    # the worker's network namespace. It is recorded before it can listen.
+    route=record['admission'].get('modelRoute')
+    if record['phase']!='running' or record.get('released') or 'relay' in record or not route or not isinstance(R.get('capability'),str) or h(R['capability'].encode())!=route['capabilitySha256']: fail()
+    c=container()
+    if not c['State'].get('Running') or group(c['State']['Pid'])!=record['group']: fail()
+    effective(c,True)
+    relayProcess=subprocess.Popen(['/usr/bin/podman','unshare','nsenter','--net=/proc/'+str(c['State']['Pid'])+'/ns/net','/usr/bin/python3','-I','-u','-c',RELAY],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,start_new_session=True)
+    try:
+     record['relay']=dict(pid=relayProcess.pid,start=started(relayProcess.pid),capabilitySha256=route['capabilitySha256']);save(recordPath,record)
+     if not record['relay']['start']: fail()
+     relayProcess.stdin.write((json.dumps(dict(port=${modelRoutePort},netns='/proc/'+str(c['State']['Pid'])+'/ns/net',deliveryId=route['deliveryId'],capability=R['capability'],model='${gatewayModel}',requestBytes=${sessionRelayLimits.requestBytes},responseGapMs=${sessionRelayLimits.responseGapMs}))+'\n').encode());relayProcess.stdin.flush()
+     if not select.select([relayProcess.stdout],[],[],15)[0]: fail()
+     ready=json.loads(relayProcess.stdout.readline(4097))
+     if not isinstance(ready,dict) or set(ready)!={'ready','port','pid'} or ready['ready'] is not True or ready['port']!=${modelRoutePort} or type(ready['pid']) is not int: fail()
+     # The listener itself, which podman may run apart from the leader.
+     record['relay']['listener']=dict(pid=ready['pid'],start=started(ready['pid']))
+     if not record['relay']['listener']['start']: fail()
+     save(recordPath,record)
+    except BaseException:
+     try: os.killpg(relayProcess.pid,signal.SIGKILL)
+     except ProcessLookupError: pass
+     raise
+    result=dict(ready=True)
+   elif R['action']=='release':
+    # Codex starts only now. A routed session's relay must be the live one
+    # this session started; an offline session has none.
+    if record['phase']!='running' or record.get('released'): fail()
+    c=container()
+    if not c['State'].get('Running') or group(c['State']['Pid'])!=record['group']: fail()
+    effective(c,True)
+    route=record['admission'].get('modelRoute')
+    if route and (not relay_alive(record.get('relay')) or record['relay'].get('capabilitySha256')!=route['capabilitySha256']): fail()
+    if not route and 'relay' in record: fail()
+    record['released']=True;save(recordPath,record)
     pod('exec',R['name'],'touch','/tmp/launch')
    elif R['action']=='poll':
     if record['phase']!='running': fail()
+    # A released routed session needs its relay for as long as it runs.
+    if record['admission'].get('modelRoute') and record.get('released') and not relay_alive(record.get('relay')): fail()
     c=container()
     if c['State'].get('Running'):
      if group(c['State']['Pid'])!=record['group']: fail()
@@ -662,7 +764,8 @@ else:
      entry['cleaned']=True;save(path,entry)
     result=dict(cleaned=len(lineage))
    else: fail()
-print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha256'],**(result if 'result' in globals() else {}),**(dict(stopped=True,remainingProcesses=0) if R['action']=='stop' else {}))))
+print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha256'],**(result if 'result' in globals() else {}),**(dict(stopped=True,remainingProcesses=0) if R['action']=='stop' else {}))),flush=True)
+if R['action']=='relay': pump(relayProcess)
 
 `;
 
@@ -716,11 +819,11 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       throw Error("Invalid native coding authority");
     Object.freeze(this);
   }
-  private async invoke(
+  /** The guest request for `action`, bound to the host it will run on. */
+  private request(
     action: string,
     session: CodingSession,
     payload: Record<string, unknown> = {},
-    permit?: () => boolean,
   ) {
     if (
       !/^[a-f0-9-]{36}$/.test(session.operationId) ||
@@ -745,14 +848,18 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       codeModeHostSha256: hostSha256,
       ...payload,
     };
-    const result: unknown = await runManagement(
+    return { managed, request, session, cliSha256, hostSha256 };
+  }
+  /** The pins a guest result binds, or a refusal if it names anything else. */
+  private bind(
+    {
       managed,
-      request,
-      management,
-      "coding",
-      action,
-      permit,
-    );
+      session,
+      cliSha256,
+      hostSha256,
+    }: ReturnType<NativePodmanCodingTransport["request"]>,
+    result: unknown,
+  ) {
     if (
       !record(result) ||
       !validGuestBinding(managed, result.binding) ||
@@ -773,11 +880,58 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     };
     return { result, pins };
   }
+  private async invoke(
+    action: string,
+    session: CodingSession,
+    payload: Record<string, unknown> = {},
+    permit?: () => boolean,
+  ) {
+    const bound = this.request(action, session, payload);
+    const result: unknown = await runManagement(
+      bound.managed,
+      bound.request,
+      management,
+      "coding",
+      action,
+      permit,
+    );
+    return this.bind(bound, result);
+  }
+  /** Opens the session relay channel and bridges it to `gateway`. It is
+   * ready, and bound to the same pins, before Codex may be released. */
+  private async relay(
+    session: CodingSession,
+    route: ModelRoute,
+    gateway: SessionGateway,
+  ) {
+    const bound = this.request("relay", session, {
+      capability: route.capability,
+    });
+    const { ready, relay } = await openSessionRelay(
+      openManagementChannel(bound.managed, bound.request, management),
+      route.deliveryId,
+      gateway,
+    );
+    try {
+      const { result, pins } = this.bind(bound, ready);
+      if (result.ready !== true) throw Error("Native coding relay unavailable");
+      return { relay, pins };
+    } catch (error) {
+      relay.close();
+      throw error;
+    }
+  }
   async inspect(session: CodingSession): Promise<CodingPins> {
     // Callers may pass a whole launch request; only its identity crosses.
     return (await this.invoke("inspect", this.session(session))).pins;
   }
-  async run(request: NativeCodingRequest, stdout: (bytes: Buffer) => void) {
+  /** A routed turn needs the session's `gateway`, which stays on the host;
+   * an offline turn has none. */
+  async run(
+    request: NativeCodingRequest,
+    stdout: (bytes: Buffer) => void,
+    gateway?: SessionGateway,
+  ) {
     const resuming = request.intent === "resume";
     if (
       resuming
@@ -801,7 +955,16 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     )
       throw Error("Unsupported native coding resume");
     const route = request.modelRoute;
-    if (route !== undefined && !validModelRoute(route))
+    if (
+      (route !== undefined && !validModelRoute(route)) ||
+      (route === undefined) !== (gateway === undefined) ||
+      (gateway !== undefined &&
+        (typeof gateway.respond !== "function" ||
+          typeof gateway.revoke !== "function" ||
+          typeof gateway.capability !== "string" ||
+          // The relay's capability is its own, never the gateway's.
+          gateway.capability === route!.capability))
+    )
       throw Error("Unsupported native coding launch");
     const prefix = lockedCodingArgv(
       resuming ? request.threadId : undefined,
@@ -882,7 +1045,19 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       unchanged() && gate() && unchanged();
     const expected = JSON.stringify(prepared.pins);
     const deadline = performance.now() + request.allowanceMs;
-    let touched = false;
+    let touched = false,
+      relay: SessionRelay | undefined,
+      revoked = false;
+    // The gateway is revoked once, by whichever ends the turn first.
+    const revoke = () => {
+      if (!revoked) gateway?.revoke("stopped");
+      revoked = true;
+    };
+    const bridged: SessionGateway | undefined = gateway && {
+      capability: gateway.capability,
+      respond: (...request) => gateway.respond(...request),
+      revoke,
+    };
     try {
       const observed = await this.invoke("inspect", session);
       if (JSON.stringify(observed.pins) !== expected || !permit(mayDispatch))
@@ -928,8 +1103,26 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       );
       if (JSON.stringify(launched.pins) !== expected)
         throw Error("Native coding binding changed");
+      if (route) {
+        if (performance.now() >= deadline || !permit(mayDispatch))
+          throw Error("Native coding authority changed");
+        const opened = await this.relay(session, route, bridged!);
+        relay = opened.relay;
+        if (JSON.stringify(opened.pins) !== expected)
+          throw Error("Native coding binding changed");
+      }
+      const released = await this.invoke(
+        "release",
+        session,
+        {},
+        () =>
+          permit(mayDispatch) && performance.now() < deadline && !relay?.lost,
+      );
+      if (JSON.stringify(released.pins) !== expected)
+        throw Error("Native coding binding changed");
       let previous: Buffer = Buffer.alloc(0);
       for (;;) {
+        if (relay?.lost) throw Error("Native coding relay lost");
         if (performance.now() >= deadline || !permit(checkpoint))
           throw Error("Native coding run stopped by its gate");
         const polled = await this.invoke("poll", session);
@@ -955,6 +1148,9 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } finally {
+      // The turn is over: nothing more reaches the provider.
+      relay?.close();
+      revoke();
       if (touched) {
         const stopped = await this.stop(session);
         if (

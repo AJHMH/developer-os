@@ -12,6 +12,7 @@ import { NativePodmanCodingTransport } from "../../dist/podman-coding.js";
 
 export const realTemporaryDirectory = fs.realpathSync(os.tmpdir());
 export const realSpawnSync = childProcess.spawnSync;
+export const realSpawn = childProcess.spawn;
 export const realReadFileSync = fs.readFileSync;
 export const realWriteFileSync = fs.writeFileSync;
 export const realMkdtempSync = fs.mkdtempSync;
@@ -22,8 +23,21 @@ export const guestHarness = new URL(
   import.meta.url,
 );
 
+/** The long-lived management channel's argv (the session relay). */
+export const channelArgv = [
+  "machine",
+  "ssh",
+  "aios-test",
+  "/usr/bin/python3",
+  "-I",
+  "-u",
+  "-c",
+  "'import sys,base64;exec(base64.b64decode(sys.stdin.readline()))'",
+];
+
 // External host/process seam only: no real VM, engine or credentials are used.
-export function nativeHost(t, respond, platform = "darwin") {
+// `channel` answers a channel spawn; without one, a channel is refused.
+export function nativeHost(t, respond, platform = "darwin", channel) {
   const requests = [],
     programs = [];
   const processEffects = { kills: 0 };
@@ -65,6 +79,12 @@ export function nativeHost(t, respond, platform = "darwin") {
     stdout: JSON.stringify({ Client: { Version: "6.1.1" } }),
   }));
   t.mock.method(childProcess, "spawn", (file, argv, options) => {
+    assert.equal(options.shell, false);
+    assert.equal(options.env.OPENAI_API_KEY, undefined);
+    if (JSON.stringify(argv) === JSON.stringify(channelArgv)) {
+      assert.ok(channel, "unexpected management channel");
+      return channel(options);
+    }
     assert.deepEqual(argv, [
       "machine",
       "ssh",
@@ -121,6 +141,24 @@ export function nativeHost(t, respond, platform = "darwin") {
   });
   return { requests, programs, processEffects, machineConfig };
 }
+/** A session gateway that records every call and streams `chunks`. */
+export function sessionGateway(chunks = [Buffer.from("data: done\n\n")]) {
+  const gateway = {
+    capability: "e".repeat(64),
+    calls: [],
+    revoked: [],
+    async respond(...args) {
+      gateway.calls.push(args);
+      return (async function* () {
+        yield* chunks;
+      })();
+    },
+    revoke(reason) {
+      gateway.revoked.push(reason);
+    },
+  };
+  return gateway;
+}
 export const session = {
   operationId: "12345678-1234-4234-8234-123456789abc",
   fence: 1,
@@ -165,8 +203,21 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
   const root =
     restoredRoot ??
     realMkdtempSync(`${realTemporaryDirectory}/aios-native-coding-`);
-  t.after(() => realRmSync(root, { recursive: true, force: true }));
   const statePath = `${root}/engine.json`;
+  // A relay left by a failed test must not hold the fixed port for the next.
+  t.after(async () => {
+    let pids = [];
+    try {
+      pids = JSON.parse(realReadFileSync(statePath, "utf8")).relayPids ?? [];
+    } catch {}
+    for (const pid of pids)
+      try {
+        process.kill(-pid, "SIGKILL");
+      } catch {}
+    for (let i = 0; i < 100 && pids.some(running); i++)
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    realRmSync(root, { recursive: true, force: true });
+  });
   // A restored root already holds its simulated engine state.
   if (!restoredRoot)
     realWriteFileSync(
@@ -179,22 +230,55 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
       }),
     );
   let lastProgram;
-  const fixture = nativeHost(t, (_request, program) => {
-    lastProgram = program;
-    const result = realSpawnSync(
+  // The channel runs the same simulator, kept open for the relay's frames.
+  const channel = (options) => {
+    const child = realSpawn(
       process.env.AIOS_TEST_PYTHON || "python3",
-      // The guest runs `python3 -I`; -S also skips the site module, which the
-      // stdlib-only program never needs, to save start-up time per request.
-      ["-I", "-S", guestHarness.pathname, root],
-      { input: program, encoding: "utf8" },
+      ["-I", "-S", guestHarness.pathname, root, "--channel"],
+      { stdio: ["pipe", "pipe", "pipe"], env: options.env },
     );
-    return result.status === 0
-      ? JSON.parse(result.stdout)
-      : { processFailure: true };
-  });
+    // The first line is the program; record its request like any other.
+    const write = child.stdin.write.bind(child.stdin);
+    let first = true;
+    child.stdin.write = (line, ...rest) => {
+      if (first) {
+        first = false;
+        const source = Buffer.from(String(line), "base64").toString();
+        requests.push(
+          JSON.parse(
+            Buffer.from(
+              source.match(/b64decode\('([^']+)'\)/)[1],
+              "base64",
+            ).toString(),
+          ),
+        );
+      }
+      return write(line, ...rest);
+    };
+    return child;
+  };
+  const fixture = nativeHost(
+    t,
+    (_request, program) => {
+      lastProgram = program;
+      const result = realSpawnSync(
+        process.env.AIOS_TEST_PYTHON || "python3",
+        // The guest runs `python3 -I`; -S also skips the site module, which the
+        // stdlib-only program never needs, to save start-up time per request.
+        ["-I", "-S", guestHarness.pathname, root],
+        { input: program, encoding: "utf8" },
+      );
+      return result.status === 0
+        ? JSON.parse(result.stdout)
+        : { processFailure: true };
+    },
+    "darwin",
+    (options) => channel(options),
+  );
+  const requests = fixture.requests;
   return {
     root,
-    requests: fixture.requests,
+    requests,
     machineConfig: fixture.machineConfig,
     transport: new NativePodmanCodingTransport("aios-test", "a".repeat(64)),
     /** The last management program sent to the guest, as transported. */
@@ -202,6 +286,14 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
     read: () => JSON.parse(realReadFileSync(statePath, "utf8")),
     write: (state) => realWriteFileSync(statePath, JSON.stringify(state)),
   };
+}
+function running(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 export const posixGuest = {
   skip:
