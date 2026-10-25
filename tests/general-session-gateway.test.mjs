@@ -528,7 +528,8 @@ test("a worker tool may name a parameter like a file field, and the all-turns re
 
 test("the provider gets the body that was inspected, not a duplicate key the gateway never saw", async () => {
   const h = harness();
-  const raw = request().replace("{", '{"model":"gpt-other",');
+  // An earlier duplicate `model`; JSON.parse keeps the later, pinned one.
+  const raw = `{"model":"gpt-other",${request().slice(1)}`;
   await drain(await h.respond(raw));
   const forwarded = h.effects.provider[0].body;
   assert.equal(forwarded, JSON.stringify(JSON.parse(raw)));
