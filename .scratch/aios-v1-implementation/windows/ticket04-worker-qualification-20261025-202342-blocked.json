@@ -1,0 +1,71 @@
+{
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26300",
+    "machine": "aios-podman-noshare"
+  },
+  "imageSha256": "c83674e1999044d33d751661371b873539f47e5b5c5ca3320c7e0377acca6238",
+  "probeSha256": "55749bc808b3d7962e84cc446ac5724a17ef2cdb514b8a8de0861dd17a977157",
+  "codingProbeSha256": "6e7b3db4a41cdf46d59127c1ae7fbbed7f6ad0632b1ffc7a8765de3559ff27dc",
+  "buildFresh": true,
+  "freshBuildSha256": "4347151de38ca208fe5ccdf992bc3f000f008952020572f2cd716cd5f250e692",
+  "distSha256": "0fe3e56d92ad87ee5b4f9de569de9915529e5846cbd78ec9372542afb0dee926",
+  "sourceRevision": "5837a90446c835b9a630cff381340ae7df836990",
+  "sourceDirty": false,
+  "runnerSha256": "68916fc21b91de45397abe8b050c9f188a307b884f1fcc699c7c00e2e71717da",
+  "scope": "native-worker-offline-qualification",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "outcome": "blocked",
+  "stages": [
+    {
+      "name": "coding-fresh-pins",
+      "outcome": "blocked",
+      "startedMs": 0,
+      "error": "Native coding inspect observation unavailable",
+      "finishedMs": 3572
+    },
+    {
+      "name": "validation-fresh-pins",
+      "outcome": "not-run"
+    },
+    {
+      "name": "owner-records-name-fresh-pins",
+      "outcome": "not-run"
+    },
+    {
+      "name": "changed-pins-refused",
+      "outcome": "not-run"
+    },
+    {
+      "name": "coding-live-boundary-probe",
+      "outcome": "not-run"
+    },
+    {
+      "name": "coding-exact-stop-removes-descendants",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-boundary-probe",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-deadline-kills-descendants",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-stop-mid-check-and-fence",
+      "outcome": "not-run"
+    },
+    {
+      "name": "validation-changed-tree-never-tested",
+      "outcome": "not-run"
+    }
+  ],
+  "pins": {},
+  "coding": {},
+  "validation": {},
+  "interrupted": false
+}

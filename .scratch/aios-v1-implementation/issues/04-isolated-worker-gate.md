@@ -754,3 +754,19 @@ Fresh authority is taken before every request, and anything but permitted
 revokes the grant irreversibly. The fixed-worker gateway is unchanged.
 Production remains disabled. See the
 [general session gateway receipt](../ticket04-general-session-gateway-receipt.md).
+
+## 25 October: the coding boundary probe passes natively on Windows
+
+The owner provisioned the code-mode host in the Windows VM and re-approved
+the coding record, which covers the route binding and the new probe. Then
+they ran the offline qualification from a clean `main` at `5837a90`. It
+passed every stage with no failed probe: all 26 coding probes and all 21
+validation probes, plus every pin and lifecycle control. The session was
+offline, so the relay probes showed no listener of any kind and a refused
+relay connection. The read-only binaries, process hardening and writable
+places held against Podman's real mount table. Two earlier runs blocked
+before any worker started, and are kept as evidence. The first blocked
+because the code-mode host had not yet been made private. The second was the
+expected stop on the old coding pins. The macOS run and the routed relay
+probes remain. Production remains disabled. See the
+[boundary probe receipt](../ticket04-boundary-probe-receipt.md).

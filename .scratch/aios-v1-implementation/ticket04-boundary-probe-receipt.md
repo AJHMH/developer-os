@@ -117,3 +117,67 @@ It also raised these:
 - **Pins:** the coding guest program changes, so its `policySha256` does
   too. The re-approval already pending after PR 113 should be made after
   this merges, so that one approval covers both.
+
+## Native run on Windows (25 October 2026)
+
+After this merged at `5837a90`, the owner ran the offline qualification on
+the Windows PC against `aios-podman-noshare`, from a clean `main` with
+`buildFresh: true`. All three reports are under `windows/`.
+
+**Provisioning.** The owner copied the code-mode host from the official
+`@openai/codex@0.161.0-linux-x64` package into VM management storage. Its
+SHA-256 was `e8709608…` on the host, matching the runbook's pin. The
+runbook's `podman machine ssh` step could not be used as written. The
+machine key Podman generated sits under `%USERPROFILE%\.local`, which grants
+read access to `CodexSandboxUsers`, so OpenSSH ignores the key as too open.
+The owner used `scp` and `ssh` with a temporary copy of the key readable
+only by them, then deleted the copy. The original key's permissions were
+left alone.
+
+**Two blocked runs, then a pass:**
+- `ticket04-worker-qualification-20261025-202342-blocked.json` (SHA-256
+  `02f91ea9…`): blocked at `coding-fresh-pins` with `Native coding inspect
+  observation unavailable`. The file had been copied but not yet made
+  private (`chmod 600`), and the guest refuses a code-mode host that others
+  can read. No worker started.
+- `ticket04-worker-qualification-20261025-202842-blocked.json` (SHA-256
+  `43196d57…`): blocked at `owner-records-name-fresh-pins`, as expected,
+  after the file was made private and its hash in the guest matched. Both
+  workers' fresh pins were recorded. Coding: `cliSha256` `9a820c17…` and
+  `bindingSha256` `f6dbbfd8…`, both unchanged; the new `codeModeHostSha256`
+  `e8709608…`; and `policySha256` `89339099…`. Validation's three pins were
+  unchanged and its record already named them.
+- The owner re-approved the coding record with those pins
+  (`approvedAt` `2026-10-26T01:29:30.000Z`).
+- `ticket04-worker-qualification-20261025-203119.json` (SHA-256
+  `50fb8e6f…`): **`observed-offline-worker-qualification`, with every stage
+  passed and no failed probe.**
+
+**What the pass shows:**
+- **Pins:** each changed and missing pin was refused for both workers.
+- **Coding:** all 26 probes passed, including `npm-registry` and the five
+  coding-only probes. The session was `offline`, since the record has no
+  model route. So `relay-listener` saw no listening socket at all, which
+  answers the open question above: neither Codex nor the code-mode host
+  opened a loopback listener of its own. `relay-answers` saw the connection
+  refused. `read-only-binaries`, `hardened-process` and
+  `writable-only-work` passed against Podman's real mount table and process
+  status. The planted descendant was censused (2 processes), and the exact
+  stop left no process.
+- **Validation:** all 21 probes passed, `npm-registry` included. The guest
+  deadline ended the forked descendants (`timedOut`, exit 137, 0
+  remaining). A stop mid-check left 0 processes and the check did not pass.
+  The late check was fenced. The changed tree was not reported as tested.
+
+The run took 8 minutes 20 seconds, 6 minutes 24 seconds of it in the
+validation probe checks. The probe digests were `55749bc8…` (shared) and
+`6e7b3db4…` (coding).
+
+**Still open:**
+- the same run on macOS;
+- the routed side of `relay-listener` and `relay-answers`, which needs a
+  routed session (the live qualification);
+- the runbook's Windows `podman machine ssh` step, on a host where
+  `CodexSandboxUsers` can read the machine key.
+
+Production remains disabled.
