@@ -148,8 +148,8 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
      the mediation decision. `PinnedCodingRuntime`, the record and the pins
      bind them.
 4. **The boundary probe** (done in code; see `ticket04-boundary-probe-receipt.md`.
-   The native offline qualification passed on the Mac on 25 October;
-   Windows and the routed check are still to run).
+   The native offline qualification passed on the Mac and on Windows on
+   25 October; the routed check is still to run).
    - It gains a positive control for the relay port.
    - It keeps proving every other endpoint is unreachable, the npm registry
      included, and that no credential exists in the container.

@@ -243,7 +243,9 @@ the same coding policy pin (`c941c723…`) and validation policy pin
 ### Windows (`aios-podman-noshare`), reports under `windows/`
 
 - **Coding record:** re-approved by the owner; the confirming acceptance
-  reports were not provided. The qualification's pins show the record named
+  report was provided later, as
+  `ticket04-admission-acceptance-20261024-113851.json` (see the boundary
+  probe receipt). The qualification's pins show the record named
   policy `c941c723…` and the unchanged Windows binding `f6dbbfd8…`.
 - **Interrupted run:**
   `ticket04-worker-qualification-20261024-114105-interrupted.json`. Its first
