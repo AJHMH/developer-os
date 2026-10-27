@@ -159,9 +159,51 @@ record and ran the offline general-worker qualification on
     was not reported as tested.
 
 Still open:
-- **Windows** has not yet run this probe.
+- **Windows:** see the next section.
 - **A routed session** was not exercised. The relay's positive control, and
   probing between model requests, need the live run with the capture's fake
   provider.
 
 Production remains disabled.
+
+## Native qualification on Windows (25 October 2026)
+
+The owner ran the same qualification on the Windows PC (Windows 10.0.26300,
+x64) against the dedicated Hyper-V VM `aios-podman-noshare`, from the same
+clean, freshly built `main` at `5837a90`. It passed. The runner (`68916fc2…`),
+fresh build (`4347151d…`) and `dist/` (`0fe3e56d…`) hashes are the Mac's, so
+both hosts ran identical code. Reports are under `windows/`. Windows can't
+publish them (the publisher refuses native Windows), so they were copied to
+the Mac and published from there.
+
+- **Pins:** the coding record named policy `89339099…`, the same coding
+  policy as the Mac, and the Windows code-mode host `e8709608…`, which matches
+  the runbook's table. The x64 CLI (`9a820c17…`) and the Windows binding
+  (`f6dbbfd8…`) were unchanged from 24 October, when the record named policy
+  `c941c723…` and predated the code-mode host pin. The validation pins were
+  unchanged: image `c83674e1…`, policy `c213f918…`, binding `7e94bc11…`.
+- **Blocked run, kept as evidence:**
+  `ticket04-worker-qualification-20261025-202842-blocked.json` stopped at
+  `owner-records-name-fresh-pins` with "Owner coding admission is missing or
+  invalid", before any worker started. The next run, three minutes later,
+  passed; the cause isn't recorded.
+- **Qualification:** `ticket04-worker-qualification-20261025-203119.json`
+  (SHA-256 `50fb8e6f…`), outcome `observed-offline-worker-qualification`.
+  - All ten stages passed, in about 8⅓ minutes. The validation probes took
+    about 6½ minutes of that, against 2½ on the Mac.
+  - Probe digests matched the Mac: shared `55749bc8…`, coding `6e7b3db4…`.
+  - All 26 coding probes and all 21 validation probes passed, the five coding
+    controls and `npm-registry` included.
+  - As on the Mac, the session was offline: `relay-listener` found no
+    listener and `relay-answers` saw its connection refused.
+  - Lifecycle controls held, with the Mac's results: descendant censused and
+    the exact stop left 0 processes; deadline kill (exit 137, 0 remaining);
+    stop mid-check left 0 processes and the check did not pass; late check
+    fenced; changed tree not reported as tested.
+- **Earlier evidence now retained:**
+  `ticket04-admission-acceptance-20261024-113851.json` is the Windows
+  confirming admission acceptance from 24 October, which the worker
+  qualification receipt recorded as not provided. It passed from `main` at
+  `4f0dc83` under policy `c941c723…`.
+
+Still open: a routed session, on either host. Production remains disabled.

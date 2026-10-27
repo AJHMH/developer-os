@@ -765,3 +765,14 @@ Every lifecycle control held. Two runs blocked at the owner records are kept
 as evidence. The session was offline, so the routed relay check is still to
 run, and Windows has not yet run this probe. Production remains disabled. See
 the [boundary probe receipt](../ticket04-boundary-probe-receipt.md).
+
+## 25 October: boundary probe qualification passes on Windows
+
+The same offline qualification passed on Windows, from the same clean,
+freshly built `main` at `5837a90`, with the same runner, build and probe
+hashes as the Mac. All 26 coding probes and all 21 validation probes passed,
+and every lifecycle control held. One run blocked at the owner records is
+kept as evidence, as is the 24 October Windows admission acceptance that was
+missing then. The routed relay check is still to run on both hosts.
+Production remains disabled. See the
+[boundary probe receipt](../ticket04-boundary-probe-receipt.md).
