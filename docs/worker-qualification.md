@@ -193,18 +193,20 @@ Each turn is routed, with the same route a credentialed turn will use:
 - The gateway reaches only a **fake provider** on the host. It sends no
   network request and never uses the token it is given, which is synthetic.
 
-The fake provider answers with fixed code-mode scripts:
-- **Work script:** the first request of each turn gets a script that adds
-  `routed-<turn>.txt` through `apply_patch`, reads it back through
-  `exec_command`, and reports a marker that only a successful read produces.
-- **Keep-alive scripts:** later requests get a five-second `sleep`, until the
-  launch has been probed.
-- **Final message:** then the turn ends with a final message, and Codex exits
-  on its own.
+The fake provider answers with fixed code-mode scripts, in this order:
+- **Keep-alive scripts:** a five-second `sleep`, until the launch has been
+  probed (at most 24). A resume has none.
+- **Work script:** a script that adds `routed-<turn>.txt` through
+  `apply_patch`, reads it back through `exec_command`, and reports a marker
+  that only a successful read produces.
+- **Final message:** then the turn ends, and Codex exits on its own.
 
-During the launch, between model requests, the coding boundary probe runs in
-the routed session. That gives the routed `relay-listener` and
-`relay-answers` controls: exactly one listener, the relay, and it answers.
+During the launch, between model requests and before the turn's edit, the
+coding boundary probe runs in the routed session:
+- The routed `relay-listener` and `relay-answers` controls show exactly one
+  listener, the relay, and that it answers.
+- `only-admitted` still sees the workspace exactly as admitted. Codex's own
+  edit comes after the probe, so it can't fail that control.
 
 Every turn must:
 - report one thread, the resume continuing the launch's;

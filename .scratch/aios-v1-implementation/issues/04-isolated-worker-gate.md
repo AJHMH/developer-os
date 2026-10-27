@@ -788,3 +788,21 @@ boundary probe runs in the live routed launch between model requests. No
 guest code changed, so the owner's coding records stay valid. The native runs
 on both hosts are still to do. Production remains disabled. See the
 [routed acceptance receipt](../ticket04-routed-acceptance-receipt.md).
+
+## 26 October: first native routed run on macOS, and the order correction
+
+The routed acceptance ran on the Mac from `main` at `726e4b6`. Every stage
+passed:
+- the route and code-mode tools worked natively through the relay and
+  gateway on launch and resume;
+- the grants ended with their turns;
+- the stops were exact.
+
+The routed `relay-listener` and `relay-answers` controls passed natively for
+the first time. The outcome was `failed` for one probe, `only-admitted`. The
+runner probed after Codex's own scripted edit was already in the workspace,
+which was a runner ordering mistake, not a boundary failure. The runner now
+probes before the edit, and its simulator fails that probe as the native run
+did. The failed report is kept. The Mac run is repeated after merge, and
+Windows follows. Production remains disabled. See the
+[routed acceptance receipt](../ticket04-routed-acceptance-receipt.md).
