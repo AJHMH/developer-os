@@ -145,6 +145,11 @@ const runners = {
     "a".repeat(64),
     report,
   ],
+  "run-native-routed-acceptance.mjs": (record, report) => [
+    "aios-test",
+    record,
+    report,
+  ],
   "run-native-worker-qualification.mjs": (record, report) => [
     "aios-test",
     record,

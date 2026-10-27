@@ -178,3 +178,78 @@ The report also records:
 - every stage's timing.
 
 Production delivery stays disabled either way.
+
+## Routed session acceptance
+
+`scripts/run-native-routed-acceptance.mjs` is the plan's slice 3 native
+check of a routed coding session, offline and without inference. It runs one
+lineage on the dedicated VM, a launch and then an explicit resume, under the
+owner's coding admission record. The record must name the fresh pins, as for
+the qualification above.
+
+Each turn is routed, with the same route a credentialed turn will use:
+- Codex reaches the model only through the session relay on 127.0.0.1:18091.
+- The relay reaches only the real `GeneralSessionGateway` on the host.
+- The gateway reaches only a **fake provider** on the host. It sends no
+  network request and never uses the token it is given, which is synthetic.
+
+The fake provider answers with fixed code-mode scripts:
+- **Work script:** the first request of each turn gets a script that adds
+  `routed-<turn>.txt` through `apply_patch`, reads it back through
+  `exec_command`, and reports a marker that only a successful read produces.
+- **Keep-alive scripts:** later requests get a five-second `sleep`, until the
+  launch has been probed.
+- **Final message:** then the turn ends with a final message, and Codex exits
+  on its own.
+
+During the launch, between model requests, the coding boundary probe runs in
+the routed session. That gives the routed `relay-listener` and
+`relay-answers` controls: exactly one listener, the relay, and it answers.
+
+Every turn must:
+- report one thread, the resume continuing the launch's;
+- exit 0;
+- show the marker, with no gateway refusal;
+- end its grant with the turn, so a later use is refused as `revoked`;
+- stop exactly;
+- leave its edit in the collected workspace.
+
+Each turn gets a fresh relay capability. The lineage keeps one delivery and
+mediation decision. The report keeps counts and fixed labels only, never
+request or response content.
+
+No guest code changed, so existing coding records stay valid.
+
+macOS (zsh), from a clean, built checkout with the VM running:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-routed-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/issue04-routed-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+```
+
+Windows (PowerShell, not elevated):
+
+```powershell
+npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-routed-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/issue04-routed-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
+```
+
+Outcomes:
+- **`observed-offline-routed-acceptance`:** every stage passed and every
+  probe passed.
+- **`failed`:** every stage ran, but a probe failed. The failed probes are
+  listed in `failedProbes`.
+- **`blocked`:** at the stage named in the report. Later stages are listed as
+  `not-run`.
+- **`uncertain`:** a session could not be confirmed stopped.
+
+A record that doesn't match prints `freshPins`.
+
+Limits:
+- No real provider is involved. A real reply's size, timing and events are
+  for slice 5.
+- The fake provider's scripts assume code mode's `tools.apply_patch` and
+  `tools.exec_command`, as captured. A Codex that yields a script back to the
+  model, or calls tools differently, shows up as `unexpected` requests or a
+  missing marker.
+- The guest doesn't compare a predecessor's route with a resume's. Whether it
+  must keep the same delivery and decision is still the owner's decision
+  (route continuity, 3a receipt).
