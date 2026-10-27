@@ -149,7 +149,7 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
      bind them.
 4. **The boundary probe** (done in code; see `ticket04-boundary-probe-receipt.md`.
    The native offline qualification passed on the Mac and on Windows on
-   25 October; the routed check is still to run).
+   25 October; the routed checks passed on both hosts on 26–27 October).
    - It gains a positive control for the relay port.
    - It keeps proving every other endpoint is unreachable, the npm registry
      included, and that no credential exists in the container.
@@ -164,7 +164,7 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
     that the route is the only one, with no real model. (Runner built; see
     `ticket04-routed-acceptance-receipt.md`. The fake provider sits on the
     host behind the real gateway, so the relay and gateway are on the path.
-    The native runs on both hosts are still to do.)
+    Passed natively on macOS on 26 October and on Windows on 27 October.)
 - **Pins change.** Each host's coding record is re-approved once, for the new
   guest program and `codeModeHostSha256`.
 

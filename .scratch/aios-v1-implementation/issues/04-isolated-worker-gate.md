@@ -806,3 +806,16 @@ probes before the edit, and its simulator fails that probe as the native run
 did. The failed report is kept. The Mac run is repeated after merge, and
 Windows follows. Production remains disabled. See the
 [routed acceptance receipt](../ticket04-routed-acceptance-receipt.md).
+
+## 27 October: routed session acceptance passes on macOS and Windows
+
+The routed acceptance passed on both hosts from a clean, freshly built `main`
+at `5763a29`, with the same runner, build, probe and gateway hashes. Every
+stage and all 26 coding probes passed on each host, with the probe now before
+the edit, so `only-admitted` passed alongside the routed `relay-listener` and
+`relay-answers` controls. On launch and resume, code-mode tools worked through
+the relay and gateway with no refusals, the grants ended with their turns, and
+the stops were exact. This completes slice 3's native check. A real provider
+(slice 5) and the route-continuity decision remain. Production remains
+disabled. See the
+[routed acceptance receipt](../ticket04-routed-acceptance-receipt.md).
