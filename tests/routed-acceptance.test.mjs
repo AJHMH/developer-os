@@ -8,6 +8,7 @@ import { GeneralSessionRefusal } from "../dist/general-session-gateway.js";
 import { codingBoundaryProbeNames } from "../dist/worker-probes.js";
 import {
   fakeProvider,
+  maxKeepalives,
   passingOutcome,
   routedAcceptance,
   stageNames,
@@ -211,13 +212,20 @@ function vm(faults = {}) {
         throw Error("Native coding probe-boundary observation unavailable");
       assert.ok(s.files.has(path), "the admitted file is in the workspace");
       effects.push("probe:" + path);
+      // As the real probe: the admitted file must be the workspace's only
+      // entry, whoever put anything else there.
+      const onlyAdmitted = [...s.files.keys()].join() === path;
       // The probe takes a while; Codex keeps working meanwhile.
       for (let i = 0; i < 10; i++) await tick();
       s.processes = 3;
       return {
         probes: codingBoundaryProbeNames.map((name) => ({
           name,
-          outcome: faults.probeFails === name ? "failed" : "passed",
+          outcome:
+            faults.probeFails === name ||
+            (name === "only-admitted" && !onlyAdmitted)
+              ? "failed"
+              : "passed",
         })),
         processes: 3,
         pins: { ...pins, ...(faults.probePins ?? {}) },
@@ -427,7 +435,7 @@ test("every attempted session is stopped, and an uncertain stop is reported", as
   assert.ok(effects.includes("stop"));
 });
 
-test("the fake provider hands out a code-mode script, keeps the turn alive, then ends it", async () => {
+test("the fake provider keeps the turn alive until released, then edits, then ends it", async () => {
   let released = false;
   const fake = fakeProvider("launch", () => released);
   const answer = (input) =>
@@ -439,30 +447,33 @@ test("the fake provider hands out a code-mode script, keeps the turn alive, then
       ),
     );
   const history = [...opening];
-  const first = await answer(history);
-  assert.deepEqual(
-    first.map((i) => i.type),
-    ["reasoning", "custom_tool_call"],
-  );
-  const call = first[1];
-  assert.equal(call.name, "exec");
   const files = new Map();
-  const output = await runScript(call.input, files, {});
-  assert.deepEqual(output, ["AIOS-ROUTED-OK-launch"]);
+  /** Run the answer's script and add the exchange to the history. */
+  async function follow(items) {
+    assert.deepEqual(
+      items.map((i) => i.type),
+      ["reasoning", "custom_tool_call"],
+    );
+    const call = items[1];
+    assert.equal(call.name, "exec");
+    const output = await runScript(call.input, files, {});
+    history.push(...items, {
+      type: "custom_tool_call_output",
+      call_id: call.call_id,
+      output: output.map((text) => ({ type: "input_text", text })),
+    });
+    return { call, output };
+  }
+  // Until released, only keep-alive scripts: the workspace stays as admitted.
+  const waiting = await follow(await answer(history));
+  assert.deepEqual(waiting.output, ["AIOS-ROUTED-WAIT"]);
+  assert.equal(files.size, 0);
+  released = true;
+  const work = await follow(await answer(history));
+  assert.deepEqual(work.output, ["AIOS-ROUTED-OK-launch"]);
   assert.equal(files.get("routed-launch.txt").toString(), "routed launch\n");
   // The script's source never contains its own marker.
-  assert.doesNotMatch(call.input, /AIOS-ROUTED-OK/);
-  history.push(...first, {
-    type: "custom_tool_call_output",
-    call_id: call.call_id,
-    output: output.map((text) => ({ type: "input_text", text })),
-  });
-  const waiting = await answer(history);
-  assert.equal(waiting[1].type, "custom_tool_call");
-  assert.deepEqual(await runScript(waiting[1].input, files, {}), [
-    "AIOS-ROUTED-WAIT",
-  ]);
-  released = true;
+  assert.doesNotMatch(work.call.input, /AIOS-ROUTED-OK/);
   const last = await answer(history);
   assert.deepEqual(
     last.map((i) => i.type),
@@ -475,6 +486,50 @@ test("the fake provider hands out a code-mode script, keeps the turn alive, then
     finalAnswered: true,
     unexpected: 0,
   });
+});
+
+test("the fake provider stops keeping the turn alive at its cap", async () => {
+  const fake = fakeProvider("launch", () => false);
+  const history = [...opening];
+  let call;
+  for (let n = 0; n <= maxKeepalives; n++) {
+    [, call] = await itemsOf(
+      fake.provider(
+        "synthetic-token",
+        JSON.stringify({ ...captured, input: history }),
+        new AbortController().signal,
+      ),
+    );
+    history.push(call, {
+      type: "custom_tool_call_output",
+      call_id: call.call_id,
+      output: [],
+    });
+  }
+  assert.equal(fake.observation.keepalives, maxKeepalives);
+  assert.match(call.input, /apply_patch/);
+});
+
+test("the fake provider credits only the work script's own output", async () => {
+  const fake = fakeProvider("launch", () => true);
+  const answer = (input) =>
+    itemsOf(
+      fake.provider(
+        "synthetic-token",
+        JSON.stringify({ ...captured, input }),
+        new AbortController().signal,
+      ),
+    );
+  const history = [...opening];
+  const [, call] = await answer(history);
+  // The marker under another call's ID is not the work script's output.
+  history.push({
+    type: "custom_tool_call_output",
+    call_id: call.call_id + "-other",
+    output: [{ type: "input_text", text: "AIOS-ROUTED-OK-launch" }],
+  });
+  await answer(history);
+  assert.equal(fake.observation.toolsWorked, false);
 });
 
 test("the fake provider does not count a failed script as tools that worked", async () => {

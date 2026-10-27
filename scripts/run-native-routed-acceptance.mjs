@@ -10,8 +10,9 @@
 // The provider answers with fixed code-mode scripts that edit through
 // `apply_patch` and read back through `exec_command`, so the route and the
 // tools are shown working with no real model, network or credential. During
-// the launch, between model requests, the coding boundary probe runs in the
-// routed session: one relay listener that answers, and no other route.
+// the launch, between model requests and before the turn's edit, the coding
+// boundary probe runs in the routed session: one relay listener that answers,
+// no other route, and only the admitted file in the workspace.
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
@@ -50,9 +51,9 @@ const inputSha256 = sha256(
     { path: admittedFile, sha256: sha256(admittedBytes), executable: false },
   ]),
 );
-/** Keep-alive scripts while the launch is probed, then the turn ends: two
+/** Keep-alive scripts while the launch is probed, then the work script: two
  * minutes, and few enough to keep Codex's output inside its 64 KiB bound. */
-const maxKeepalives = 24;
+export const maxKeepalives = 24;
 /** Every stage, in order. */
 export const stageNames = Object.freeze([
   "coding-fresh-pins",
@@ -112,9 +113,9 @@ function events(id, items) {
 }
 
 /** A provider for one turn: no network, and no use of the token it is given.
- * The first request gets the work script; later ones get a keep-alive script
- * until `released()`, then a final message. Its observation keeps counts and
- * fixed flags only. */
+ * Requests get a keep-alive script until `released()`, so a probe sees the
+ * workspace exactly as admitted; then the work script; then a final message.
+ * Its observation keeps counts and fixed flags only. */
 export function fakeProvider(tag, released) {
   const observation = {
     requests: 0,
@@ -123,7 +124,7 @@ export function fakeProvider(tag, released) {
     finalAnswered: false,
     unexpected: 0,
   };
-  const firstCall = `call_${tag}_0`;
+  let workCall;
   const marker = ["AIOS", "ROUTED", "OK", tag].join("-");
   const call = (n, script) => [
     {
@@ -145,31 +146,32 @@ export function fakeProvider(tag, released) {
   async function* provider(_token, body) {
     const n = observation.requests++;
     const input = JSON.parse(body).input;
+    // Every request after the first follows one of this turn's scripts.
+    if (n > 0 && input.at(-1)?.type !== "custom_tool_call_output")
+      observation.unexpected++;
     let items;
-    if (n === 0) items = call(n, workScript(tag));
-    else {
+    if (!workCall && !released() && observation.keepalives < maxKeepalives) {
+      observation.keepalives++;
+      items = call(n, waitScript);
+    } else if (!workCall) {
+      workCall = `call_${tag}_${n}`;
+      items = call(n, workScript(tag));
+    } else {
       observation.toolsWorked ||= input.some(
         (item) =>
           item?.type === "custom_tool_call_output" &&
-          item.call_id === firstCall &&
+          item.call_id === workCall &&
           JSON.stringify(item.output).includes(marker),
       );
-      if (input.at(-1)?.type !== "custom_tool_call_output")
-        observation.unexpected++;
-      if (!released() && observation.keepalives < maxKeepalives) {
-        observation.keepalives++;
-        items = call(n, waitScript);
-      } else {
-        observation.finalAnswered = true;
-        items = [
-          {
-            type: "message",
-            id: `msg_${tag}_${n}`,
-            role: "assistant",
-            content: [{ type: "output_text", text: "Done." }],
-          },
-        ];
-      }
+      observation.finalAnswered = true;
+      items = [
+        {
+          type: "message",
+          id: `msg_${tag}_${n}`,
+          role: "assistant",
+          content: [{ type: "output_text", text: "Done." }],
+        },
+      ];
     }
     yield Buffer.from(events(`resp_${tag}_${n}`, items));
   }

@@ -122,3 +122,59 @@ the owner's current coding records (policy `89339099…`) stay valid.
   guest must enforce that is still the owner's decision (3a receipt).
 
 Production remains disabled.
+
+## First native run on macOS, and the order correction (26 October 2026)
+
+After PR #119 merged at `726e4b6`, the owner ran the routed acceptance on
+`aios-macos-noshare`. It used a clean, freshly built `main` and the existing
+coding record (policy `89339099…`). The report is
+`macos/ticket04-routed-acceptance-20261026-222117-failed.json` (SHA-256
+`b21dae22…`), outcome `failed`.
+
+**Every stage passed,** in about 58 seconds:
+- **Route and tools, natively:** code mode ran the provider's scripts as
+  captured.
+  - `apply_patch` and `exec_command` worked through the relay and the gateway
+    on both turns, and the marker reached the provider.
+  - There were no `unexpected` requests and no gateway refusals: 5 requests on
+    the launch, with 3 keep-alives, and 2 on the resume.
+- **Grants:** each was revoked as `stopped` with its turn, and a later use
+  was refused as `revoked`.
+- **Threads:** both turns exited 0 on one thread, and the resume continued it
+  with a fresh relay capability.
+- **Stops and collection:** the exact stop left 0 processes, the probe's
+  descendant included. Each edit was collected.
+- **The routed relay controls passed natively for the first time:**
+  `relay-listener` (exactly one listener, the relay) and `relay-answers`.
+
+**One probe failed: `only-admitted`.** It requires the admitted file to be
+the workspace's only entry. The runner handed out the work script on the
+first request and probed after the second (`probeAfterRequest: 2`). By then
+Codex's own scripted edit, `routed-launch.txt`, was in the workspace. That
+was a runner ordering mistake, not a boundary failure. The simulator missed it
+because the fake VM reported every probe as passed, whatever the workspace
+held.
+
+**Correction** (branch `codex/issue04-routed-probe-before-edit`):
+- **The fake VM's probe is honest:** it now fails `only-admitted` whenever the
+  workspace holds anything besides the admitted file. With the old order, the
+  passing lineage then failed, as natively.
+- **The fake provider now answers in this order:** keep-alive scripts until
+  the probe has run, then the work script, then the final message. A resume,
+  released at once, gets the work script first. `toolsWorked` credits only the
+  work script's own call ID.
+- **New tests:**
+  - the provider's order;
+  - a marker under another call ID is not credited;
+  - the keep-alive cap hands out the work script when release never comes.
+- **Mutants:** 5 tried on the new logic, all killed after the cap test was
+  added:
+  - work first;
+  - any call ID;
+  - no `unexpected` check;
+  - a wrong work call ID;
+  - no cap.
+- **Docs:** the runbook states the new order and why.
+
+No guest code changed, so the coding records stay valid. The Mac run is
+repeated after merge, and the Windows run follows.
