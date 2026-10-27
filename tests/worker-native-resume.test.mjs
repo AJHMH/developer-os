@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { resolve } from "node:path";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
+import { lockedCodingArgv } from "../dist/feature-candidate.js";
 import { sessionAcceptance } from "../scripts/run-native-coding-acceptance.mjs";
 import {
   realTemporaryDirectory,
@@ -21,6 +22,7 @@ import {
   guestFixture,
   launchedGuest,
   posixGuest,
+  sessionGateway,
 } from "./helpers/native-coding-fixture.mjs";
 
 // Explicit native session resume. Split from worker-native-coding.test.mjs so
@@ -1605,6 +1607,89 @@ test(
     );
   },
 );
+
+// Route continuity (owner decision A, 27 October): a resume keeps its
+// predecessor's mode, delivery and mediation decision. Only the relay
+// capability is new.
+const lineageRoute = Object.freeze({
+  deliveryId: "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+  capability: "c".repeat(64),
+  decisionSha256: "d".repeat(64),
+});
+const freshCapability = "f".repeat(64);
+// The same route with a new relay capability, optionally changed further.
+const renewed = (route, changes = {}) => ({
+  ...route,
+  ...changes,
+  capability: freshCapability,
+});
+
+async function predecessorUnder(t, route) {
+  const fixture = guestFixture(t, { threadId: resumeThread });
+  const { transport } = fixture;
+  await transport.run(
+    await launchRequest(transport, {
+      allowanceMs: 60000,
+      ...(route
+        ? {
+            argv: [...lockedCodingArgv(undefined, route), "Change it"],
+            modelRoute: route,
+          }
+        : {}),
+    }),
+    () => {},
+    route ? sessionGateway() : undefined,
+  );
+  return fixture;
+}
+
+async function resumeUnder(transport, route, operationId = resumedOperation) {
+  const request = await nativeResumeRequest(transport, {
+    operationId,
+    argv: [...lockedCodingArgv(resumeThread, route), "Continue the title"],
+    ...(route ? { modelRoute: route } : {}),
+  });
+  return transport.run(request, () => {}, route ? sessionGateway() : undefined);
+}
+
+for (const [name, before, after] of [
+  ["a routed thread resumed offline", lineageRoute, undefined],
+  ["an offline thread resumed routed", undefined, renewed(lineageRoute)],
+  [
+    "a routed thread resumed under another delivery",
+    lineageRoute,
+    renewed(lineageRoute, {
+      deliveryId: "cccccccc-dddd-4eee-8fff-aaaaaaaaaaaa",
+    }),
+  ],
+  [
+    "a routed thread resumed under another mediation decision",
+    lineageRoute,
+    renewed(lineageRoute, { decisionSha256: "a".repeat(64) }),
+  ],
+  [
+    "a routed thread resumed with its predecessor's capability",
+    lineageRoute,
+    lineageRoute,
+  ],
+])
+  test(
+    `${name} is refused before any worker exists, and the predecessor stays resumable`,
+    posixGuest,
+    async (t) => {
+      const { transport, read } = await predecessorUnder(t, before);
+      const creates = () =>
+        read().commands.filter((args) => args[1] === "create").length;
+      await assert.rejects(resumeUnder(transport, after));
+      assert.equal(creates(), 1, "no successor worker");
+      await resumeUnder(
+        transport,
+        before && renewed(before),
+        "32345678-1234-4234-8234-123456789abc",
+      );
+      assert.equal(creates(), 2, "the matching resume still claims it");
+    },
+  );
 
 test("the native session acceptance command needs a machine, a new report and explicit approval", () => {
   for (const args of [

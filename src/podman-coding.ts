@@ -487,6 +487,10 @@ else:
     base=R.get('baseMove')
     if base is not None and (not isinstance(base,dict) or set(base)!={'from','to'} or not all(isinstance(v,str) and re.fullmatch('[a-f0-9]{40}',v) for v in base.values()) or base['to']!=R['sourceRevision'] or base['from']==base['to']): fail()
     if oldAdmission.get('sourceRevision')!=(base['from'] if base else R['sourceRevision']) or oldAdmission.get('branch')!=branch: fail()
+    # Route continuity: a resume keeps its predecessor's mode, delivery and
+    # mediation decision. Only the relay capability is new.
+    oldRoute=oldAdmission.get('modelRoute')
+    if (oldRoute is None)!=(route is None) or (route and ((oldRoute['deliveryId'],oldRoute['decisionSha256'])!=(route['deliveryId'],route['decisionSha256']) or oldRoute['capabilitySha256']==h(route['capability'].encode()))): fail()
     if not stopped_container(oldName,oldIdentity): fail()
     units_quiet(oldName)
     oldHome=root+'/'+oldName+'/home';retained_home(oldHome)

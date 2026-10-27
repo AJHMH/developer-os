@@ -819,3 +819,13 @@ the stops were exact. This completes slice 3's native check. A real provider
 (slice 5) and the route-continuity decision remain. Production remains
 disabled. See the
 [routed acceptance receipt](../ticket04-routed-acceptance-receipt.md).
+
+## 27 October: route continuity across resume (owner decision A)
+
+The owner decided that a resume must keep its predecessor's mode, delivery
+and mediation decision, with only the relay capability new. The guest now
+refuses any other resume before a worker exists, and the predecessor stays
+resumable. Built test-first in the simulator. The coding `policySha256`
+changes, so each host's coding record needs one re-approval, and the routed
+acceptance is rerun natively after merge. Production remains disabled. See
+the [route continuity receipt](../ticket04-route-continuity-receipt.md).
