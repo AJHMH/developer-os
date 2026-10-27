@@ -178,3 +178,61 @@ held.
 
 No guest code changed, so the coding records stay valid. The Mac run is
 repeated after merge, and the Windows run follows.
+
+## Native routed acceptance passes on macOS and Windows (26–27 October 2026)
+
+After PR #120 merged at `5763a29`, the owner ran the routed acceptance on
+both hosts. Each run used a clean (`sourceDirty: false`), freshly built
+`main` at `5763a29` and the host's existing coding record (policy
+`89339099…` on both). Both runs had the same runner (`0706a59c…`), coding
+probe (`6e7b3db4…`), gateway (`7df3a76b…`) and build (`4347151d…`, dist
+`0fe3e56d…`) hashes.
+
+| | macOS (`aios-macos-noshare`) | Windows (`aios-podman-noshare`) |
+|---|---|---|
+| Report | `macos/ticket04-routed-acceptance-20261026-225859.json` | `windows/ticket04-routed-acceptance-20261027-082717.json` |
+| SHA-256 | `522d7d46…` | `9dc2bd50…` |
+| Outcome | `observed-offline-routed-acceptance` | `observed-offline-routed-acceptance` |
+| Stages passed | 9 of 9 | 9 of 9 |
+| Coding probes passed | 26 of 26 | 26 of 26 |
+| Launch requests (keep-alives) | 5 (3) | 6 (4) |
+| Resume requests (keep-alives) | 2 (0) | 2 (0) |
+| Total time | about 52 s | about 123 s |
+
+On both hosts:
+- **Probe before the edit:** the probe ran after the first request
+  (`probeAfterRequest: 1`), while the launch held on keep-alive scripts, and
+  saw 4 processes including its own descendant. `only-admitted` passed, as did
+  the routed `relay-listener` and `relay-answers` controls.
+- **Route and tools:** code mode ran the scripts. `apply_patch` and
+  `exec_command` worked through the relay and the gateway on both turns. The
+  marker reached the provider, with no `unexpected` requests and no gateway
+  refusals. Every gateway request reached the provider and completed.
+- **Threads:** both turns exited 0 on one thread. The resume (fence 2)
+  continued the launch's thread (fence 1) with a fresh relay capability.
+- **Grants:** each was revoked as `stopped` with its turn, and a later use
+  was refused as `revoked`.
+- **Stops and collection:** each exact stop left 0 processes. The launch
+  collected `canary.txt` and `routed-launch.txt`, and the resume
+  `canary.txt` and `routed-resume.txt`. Both final stops were confirmed.
+
+Windows waited one more five-second keep-alive before the probe, as its VM is
+slower. The Mac and Windows pins differ in the CLI, code-mode host and binding
+hashes, as each host's record names its own.
+
+**Windows host note.** A first Windows attempt that day blocked at
+`coding-fresh-pins` (`Observation unavailable`) because the VM's network was
+down. A stale `aios-podman-noshare-api.sock` in `%LOCALAPPDATA%\Temp\podman`,
+left by an unclean shutdown, made `gvproxy` exit at start, so the guest's
+`vsock-network.service` failed and SSH never answered. Deleting the stale
+socket file fixed it without changing the VM. That blocked report is not
+kept.
+
+This completes the plan's slice 3 native check on both hosts, offline and
+without inference. Still open:
+- **No real provider.** A real reply's size, timing and events are for
+  slice 5.
+- **Route continuity.** The guest still doesn't compare a predecessor's route
+  with a resume's. That is still the owner's decision (3a receipt).
+
+Production remains disabled.
