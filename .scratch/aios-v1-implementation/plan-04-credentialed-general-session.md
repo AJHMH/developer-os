@@ -161,7 +161,10 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
   - natively offline, with the capture's fake provider in the VM. A code-mode
     `exec` script edits through `apply_patch` and runs `exec_command`, on
     launch and on explicit resume. That shows the route and tools work and
-    that the route is the only one, with no real model.
+    that the route is the only one, with no real model. (Runner built; see
+    `ticket04-routed-acceptance-receipt.md`. The fake provider sits on the
+    host behind the real gateway, so the relay and gateway are on the path.
+    The native runs on both hosts are still to do.)
 - **Pins change.** Each host's coding record is re-approved once, for the new
   guest program and `codeModeHostSha256`.
 

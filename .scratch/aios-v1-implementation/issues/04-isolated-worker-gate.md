@@ -776,3 +776,15 @@ kept as evidence, as is the 24 October Windows admission acceptance that was
 missing then. The routed relay check is still to run on both hosts.
 Production remains disabled. See the
 [boundary probe receipt](../ticket04-boundary-probe-receipt.md).
+
+## 26 October: routed session acceptance runner, built
+
+The runner for slice 3's native check is built test-first:
+`scripts/run-native-routed-acceptance.mjs`. It runs one routed lineage, a
+launch then an explicit resume, through the real transport, relay and
+`GeneralSessionGateway`, with a fake provider on the host. Code-mode scripts
+edit through `apply_patch` and read back through `exec_command`. The coding
+boundary probe runs in the live routed launch between model requests. No
+guest code changed, so the owner's coding records stay valid. The native runs
+on both hosts are still to do. Production remains disabled. See the
+[routed acceptance receipt](../ticket04-routed-acceptance-receipt.md).
