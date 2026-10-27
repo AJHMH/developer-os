@@ -217,10 +217,17 @@ Every turn must:
 - leave its edit in the collected workspace.
 
 Each turn gets a fresh relay capability. The lineage keeps one delivery and
-mediation decision. The report keeps counts and fixed labels only, never
-request or response content.
+mediation decision, and the guest enforces that: a resume must keep its
+predecessor's mode (routed or offline), delivery and mediation decision, with
+a new capability, or it is refused before any worker exists. The report keeps
+counts and fixed labels only, never request or response content.
 
-No guest code changed, so existing coding records stay valid.
+Adding that check changed the coding guest program, so its `policySha256`
+changed (to `77885706…`). Each host's owner coding admission needs one
+re-approval before the next coding run; a record that doesn't match prints
+`freshPins`. A session stopped under the earlier guest can't be resumed after
+the upgrade, because a resume must carry its predecessor's pins; start a new
+lineage instead.
 
 macOS (zsh), from a clean, built checkout with the VM running:
 
@@ -252,6 +259,3 @@ Limits:
   `tools.exec_command`, as captured. A Codex that yields a script back to the
   model, or calls tools differently, shows up as `unexpected` requests or a
   missing marker.
-- The guest doesn't compare a predecessor's route with a resume's. Whether it
-  must keep the same delivery and decision is still the owner's decision
-  (route continuity, 3a receipt).

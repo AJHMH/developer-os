@@ -127,7 +127,9 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
      four mounts.
 3. **Model-only mode in the guest**, in two parts:
    - **3a (done; see `ticket04-model-route-binding-receipt.md`):** the
-     request, argv and environment binding.
+     request, argv and environment binding. Route continuity across resume
+     is decided (A) and enforced in the guest; see
+     `ticket04-route-continuity-receipt.md`.
    - **3b (done; see `ticket04-relay-channel-receipt.md`):** the relay
      channel. The host opens a long-lived
      `podman machine ssh` relay for the turn, frames each request to
