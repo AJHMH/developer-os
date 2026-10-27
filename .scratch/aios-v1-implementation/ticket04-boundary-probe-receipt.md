@@ -106,14 +106,62 @@ It also raised these:
 
 ## Not covered (native)
 
-- **Not yet run on either host.** The probe still needs the native offline
-  check with the capture's fake provider. That run would show busybox's real
-  `wget` messages and Podman's real mount table and process status. It
-  would also show whether Codex or the code-mode host opens a loopback
-  listener of its own, which would fail `relay-listener`.
+- **Not yet run on either host** when written. The Mac's offline run is
+  recorded below. The probe still needs the native check with the capture's
+  fake provider. That run would show busybox's real `wget` messages and
+  Podman's real mount table and process status. It would also show whether
+  Codex or the code-mode host opens a loopback listener of its own, which
+  would fail `relay-listener`.
 - **The live qualification** must probe a routed session between model
   requests. If the relay is serving a long reply, the probe's GET can wait
   past its retries. That fails closed.
 - **Pins:** the coding guest program changes, so its `policySha256` does
   too. The re-approval already pending after PR 113 should be made after
   this merges, so that one approval covers both.
+
+## Native qualification on macOS (25 October 2026)
+
+After PR #115 merged at `5837a90`, the owner re-approved the Mac coding
+record and ran the offline general-worker qualification on
+`aios-macos-noshare`. It passed. The run used a clean, freshly built `main`
+(`buildFresh: true`, `sourceDirty: false`). Reports are under `macos/`.
+
+- **Coding record re-approval:** only the coding policy pin moved, from
+  `c941c723…` to `89339099…`. The binding stayed `aac1b6b5…`, and the CLI
+  and code-mode host pins were unchanged. The validation pins were unchanged:
+  image `171e6526…`, policy `c213f918…`, binding `ac8967ce…`.
+- **Blocked runs, kept as evidence:** both stopped at
+  `owner-records-name-fresh-pins` with "Owner coding admission is missing or
+  invalid", before any worker started.
+  - `ticket04-worker-qualification-20261025-205831-blocked.json`: run
+    before the records were edited, to read the fresh pins. The coding
+    record failed its format check, not the pin match; the cause isn't
+    recorded.
+  - `ticket04-worker-qualification-20261025-211000-blocked.json`: the edited
+    coding record's `approvedAt` year read `22026`, a future time. The
+    validation record had also been given the coding pins' fields. Both
+    records were corrected at 21:11.
+- **Qualification:** `ticket04-worker-qualification-20261025-211228.json`
+  (SHA-256 `00fd0079…`), outcome `observed-offline-worker-qualification`.
+  - All ten stages passed, in about 3½ minutes.
+  - Probe digests: shared `55749bc8…`, coding `6e7b3db4…`.
+  - All 26 coding probes passed: the 21 shared probes and the five coding
+    controls. All 21 validation probes passed, `npm-registry` included.
+  - The session was offline, so `relay-listener` found no listener at all
+    and `relay-answers` saw its connection refused. No loopback listener was
+    open in the live offline session.
+  - `read-only-binaries`, `hardened-process` and `writable-only-work` passed
+    against Podman's real mount table and process status.
+  - Lifecycle controls held: the planted descendant was censused and the
+    exact stop left 0 processes; the guest deadline ended the validation
+    descendants (exit 137, 0 remaining); a stop mid-check left 0 processes
+    and the check did not pass; the late check was fenced; the changed tree
+    was not reported as tested.
+
+Still open:
+- **Windows** has not yet run this probe.
+- **A routed session** was not exercised. The relay's positive control, and
+  probing between model requests, need the live run with the capture's fake
+  provider.
+
+Production remains disabled.

@@ -754,3 +754,14 @@ Fresh authority is taken before every request, and anything but permitted
 revokes the grant irreversibly. The fixed-worker gateway is unchanged.
 Production remains disabled. See the
 [general session gateway receipt](../ticket04-general-session-gateway-receipt.md).
+
+## 25 October: boundary probe qualification passes on macOS
+
+After PR #115, the owner re-approved the Mac coding record for the new
+coding policy pin and reran the offline general-worker qualification. It
+passed from a clean, freshly built `main` at `5837a90`. All 26 coding probes,
+including the five new coding controls, and all 21 validation probes passed.
+Every lifecycle control held. Two runs blocked at the owner records are kept
+as evidence. The session was offline, so the routed relay check is still to
+run, and Windows has not yet run this probe. Production remains disabled. See
+the [boundary probe receipt](../ticket04-boundary-probe-receipt.md).
