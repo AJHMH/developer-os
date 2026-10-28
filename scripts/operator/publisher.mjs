@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { devNull } from "node:os";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   digest,
   locked,
@@ -22,6 +23,9 @@ import {
   writeState,
 } from "./state.mjs";
 
+// GitHub's pulls listing can trail a branch update; bound the wait for it.
+const PR_HEAD_OBSERVATIONS = 5,
+  PR_HEAD_DELAY_MS = 2000;
 const sha = (value) => /^[a-f0-9]{40}$/.test(value ?? "");
 const safePath = (path) =>
   path &&
@@ -351,15 +355,27 @@ export async function publishPublication(options, remote) {
           state.commit,
         "Remote branch changed",
       );
-      const existing = await remote.pullRequests(
-        proposal.repository,
-        proposal.branch,
-      );
-      check(
-        Array.isArray(existing) && existing.length <= 1,
-        "Ambiguous PR history; use a new proposal branch",
-      );
-      let pr = existing[0];
+      const observe = async () => {
+        const existing = await remote.pullRequests(
+          proposal.repository,
+          proposal.branch,
+        );
+        check(
+          Array.isArray(existing) && existing.length <= 1,
+          "Ambiguous PR history; use a new proposal branch",
+        );
+        return existing[0];
+      };
+      let pr = await observe();
+      for (
+        let seen = 1;
+        pr && pr.head?.sha !== state.commit && seen < PR_HEAD_OBSERVATIONS;
+        seen++
+      ) {
+        await (remote.delay?.(PR_HEAD_DELAY_MS) ?? delay(PR_HEAD_DELAY_MS));
+        pr = await observe();
+        check(pr, "PR identity or exact head mismatch");
+      }
       if (!pr) {
         check(
           !state.prIntent,
