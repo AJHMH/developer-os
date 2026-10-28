@@ -2848,19 +2848,17 @@ export class DeliveryController {
       if (usage.accountId !== account) return "account";
       if (usage.decision === "exhausted") return "exhausted";
       if (!usagePermitsTurn(usage)) return "approval-required";
-      try {
-        const current = qualifiedDecision(
-          projectSubscriptionDecision(
-            structuredClone(this.status(id)),
-            this.stateDirectory,
-          ),
-        );
-        if (!current || sha256(JSON.stringify(current)) !== decisionSha256)
-          return "withdrawn";
-      } catch {
-        return "withdrawn";
-      }
-      return "permitted";
+      // The projection never throws: missing or drifted evidence yields no
+      // decision, which reads as withdrawn.
+      const current = qualifiedDecision(
+        projectSubscriptionDecision(
+          structuredClone(this.status(id)),
+          this.stateDirectory,
+        ),
+      );
+      return current && sha256(JSON.stringify(current)) === decisionSha256
+        ? "permitted"
+        : "withdrawn";
     };
     const prompt = JSON.stringify({
       request: snapshot.request,

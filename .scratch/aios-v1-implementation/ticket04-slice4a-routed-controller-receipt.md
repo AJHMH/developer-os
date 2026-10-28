@@ -82,6 +82,14 @@ slice 4"). 4a implements E. The owner also chose:
   dispatches nothing. Each failed first. Other review changes: the glossary's
   "general session" names, the existing `sha256` helper, one usage check
   shared by dispatch and authority, and the route built with the gateway.
+- **Factory coverage gate (PR #126):** the first commit failed it on every
+  attempt, deterministically: global line coverage went from 22,458/23,023
+  (97.546%) to 22,578/23,147 (97.541%), and the gate allows no decrease;
+  changed lines were 221/225. Measured locally, the new uncovered lines were
+  the `unknown` branch when the usage read itself throws and a `catch` around
+  the decision read. The projection never throws (it catches internally), so
+  that `catch` was dead and is removed; a new test covers the first, with the
+  delivery paused while a request's usage read is in flight.
 - Results are in the PR description.
 
 ## Not covered

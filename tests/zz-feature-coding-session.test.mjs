@@ -1603,3 +1603,21 @@ test("a general session that cannot open stops the prepared session and dispatch
     "running",
   );
 });
+
+test("a usage read that loses delivery authority mid-request is unknown authority", async (t) => {
+  let seen, coding;
+  coding = await routedCoding(t, async (request) => {
+    const { f } = coding,
+      healthy = f.subscription;
+    // The delivery is paused while this request's usage read is in flight.
+    f.subscription = async (at) => {
+      f.subscription = healthy;
+      await f.controller.pause(f.delivery.id);
+      return healthy(at);
+    };
+    seen = await coding.sessions[0].authority();
+    return failedTurn(request);
+  });
+  await coding.f.controller.codeFeature(coding.f.delivery.id).catch(() => {});
+  assert.equal(seen, "unknown");
+});
