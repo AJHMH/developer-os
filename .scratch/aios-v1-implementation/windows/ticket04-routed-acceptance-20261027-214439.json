@@ -1,0 +1,281 @@
+{
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26300",
+    "machine": "aios-podman-noshare"
+  },
+  "authority": "40601adbb6d3289093752fe4308b0c7f4491c4338d5dc24c51cbef428e5de252",
+  "codingProbeSha256": "6e7b3db4a41cdf46d59127c1ae7fbbed7f6ad0632b1ffc7a8765de3559ff27dc",
+  "gatewayVersion": "7df3a76b286761fb804a44bd885be4caf7666bcb32d7e359dee43f60e992a51d",
+  "buildFresh": true,
+  "freshBuildSha256": "4347151de38ca208fe5ccdf992bc3f000f008952020572f2cd716cd5f250e692",
+  "distSha256": "a4b3017ac47cf6d20ee9e4e4a1eb584de04de6ce7135abb12990e3b67c8fc789",
+  "sourceRevision": "801b2ffe5c0f5726f7f1c98eb1dc9d8829ff3a55",
+  "sourceDirty": false,
+  "runnerSha256": "0706a59c264e71f18c760549e98bc46eaa64b624d2d4825745b735c5dbcaf8e9",
+  "scope": "native-coding-offline-routed-acceptance",
+  "productionEnabled": false,
+  "qualified": false,
+  "inferenceAuthorized": false,
+  "outcome": "observed-offline-routed-acceptance",
+  "stages": [
+    {
+      "name": "coding-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 0,
+      "finishedMs": 3654
+    },
+    {
+      "name": "owner-record-names-fresh-pins",
+      "outcome": "passed",
+      "startedMs": 3654,
+      "finishedMs": 4274
+    },
+    {
+      "name": "routed-launch-live-probe",
+      "outcome": "passed",
+      "startedMs": 4274,
+      "finishedMs": 59855
+    },
+    {
+      "name": "routed-launch-tools-ran",
+      "outcome": "passed",
+      "startedMs": 59856,
+      "finishedMs": 59856
+    },
+    {
+      "name": "routed-launch-grant-revoked",
+      "outcome": "passed",
+      "startedMs": 59856,
+      "finishedMs": 59856
+    },
+    {
+      "name": "routed-launch-exact-stop",
+      "outcome": "passed",
+      "startedMs": 59856,
+      "finishedMs": 63506
+    },
+    {
+      "name": "routed-launch-output-collected",
+      "outcome": "passed",
+      "startedMs": 63506,
+      "finishedMs": 74417
+    },
+    {
+      "name": "routed-resume",
+      "outcome": "passed",
+      "startedMs": 74418,
+      "finishedMs": 113214
+    },
+    {
+      "name": "routed-resume-output-collected",
+      "outcome": "passed",
+      "startedMs": 113214,
+      "finishedMs": 124267
+    }
+  ],
+  "pins": {
+    "cliVersion": "0.161.0",
+    "cliSha256": "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+    "codeModeHostSha256": "e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b",
+    "policySha256": "829e7e1e92235293e7533dd9d301b0005a3cf54ea8a67cbbf700ec581a810781",
+    "bindingSha256": "f6dbbfd886d494a32ac7303fa7a6cd88c6f0ce34375765103a7db8a662201b99"
+  },
+  "launch": {
+    "fence": 1,
+    "capabilitySha256": "df52e6ceb423e3762dfc38c845bb668db7b873c721cccb2b9dcc121c29908fc5",
+    "probeAfterRequest": 1,
+    "processesWithDescendant": 4,
+    "exitCode": 0,
+    "outputBytes": 2412,
+    "threads": 1,
+    "provider": {
+      "requests": 6,
+      "keepalives": 4,
+      "toolsWorked": true,
+      "finalAnswered": true,
+      "unexpected": 0
+    },
+    "gateway": {
+      "revoked": true,
+      "revokedFor": "stopped",
+      "requests": 6,
+      "providerRequests": 6,
+      "completed": 6,
+      "requestBytes": 314208,
+      "responseBytes": 4665,
+      "refusals": {},
+      "refusedFields": [],
+      "refusedToolTypes": [],
+      "refusedItemTypes": [],
+      "providerStatuses": []
+    },
+    "refusedAfterStop": "revoked",
+    "stopped": {
+      "phase": "stopped",
+      "remainingProcesses": 0,
+      "processesGone": true
+    },
+    "collected": [
+      "canary.txt",
+      "routed-launch.txt"
+    ]
+  },
+  "probes": [
+    {
+      "name": "tools",
+      "outcome": "passed"
+    },
+    {
+      "name": "admitted-visible",
+      "outcome": "passed"
+    },
+    {
+      "name": "only-admitted",
+      "outcome": "passed"
+    },
+    {
+      "name": "guest-private",
+      "outcome": "passed"
+    },
+    {
+      "name": "owner-home",
+      "outcome": "passed"
+    },
+    {
+      "name": "credential-files",
+      "outcome": "passed"
+    },
+    {
+      "name": "codex-skills",
+      "outcome": "passed"
+    },
+    {
+      "name": "mcp-config",
+      "outcome": "passed"
+    },
+    {
+      "name": "hooks-rules-agents",
+      "outcome": "passed"
+    },
+    {
+      "name": "credential-env",
+      "outcome": "passed"
+    },
+    {
+      "name": "engine-sockets",
+      "outcome": "passed"
+    },
+    {
+      "name": "guest-management",
+      "outcome": "passed"
+    },
+    {
+      "name": "host-shares",
+      "outcome": "passed"
+    },
+    {
+      "name": "loopback-only",
+      "outcome": "passed"
+    },
+    {
+      "name": "network",
+      "outcome": "passed"
+    },
+    {
+      "name": "npm-registry",
+      "outcome": "passed"
+    },
+    {
+      "name": "read-only-root",
+      "outcome": "passed"
+    },
+    {
+      "name": "unprivileged",
+      "outcome": "passed"
+    },
+    {
+      "name": "escape-unshare",
+      "outcome": "passed"
+    },
+    {
+      "name": "escape-chroot",
+      "outcome": "passed"
+    },
+    {
+      "name": "escape-cgroup",
+      "outcome": "passed"
+    },
+    {
+      "name": "relay-listener",
+      "outcome": "passed"
+    },
+    {
+      "name": "relay-answers",
+      "outcome": "passed"
+    },
+    {
+      "name": "read-only-binaries",
+      "outcome": "passed"
+    },
+    {
+      "name": "hardened-process",
+      "outcome": "passed"
+    },
+    {
+      "name": "writable-only-work",
+      "outcome": "passed"
+    }
+  ],
+  "resume": {
+    "fence": 2,
+    "capabilitySha256": "2f7e0e1c9fbc1d0f24ec271d450717af675641ac96ca9ed0d4b57f0f5ebf0b81",
+    "exitCode": 0,
+    "outputBytes": 1056,
+    "threads": 1,
+    "provider": {
+      "requests": 2,
+      "keepalives": 0,
+      "toolsWorked": true,
+      "finalAnswered": true,
+      "unexpected": 0
+    },
+    "gateway": {
+      "revoked": true,
+      "revokedFor": "stopped",
+      "requests": 2,
+      "providerRequests": 2,
+      "completed": 2,
+      "requestBytes": 109448,
+      "responseBytes": 1529,
+      "refusals": {},
+      "refusedFields": [],
+      "refusedToolTypes": [],
+      "refusedItemTypes": [],
+      "providerStatuses": []
+    },
+    "refusedAfterStop": "revoked",
+    "stopped": {
+      "phase": "stopped",
+      "remainingProcesses": 0,
+      "processesGone": true
+    },
+    "collected": [
+      "canary.txt",
+      "routed-resume.txt"
+    ]
+  },
+  "failedProbes": [],
+  "finalStops": [
+    {
+      "fence": 1,
+      "stopped": true
+    },
+    {
+      "fence": 2,
+      "stopped": true
+    }
+  ],
+  "interrupted": false
+}
