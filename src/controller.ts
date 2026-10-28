@@ -41,6 +41,7 @@ import {
   type CodingResult,
   type CodingCleanup,
   type CodingSession,
+  type SessionRoute,
   type ResumeReconciliation,
   type FeatureEvidence,
   type FeaturePlanner,
@@ -2708,6 +2709,13 @@ export class DeliveryController {
       throw new DeliveryError(
         "Coding usage must come from the delivery's qualified model-only mediation account.",
       );
+    // A mediated turn is routed when a general session can be opened for it
+    // (decision E); the host records the route each session runs under.
+    const decisionSha256 = mediation && sha256(JSON.stringify(mediation));
+    const route: SessionRoute | undefined =
+      decisionSha256 && this.coordination.generalSessions
+        ? { deliveryId: id, decisionSha256 }
+        : undefined;
     const prepared = this.change(id, (delivery) => {
       if (
         delivery.ownership.fence !== snapshot.ownership.fence ||
@@ -2742,11 +2750,16 @@ export class DeliveryController {
       const predecessor =
         prior?.resumeRecovery === "recovered" ? prior.resumeFrom! : prior;
       // A retired lineage is never resumed; coding restarts fresh.
-      const resuming =
+      const resumable =
         !repairId &&
         !!prior?.threadId &&
         !!predecessor &&
         prior.resumeRecovery !== "retired";
+      // A resume keeps its predecessor's route. Under another route (a new
+      // decision, or a change between offline and routed) coding starts a
+      // new lineage instead.
+      const sameRoute = JSON.stringify(prior?.route) === JSON.stringify(route);
+      const resuming = resumable && sameRoute;
       // A recovered resume never ran, so its predecessor's revision is the one
       // it recorded; otherwise the predecessor built its own workspace.
       // A session recorded before revisions were kept names no move; the
@@ -2768,6 +2781,7 @@ export class DeliveryController {
         ...(moved
           ? { baseMove: { from: predecessorRevision!, to: source.revision } }
           : {}),
+        ...(route ? { route } : {}),
         ...(resuming
           ? {
               threadId: prior!.threadId,
@@ -2780,6 +2794,15 @@ export class DeliveryController {
             }
           : {}),
       };
+      if (resumable && !resuming)
+        (f.supersededLineages ??= []).push({
+          operationId: predecessor!.operationId,
+          threadId: prior!.threadId!,
+          ...(prior!.route ? { route: prior!.route } : {}),
+          at: new Date().toISOString(),
+          by: f.session.operationId,
+          session: codingBinding(predecessor!),
+        });
       // Bind fresh authority from exactly this check to this operation; the
       // gate refuses stale, unapproved or exhausted usage.
       const bound =
@@ -2836,11 +2859,9 @@ export class DeliveryController {
         JSON.stringify(runtime.pins) === pins
       );
     };
-    // A mediated turn is routed when a general session can be opened for it
-    // (decision E): each model request then needs usage observed now and the
-    // owner's decision record still naming the same decision. The record is
-    // re-read, not re-probed; launch re-qualifies fully.
-    const decisionSha256 = mediation && sha256(JSON.stringify(mediation));
+    // A routed turn's model requests each need usage observed now and the
+    // owner's decision record still naming the same decision (decision E).
+    // The record is re-read, not re-probed; launch re-qualifies fully.
     // The turn's usage permits this operation, and is measured (decision H).
     const usagePermitsTurn = (usage: UsageReport | undefined) =>
       usage?.remainingPercent !== null &&
@@ -2975,13 +2996,13 @@ export class DeliveryController {
       if (!usagePermitsTurn((await this.checkUsage(id)).usage) || !checkpoint())
         throw Error();
       // Opened inside the guarded turn, so a refusal still stops the session.
-      if (mediation && decisionSha256 && this.coordination.generalSessions)
-        gateway = this.coordination.generalSessions(
+      if (route)
+        gateway = this.coordination.generalSessions!(
           {
             deliveryId: id,
             sessionId: session.operationId,
-            decisionSha256,
-            accountId: mediation.accountId,
+            decisionSha256: route.decisionSha256,
+            accountId: mediation!.accountId,
             // Within the gateway's session limit; a longer turn is stopped.
             expiresAt:
               clock() +
@@ -3000,8 +3021,7 @@ export class DeliveryController {
           },
         );
       const modelRoute = gateway && {
-        deliveryId: id,
-        decisionSha256: decisionSha256!,
+        ...route!,
         capability: gateway.capability,
       };
       const argv = [...lockedCodingArgv(session.threadId, modelRoute), prompt];

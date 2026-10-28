@@ -6,7 +6,6 @@
 import { planAndValidate } from "./helpers/validation-fixture.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { randomUUID } from "node:crypto";
 import { readFileSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
@@ -15,20 +14,12 @@ import { generalSessionLimits } from "../dist/general-session-gateway.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
 import { failedTurn, firstThread } from "./helpers/coding-turns.mjs";
-
-// Coding records every dispatch attempt; a launch never reaches the runtime
-// without fresh model-only usage authority bound to its exact operation.
-async function authorizedCoding(t) {
-  const f = codingFixture(t),
-    normal = f.runtime.execute.bind(f.runtime),
-    dispatched = [];
-  f.runtime.execute = async (request) => {
-    dispatched.push(request.operationId);
-    return normal(request);
-  };
-  await planAndValidate(f);
-  return { f, dispatched };
-}
+import {
+  authorizedCoding,
+  mediatedAccount,
+  observeAccount,
+  routedCoding,
+} from "./helpers/routed-coding.mjs";
 
 for (const [name, arrange, approvable] of [
   // Unknown usage still needs an explicit owner approval, as for workers.
@@ -502,13 +493,6 @@ test("a slow usage observation is never polled concurrently during a coding turn
   assert.equal(most, 1, "one usage poll at a time");
 });
 
-const mediatedAccount = "c".repeat(64);
-// Usage observations from the given account, at each controller's clock.
-function observeAccount(f, accountId) {
-  const healthy = f.subscription;
-  f.subscription = async (at) => ({ ...(await healthy(at)), accountId });
-}
-
 test("coding usage must come from the qualified mediation account", async (t) => {
   const { f, dispatched } = await authorizedCoding(t);
   await mediatedCoding(f, t, mediatedAccount);
@@ -575,42 +559,6 @@ test("a missing usage observation never authorizes mediated coding, even when ap
   await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
   assert.deepEqual(dispatched, []);
 });
-
-// Slice 4a: with a general-session factory, a mediated turn is routed. The
-// factory's gateway serves the turn on the host, and its authority callback
-// re-observes usage and re-qualifies the decision at each model request.
-function generalSessions() {
-  const sessions = [];
-  const factory = (turn, authority) => {
-    const gateway = {
-      capability: randomUUID().replaceAll("-", "").repeat(2),
-      respond: async () => {
-        throw Error("unused");
-      },
-      revoke: (reason) => gateway.revoked.push(reason),
-      revoked: [],
-    };
-    sessions.push({ turn, authority, gateway });
-    return gateway;
-  };
-  return { sessions, factory };
-}
-async function routedCoding(t, turn = failedTurn, coordination = {}) {
-  const { f, dispatched } = await authorizedCoding(t);
-  const launches = [];
-  f.runtime.execute = async (request, gateway) => {
-    dispatched.push(request.operationId);
-    launches.push({ request, gateway });
-    return turn(request, gateway);
-  };
-  const { sessions, factory } = generalSessions();
-  const mediation = await mediatedCoding(f, t, mediatedAccount, {
-    generalSessions: factory,
-    ...coordination,
-  });
-  observeAccount(f, mediatedAccount);
-  return { f, dispatched, launches, sessions, mediation };
-}
 
 test("a mediated turn is routed through the configured general session", async (t) => {
   const { f, launches, sessions } = await routedCoding(t);

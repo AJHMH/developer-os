@@ -147,6 +147,10 @@ changed or reused for general turns.**
     workspace for preservation. The interruption is recorded first.
   - Re-dispatch requires a fresh coding restart approval.
   - Exhaustion is never overridden.
+  - The host records each session's route (its delivery and decision, never
+    the capability). A restart resumes the thread only under the same route;
+    under a new decision, or after a change between offline and routed, it
+    starts a new lineage and records the old one as superseded.
 - **Approval levels.** Low or unknown usage requires owner approval through the
   existing `UsageApprovalGate`. No new threshold is added.
 
