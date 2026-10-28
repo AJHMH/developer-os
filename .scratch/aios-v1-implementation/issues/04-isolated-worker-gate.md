@@ -851,3 +851,14 @@ coding `policySha256` changes again, so each host's coding record needs one
 re-approval, and sessions stopped earlier are trimmed once by hand.
 Production remains disabled. See the
 [stopped session binaries receipt](../ticket04-stopped-session-binaries-receipt.md).
+
+## 27 October: stopped session program copies, renewed and passing natively
+
+After #124, each host's coding record was renewed for the new policy pin
+(`829e7e1e…`; only that pin changed), and the routed acceptance passed on
+both hosts from a clean, freshly built `main` at `801b2ff`: every stage and
+all 26 coding probes. On macOS the one-time trim removed 43 program copies
+from 50 stopped sessions, taking session state from 9.0 GB to 87 MB, and the
+new run's stopped sessions held no copies. The Windows trim and folders were
+not observed from the Mac. Production remains disabled. See the
+[stopped session binaries receipt](../ticket04-stopped-session-binaries-receipt.md).

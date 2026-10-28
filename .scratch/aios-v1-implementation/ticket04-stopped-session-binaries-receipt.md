@@ -80,3 +80,49 @@ guest can't be resumed afterwards, as with any pin change.
   trim.
 
 Production remains disabled.
+
+## Native renewal, trim and routed acceptance (27 October 2026)
+
+After PR #124 merged at `801b2ff`, each host's coding record was renewed and
+the routed acceptance rerun. On both hosts only `policySha256` had changed,
+from `77885706…` to `829e7e1e…`, as computed in the simulator. The blocked
+first runs that printed `freshPins` are not kept.
+
+Both reruns used a clean (`sourceDirty: false`), freshly built `main` at
+`801b2ff`, with the same runner (`0706a59c…`), coding probe (`6e7b3db4…`),
+gateway (`7df3a76b…`) and build (`4347151d…`, dist `a4b3017a…`) hashes.
+
+| | macOS (`aios-macos-noshare`) | Windows (`aios-podman-noshare`) |
+|---|---|---|
+| Report | `macos/ticket04-routed-acceptance-20261027-213128.json` | `windows/ticket04-routed-acceptance-20261027-214439.json` |
+| SHA-256 | `21a0d15d…` | `4364bc9b…` |
+| Outcome | `observed-offline-routed-acceptance` | `observed-offline-routed-acceptance` |
+| Stages passed | 9 of 9 | 9 of 9 |
+| Coding probes passed | 26 of 26 | 26 of 26 |
+| Launch requests (keep-alives) | 5 (3) | 6 (4) |
+| Resume requests (keep-alives) | 2 (0) | 2 (0) |
+| Total time | about 59 s | about 124 s |
+
+On both hosts, launch and resume each exited 0 on one thread, code-mode
+tools worked through the relay and gateway with no `unexpected` requests and
+no gateway refusals, each grant was revoked as `stopped` and later refused as
+`revoked`, each exact stop left 0 processes, and both edits were collected.
+
+**macOS trim and folders.** Before the trim, all 50 session records said
+`stopped` and no coding worker was running. The VM disk was 75% used, and
+session state held 9.0 GB, with 36 sessions still holding a Codex copy. The
+runbook's trim removed 43 files: 36 Codex copies and 7 code-mode host copies
+(older sessions predate the code-mode host). Session state went to 87 MB and
+the disk to 29% used. After the rerun, neither new stopped session held a
+program copy: the launch's folder held `workspace` (its `home` went to the
+resume), and the resume's held `home` and `workspace`. No session folder on
+the VM held a copy.
+
+**Windows.** The report shows the pass under the renewed record. Whether the
+one-time trim was run there, and what the stopped sessions' folders hold, is
+not in the report and was not observed from this Mac.
+
+This answers "Not covered" above for macOS, and for Windows as far as the
+routed acceptance shows.
+
+Production remains disabled.
