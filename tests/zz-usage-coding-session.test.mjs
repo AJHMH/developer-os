@@ -849,7 +849,9 @@ test("an interrupted turn's workspace is kept as evidence, never as a candidate"
     stopped.evidence.filter((e) => e.kind === "interrupted-turn"),
     [{ kind: "interrupted-turn", path }],
   );
-  assert.equal(statSync(path).mode & 0o777, 0o600);
+  // Windows reports no POSIX permission bits (any writable file is 0o666).
+  if (process.platform !== "win32")
+    assert.equal(statSync(path).mode & 0o777, 0o600);
   assert.deepEqual(
     JSON.parse(readFileSync(path, "utf8")).map((file) => file.path),
     ["index.html"],
