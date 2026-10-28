@@ -1608,6 +1608,40 @@ test(
   },
 );
 
+// A stopped session never runs again, so its private program copies (about
+// 350 MB of Codex each) go with the worker; its workspace and home stay.
+function programCopies(root) {
+  return guestSessions(root).folders.map((folder) => {
+    const entries = realSpawnSync(
+      "find",
+      [folder, "-mindepth", "1", "-maxdepth", "1"],
+      { encoding: "utf8" },
+    ).stdout;
+    const present = (name) => entries.split("\n").includes(`${folder}/${name}`);
+    return {
+      programs: ["codex", "codex-code-mode-host"].filter(present),
+      retained: ["workspace", "home"].filter(present),
+    };
+  });
+}
+
+test(
+  "a stopped session keeps its workspace and home but not its program copies, and still resumes",
+  posixGuest,
+  async (t) => {
+    const { transport, root } = await launchedGuest(t, {
+      threadId: resumeThread,
+    });
+    assert.deepEqual(programCopies(root), [
+      { programs: [], retained: ["workspace", "home"] },
+    ]);
+    await transport.run(await nativeResumeRequest(transport), () => {});
+    const sessions = programCopies(root);
+    assert.equal(sessions.length, 2);
+    for (const session of sessions) assert.deepEqual(session.programs, []);
+  },
+);
+
 // Route continuity (owner decision A, 27 October): a resume keeps its
 // predecessor's mode, delivery and mediation decision. Only the relay
 // capability is new.

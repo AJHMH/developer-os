@@ -840,3 +840,14 @@ and decision with a new capability, was admitted by the new check. Windows
 also showed that retained session binaries can fill the VM disk; bounding
 them is a follow-up guest change. Production remains disabled. See the
 [route continuity receipt](../ticket04-route-continuity-receipt.md).
+
+## 27 October: stopped sessions no longer keep their program copies
+
+Each stopped coding session used to keep its own copy of the Codex binary,
+about 350 MB, which filled the Windows VM disk. The guest's stop now removes
+the session's program copies once the worker is gone, keeping its workspace
+and home; a resume writes its own. Built test-first in the simulator. The
+coding `policySha256` changes again, so each host's coding record needs one
+re-approval, and sessions stopped earlier are trimmed once by hand.
+Production remains disabled. See the
+[stopped session binaries receipt](../ticket04-stopped-session-binaries-receipt.md).

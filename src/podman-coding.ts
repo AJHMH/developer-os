@@ -563,6 +563,11 @@ else:
     if not record['group'] and c['State'].get('Status') not in ['created','configured']: fail()
    elif exists.returncode!=1: fail()
    if not gone(record): fail()
+   # A stopped session never runs again, so its private program copies go
+   # with the worker; a resume copies its own. This also frees a full disk.
+   for path in [binary,codeModeHost]:
+    try: os.unlink(path)
+    except FileNotFoundError: pass
    # The worker is gone, so the headroom now goes to these records. A worker
    # that exited before the disk filled never reached the early release above.
    reserve(False)
