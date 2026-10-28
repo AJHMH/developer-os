@@ -150,6 +150,11 @@ import {
   type UsageReport,
 } from "./subscription.js";
 import {
+  generalSessionLimits,
+  type GeneralSessionAuthority,
+} from "./general-session-gateway.js";
+import type { SessionGateway } from "./session-relay.js";
+import {
   syntheticSiteInput,
   syntheticSiteOutput,
   syntheticSiteValidator,
@@ -206,6 +211,29 @@ export interface FeatureRequest {
   issue?: string;
 }
 
+/** Grace beyond a routed turn's remaining allowance for its final request. */
+const sessionGraceMs = 60_000;
+
+/** One routed coding turn's general session, as the controller grants it. */
+export interface GeneralSessionTurn {
+  deliveryId: string;
+  /** The coding operation the turn runs as. */
+  sessionId: string;
+  /** SHA-256 of the qualified mediation decision the route names. */
+  decisionSha256: string;
+  /** The decision's credential account, not its usage-reader account. */
+  accountId: string;
+  expiresAt: number;
+}
+/** Opens the host side of a routed coding turn. `authority` is fresh at each
+ * model request: usage observed now, the decision re-qualified. The real,
+ * credential-backed factory belongs to slice 5; without one, coding stays
+ * offline. */
+export type GeneralSessionFactory = (
+  turn: GeneralSessionTurn,
+  authority: () => Promise<GeneralSessionAuthority>,
+) => SessionGateway;
+
 export interface CoordinationOptions {
   branchCleanupRuntime?: BranchCleanupRuntime;
   mainSyncRuntime?: MainSyncRuntime;
@@ -227,6 +255,8 @@ export interface CoordinationOptions {
   observationTimeoutMs?: number;
   /** How often a running coding turn re-observes usage (default 30 s). */
   codingUsagePollMs?: number;
+  /** Routes a mediated delivery's coding turns (slice 4a). */
+  generalSessions?: GeneralSessionFactory;
 }
 
 export interface Delivery {
@@ -2795,20 +2825,53 @@ export class DeliveryController {
         JSON.stringify(runtime.pins) === pins
       );
     };
-    const argv = lockedCodingArgv(session.threadId);
-    argv.push(
-      JSON.stringify({
-        request: snapshot.request,
-        criteria: feature.criteria,
-        verification: feature.verification,
-        clarifications: feature.clarifications ?? [],
-        // A resumed conversation is told its workspace now starts from a new main.
-        ...(session.baseMove ? { baseMove: session.baseMove } : {}),
-        ...(repairId
-          ? { repairFindings: snapshot.repair!.attempts.at(-1)!.findings }
-          : {}),
-      }),
-    );
+    // A mediated turn is routed when a general session can be opened for it
+    // (decision E): each model request then needs usage observed now and the
+    // owner's decision record still naming the same decision. The record is
+    // re-read, not re-probed; launch re-qualifies fully.
+    const decisionSha256 = mediation && sha256(JSON.stringify(mediation));
+    // The turn's usage permits this operation, and is measured (decision H).
+    const usagePermitsTurn = (usage: UsageReport | undefined) =>
+      usage?.remainingPercent !== null &&
+      this.usageGate.permits(usage, {
+        operationId: session.operationId,
+        accountId: account,
+      });
+    const authority = async (): Promise<GeneralSessionAuthority> => {
+      let usage: UsageReport | undefined;
+      try {
+        usage = (await this.checkUsage(id)).usage;
+      } catch {
+        return "unknown";
+      }
+      if (!usage || usage.remainingPercent === null) return "unknown";
+      if (usage.accountId !== account) return "account";
+      if (usage.decision === "exhausted") return "exhausted";
+      if (!usagePermitsTurn(usage)) return "approval-required";
+      // The projection never throws: missing or drifted evidence yields no
+      // decision, which reads as withdrawn.
+      const current = qualifiedDecision(
+        projectSubscriptionDecision(
+          structuredClone(this.status(id)),
+          this.stateDirectory,
+        ),
+      );
+      return current && sha256(JSON.stringify(current)) === decisionSha256
+        ? "permitted"
+        : "withdrawn";
+    };
+    const prompt = JSON.stringify({
+      request: snapshot.request,
+      criteria: feature.criteria,
+      verification: feature.verification,
+      clarifications: feature.clarifications ?? [],
+      // A resumed conversation is told its workspace now starts from a new main.
+      ...(session.baseMove ? { baseMove: session.baseMove } : {}),
+      ...(repairId
+        ? { repairFindings: snapshot.repair!.attempts.at(-1)!.findings }
+        : {}),
+    });
+    let gateway: SessionGateway | undefined;
     let interrupt: (value: undefined) => void;
     const interrupted = new Promise<undefined>((resolve) => {
       interrupt = resolve;
@@ -2885,84 +2948,120 @@ export class DeliveryController {
         snapshot.publicationHistory?.[0]?.sourceRevision ?? source.revision,
       );
       if (!checkpoint()) throw Error();
+      // Dispatch takes usage observed now, not a report up to 60 s old. A
+      // refusal here stops the session before any turn, so no interruption
+      // is recorded and no restart approval is needed.
+      if (!usagePermitsTurn((await this.checkUsage(id)).usage) || !checkpoint())
+        throw Error();
+      // Opened inside the guarded turn, so a refusal still stops the session.
+      if (mediation && decisionSha256 && this.coordination.generalSessions)
+        gateway = this.coordination.generalSessions(
+          {
+            deliveryId: id,
+            sessionId: session.operationId,
+            decisionSha256,
+            accountId: mediation.accountId,
+            // Within the gateway's session limit; a longer turn is stopped.
+            expiresAt:
+              clock() +
+              Math.min(
+                generalSessionLimits.sessionMs,
+                this.featureBudget(prepared).allowanceMs -
+                  this.featureBudget(prepared).activeMs +
+                  sessionGraceMs,
+              ),
+          },
+          authority,
+        );
+      const modelRoute = gateway && {
+        deliveryId: id,
+        decisionSha256: decisionSha256!,
+        capability: gateway.capability,
+      };
+      const argv = [...lockedCodingArgv(session.threadId, modelRoute), prompt];
       result = await Promise.race([
-        runtime.execute({
-          ...session,
-          branch: prepared.feature!.branch!,
-          sourceRevision: source.revision,
-          inputSha256: input.digest,
-          onEvent: (event) => {
-            if (!checkpoint() || !event || typeof event !== "object")
-              return false;
-            const item = event as Record<string, unknown>;
-            if (
-              item.type !== "thread.started" ||
-              typeof item.thread_id !== "string" ||
-              !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-                item.thread_id,
-              )
-            )
-              return false;
-            const threadId = item.thread_id;
-            if (session.threadId && session.threadId !== threadId) return false;
-            const updated = this.change(id, (delivery) => {
+        runtime.execute(
+          {
+            ...session,
+            ...(modelRoute ? { modelRoute } : {}),
+            branch: prepared.feature!.branch!,
+            sourceRevision: source.revision,
+            inputSha256: input.digest,
+            onEvent: (event) => {
+              if (!checkpoint() || !event || typeof event !== "object")
+                return false;
+              const item = event as Record<string, unknown>;
               if (
-                delivery.feature?.session?.operationId ===
-                  session.operationId &&
-                delivery.feature.session.state === "running" &&
-                delivery.ownership.fence === session.fence
-              ) {
-                if (
-                  delivery.feature.session.threadId &&
-                  delivery.feature.session.threadId !== threadId
+                item.type !== "thread.started" ||
+                typeof item.thread_id !== "string" ||
+                !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+                  item.thread_id,
                 )
-                  throw new DeliveryError("Coding session identity changed.");
-                delivery.feature.session.threadId = threadId;
-                delivery.feature.session.threadStarted = true;
-                reachedDispatch(delivery, session.operationId);
-              }
-            });
-            return (
-              updated.feature?.session?.operationId === session.operationId &&
-              updated.feature.session.threadId === threadId
-            );
-          },
-          argv,
-          files: input.files,
-          ...(repairId && snapshot.repair?.attempts.at(-1)?.baseRefresh
-            ? {
-                baseRefresh: {
-                  from: {
-                    revision:
-                      snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
-                    files: candidateRevisionFiles(
-                      snapshot.repository,
-                      snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
-                    ),
-                  },
-                  to: { revision: source.revision, files: source.files },
-                },
-              }
-            : {}),
-          pins: structuredClone(runtime.pins),
-          allowanceMs:
-            this.featureBudget(prepared).allowanceMs -
-            this.featureBudget(prepared).activeMs,
-          // Recheck the bound authority after asynchronous pin inspection.
-          mayDispatch: () => {
-            const permitted =
-              checkpoint() &&
-              this.usageGate.permits(this.status(id).usage, {
-                operationId: session.operationId,
+              )
+                return false;
+              const threadId = item.thread_id;
+              if (session.threadId && session.threadId !== threadId)
+                return false;
+              const updated = this.change(id, (delivery) => {
+                if (
+                  delivery.feature?.session?.operationId ===
+                    session.operationId &&
+                  delivery.feature.session.state === "running" &&
+                  delivery.ownership.fence === session.fence
+                ) {
+                  if (
+                    delivery.feature.session.threadId &&
+                    delivery.feature.session.threadId !== threadId
+                  )
+                    throw new DeliveryError("Coding session identity changed.");
+                  delivery.feature.session.threadId = threadId;
+                  delivery.feature.session.threadStarted = true;
+                  reachedDispatch(delivery, session.operationId);
+                }
               });
-            if (permitted)
-              this.change(id, (delivery) =>
-                reachedDispatch(delivery, session.operationId),
+              return (
+                updated.feature?.session?.operationId === session.operationId &&
+                updated.feature.session.threadId === threadId
               );
-            return permitted;
+            },
+            argv,
+            files: input.files,
+            ...(repairId && snapshot.repair?.attempts.at(-1)?.baseRefresh
+              ? {
+                  baseRefresh: {
+                    from: {
+                      revision:
+                        snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
+                      files: candidateRevisionFiles(
+                        snapshot.repository,
+                        snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
+                      ),
+                    },
+                    to: { revision: source.revision, files: source.files },
+                  },
+                }
+              : {}),
+            pins: structuredClone(runtime.pins),
+            allowanceMs:
+              this.featureBudget(prepared).allowanceMs -
+              this.featureBudget(prepared).activeMs,
+            // Recheck the bound authority after asynchronous pin inspection.
+            mayDispatch: () => {
+              const permitted =
+                checkpoint() &&
+                this.usageGate.permits(this.status(id).usage, {
+                  operationId: session.operationId,
+                });
+              if (permitted)
+                this.change(id, (delivery) =>
+                  reachedDispatch(delivery, session.operationId),
+                );
+              return permitted;
+            },
+            checkpoint,
           },
-          checkpoint,
-        }),
+          gateway,
+        ),
         interrupted,
       ]);
       if (

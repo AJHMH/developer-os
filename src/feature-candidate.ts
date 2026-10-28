@@ -313,7 +313,12 @@ export interface CodingCollection {
 export interface FeatureRuntime {
   readonly mode: "controlled";
   readonly pins: CodingPins;
-  execute(request: CodingRequest): Promise<CodingResult>;
+  /** A routed turn (`request.modelRoute`) carries its session's gateway,
+   * which stays on the host; an offline turn carries none. */
+  execute(
+    request: CodingRequest,
+    gateway?: SessionGateway,
+  ): Promise<CodingResult>;
   /** Return a home stranded by an interrupted, never-launched resume. */
   recover?(
     session: CodingSession,
@@ -743,7 +748,8 @@ export interface IsolatedCodingTransport {
   readonly mode: "controlled" | "live";
   inspect(session: CodingSession): Promise<CodingPins>;
   /** `gateway` serves a routed request's relay; it never crosses to a
-   * worker. Slice 4 wires it; until then routed turns are refused. */
+   * worker. `PinnedCodingRuntime` passes the controller's routed turn's
+   * gateway here (slice 4a). */
   run(
     request: CodingRequest,
     stdout: (bytes: Buffer) => void,
@@ -840,11 +846,18 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       return false;
     }
   }
-  async execute(request: CodingRequest): Promise<CodingResult> {
+  async execute(
+    request: CodingRequest,
+    gateway?: SessionGateway,
+  ): Promise<CodingResult> {
     const expected = JSON.stringify(this.pins);
     const admittedLaunch = codingLaunchBinding(request);
     const { mayDispatch, checkpoint, onEvent } = request;
+    // A routed turn needs the gateway its route names; an offline one none.
+    const routed = request.modelRoute?.capability;
     if (
+      (routed === undefined) !== (gateway === undefined) ||
+      (gateway && gateway.capability !== routed) ||
       !this.admitted() ||
       JSON.stringify(request.pins) !== expected ||
       JSON.stringify(await this.transport.inspect(request)) !== expected ||
@@ -917,16 +930,24 @@ export class PinnedCodingRuntime implements FeatureRuntime {
         throw Error("Invalid coding session");
       events.push(event);
     };
-    const result = await this.transport.run(launch, (bytes) => {
-      if (closed || !Buffer.isBuffer(bytes) || (count += bytes.length) > 65536)
-        throw Error("Coding stream is unavailable or oversized");
-      pending += decoder.write(bytes);
-      while (pending.includes("\n")) {
-        const at = pending.indexOf("\n");
-        frame(pending.slice(0, at));
-        pending = pending.slice(at + 1);
-      }
-    });
+    const result = await this.transport.run(
+      launch,
+      (bytes) => {
+        if (
+          closed ||
+          !Buffer.isBuffer(bytes) ||
+          (count += bytes.length) > 65536
+        )
+          throw Error("Coding stream is unavailable or oversized");
+        pending += decoder.write(bytes);
+        while (pending.includes("\n")) {
+          const at = pending.indexOf("\n");
+          frame(pending.slice(0, at));
+          pending = pending.slice(at + 1);
+        }
+      },
+      gateway,
+    );
     closed = true;
     pending += decoder.end();
     if (pending.trim()) frame(pending);

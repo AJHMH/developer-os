@@ -144,6 +144,16 @@ const transport = (overrides) => ({
   ...overrides,
 });
 
+// Slice 4a: a routed turn's gateway reaches the transport unchanged; it
+// never crosses to the worker, and a route without one is refused.
+const gateway = Object.freeze({
+  capability: route.capability,
+  respond: async () => {
+    throw Error("unused");
+  },
+  revoke: () => {},
+});
+
 for (const field of ["capability", "decisionSha256"])
   test(`a route ${field} changed while pins are inspected refuses the launch`, async () => {
     const request = routedRequest();
@@ -157,7 +167,7 @@ for (const field of ["capability", "decisionSha256"])
       }),
     );
     await assert.rejects(
-      runtime.execute(request),
+      runtime.execute(request, gateway),
       /Coding executable or authority changed/,
     );
   });
@@ -175,6 +185,51 @@ test("the transport gets the admitted route, not the caller's object", async () 
       },
     }),
   );
-  await assert.rejects(runtime.execute(request), /stop here/);
+  await assert.rejects(runtime.execute(request, gateway), /stop here/);
   assert.deepEqual(seen, route);
+});
+
+test("a routed turn's gateway reaches the transport unchanged", async () => {
+  let seen;
+  const runtime = new PinnedCodingRuntime(
+    pins,
+    transport({
+      run: async (launch, stdout, served) => {
+        seen = served;
+        throw Error("stop here");
+      },
+    }),
+  );
+  await assert.rejects(runtime.execute(routedRequest(), gateway), /stop here/);
+  assert.equal(seen, gateway);
+});
+
+test("a routed turn without a gateway is refused before the transport runs", async () => {
+  const runtime = new PinnedCodingRuntime(pins, transport());
+  await assert.rejects(
+    runtime.execute(routedRequest()),
+    /Coding executable or authority changed/,
+  );
+});
+
+test("an offline turn never carries a gateway", async () => {
+  const request = routedRequest();
+  delete request.modelRoute;
+  request.argv = [...lockedCodingArgv(undefined), "{}"];
+  const runtime = new PinnedCodingRuntime(pins, transport());
+  await assert.rejects(
+    runtime.execute(request, gateway),
+    /Coding executable or authority changed/,
+  );
+});
+
+test("a gateway for another capability is refused before the transport runs", async () => {
+  const runtime = new PinnedCodingRuntime(pins, transport());
+  await assert.rejects(
+    runtime.execute(routedRequest(), {
+      ...gateway,
+      capability: "f".repeat(64),
+    }),
+    /Coding executable or authority changed/,
+  );
 });

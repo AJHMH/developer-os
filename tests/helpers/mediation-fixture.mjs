@@ -26,10 +26,11 @@ const macosNative =
 /** Give a coding fixture a worker probe and an owner-endorsed macOS mediation
  * decision endorsing `usageAccountId` as its usage-reader account, through
  * the public qualification path; without `usageAccountId` the record awaits
- * endorsement and does not qualify. Returns `recordPath`,
+ * endorsement and does not qualify. `coordination` adds controller options,
+ * such as a general-session factory. Returns `recordPath`,
  * `regress()`, which fails the probe's gateway evidence, and `withdraw()`,
  * which removes the protected decision record again. */
-export async function mediatedCoding(f, t, usageAccountId) {
+export async function mediatedCoding(f, t, usageAccountId, coordination = {}) {
   const owner = realpathSync(mkdtempSync(join(tmpdir(), "aios-mediation-")));
   t.after(() => rmSync(owner, { recursive: true, force: true }));
   if (process.platform === "win32") initializeWindowsAuthDirectory(owner);
@@ -109,6 +110,7 @@ export async function mediatedCoding(f, t, usageAccountId) {
     validationRuntime: f.validation,
     clock: () => f.now,
     worker: { probe: async () => structuredClone(probe) },
+    ...coordination,
   });
   const qualified = await f.controller.qualify(id);
   assert.equal(
