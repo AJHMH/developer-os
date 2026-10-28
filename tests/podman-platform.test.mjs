@@ -20,6 +20,26 @@ import {
 import { NativePodmanDriver } from "../dist/podman-native.js";
 const nativeSpawnSync = childProcess.spawnSync;
 
+// Piped `input` just over 64 KiB can leave the child blocked on stdin without
+// EOF on macOS; harness programs reach Python through a file descriptor instead.
+function harnessSpawnSync(command, args, { input, ...options }) {
+  const root = fs.mkdtempSync(`${os.tmpdir()}/aios-harness-`);
+  try {
+    fs.writeFileSync(`${root}/program`, input);
+    const stdin = fs.openSync(`${root}/program`, "r");
+    try {
+      return nativeSpawnSync(command, args, {
+        ...options,
+        stdio: [stdin, "pipe", "pipe"],
+      });
+    } finally {
+      fs.closeSync(stdin);
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test("native inference starts its one-shot gateway lease only after bound isolation and always revokes it", async () => {
   const native = new NativePodmanDriver(
     "aios-test",
@@ -550,7 +570,7 @@ test("generated native management freezes direct wait failures before successful
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const result = runPython(
+  const result = harnessSpawnSync(
     python,
     [
       "-c",
@@ -600,7 +620,7 @@ test("Native Codex launch constrains thread pools and audits the exact environme
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const result = runPython(
+  const result = harnessSpawnSync(
     python,
     [
       "-c",
@@ -647,7 +667,7 @@ test("Native Codex task-headroom gate waits for idle workers and refuses exhaust
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const result = runPython(
+  const result = harnessSpawnSync(
     python,
     [
       "-c",
@@ -839,14 +859,13 @@ test("host positive-control fixture refuses an unbounded lifetime before startin
 });
 
 test("guest command budgets keep Mac scheduling bounded and Windows unchanged", (t) => {
-  const py = nativeSpawnSync,
-    f = hostFixture(t, "darwin");
+  const f = hostFixture(t, "darwin");
   f.setResult({ status: 0, stdout: "{}" });
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
   const started = performance.now();
-  const r = py(
+  const r = harnessSpawnSync(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
@@ -960,7 +979,7 @@ test(
     new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
       "/candidate",
     );
-    const r = nativeSpawnSync(
+    const r = harnessSpawnSync(
       process.env.AIOS_TEST_PYTHON ?? "python",
       [
         "-c",
@@ -997,7 +1016,7 @@ test("Mac relay permits observed exec scheduling delay while retaining the netwo
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const r = nativeSpawnSync(
+  const r = harnessSpawnSync(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
@@ -1027,7 +1046,7 @@ test("Mac completed turn waits for headroom before opening persisted history", (
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const r = nativeSpawnSync(
+  const r = harnessSpawnSync(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
@@ -1063,7 +1082,7 @@ test("Mac resume may finish after headroom waits without extending the Windows p
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const r = nativeSpawnSync(
+  const r = harnessSpawnSync(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
@@ -1221,7 +1240,7 @@ test("effective isolation checks bound exec and refuse transport failures", (t) 
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const r = nativeSpawnSync(
+  const r = harnessSpawnSync(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
@@ -1277,7 +1296,7 @@ test(
     new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
       "/candidate",
     );
-    const r = nativeSpawnSync(
+    const r = harnessSpawnSync(
       process.env.AIOS_TEST_PYTHON ?? "python",
       [
         "-c",
@@ -1323,7 +1342,7 @@ test("native stop cannot mistake a timed-out engine query for an absent containe
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
   );
-  const r = nativeSpawnSync(
+  const r = harnessSpawnSync(
     process.env.AIOS_TEST_PYTHON ?? "python",
     [
       "-c",
