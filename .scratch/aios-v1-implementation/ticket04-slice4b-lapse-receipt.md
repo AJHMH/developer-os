@@ -71,6 +71,30 @@ slice 4"). The owner also chose, on 28 October:
   evidence.
 - Results are in the PR description.
 
+## Windows shard 5 headroom
+
+The first hosted run cancelled Windows CLI tests (5/8) at its 10-minute job
+limit. Run `40692483583` had no failing assertion. Shard 5 holds
+`zz-feature-coding-session.test.mjs`, which every slice-4 change has grown.
+That shard's job time went from about 5 minutes on 27 October to 9m45s on the
+slice 4 PR, and it was then cancelled here. The other seven shards took 2 to 8
+minutes, and shard 7 took 2m17s.
+
+The usage, monitoring, restart, mediation, routed-session and lapse tests
+(52 of the file's 85) move unchanged to `zz-usage-coding-session.test.mjs`.
+That name sorts after every other test file, so it joins shard 7 and no
+other file changes shard. `firstThread` and `failedTurn`, used by both
+files, move to `tests/helpers/coding-turns.mjs`. No assertion, scenario,
+workflow, timeout, concurrency or shard count changes.
+
+**Verification on Windows:**
+- Format and typecheck pass.
+- The two files together report the same 85 tests with the same per-test
+  results as the unsplit file. On this PC, 34 mediated tests fail at the
+  mediation fixture's qualification assertion; they fail identically on
+  unchanged `main` and pass in hosted CI.
+- The hosted Windows shards are the check of the new timing.
+
 ## Not covered
 
 - **A lapse found only after the turn completed** is recorded with its
