@@ -900,3 +900,17 @@ controller. Cleaning up superseded lineages in the guest is left to a later
 guest slice. No guest change, so the coding records stay valid. Production
 remains disabled. See the
 [slice 4c receipt](../ticket04-slice4c-restart-receipt.md).
+
+## 28 October: slice 4d, the owner-run offline usage canary, built
+
+The owner-run canary for decision C is built test-first in the simulator:
+`scripts/run-native-usage-canary.mjs`. The delivery controller drives three
+routed turns through the real native transport and gateway, with a fake
+provider and synthetic planning, validation, probe, decision and usage. It
+shows unknown usage refused even approved, low usage needing approval,
+exhaustion ending the launch at once with its workspace kept as evidence, a
+restart refused without approval, an approved resume ended by a withdrawn
+decision, and a new decision starting a new lineage that completes. No guest
+change, so the coding records stay valid. The native runs on both hosts are
+still to do. Production remains disabled. See the
+[slice 4d receipt](../ticket04-slice4d-usage-canary-receipt.md).
