@@ -829,3 +829,14 @@ resumable. Built test-first in the simulator. The coding `policySha256`
 changes, so each host's coding record needs one re-approval, and the routed
 acceptance is rerun natively after merge. Production remains disabled. See
 the [route continuity receipt](../ticket04-route-continuity-receipt.md).
+
+## 27 October: route continuity passes natively on macOS and Windows
+
+After #122, each host's coding record was renewed for the new policy pin
+(`77885706…`; only that pin changed), and the routed acceptance passed on
+both hosts from a clean, freshly built `main` at `f64fdae`. Every stage and
+all 26 coding probes passed, and each resume, keeping its launch's delivery
+and decision with a new capability, was admitted by the new check. Windows
+also showed that retained session binaries can fill the VM disk; bounding
+them is a follow-up guest change. Production remains disabled. See the
+[route continuity receipt](../ticket04-route-continuity-receipt.md).

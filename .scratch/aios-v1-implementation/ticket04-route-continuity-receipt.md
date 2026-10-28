@@ -80,3 +80,53 @@ request's. New lineages are unaffected.
   simulator only.
 
 Production remains disabled.
+
+## Native routed acceptance under the new guest (27 October 2026)
+
+After PR #122 merged at `f64fdae`, each host's coding record was renewed and
+the routed acceptance rerun. On both hosts the first run blocked at
+`owner-record-names-fresh-pins` and printed `freshPins`. Only `policySha256`
+had changed, from `89339099…` to `77885706…`, as computed in the simulator.
+`bindingSha256` and the other pins were unchanged. Each record got the new
+pin and a new `approvedAt`. Those blocked runs are not kept.
+
+Both reruns used a clean (`sourceDirty: false`), freshly built `main` at
+`f64fdae`, with the same runner (`0706a59c…`), coding probe (`6e7b3db4…`),
+gateway (`7df3a76b…`) and build (`4347151d…`, dist `4f987495…`) hashes.
+
+| | macOS (`aios-macos-noshare`) | Windows (`aios-podman-noshare`) |
+|---|---|---|
+| Report | `macos/ticket04-routed-acceptance-20261027-190802.json` | `windows/ticket04-routed-acceptance-20261027-201606.json` |
+| SHA-256 | `b7eba303…` | `cd759a2d…` |
+| Outcome | `observed-offline-routed-acceptance` | `observed-offline-routed-acceptance` |
+| Stages passed | 9 of 9 | 9 of 9 |
+| Coding probes passed | 26 of 26 | 26 of 26 |
+| Launch requests (keep-alives) | 5 (3) | 6 (4) |
+| Resume requests (keep-alives) | 2 (0) | 2 (0) |
+| Total time | about 60 s | about 123 s |
+
+On both hosts the resume (fence 2) kept the launch's delivery and decision
+with a new relay capability, so the new check admitted it natively:
+- it continued the launch's thread and exited 0;
+- code-mode tools worked through the relay and gateway, with no
+  `unexpected` requests and no gateway refusals;
+- its grant was revoked as `stopped`, and a later use was refused as
+  `revoked`;
+- the exact stop left 0 processes, and `routed-resume.txt` was collected.
+
+The launch passed the same way, with the probe after the first request and
+before the edit. This answers "Not covered (native)" above for the matching
+path. The refusals remain covered in the simulator only, since the runner
+never sends a mismatched resume.
+
+**Windows host note.** Earlier the same evening, Windows runs from the older
+`5763a29` checkout were blocked first by the stale `gvproxy` socket again,
+then by a full VM disk. As the Windows session reported it (not
+independently checked here), each stopped coding session keeps its own copy
+of the Codex binary, about 350 MB, and nothing removes it; 21 sessions held
+5.9 GB of the 10 GB disk. The owner approved trimming the copies from
+sessions stopped more than 24 hours earlier. Those runs predate #122 and are
+not kept. Bounding retained session binaries is a guest change, so it would
+need another policy re-approval on both hosts.
+
+Production remains disabled.

@@ -128,7 +128,8 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
 3. **Model-only mode in the guest**, in two parts:
    - **3a (done; see `ticket04-model-route-binding-receipt.md`):** the
      request, argv and environment binding. Route continuity across resume
-     is decided (A) and enforced in the guest; see
+     is decided (A) and enforced in the guest, and passed natively on both
+     hosts under the renewed records; see
      `ticket04-route-continuity-receipt.md`.
    - **3b (done; see `ticket04-relay-channel-receipt.md`):** the relay
      channel. The host opens a long-lived
