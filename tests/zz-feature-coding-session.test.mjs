@@ -7,9 +7,11 @@ import { planAndValidate } from "./helpers/validation-fixture.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
+import { lockedCodingArgv } from "../dist/feature-candidate.js";
+import { generalSessionLimits } from "../dist/general-session-gateway.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
 
@@ -1348,10 +1350,13 @@ test("a slow usage observation is never polled concurrently during a coding turn
   let active = 0,
     most = 0,
     running = false;
+  // Count only reads that start during the turn; dispatch's own read may
+  // still be finishing as the turn begins.
   f.subscription = async (at) => {
-    if (running) most = Math.max(most, ++active);
+    const during = running;
+    if (during) most = Math.max(most, ++active);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    if (running) active -= 1;
+    if (during) active -= 1;
     return healthy(at);
   };
   f.runtime.execute = async (request) => {
@@ -1445,4 +1450,156 @@ test("a missing usage observation never authorizes mediated coding, even when ap
   );
   await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
   assert.deepEqual(dispatched, []);
+});
+
+// Slice 4a: with a general-session factory, a mediated turn is routed. The
+// factory's gateway serves the turn on the host, and its authority callback
+// re-observes usage and re-qualifies the decision at each model request.
+function generalSessions() {
+  const sessions = [];
+  const factory = (turn, authority) => {
+    const gateway = {
+      capability: randomUUID().replaceAll("-", "").repeat(2),
+      respond: async () => {
+        throw Error("unused");
+      },
+      revoke: (reason) => gateway.revoked.push(reason),
+      revoked: [],
+    };
+    sessions.push({ turn, authority, gateway });
+    return gateway;
+  };
+  return { sessions, factory };
+}
+async function routedCoding(t, turn = failedTurn) {
+  const { f, dispatched } = await authorizedCoding(t);
+  const launches = [];
+  f.runtime.execute = async (request, gateway) => {
+    dispatched.push(request.operationId);
+    launches.push({ request, gateway });
+    return turn(request, gateway);
+  };
+  const { sessions, factory } = generalSessions();
+  const mediation = await mediatedCoding(f, t, mediatedAccount, {
+    generalSessions: factory,
+  });
+  observeAccount(f, mediatedAccount);
+  return { f, dispatched, launches, sessions, mediation };
+}
+
+test("a mediated turn is routed through the configured general session", async (t) => {
+  const { f, launches, sessions } = await routedCoding(t);
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(launches.length, 1);
+  assert.equal(sessions.length, 1);
+  const [{ request, gateway }] = launches,
+    [{ turn }] = sessions;
+  assert.equal(gateway, sessions[0].gateway, "the factory's gateway");
+  assert.deepEqual(request.modelRoute, {
+    deliveryId: f.delivery.id,
+    decisionSha256: turn.decisionSha256,
+    capability: gateway.capability,
+  });
+  assert.match(turn.decisionSha256, /^[a-f0-9]{64}$/);
+  assert.equal(turn.deliveryId, f.delivery.id);
+  assert.equal(turn.sessionId, request.operationId);
+  assert.equal(turn.accountId, "a".repeat(64), "the credential account");
+  assert.ok(turn.expiresAt > f.now);
+  assert.deepEqual(
+    request.argv.slice(0, -1),
+    lockedCodingArgv(undefined, request.modelRoute),
+  );
+});
+
+test("a mediated turn without a general-session factory stays offline", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  let seen;
+  f.runtime.execute = async (request, gateway) => {
+    dispatched.push(request.operationId);
+    seen = { route: request.modelRoute, gateway, argv: request.argv };
+    return failedTurn(request);
+  };
+  await mediatedCoding(f, t, mediatedAccount);
+  observeAccount(f, mediatedAccount);
+  await f.controller.codeFeature(f.delivery.id);
+  assert.equal(seen.route, undefined);
+  assert.equal(seen.gateway, undefined);
+  assert.deepEqual(seen.argv.slice(0, -1), lockedCodingArgv(undefined));
+});
+
+for (const [authority, arrange] of [
+  ["permitted", () => {}],
+  ["exhausted", (f) => (f.usedPercent = 100)],
+  // Below 20% remaining needs an owner approval this turn does not hold.
+  ["approval-required", (f) => (f.usedPercent = 85)],
+  ["unknown", (f) => (f.subscription = async () => undefined)],
+  ["account", (f) => observeAccount(f, "d".repeat(64))],
+  // The owner's protected record is re-read at each request; nothing re-probes.
+  ["withdrawn", (f, mediation) => unlinkSync(mediation.recordPath)],
+])
+  test(`each model request's authority is "${authority}" from a fresh observation and the decision record`, async (t) => {
+    let seen, coding;
+    coding = await routedCoding(t, async (request) => {
+      await arrange(coding.f, coding.mediation);
+      seen = await coding.sessions[0].authority();
+      return failedTurn(request);
+    });
+    await coding.f.controller.codeFeature(coding.f.delivery.id);
+    assert.equal(seen, authority);
+  });
+
+test("usage that lapses after coding is prepared is seen before the turn is dispatched", async (t) => {
+  const { f, dispatched } = await routedCoding(t);
+  const healthy = f.subscription;
+  // Exhausted once the feature branch exists, i.e. after preparation.
+  f.subscription = async (at) => {
+    const prepared =
+      f.git("branch", "--list", `codex/feature-${f.delivery.id}`).trim() !== "";
+    if (prepared) f.usedPercent = 100;
+    return healthy(at);
+  };
+  await f.controller.codeFeature(f.delivery.id).catch(() => {});
+  assert.deepEqual(dispatched, [], "no turn on usage that lapsed");
+});
+
+test("a model request re-reads the decision without re-probing or rewriting qualification", async (t) => {
+  let seen, coding;
+  coding = await routedCoding(t, async (request) => {
+    // A worker probe that would now fail is not consulted mid-turn.
+    coding.mediation.regress();
+    seen = await coding.sessions[0].authority();
+    return failedTurn(request);
+  });
+  const before = coding.f.controller.status(coding.f.delivery.id).qualification;
+  await coding.f.controller.codeFeature(coding.f.delivery.id);
+  assert.equal(seen, "permitted");
+  assert.deepEqual(
+    coding.f.controller.status(coding.f.delivery.id).qualification
+      .subscriptionMediation.mechanismDecision,
+    before.subscriptionMediation.mechanismDecision,
+  );
+});
+
+test("a turn's general session never outlives the gateway's session limit", async (t) => {
+  const { f, sessions } = await routedCoding(t);
+  await f.controller.codeFeature(f.delivery.id, { codingMinutes: 1440 });
+  assert.ok(
+    sessions[0].turn.expiresAt <= f.now + generalSessionLimits.sessionMs,
+  );
+});
+
+test("a general session that cannot open stops the prepared session and dispatches nothing", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  await mediatedCoding(f, t, mediatedAccount, {
+    generalSessions: () => {
+      throw Error("synthetic gateway refusal");
+    },
+  });
+  observeAccount(f, mediatedAccount);
+  await f.controller.codeFeature(f.delivery.id).catch(() => {});
+  assert.deepEqual(dispatched, []);
+  assert.notEqual(
+    f.controller.status(f.delivery.id).feature.session.state,
+    "running",
+  );
 });

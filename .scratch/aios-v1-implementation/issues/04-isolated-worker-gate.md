@@ -862,3 +862,15 @@ from 50 stopped sessions, taking session state from 9.0 GB to 87 MB, and the
 new run's stopped sessions held no copies. The Windows trim and folders were
 not observed from the Mac. Production remains disabled. See the
 [stopped session binaries receipt](../ticket04-stopped-session-binaries-receipt.md).
+
+## 27 October: slice 4a, the controller routes mediated coding turns
+
+The owner settled slice 4's decisions (E–H in the plan). Slice 4a lets the
+controller route a mediated delivery's coding turns through an injected
+general-session factory: the turn gets a route naming the delivery, the
+qualified decision's hash and the gateway's capability, and the gateway's
+authority callback observes usage and re-reads the owner's decision record at
+each model request. Dispatch now takes a fresh usage observation. Without a factory,
+coding stays offline. No guest change, so the coding records stay valid.
+Production remains disabled. See the
+[slice 4a receipt](../ticket04-slice4a-routed-controller-receipt.md).

@@ -92,13 +92,15 @@ export interface GeneralSessionGrant {
 }
 /** Fresh authority for one provider request: usage observed now through
  * `UsageApprovalGate`, the mediation decision still standing, the same
- * account. Anything but "permitted" ends the session's grant. */
+ * account. Anything but "permitted" ends the session's grant; "account" is
+ * usage observed for another account than the turn's. */
 export type GeneralSessionAuthority =
   | "permitted"
   | "approval-required"
   | "unknown"
   | "exhausted"
-  | "withdrawn";
+  | "withdrawn"
+  | "account";
 /** Why a grant ended: fresh authority, the gateway's own limits, or the
  * caller stopping, pausing or seeing a changed pin. */
 export type GeneralSessionRevocation =

@@ -174,7 +174,11 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
 ### Slice 4 — Usage, exhaustion and restart on the native session (no inference)
 
 - Wire the controller's usage monitor, lapse record and restart approval to
-  the native transport.
+  the native transport. Split into 4a (the controller routes mediated turns
+  through an injected general-session factory, with fresh authority at each
+  request; done, see `ticket04-slice4a-routed-controller-receipt.md`), 4b
+  (lapse: revoke at once, collect evidence), 4c (restart and the simulator's
+  synthetic usage reader) and 4d (the owner-run offline canary).
 - **Exhaustion:** revoke the grant, stop the exact session, and collect the
   workspace for preservation. Re-dispatch needs a fresh restart approval.
 - **Tests:** a synthetic usage reader in the simulator and in an owner-run
@@ -216,6 +220,29 @@ stays disabled.
   threshold is added.
 - **D. Model:** pin the fixed worker's model, `gpt-6.1-sol`, and refuse any
   other.
+
+## Owner decisions for slice 4 (27 October 2026)
+
+- **E. Checks during a native routed turn:** at every model request the
+  gateway's `authority()` takes a fresh usage observation and re-reads the
+  owner's decision record (the owner chose a read, not a full worker
+  re-probe, so a transient probe failure can't lower stored qualification;
+  launch still re-qualifies fully). The controller's 30 s usage monitor
+  stays. Dispatch takes a fresh observation instead of reusing one for up to
+  60 s.
+- **F. A mid-turn lapse or withdrawal ends the turn at once:** the grant is
+  revoked with the specific reason (`exhausted`, `approval-required`,
+  `unknown` or `withdrawn`), the turn's checkpoint fails so the native poll
+  loop exits, and the exact session is stopped and the interruption recorded.
+- **G. Preservation:** after a lapse the workspace is collected as evidence
+  only, never as a candidate. The stopped thread also stays resumable.
+- **H. Unknown usage:** coding keeps refusing unmeasured usage even when
+  approved. That satisfies decision C more strictly than the gate alone.
+
+Consequence of decision A (route continuity): a restart after a usage lapse,
+under the same mediation decision, resumes the thread with a fresh grant and
+capability; a restart after the decision was withdrawn and re-qualified
+names a new decision, so it starts a new lineage instead.
 
 ## Risks and how they are contained
 
