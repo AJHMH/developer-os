@@ -283,3 +283,55 @@ Limits:
   `tools.exec_command`, as captured. A Codex that yields a script back to the
   model, or calls tools differently, shows up as `unexpected` requests or a
   missing marker.
+
+## Usage canary
+
+`scripts/run-native-usage-canary.mjs` is the plan's slice 4d owner-run
+offline canary (owner decision C). The delivery controller drives routed
+coding turns through the real native transport and a real
+`GeneralSessionGateway`, under the owner's coding admission record. The
+gateway's only provider is the fake one above. Planning, validation,
+onboarding facts, the worker probe, the mediation decision and usage
+observations are synthetic stand-ins, in a disposable folder; the report
+lists them under `synthetic`.
+
+One lineage, in order:
+- **Before any turn:** unknown usage is refused, even when approved. Low
+  usage is refused until the owner approves it.
+- **Launch:** usage becomes exhausted once the turn has started. The next
+  model request is refused, the grant is revoked as `exhausted`, the session
+  stops exactly, the interruption is recorded, and the workspace is kept as
+  `interrupted-turn` evidence, never as a candidate.
+- **Restart:** refused without the owner's restart approval, even though
+  usage is healthy again.
+- **Resume:** after approval, the restart resumes the launch's thread under
+  the same route. The decision record is withdrawn once the turn has
+  started, and the resume ends the same way, as `withdrawn`.
+- **New lineage:** a new decision is recorded and the restart approved. The
+  turn starts a new thread under the new decision, supersedes the old
+  lineage, runs the work script through the route and completes.
+
+Every turn must stop exactly. At the end, every session is stopped again by
+its exact identity.
+
+macOS (zsh), from a clean, built checkout with the VM running:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-usage-canary.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/issue04-usage-canary-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+```
+
+Windows (PowerShell, not elevated):
+
+```powershell
+npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-usage-canary.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/issue04-usage-canary-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
+```
+
+Outcomes:
+- **`observed-offline-usage-canary`:** every stage passed.
+- **`blocked`:** at the stage named in the report. Later stages are listed as
+  `not-run`.
+- **`uncertain`:** a session could not be confirmed stopped.
+
+A record that doesn't match prints `freshPins`. No guest code changed, so the
+current coding records apply. No real provider or usage reading is involved;
+those are for slice 5.

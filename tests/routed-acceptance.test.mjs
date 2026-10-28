@@ -7,12 +7,11 @@ import { lockedCodingArgv } from "../dist/feature-candidate.js";
 import { GeneralSessionRefusal } from "../dist/general-session-gateway.js";
 import { codingBoundaryProbeNames } from "../dist/worker-probes.js";
 import {
-  fakeProvider,
-  maxKeepalives,
   passingOutcome,
   routedAcceptance,
   stageNames,
 } from "../scripts/run-native-routed-acceptance.mjs";
+import { fakeProvider, maxKeepalives } from "../scripts/routed-provider.mjs";
 
 const pins = {
   cliVersion: "0.161.0",

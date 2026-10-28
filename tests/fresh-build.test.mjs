@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -150,6 +149,11 @@ const runners = {
     record,
     report,
   ],
+  "run-native-usage-canary.mjs": (record, report) => [
+    "aios-test",
+    record,
+    report,
+  ],
   "run-native-worker-qualification.mjs": (record, report) => [
     "aios-test",
     record,
@@ -162,12 +166,10 @@ const runners = {
 for (const [runner, argumentsOf] of Object.entries(runners))
   test(`${runner} refuses a stale build before any effect`, (t) => {
     const root = checkout(t);
-    mkdirSync(join(root, "scripts"));
-    for (const file of [runner, "fresh-build.mjs"])
-      copyFileSync(
-        join(repository, "scripts", file),
-        join(root, "scripts", file),
-      );
+    // Every script, so a runner's shared modules resolve.
+    cpSync(join(repository, "scripts"), join(root, "scripts"), {
+      recursive: true,
+    });
     symlinkSync(
       join(repository, "node_modules"),
       join(root, "node_modules"),

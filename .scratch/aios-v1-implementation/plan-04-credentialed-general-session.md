@@ -180,7 +180,8 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
   (lapse: revoke at once, collect evidence; done, see
   `ticket04-slice4b-lapse-receipt.md`), 4c (restart and the simulator's
   synthetic usage reader; done, see `ticket04-slice4c-restart-receipt.md`)
-  and 4d (the owner-run offline canary).
+  and 4d (the owner-run offline canary; built, see
+  `ticket04-slice4d-usage-canary-receipt.md`, native runs to do).
 - **Exhaustion:** revoke the grant, stop the exact session, and collect the
   workspace for preservation. Re-dispatch needs a fresh restart approval.
 - **Tests:** a synthetic usage reader in the simulator and in an owner-run
