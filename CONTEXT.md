@@ -106,9 +106,12 @@ subscription. The owner endorses it in the mediation decision record, and every
 check against observed usage compares with it, never with the vault account.
 
 **Usage interruption**: A coding turn stopped because its usage authority
-lapsed during the turn or before its output was collected (exhaustion, an
-account change or a lost observation). The thread is preserved, and coding
-stays blocked until a coding restart approval.
+lapsed during the turn or before its output was collected (exhaustion, a
+needed owner approval, an account change or a lost observation), or because
+the owner's mediation decision was withdrawn. The reason is recorded, the
+thread is preserved, and the workspace is kept as `interrupted-turn`
+evidence, never as a candidate. Coding stays blocked until a coding restart
+approval.
 
 **Owner coding admission**: An owner-written record, kept privately on one
 host and never in a repository, that names the exact pins (CLI version and

@@ -152,6 +152,8 @@ import {
 import {
   generalSessionLimits,
   type GeneralSessionAuthority,
+  type GeneralSessionLapse,
+  type GeneralSessionRevocation,
 } from "./general-session-gateway.js";
 import type { SessionGateway } from "./session-relay.js";
 import {
@@ -325,7 +327,10 @@ export interface Delivery {
     message: string;
     nextAction: string;
   };
-  evidence: { kind: "request" | "offline-canary"; path: string }[];
+  evidence: {
+    kind: "request" | "offline-canary" | "interrupted-turn";
+    path: string;
+  }[];
 }
 
 const restartRequired =
@@ -341,13 +346,18 @@ function pendingRestart(feature: FeatureEvidence | undefined) {
     : undefined;
 }
 
-/** Record a usage interruption of `session`, once. */
-function recordInterruption(delivery: Delivery, session: CodingSession) {
+/** Record a usage interruption of `session`, once, with its reason. */
+function recordInterruption(
+  delivery: Delivery,
+  session: CodingSession,
+  reason: GeneralSessionLapse,
+) {
   const f = delivery.feature!;
   if (!f.usageInterruptions?.some((i) => i.operationId === session.operationId))
     (f.usageInterruptions ??= []).push({
       operationId: session.operationId,
       at: new Date().toISOString(),
+      reason,
     });
 }
 
@@ -2815,6 +2825,7 @@ export class DeliveryController {
           this.chargeCoding(delivery);
       });
       return (
+        lapse === undefined &&
         runtime.mode === "controlled" &&
         d.phase === "implementing" &&
         (!repairId || this.repairActive(d, repairId)) &&
@@ -2837,17 +2848,16 @@ export class DeliveryController {
         operationId: session.operationId,
         accountId: account,
       });
-    const authority = async (): Promise<GeneralSessionAuthority> => {
-      let usage: UsageReport | undefined;
-      try {
-        usage = (await this.checkUsage(id)).usage;
-      } catch {
-        return "unknown";
-      }
+    // Why authority observed now no longer permits this turn, or null while
+    // it does: usage first, then a mediated turn's decision. Throws when the
+    // usage read loses delivery authority.
+    const freshLapse = async (): Promise<GeneralSessionLapse | null> => {
+      const usage = (await this.checkUsage(id)).usage;
       if (!usage || usage.remainingPercent === null) return "unknown";
       if (usage.accountId !== account) return "account";
       if (usage.decision === "exhausted") return "exhausted";
       if (!usagePermitsTurn(usage)) return "approval-required";
+      if (!mediation) return null;
       // The projection never throws: missing or drifted evidence yields no
       // decision, which reads as withdrawn.
       const current = qualifiedDecision(
@@ -2857,9 +2867,14 @@ export class DeliveryController {
         ),
       );
       return current && sha256(JSON.stringify(current)) === decisionSha256
-        ? "permitted"
+        ? null
         : "withdrawn";
     };
+    const authority = (): Promise<GeneralSessionAuthority> =>
+      freshLapse().then(
+        (lapse) => lapse ?? "permitted",
+        () => "unknown",
+      );
     const prompt = JSON.stringify({
       request: snapshot.request,
       criteria: feature.criteria,
@@ -2871,43 +2886,49 @@ export class DeliveryController {
         ? { repairFindings: snapshot.repair!.attempts.at(-1)!.findings }
         : {}),
     });
-    let gateway: SessionGateway | undefined;
+    let gateway: SessionGateway | undefined,
+      revoked = false;
+    // The turn's general session is revoked once, with the first reason.
+    const revoke = (reason: GeneralSessionRevocation) => {
+      if (!gateway || revoked) return;
+      revoked = true;
+      gateway.revoke(reason);
+    };
     let interrupt: (value: undefined) => void;
     const interrupted = new Promise<undefined>((resolve) => {
       interrupt = resolve;
     });
     // Re-observe usage while the turn runs: exhaustion, an account change or
     // a lost observation stops it, preserving any started thread.
-    let usageLapsed = false,
+    let lapse: GeneralSessionLapse | undefined,
       monitoring = true,
       polling = false;
-    // True, false for a usage lapse, or undefined after a control change.
-    const usagePermits = () =>
-      this.checkUsage(id)
-        .then((observed) =>
-          this.usageGate.permits(observed.usage, {
-            operationId: session.operationId,
-            accountId: account,
-          }),
-        )
-        .catch(() => undefined);
-    // A lapse is durable before the worker is stopped, so a controller lost
-    // mid-stop still needs the owner's restart approval.
-    const recordLapse = () => {
-      usageLapsed = true;
+    // A lapse, null while authority permits, or undefined after a control
+    // change.
+    const observedLapse = () => freshLapse().catch(() => undefined);
+    // A lapse or withdrawal ends the turn at once (decision F): the grant is
+    // revoked with the reason and the checkpoint fails. It is durable before
+    // the worker is stopped, so a controller lost mid-stop still needs the
+    // owner's restart approval.
+    const recordLapse = (reason: GeneralSessionLapse) => {
+      lapse ??= reason;
+      revoke(reason);
       try {
-        this.change(id, (delivery) => recordInterruption(delivery, session));
+        this.change(id, (delivery) =>
+          recordInterruption(delivery, session, reason),
+        );
       } catch {}
+      interrupt(undefined);
     };
     const usageMonitor = setInterval(() => {
       if (polling) return;
       polling = true;
-      void usagePermits().then((permitted) => {
+      void observedLapse().then((observed) => {
         polling = false;
         // A poll that finishes after the turn ended changes nothing.
-        if (permitted || !monitoring) return;
-        if (permitted === false) recordLapse();
-        interrupt(undefined);
+        if (observed === null || !monitoring) return;
+        if (observed) recordLapse(observed);
+        else interrupt(undefined);
       });
     }, this.coordination.codingUsagePollMs ?? workerUsagePollMs);
     usageMonitor.unref();
@@ -2971,7 +2992,12 @@ export class DeliveryController {
                   sessionGraceMs,
               ),
           },
-          authority,
+          async () => {
+            const current = await authority();
+            // A request answered after the turn ended changes nothing.
+            if (current !== "permitted" && monitoring) recordLapse(current);
+            return current;
+          },
         );
       const modelRoute = gateway && {
         deliveryId: id,
@@ -3089,24 +3115,60 @@ export class DeliveryController {
       monitoring = false;
       clearInterval(heartbeat);
       clearInterval(usageMonitor);
+      let ended: GeneralSessionRevocation =
+        JSON.stringify(runtime.pins) === pins ? "stopped" : "pin-changed";
+      try {
+        if (this.status(id).phase === "paused") ended = "paused";
+      } catch {}
+      revoke(ended);
     }
     let stopped = await this.stopFeature(id, session.operationId);
     // Output is collected only under authority that still holds afterwards;
     // exhaustion is never overridden, and the stopped thread stays resumable.
-    if (!usageLapsed && completed && (await usagePermits()) === false)
-      usageLapsed = true;
-    if (usageLapsed)
+    if (!lapse && completed) lapse = (await observedLapse()) ?? undefined;
+    if (lapse)
       stopped = this.change(id, (delivery) =>
-        recordInterruption(delivery, session),
+        recordInterruption(delivery, session, lapse!),
       );
     if (
       stopped.feature?.session?.operationId === session.operationId &&
       needsResumeRecovery(stopped.feature.session)
     )
       return this.recoverResume(id);
+    // A lapsed turn's workspace is kept as evidence only, never as a
+    // candidate (decision G); a refused collection leaves the interruption.
+    if (
+      lapse &&
+      stopped.feature?.session?.operationId === session.operationId &&
+      stopped.feature.session.state === "stopped" &&
+      stopped.ownership.fence === session.fence &&
+      JSON.stringify(runtime.pins) === pins
+    )
+      try {
+        const output = await this.observe(runtime.collect(session));
+        if (
+          output?.operationId !== session.operationId ||
+          output.fence !== session.fence
+        )
+          throw Error();
+        const path = join(
+          this.stateDirectory,
+          "artifacts",
+          `interrupted-${session.operationId}.json`,
+        );
+        this.ledger.assertArtifacts();
+        writeFileSync(path, candidateOutput(output), {
+          flag: "wx",
+          mode: 0o600,
+          flush: true,
+        });
+        stopped = this.change(id, (delivery) => {
+          delivery.evidence.push({ kind: "interrupted-turn", path });
+        });
+      } catch {}
     if (
       !completed ||
-      usageLapsed ||
+      lapse ||
       stopped.feature?.session?.state !== "stopped" ||
       stopped.phase === "paused" ||
       stopped.phase === "cancelled" ||

@@ -874,3 +874,16 @@ each model request. Dispatch now takes a fresh usage observation. Without a fact
 coding stays offline. No guest change, so the coding records stay valid.
 Production remains disabled. See the
 [slice 4a receipt](../ticket04-slice4a-routed-controller-receipt.md).
+
+## 28 October: slice 4b, a lapse or withdrawal ends a routed turn at once
+
+Decisions F and G. When fresh authority stops permitting a coding turn, the
+controller revokes the turn's general session with the reason at once, fails
+the turn's checkpoint so the native poll loop exits, stops the exact session
+and records the interruption with its reason. This applies whether a model
+request, the usage monitor or the post-turn check finds it, and a
+withdrawn decision is now checked by all three. The workspace is then kept as
+`interrupted-turn` evidence only, never as a candidate, and the stopped
+thread resumes after the owner's restart approval. No guest change, so the
+coding records stay valid. Production remains disabled. See the
+[slice 4b receipt](../ticket04-slice4b-lapse-receipt.md).

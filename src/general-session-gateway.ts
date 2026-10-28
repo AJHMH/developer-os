@@ -101,10 +101,12 @@ export type GeneralSessionAuthority =
   | "exhausted"
   | "withdrawn"
   | "account";
+/** Fresh authority that no longer permits the session. */
+export type GeneralSessionLapse = Exclude<GeneralSessionAuthority, "permitted">;
 /** Why a grant ended: fresh authority, the gateway's own limits, or the
  * caller stopping, pausing or seeing a changed pin. */
 export type GeneralSessionRevocation =
-  | Exclude<GeneralSessionAuthority, "permitted">
+  | GeneralSessionLapse
   | "expired"
   | "account"
   | "response-bound"
