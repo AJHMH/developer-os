@@ -887,3 +887,16 @@ withdrawn decision is now checked by all three. The workspace is then kept as
 thread resumes after the owner's restart approval. No guest change, so the
 coding records stay valid. Production remains disabled. See the
 [slice 4b receipt](../ticket04-slice4b-lapse-receipt.md).
+
+## 28 October: slice 4c, restart under the same route or a new lineage
+
+The consequence of decision A. Each coding session now records its route on
+the host (delivery and decision, never the capability). A restart resumes the
+thread only under the same route; under a new decision, or after a change
+between offline and routed, it starts a new lineage and records the old one
+as superseded, never resumed again, with its thread and workspace kept. A
+synthetic usage reader drives the plan's usage scenarios through the
+controller. Cleaning up superseded lineages in the guest is left to a later
+guest slice. No guest change, so the coding records stay valid. Production
+remains disabled. See the
+[slice 4c receipt](../ticket04-slice4c-restart-receipt.md).

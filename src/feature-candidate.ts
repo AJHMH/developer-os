@@ -59,6 +59,18 @@ export interface FeatureEvidence extends FeaturePlan {
   usageAccountId?: string;
   /** Resumes that continued a conversation onto a moved main. */
   baseMoves?: { operationId: string; from: string; to: string; at: string }[];
+  /** Lineages left behind when coding restarted under another route (a new
+   * mediation decision, or a change between offline and routed). Each is
+   * never resumed again; its thread and workspace stay as evidence. `by` is
+   * the operation that started the new lineage. */
+  supersededLineages?: {
+    operationId: string;
+    threadId: string;
+    route?: SessionRoute;
+    at: string;
+    by: string;
+    session: CodingSession;
+  }[];
   /** Owner decisions retiring an unresolved resume lineage. `session` is the
    * retired successor's binding; `cleanedAt` and `cleaned` record the owner's
    * later cleanup of the whole lineage. */
@@ -135,7 +147,13 @@ export interface CodingSession {
   sourceRevision?: string;
   /** A resume onto a moved main: the predecessor's revision and this one's. */
   baseMove?: { from: string; to: string };
+  /** The model route this operation ran under, without its capability.
+   * Absent for an offline turn, and for sessions recorded before slice 4c. */
+  route?: SessionRoute;
 }
+/** A coding session's route as the host records it (ADR 0002): its delivery
+ * and mediation decision. A resume keeps its predecessor's route. */
+export type SessionRoute = Omit<ModelRoute, "capability">;
 /** The latest usage interruption, unless an owner-approved restart has
  * already dispatched past it. */
 export function unrestartedInterruption(feature: FeatureEvidence | undefined) {

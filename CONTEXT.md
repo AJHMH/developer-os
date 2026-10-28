@@ -4,7 +4,6 @@
 
 This glossary defines the target delivery domain. The implementation currently reaches controlled synchronization, eligible cleanup and completion; native delivery integrations and complete-platform/pilot qualification remain unfinished. Independent fixed Windows/Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), and [architecture module decisions](docs/adr/0001-architecture-module-boundaries.md).
 
-
 A developer agent system that carries delegated feature work through validation, pull request review, merge, synchronization, and branch cleanup.
 
 ## Language
@@ -148,7 +147,8 @@ fresh usage authority every turn needs.
 **Coding-session resume**: A new coding turn that continues the Codex
 conversation of an exact stopped predecessor session, named to the coding VM
 by operation and fence rather than by a "last session" lookup. It needs fresh
-authority like any turn, and repair turns never resume.
+authority like any turn, keeps its predecessor's route, and repair turns never
+resume.
 _Avoid_: Resume (unqualified; a delivery's resumption leaves a pause)
 
 **Retained session home**: A stopped coding session's private Codex home in
@@ -175,6 +175,12 @@ revisions, needs a passed baseline for the new main, builds its workspace from
 the new main and tells Codex the base changed. Only allowed before any
 candidate exists; an admitted candidate refreshes through repair.
 _Avoid_: Base refresh (that is repair's merge-base refresh)
+
+**Superseded lineage**: A stopped coding lineage left behind because coding
+restarted under another route: a new mediation decision, or a change between
+offline and routed turns. It is never resumed again; its thread and workspace
+stay as evidence.
+_Avoid_: Retired resume lineage (that one never reported its thread)
 
 **Retired resume lineage**: A resumed coding session the owner retired because
 its launched resume never reported a thread, together with every predecessor
