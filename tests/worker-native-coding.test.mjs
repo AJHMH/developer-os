@@ -709,8 +709,20 @@ test(
   posixGuest,
   async (t) => {
     const { transport, read } = guestFixture(t);
+    // Read while the worker runs: a stopped session's copies are removed.
+    let copied;
     await transport.run(
-      await launchRequest(transport, { allowanceMs: 60000 }),
+      await launchRequest(transport, {
+        allowanceMs: 60000,
+        checkpoint: () => {
+          const host = read().container?.Mounts?.find(
+            (m) => m.Destination === "/codex-code-mode-host",
+          );
+          if (host && copied === undefined)
+            copied = realReadFileSync(host.Source, "utf8");
+          return true;
+        },
+      }),
       () => {},
     );
     const mounts = read().container.Mounts;
@@ -721,10 +733,7 @@ test(
       host.Source.replace(/\/[^/]*$/, ""),
       codex.Source.replace(/\/[^/]*$/, ""),
     );
-    assert.equal(
-      realReadFileSync(host.Source, "utf8"),
-      "synthetic-code-mode-host",
-    );
+    assert.equal(copied, "synthetic-code-mode-host");
     assert.equal(mounts.length, 4);
   },
 );

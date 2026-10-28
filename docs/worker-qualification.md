@@ -229,6 +229,30 @@ re-approval before the next coding run; a record that doesn't match prints
 the upgrade, because a resume must carry its predecessor's pins; start a new
 lineage instead.
 
+A stopped session keeps its workspace and home, but not its private program
+copies: once the worker is gone, stop removes the session's `codex` (about
+350 MB) and `codex-code-mode-host` copies. A stopped session never runs
+again, and a resume copies its own. This changed the coding guest program
+again, so `policySha256` is now `829e7e1e…` and each host's coding admission
+needs one more re-approval.
+
+Sessions stopped before that change still hold their copies. To remove them
+once, delete only those two files, and only from sessions whose record says
+`stopped`; a prepared session still needs its copies to launch. The command
+has no double quotes, so it reads the same in zsh and in PowerShell.
+
+macOS (zsh):
+
+```sh
+podman machine ssh aios-macos-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
+```
+
+Windows (PowerShell, not elevated):
+
+```powershell
+podman machine ssh aios-podman-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
+```
+
 macOS (zsh), from a clean, built checkout with the VM running:
 
 ```sh
