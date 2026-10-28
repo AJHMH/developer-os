@@ -90,6 +90,7 @@ function gateway(f) {
     prs: [],
     authenticated: 0,
     closed: 0,
+    delays: 0,
     writes: [],
     async ref(repository, branch) {
       assert.equal(repository, f.options.repository);
@@ -129,6 +130,9 @@ function gateway(f) {
     },
     async pullRequests() {
       return this.prs;
+    },
+    async delay() {
+      this.delays++;
     },
     async createPullRequest(proposal) {
       this.writes.push("pr");
@@ -404,6 +408,56 @@ operatorTest(
     const result = await p.publish();
     assert.equal(result.number, 1);
     assert.deepEqual(p.remote.writes, ["branch", "commit", "pr"]);
+  },
+);
+// An open PR from an earlier publication whose listing still shows the old
+// head for `stale` observations after the new commit lands.
+function lagging(p, f, stale) {
+  const { bot } = readState(f.directory, p.prepared.digest + ".proposal.json"),
+    remote = p.remote;
+  remote.prs = [
+    {
+      number: 1,
+      html_url: "https://github.com/example/project/pull/1",
+      state: "open",
+      user: { login: bot },
+      head: {
+        sha: f.parent,
+        ref: f.options.branch,
+        repo: { full_name: f.options.repository },
+      },
+      base: { ref: "main", repo: { full_name: f.options.repository } },
+    },
+  ];
+  remote.head = f.parent;
+  remote.pullRequests = async function () {
+    const [pr] = this.prs;
+    if (stale-- > 0) return [pr];
+    return [{ ...pr, head: { ...pr.head, sha: this.head } }];
+  };
+}
+operatorTest(
+  "publisher waits for a lagging PR listing to show the new head",
+  async (t) => {
+    const f = fixture(t),
+      p = await proposal(f);
+    lagging(p, f, 1);
+    const result = await p.publish();
+    assert.equal(result.number, 1);
+    assert.equal(result.adopted, false);
+    assert.equal(p.remote.delays, 1);
+    assert.deepEqual(p.remote.writes, ["commit"]);
+  },
+);
+operatorTest(
+  "publisher refuses a PR listing whose head never reaches the new commit",
+  async (t) => {
+    const f = fixture(t),
+      p = await proposal(f);
+    lagging(p, f, Infinity);
+    await assert.rejects(p.publish(), /PR identity or exact head mismatch/);
+    assert.equal(p.remote.delays, 4);
+    assert.deepEqual(p.remote.writes, ["commit"]);
   },
 );
 operatorTest(
