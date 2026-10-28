@@ -177,7 +177,8 @@ done. See `ticket04-request-shape-capture-receipt.md` and ADR 0002's
   the native transport. Split into 4a (the controller routes mediated turns
   through an injected general-session factory, with fresh authority at each
   request; done, see `ticket04-slice4a-routed-controller-receipt.md`), 4b
-  (lapse: revoke at once, collect evidence), 4c (restart and the simulator's
+  (lapse: revoke at once, collect evidence; done, see
+  `ticket04-slice4b-lapse-receipt.md`), 4c (restart and the simulator's
   synthetic usage reader) and 4d (the owner-run offline canary).
 - **Exhaustion:** revoke the grant, stop the exact session, and collect the
   workspace for preservation. Re-dispatch needs a fresh restart approval.

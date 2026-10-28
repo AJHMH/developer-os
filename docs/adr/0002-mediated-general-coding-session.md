@@ -127,8 +127,11 @@ changed or reused for general turns.**
   is unknown or exhausted, when the account drifts, or when the decision was
   withdrawn. A withdrawal or exhaustion therefore takes effect at the next
   provider request within a turn, not only at the next launch.
-- **Revocation:** the grant is revoked, irreversibly, on stop, pause,
-  exhaustion, a changed pin, or the deadline.
+- **Revocation:** the grant is revoked, irreversibly, on stop, pause, a
+  changed pin, the deadline, or fresh authority that no longer permits the
+  turn (exhausted, approval required, unknown, another account, or a
+  withdrawn decision). That last case also ends the turn at once and records
+  its reason as a usage interruption.
 
 ### Authority and usage
 

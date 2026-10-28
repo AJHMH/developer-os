@@ -34,8 +34,13 @@ export interface FeatureEvidence extends FeaturePlan {
     validation: "not-run" | "passed";
   };
   extensions?: { addedMs: number; at: string }[];
-  /** Coding turns stopped because their usage authority lapsed. */
-  usageInterruptions?: { operationId: string; at: string }[];
+  /** Coding turns stopped because their usage authority lapsed or the
+   * owner's decision was withdrawn. Records before slice 4b have no reason. */
+  usageInterruptions?: {
+    operationId: string;
+    at: string;
+    reason?: GeneralSessionLapse;
+  }[];
   /** Owner approvals to restart coding after a usage interruption. Each names
    * the interrupted operation and the feature's account. `operationId` is the
    * latest re-dispatch bound to it, and `dispatched` marks the one that
@@ -434,6 +439,7 @@ import { createHash } from "node:crypto";
 import { admitFiles, admittedPath } from "./workspace.js";
 import { hostGitCwd } from "./host-git.js";
 import type { SessionGateway } from "./session-relay.js";
+import type { GeneralSessionLapse } from "./general-session-gateway.js";
 export const candidateDigest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 /** The ambient environment without any GIT_* input, plus fixed settings. It
