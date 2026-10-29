@@ -970,3 +970,14 @@ only if every fetched tarball matches. No guest change. D2, the validation
 guest's offline install with dependency scripts inside isolation, follows and
 changes the validation pin. Production remains disabled. See the
 [dependency cache receipt](../ticket04-dependency-cache-receipt.md).
+
+## 29 October: controlled dependency phase, D2 decisions and the registry reader
+
+The owner chose chunked transfer into the validation VM, a dependency layer
+installed once offline and mounted read-only in each check, and v1 bounds of
+2048 tarballs and 128 MiB. D2a adds the host's https registry reader (registry
+tarballs only, no redirects or compression, bounded and cancellable) and the
+bounds. A local probe confirmed `npm ci --offline` installs from a prepared
+cache by integrity, with install scripts running. D2b, the guest upload and
+offline install, follows and changes the validation pin. Production remains
+disabled. See the [registry reader receipt](../ticket04-registry-reader-receipt.md).

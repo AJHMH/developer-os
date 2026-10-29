@@ -204,14 +204,22 @@ running anything from it:
   integrity; workspace links, git, file and other-registry sources are
   refused, and bundled packages arrive inside their parent. One tarball under
   two integrities is refused. The plan is sorted, bounded (16 MiB lockfile,
-  4096 tarballs) and carries its own digest and the lockfile's.
+  2048 tarballs) and carries its own digest and the lockfile's.
 - `fetchNpmCache(plan, { reader })` fetches exactly those tarballs, each
-  within 64 MiB and 60 s and all within 512 MiB, without compression, and
+  within 64 MiB and 60 s and all within 128 MiB, without compression, and
   admits the cache only if every tarball matches its sha512. The reader gets
   the byte bound, and each read is raced against cancellation. A changed or
   unsafe plan is refused before any request; any refusal or cancellation
   admits nothing. Files are content-addressed as `<sha512>.tgz`, one per
   tarball.
+
+`httpsRegistryReader()` is the host's reader: one https GET of a registry
+tarball URL (anything else is refused before connecting), asking for identity
+encoding, returning a redirect's or compressed response's status for the
+fetch to refuse rather than following it, and giving up past the byte bound
+(a declared length over it is refused before reading) or on cancellation. It
+uses its own agent with certificate checking. Each read's bound is what is
+left of the total, at most one tarball's.
 
 Nothing installs or runs yet: transferring the cache into the validation VM
 and installing offline, with dependency scripts inside isolation, is the next
