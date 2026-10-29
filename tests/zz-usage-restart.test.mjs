@@ -6,6 +6,7 @@
 // other file changes shard.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { randomUUID } from "node:crypto";
 import { unlinkSync } from "node:fs";
 import { failedTurn, firstThread } from "./helpers/coding-turns.mjs";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
@@ -239,5 +240,189 @@ test("an offline session is superseded when the feature's coding becomes routed"
       }),
     ),
     [{ operationId: dispatched[0], threadId: firstThread, route: undefined }],
+  );
+});
+
+// The owner's guest cleanup of a superseded lineage, with a controlled
+// cleanup that answers `receipt`.
+async function supersededLineage(
+  t,
+  receipt = (session) => ({
+    operationId: session.operationId,
+    fence: session.fence,
+    cleaned: 1,
+  }),
+) {
+  const coding = await scripted(t);
+  const { f } = coding;
+  await f.controller.codeFeature(f.delivery.id);
+  await mediatedCoding(f, t, mediatedAccount);
+  const restarted = await f.controller.codeFeature(f.delivery.id);
+  const [superseded] = restarted.feature.supersededLineages;
+  const cleanups = [];
+  f.runtime.cleanupSuperseded = async (session) => {
+    cleanups.push(structuredClone(session));
+    return receipt(session);
+  };
+  return { ...coding, superseded, cleanups };
+}
+
+test("the owner cleans up a superseded lineage in the guest once, and the evidence records it", async (t) => {
+  const { f, superseded, cleanups, launches } = await supersededLineage(t);
+  const cleaned = await f.controller.cleanupSupersededLineage(
+    f.delivery.id,
+    superseded.operationId,
+  );
+  assert.deepEqual(cleanups, [superseded.session], "the recorded binding");
+  const [entry] = cleaned.feature.supersededLineages;
+  assert.equal(entry.cleaned, 1);
+  assert.ok(Date.parse(entry.cleanedAt));
+  await assert.rejects(
+    f.controller.cleanupSupersededLineage(
+      f.delivery.id,
+      superseded.operationId,
+    ),
+    /superseded/,
+    "a lineage is cleaned up once",
+  );
+  assert.equal(cleanups.length, 1);
+  const next = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(
+    next.feature.session.intent,
+    "resume",
+    "the new lineage goes on",
+  );
+  assert.notEqual(
+    launches.at(-1).request.resumeFrom.operationId,
+    superseded.operationId,
+  );
+});
+
+for (const [name, receipt] of [
+  [
+    "another operation",
+    (session) => ({
+      operationId: randomUUID(),
+      fence: session.fence,
+      cleaned: 1,
+    }),
+  ],
+  ["nothing cleaned", (session) => ({ ...session, cleaned: 0 })],
+  [
+    "a failed cleanup",
+    () => {
+      throw Error("Native lineage cleanup is uncertain");
+    },
+  ],
+])
+  test(`a superseded lineage cleanup with ${name} records nothing and can be retried`, async (t) => {
+    const { f, superseded } = await supersededLineage(t, receipt);
+    await assert.rejects(
+      f.controller.cleanupSupersededLineage(
+        f.delivery.id,
+        superseded.operationId,
+      ),
+      /cleanup/i,
+    );
+    const [entry] = f.controller.status(f.delivery.id).feature
+      .supersededLineages;
+    assert.equal(entry.cleanedAt, undefined);
+    f.runtime.cleanupSuperseded = async (session) => ({
+      operationId: session.operationId,
+      fence: session.fence,
+      cleaned: 1,
+    });
+    const retried = await f.controller.cleanupSupersededLineage(
+      f.delivery.id,
+      superseded.operationId,
+    );
+    assert.equal(retried.feature.supersededLineages[0].cleaned, 1);
+  });
+
+test("superseded lineage cleanup needs an owned delivery, a recorded lineage and a cleanup runtime", async (t) => {
+  const { f, superseded, cleanups } = await supersededLineage(t);
+  for (const operationId of [
+    randomUUID(),
+    f.controller.status(f.delivery.id).feature.session.operationId,
+  ])
+    await assert.rejects(
+      f.controller.cleanupSupersededLineage(f.delivery.id, operationId),
+      /superseded/,
+      "only a recorded superseded lineage, never the current one",
+    );
+  const cleanup = f.runtime.cleanupSuperseded;
+  delete f.runtime.cleanupSuperseded;
+  await assert.rejects(
+    f.controller.cleanupSupersededLineage(
+      f.delivery.id,
+      superseded.operationId,
+    ),
+    /superseded/,
+    "a runtime without cleanup",
+  );
+  f.runtime.cleanupSuperseded = cleanup;
+  f.controller.release(f.delivery.id);
+  await assert.rejects(
+    f.controller.cleanupSupersededLineage(
+      f.delivery.id,
+      superseded.operationId,
+    ),
+    /superseded/,
+    "a released delivery",
+  );
+  assert.equal(cleanups.length, 0);
+});
+
+test("the pinned adapter trusts a superseded cleanup receipt only for the exact session and pins", async (t) => {
+  const { f } = await scripted(t);
+  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const head = {
+    operationId: randomUUID(),
+    fence: 1,
+    state: "stopped",
+    intent: "start",
+  };
+  const exact = (session) => ({
+    operationId: session.operationId,
+    fence: session.fence,
+    cleaned: 1,
+    pins: { ...f.runtime.pins },
+  });
+  const requests = [];
+  const runtime = (receipt, cleanup = true) =>
+    new PinnedCodingRuntime(f.runtime.pins, {
+      mode: "controlled",
+      async inspect() {
+        return { ...f.runtime.pins };
+      },
+      ...(cleanup
+        ? {
+            async cleanupSupersededLineage(session) {
+              requests.push(session);
+              return receipt(session);
+            },
+          }
+        : {}),
+    });
+  assert.deepEqual(await runtime(exact).cleanupSuperseded(head), {
+    operationId: head.operationId,
+    fence: head.fence,
+    cleaned: 1,
+  });
+  assert.deepEqual(requests[0], head, "the exact superseded binding");
+  for (const receipt of [
+    (s) => ({ ...exact(s), fence: 3 }),
+    (s) => ({ ...exact(s), operationId: randomUUID() }),
+    (s) => ({ ...exact(s), cleaned: 0 }),
+    (s) => ({ ...exact(s), cleaned: 1.5 }),
+    (s) => ({
+      ...exact(s),
+      pins: { ...f.runtime.pins, cliSha256: "f".repeat(64) },
+    }),
+  ])
+    await assert.rejects(runtime(receipt).cleanupSuperseded(head), /cleanup/);
+  await assert.rejects(
+    runtime(exact, false).cleanupSuperseded(head),
+    /unsupported/,
   );
 });

@@ -753,12 +753,20 @@ else:
      record['reconciled']='retired';save(recordPath,record);outcome='retired'
     else: outcome='unresolved'
     result=dict(outcome=outcome)
-   elif R['action']=='cleanup-retired':
-    # Remove a retired lineage's session folders and stopped containers on the
-    # owner's decision. The retired successor and each predecessor reserved by
-    # the session after it must be stopped and gone; every check runs before
-    # anything is removed. Records stay as tombstones and are never resumed.
-    if record.get('reconciled')!='retired' or record['phase']!='stopped' or not gone(record): fail()
+   elif R['action'] in ['cleanup-retired','cleanup-superseded']:
+    # Remove a retired or superseded lineage's session folders and stopped
+    # containers on the owner's decision. The head and each predecessor
+    # reserved by the session after it must be stopped and gone; every check
+    # runs before anything is removed. Records stay as tombstones and are
+    # never resumed. A superseded head is an ordinary session the host left
+    # when coding restarted under another route: launched with its thread
+    # recorded, never recovered or retired, and reserved by no successor. A
+    # stranded or unresolved resume has its own recovery. The head is marked,
+    # so prepare never resumes it.
+    superseded=R['action']=='cleanup-superseded'
+    if superseded:
+     if record.get('reconciled') not in [None,'superseded'] or record.get('resumedBy') or not record.get('launchAttempted') or record.get('recovered') or not isinstance(record.get('threadId'),str) or record['phase']!='stopped' or not gone(record): fail()
+    elif record.get('reconciled')!='retired' or record['phase']!='stopped' or not gone(record): fail()
     lineage=[(R['name'],recordPath,record,identity)]
     while isinstance(lineage[-1][2].get('admission',{}).get('resumeFrom'),dict):
      if len(lineage)>=256: fail()
@@ -773,6 +781,8 @@ else:
      if os.path.lexists(folder):
       info=os.lstat(folder)
       if not stat.S_ISDIR(info.st_mode) or info.st_uid!=os.getuid(): fail()
+    if superseded and record.get('reconciled')!='superseded':
+     record['reconciled']='superseded';save(recordPath,record)
     for name,path,entry,_ in lineage:
      if name in present: pod('rm',name)
      if os.path.lexists(root+'/'+name): remove_tree(root+'/'+name)
@@ -1415,6 +1425,33 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       throw Error("Unsupported native lineage cleanup");
     const bound = this.session(session);
     const { result, pins } = await this.invoke("cleanup-retired", bound);
+    if (!Number.isSafeInteger(result.cleaned) || (result.cleaned as number) < 1)
+      throw Error("Native lineage cleanup is uncertain");
+    return {
+      operationId: bound.operationId,
+      fence: bound.fence,
+      cleaned: result.cleaned as number,
+      pins,
+    };
+  }
+  /** Remove a superseded lineage's session folders and stopped containers:
+   * the head the host left when coding restarted under another route, and
+   * its recorded predecessors. The guest refuses a head that was retired or
+   * that a successor reserved, and marks the head so it is never resumed. */
+  async cleanupSupersededLineage(session: CodingSession): Promise<{
+    operationId: string;
+    fence: number;
+    cleaned: number;
+    pins: CodingPins;
+  }> {
+    if (
+      !sessionIdentity(session) ||
+      session.state !== "stopped" ||
+      !["start", "resume"].includes(session.intent)
+    )
+      throw Error("Unsupported native lineage cleanup");
+    const bound = this.session(session);
+    const { result, pins } = await this.invoke("cleanup-superseded", bound);
     if (!Number.isSafeInteger(result.cleaned) || (result.cleaned as number) < 1)
       throw Error("Native lineage cleanup is uncertain");
     return {

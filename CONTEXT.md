@@ -179,7 +179,7 @@ _Avoid_: Base refresh (that is repair's merge-base refresh)
 **Superseded lineage**: A stopped coding lineage left behind because coding
 restarted under another route: a new mediation decision, or a change between
 offline and routed turns. It is never resumed again; its thread and workspace
-stay as evidence.
+stay as evidence until the owner's lineage cleanup.
 _Avoid_: Retired resume lineage (that one never reported its thread)
 
 **Retired resume lineage**: A resumed coding session the owner retired because
@@ -187,8 +187,9 @@ its launched resume never reported a thread, together with every predecessor
 it was resumed from. It is never resumed again; coding restarts fresh.
 
 **Lineage cleanup**: The owner's explicit removal of a retired resume
-lineage's session folders and stopped containers inside the coding VM. Guest
-records stay as tombstones, and the delivery records the cleanup once.
+lineage's, or a superseded lineage's, session folders and stopped containers
+inside the coding VM. Guest records stay as tombstones, a superseded head is
+marked never to be resumed, and the delivery records the cleanup once.
 
 **Session**: A dispatched worker or online operation whose matching receipt must
 prove descendant shutdown. Retained uncertain sessions prevent ownership release.

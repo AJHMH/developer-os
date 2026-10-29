@@ -4389,18 +4389,11 @@ export class DeliveryController {
       throw new DeliveryError(
         "Clean up only a retired resume lineage with a recorded binding, once, for an owned quiescent delivery with the same trusted coding runtime.",
       );
-    let receipt: CodingCleanup | undefined;
-    try {
-      receipt = await this.observe(runtime!.cleanup(retired));
-    } catch {}
-    if (
-      !sameOperation(receipt, retired) ||
-      !Number.isSafeInteger(receipt!.cleaned) ||
-      receipt!.cleaned < 1
-    )
-      throw new DeliveryError(
-        "Retired lineage cleanup is unverified; nothing was recorded, and it can be retried.",
-      );
+    const cleaned = await this.verifiedCleanup(
+      runtime!.cleanup(retired),
+      retired,
+      "Retired lineage cleanup is unverified; nothing was recorded, and it can be retried.",
+    );
     // Retirements are never removed; a concurrent duplicate cleanup only
     // re-records the same idempotent removal.
     return this.change(id, (delivery) => {
@@ -4408,8 +4401,69 @@ export class DeliveryController {
         (r) => r.operationId === operationId,
       )!;
       retirement.cleanedAt = new Date().toISOString();
-      retirement.cleaned = receipt!.cleaned;
+      retirement.cleaned = cleaned;
     });
+  }
+
+  /** The owner's explicit guest cleanup of a superseded lineage, named by
+   * the session coding left when it restarted under another route: the guest
+   * removes its session folders and stopped containers, keeps the records as
+   * tombstones and marks the head never to be resumed. Recorded once; an
+   * unverified cleanup records nothing. */
+  async cleanupSupersededLineage(
+    id: string,
+    operationId: string,
+  ): Promise<Delivery> {
+    const snapshot = this.status(id),
+      runtime = this.coordination.featureRuntime,
+      lineage = snapshot.feature?.supersededLineages?.find(
+        (l) => l.operationId === operationId,
+      );
+    if (
+      !lineage ||
+      lineage.cleanedAt ||
+      !snapshot.ownership.held ||
+      !sessionsQuiescent(snapshot) ||
+      !this.sameCodingRuntime(snapshot) ||
+      !runtime!.cleanupSuperseded
+    )
+      throw new DeliveryError(
+        "Clean up only a recorded superseded lineage, once, for an owned quiescent delivery with the same trusted coding runtime.",
+      );
+    const cleaned = await this.verifiedCleanup(
+      runtime!.cleanupSuperseded(lineage.session),
+      lineage.session,
+      "Superseded lineage cleanup is unverified; nothing was recorded, and it can be retried.",
+    );
+    // Superseded lineages are never removed; a concurrent duplicate cleanup
+    // only re-records the same idempotent removal.
+    return this.change(id, (delivery) => {
+      const entry = delivery.feature!.supersededLineages!.find(
+        (l) => l.operationId === operationId,
+      )!;
+      entry.cleanedAt = new Date().toISOString();
+      entry.cleaned = cleaned;
+    });
+  }
+
+  /** A lineage cleanup's session count, from a receipt naming exactly
+   * `session`; anything else refuses with `unverified`. */
+  private async verifiedCleanup(
+    cleanup: Promise<CodingCleanup>,
+    session: CodingSession,
+    unverified: string,
+  ): Promise<number> {
+    let receipt: CodingCleanup | undefined;
+    try {
+      receipt = await this.observe(cleanup);
+    } catch {}
+    if (
+      !sameOperation(receipt, session) ||
+      !Number.isSafeInteger(receipt!.cleaned) ||
+      receipt!.cleaned < 1
+    )
+      throw new DeliveryError(unverified);
+    return receipt!.cleaned;
   }
 
   /** Callers have checked that `session` still needs resume recovery;
