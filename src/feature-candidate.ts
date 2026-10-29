@@ -70,6 +70,9 @@ export interface FeatureEvidence extends FeaturePlan {
     at: string;
     by: string;
     session: CodingSession;
+    /** The owner's later guest cleanup of the lineage, recorded once. */
+    cleanedAt?: string;
+    cleaned?: number;
   }[];
   /** Owner decisions retiring an unresolved resume lineage. `session` is the
    * retired successor's binding; `cleanedAt` and `cleaned` record the owner's
@@ -357,6 +360,9 @@ export interface FeatureRuntime {
   /** Remove a retired lineage's session folders and stopped containers on
    * the owner's explicit decision; guest records stay as tombstones. */
   cleanup?(session: CodingSession): Promise<CodingCleanup>;
+  /** The same for a superseded lineage, named by its head: the session the
+   * host left when coding restarted under another route. */
+  cleanupSuperseded?(session: CodingSession): Promise<CodingCleanup>;
   stop(session: CodingSession): Promise<{
     operationId: string;
     fence: number;
@@ -796,6 +802,9 @@ export interface IsolatedCodingTransport {
   cleanupRetiredLineage?(
     session: CodingSession,
   ): Promise<CodingCleanup & { pins: CodingPins }>;
+  cleanupSupersededLineage?(
+    session: CodingSession,
+  ): Promise<CodingCleanup & { pins: CodingPins }>;
   stop: FeatureRuntime["stop"];
   collect: FeatureRuntime["collect"];
 }
@@ -1066,11 +1075,31 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     };
   }
   async cleanup(session: CodingSession): Promise<CodingCleanup> {
-    const binding = Object.freeze(codingBinding(session));
     if (!this.transport.cleanupRetiredLineage)
       throw Error("Retired lineage cleanup is unsupported by this transport");
+    return this.cleanLineage(session, (binding) =>
+      this.transport.cleanupRetiredLineage!(binding),
+    );
+  }
+  async cleanupSuperseded(session: CodingSession): Promise<CodingCleanup> {
+    if (!this.transport.cleanupSupersededLineage)
+      throw Error(
+        "Superseded lineage cleanup is unsupported by this transport",
+      );
+    return this.cleanLineage(session, (binding) =>
+      this.transport.cleanupSupersededLineage!(binding),
+    );
+  }
+  /** Pins checked before and after; the receipt names the exact session. */
+  private async cleanLineage(
+    session: CodingSession,
+    clean: (
+      binding: CodingSession,
+    ) => Promise<CodingCleanup & { pins: CodingPins }>,
+  ): Promise<CodingCleanup> {
+    const binding = Object.freeze(codingBinding(session));
     await this.inspectSession(binding);
-    const receipt = await this.transport.cleanupRetiredLineage(binding);
+    const receipt = await clean(binding);
     if (
       receipt.operationId !== binding.operationId ||
       receipt.fence !== binding.fence ||
@@ -1078,7 +1107,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       receipt.cleaned < 1 ||
       JSON.stringify(receipt.pins) !== JSON.stringify(this.pins)
     )
-      throw Error("Retired lineage cleanup binding changed");
+      throw Error("Lineage cleanup binding changed");
     await this.inspectSession(binding);
     return {
       operationId: receipt.operationId,

@@ -1474,6 +1474,143 @@ test("lineage cleanup treats an unrecognized guest receipt as uncertain", async 
   assert.equal(fixture.requests.length, 1);
 });
 
+// A superseded lineage (slice 4c): coding restarted under another route, so
+// the host never resumes the old lineage again. Its head is an ordinary
+// stopped session that no successor reserved.
+async function supersededStart(t) {
+  const fixture = await launchedGuest(t, { threadId: resumeThread });
+  return { ...fixture, head: namedPredecessor, sessions: 1 };
+}
+async function supersededResume(t) {
+  const fixture = await launchedGuest(t, { threadId: resumeThread });
+  await fixture.transport.run(
+    await nativeResumeRequest(fixture.transport),
+    () => {},
+  );
+  return { ...fixture, head: launchedSuccessor, sessions: 2 };
+}
+const guestRecords = (root) =>
+  guestSessions(root).records.map((path) =>
+    JSON.parse(realReadFileSync(path, "utf8")),
+  );
+
+for (const [name, arrange] of [
+  ["a single-session lineage", supersededStart],
+  ["a resumed lineage", supersededResume],
+])
+  test(
+    `cleanup removes a superseded ${name.slice(2)} and marks it never resumed`,
+    posixGuest,
+    async (t) => {
+      const { transport, root, read, head, sessions } = await arrange(t);
+      assert.equal(guestSessions(root).folders.length, sessions);
+      const receipt = await transport.cleanupSupersededLineage(head);
+      assert.equal(receipt.operationId, head.operationId);
+      assert.equal(receipt.cleaned, sessions);
+      assert.deepEqual(guestSessions(root).folders, []);
+      const records = guestRecords(root);
+      assert.equal(records.length, sessions, "records stay as tombstones");
+      assert.ok(records.every((record) => record.cleaned === true));
+      assert.equal(
+        records.filter((record) => record.reconciled === "superseded").length,
+        1,
+        "the head is marked superseded",
+      );
+      assert.deepEqual(Object.keys(read().containers ?? {}), []);
+      assert.equal(
+        (await transport.cleanupSupersededLineage(head)).cleaned,
+        sessions,
+        "a repeated cleanup is idempotent",
+      );
+      await assert.rejects(
+        transport.run(
+          await nativeResumeRequest(transport, {
+            operationId: laterOperation,
+            fence: 3,
+            resumeFrom: { ...head, threadId: undefined },
+          }),
+          () => {},
+        ),
+        "a superseded lineage is never resumed",
+      );
+    },
+  );
+
+for (const [name, arrange, head] of [
+  [
+    "a session a resume reserved",
+    async (t) => launchedResume(t, { threadRecorded: true }),
+    namedPredecessor,
+  ],
+  ["a retired resume", retiredResume, launchedSuccessor],
+  [
+    "a launched resume that never recorded its thread",
+    async (t) => launchedResume(t, { threadRecorded: false }),
+    launchedSuccessor,
+  ],
+  [
+    "a stranded resume that never launched",
+    strandedResume,
+    interruptedSuccessor,
+  ],
+  [
+    "a lineage with an active timer",
+    async (t) => {
+      const fixture = await supersededResume(t);
+      const state = fixture.read();
+      const [name] = Object.keys(state.containers);
+      state.timers = {
+        ...state.timers,
+        [`${name}-lease.timer`]: { active: "active" },
+      };
+      fixture.write(state);
+      return fixture;
+    },
+    launchedSuccessor,
+  ],
+])
+  test(
+    `superseded cleanup refuses ${name} and removes nothing`,
+    posixGuest,
+    async (t) => {
+      const fixture = await arrange(t);
+      const before = guestSessions(fixture.root);
+      const records = guestRecords(fixture.root);
+      await assert.rejects(fixture.transport.cleanupSupersededLineage(head));
+      assert.deepEqual(guestSessions(fixture.root), before);
+      assert.deepEqual(guestRecords(fixture.root), records, "nothing marked");
+    },
+  );
+
+test("superseded cleanup rejects a malformed session before guest effects, and an unrecognized receipt is uncertain", async (t) => {
+  let cleaned = 1;
+  const fixture = nativeHost(t, (r) => ({
+    session: r.session,
+    binding: observation,
+    cliSha256: r.cliSha256,
+    cleaned,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  for (const session of [
+    { ...namedPredecessor, operationId: "not-a-uuid" },
+    { ...namedPredecessor, fence: 0 },
+    { ...namedPredecessor, state: "running" },
+    { ...namedPredecessor, intent: "repair" },
+  ])
+    await assert.rejects(transport.cleanupSupersededLineage(session));
+  assert.equal(fixture.requests.length, 0);
+  cleaned = "all";
+  await assert.rejects(
+    transport.cleanupSupersededLineage(namedPredecessor),
+    /uncertain/,
+  );
+  assert.equal(fixture.requests.length, 1);
+  assert.equal(fixture.requests[0].action, "cleanup-superseded");
+});
+
 // A resume onto a moved main: the predecessor launched on revision "b…".
 const movedBase = { from: "b".repeat(40), to: "c".repeat(40) };
 

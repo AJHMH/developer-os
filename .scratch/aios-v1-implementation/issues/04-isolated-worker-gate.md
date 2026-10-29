@@ -945,3 +945,17 @@ names the run and exactly two turns.
 Built and simulated only; the owner's live runs on both hosts are to do.
 Production remains disabled. See the
 [slice 5 receipt](../ticket04-slice5-credentialed-runner-receipt.md).
+
+## 29 October: owner cleanup of a superseded lineage
+
+The guest slice 4c left open. The owner can call
+`cleanupSupersededLineage(id, operationId)` for a lineage coding left when it
+restarted under another route. The guest's new `cleanup-superseded` shares
+the retired cleanup's walk: the head must be stopped, gone, never retired and
+reserved by no successor, and every check runs before anything changes. It
+then marks the head so prepare never resumes it, removes the lineage's
+folders and stopped containers and keeps the records as tombstones. The
+delivery records the cleanup once. This is a guest change: each host's
+coding record must be re-approved for the new policy pin. Production remains
+disabled. See the
+[superseded cleanup receipt](../ticket04-superseded-lineage-cleanup-receipt.md).
