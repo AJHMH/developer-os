@@ -914,3 +914,17 @@ decision, and a new decision starting a new lineage that completes. No guest
 change, so the coding records stay valid. The native runs on both hosts are
 still to do. Production remains disabled. See the
 [slice 4d receipt](../ticket04-slice4d-usage-canary-receipt.md).
+
+## 29 October: slice 4d passes natively on macOS, after a route fix
+
+The first native macOS run of the usage canary blocked at the routed launch.
+The controller gave each routed turn the gateway's own capability as the
+relay's, which the native transport refuses before any VM effect (ADR 0002);
+`PinnedCodingRuntime` required them equal and the simulated VM did not check,
+so tests passed. The controller now draws a fresh relay capability per turn
+and the runtime refuses a gateway sharing it. From the fix, the canary
+passed natively on macOS: `observed-offline-usage-canary`, every turn
+stopped exactly, lapses recorded as `exhausted` and `withdrawn` with evidence
+only, and the new lineage completed. The Windows run is still to do. No guest
+change. Production remains disabled. See the
+[native macOS receipt](../ticket04-slice4d-native-macos-receipt.md).

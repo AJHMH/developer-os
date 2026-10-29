@@ -93,6 +93,9 @@ function vm(faults = {}) {
     async run(request, stdout, gateway) {
       if (!request.mayDispatch()) throw Error("Dispatch refused");
       assert.ok(request.modelRoute && gateway, "a routed turn has a gateway");
+      // As the native transport: the relay's capability is its own.
+      if (gateway.capability === request.modelRoute.capability)
+        throw Error("Unsupported native coding launch");
       effects.push("run:" + request.intent);
       const files = new Map(
         request.files.map((f) => [f.path, Buffer.from(f.bytes)]),

@@ -877,11 +877,12 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     const expected = JSON.stringify(this.pins);
     const admittedLaunch = codingLaunchBinding(request);
     const { mayDispatch, checkpoint, onEvent } = request;
-    // A routed turn needs the gateway its route names; an offline one none.
+    // A routed turn needs a gateway; an offline one none. The route's
+    // capability is the relay's own, never the gateway's (ADR 0002).
     const routed = request.modelRoute?.capability;
     if (
       (routed === undefined) !== (gateway === undefined) ||
-      (gateway && gateway.capability !== routed) ||
+      (gateway && gateway.capability === routed) ||
       !this.admitted() ||
       JSON.stringify(request.pins) !== expected ||
       JSON.stringify(await this.transport.inspect(request)) !== expected ||

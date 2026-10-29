@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
   existsSync,
   readFileSync,
@@ -3020,9 +3020,11 @@ export class DeliveryController {
             return current;
           },
         );
+      // The relay's own capability for this turn, never the gateway's, which
+      // stays on the host (ADR 0002).
       const modelRoute = gateway && {
         ...route!,
-        capability: gateway.capability,
+        capability: randomBytes(32).toString("hex"),
       };
       const argv = [...lockedCodingArgv(session.threadId, modelRoute), prompt];
       result = await Promise.race([

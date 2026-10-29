@@ -568,11 +568,14 @@ test("a mediated turn is routed through the configured general session", async (
   const [{ request, gateway }] = launches,
     [{ turn }] = sessions;
   assert.equal(gateway, sessions[0].gateway, "the factory's gateway");
-  assert.deepEqual(request.modelRoute, {
+  const { capability, ...named } = request.modelRoute;
+  assert.deepEqual(named, {
     deliveryId: f.delivery.id,
     decisionSha256: turn.decisionSha256,
-    capability: gateway.capability,
   });
+  // The relay's own capability, never the gateway's (ADR 0002).
+  assert.match(capability, /^[a-f0-9]{64}$/);
+  assert.notEqual(capability, gateway.capability);
   assert.match(turn.decisionSha256, /^[a-f0-9]{64}$/);
   assert.equal(turn.deliveryId, f.delivery.id);
   assert.equal(turn.sessionId, request.operationId);
