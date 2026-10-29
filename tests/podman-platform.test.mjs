@@ -184,9 +184,16 @@ function hostFixture(
       };
     }
     if (args.includes("python3")) {
-      programs.push(options.input);
+      // The program crosses as a private file opened as stdin, never as piped
+      // `input`, which can lose EOF just over 64 KiB on macOS.
+      assert.equal(options.input, undefined);
+      assert.equal(typeof options.stdio[0], "number");
+      if (process.platform !== "win32")
+        assert.equal(fs.fstatSync(options.stdio[0]).mode & 0o777, 0o600);
+      const program = nativeReadFile(options.stdio[0], "utf8");
+      programs.push(program);
       timeouts.push(options.timeout);
-      const encoded = options.input.match(/base64.b64decode\('([^']+)'\)/)[1];
+      const encoded = program.match(/base64.b64decode\('([^']+)'\)/)[1];
       const request = JSON.parse(Buffer.from(encoded, "base64"));
       requests.push(request);
       return typeof result === "function" ? result(request) : result;
