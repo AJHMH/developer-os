@@ -145,9 +145,10 @@ const transport = (overrides) => ({
 });
 
 // Slice 4a: a routed turn's gateway reaches the transport unchanged; it
-// never crosses to the worker, and a route without one is refused.
+// never crosses to the worker, and a route without one is refused. The
+// route's capability is the relay's own, never the gateway's (ADR 0002).
 const gateway = Object.freeze({
-  capability: route.capability,
+  capability: "d".repeat(64),
   respond: async () => {
     throw Error("unused");
   },
@@ -223,12 +224,12 @@ test("an offline turn never carries a gateway", async () => {
   );
 });
 
-test("a gateway for another capability is refused before the transport runs", async () => {
+test("a gateway sharing the relay's capability is refused before the transport runs", async () => {
   const runtime = new PinnedCodingRuntime(pins, transport());
   await assert.rejects(
     runtime.execute(routedRequest(), {
       ...gateway,
-      capability: "f".repeat(64),
+      capability: route.capability,
     }),
     /Coding executable or authority changed/,
   );

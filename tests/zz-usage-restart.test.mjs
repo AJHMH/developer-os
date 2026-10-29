@@ -113,6 +113,11 @@ test("synthetic exhaustion mid-turn ends it, and a restart needs a fresh approva
     resumed.feature.session.route,
     stopped.feature.session.route,
   );
+  // The same route, but a fresh relay capability that is never a gateway's.
+  const [launched, resumedWith] = launches.map((l) => l.request.modelRoute);
+  assert.notEqual(resumedWith.capability, launched.capability);
+  for (const { capability } of [launched, resumedWith])
+    assert.ok(sessions.every((s) => s.gateway.capability !== capability));
   assert.equal(resumed.feature.supersededLineages, undefined);
 });
 
