@@ -138,6 +138,13 @@ fixtures. An owner contract must declare exactly this environment; any other
 declaration is refused before a check runs.
 _Avoid_: sandbox profile, network allowlist
 
+**Prepared dependency cache**: The npm tarballs a candidate's lockfile names,
+read on the host only as data, fetched from the one declared registry and
+admitted only if each matches its lockfile sha512 integrity, within fixed
+bounds. The worker installs from it offline, so dependency scripts run only
+inside isolation.
+_Avoid_: Registry proxy (the worker never reaches the registry)
+
 **Coding restart approval**: The owner's decision to restart coding after a
 usage interruption. It names the interrupted operation and records the
 feature's account, which every turn must use anyway. The one re-dispatch that

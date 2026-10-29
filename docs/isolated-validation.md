@@ -193,3 +193,26 @@ The following remain open:
 Build or coverage output written into the tree currently invalidates the tested
 tree by design. Real repositories need an owner contract whose checks leave the
 tree unchanged, until a later slice defines declared output paths.
+
+## Prepared dependency cache (Issue 04)
+
+The controlled dependency phase starts on the host. `src/dependency-cache.ts`
+reads the candidate's `package-lock.json` (version 2 or 3) as data, never
+running anything from it:
+- `npmCachePlan(lockfile)` lists every installed package's tarball. Each must
+  resolve to an https tarball on `https://registry.npmjs.org` with sha512
+  integrity; workspace links, git, file and other-registry sources are
+  refused, and bundled packages arrive inside their parent. One tarball under
+  two integrities is refused. The plan is sorted, bounded (16 MiB lockfile,
+  4096 tarballs) and carries its own digest and the lockfile's.
+- `fetchNpmCache(plan, { reader })` fetches exactly those tarballs, each
+  within 64 MiB and 60 s and all within 512 MiB, without compression, and
+  admits the cache only if every tarball matches its sha512. The reader gets
+  the byte bound, and each read is raced against cancellation. A changed or
+  unsafe plan is refused before any request; any refusal or cancellation
+  admits nothing. Files are content-addressed as `<sha512>.tgz`, one per
+  tarball.
+
+Nothing installs or runs yet: transferring the cache into the validation VM
+and installing offline, with dependency scripts inside isolation, is the next
+slice, and the offline validation environment is unchanged until then.
