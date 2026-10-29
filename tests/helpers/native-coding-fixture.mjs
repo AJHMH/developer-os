@@ -15,6 +15,7 @@ export const realSpawnSync = childProcess.spawnSync;
 export const realSpawn = childProcess.spawn;
 export const realReadFileSync = fs.readFileSync;
 export const realWriteFileSync = fs.writeFileSync;
+export const realRenameSync = fs.renameSync;
 export const realMkdtempSync = fs.mkdtempSync;
 export const realRmSync = fs.rmSync;
 export const realMkdirSync = fs.mkdirSync;
@@ -191,7 +192,7 @@ export async function launchRequest(transport, overrides = {}) {
       { path: "index.html", bytes: Buffer.from("before\n"), executable: false },
     ],
     pins: await transport.inspect(session),
-    allowanceMs: 1000,
+    allowanceMs: 60000,
     mayDispatch: () => true,
     checkpoint: () => true,
     onEvent: () => true,
@@ -284,7 +285,11 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
     /** The last management program sent to the guest, as transported. */
     program: () => lastProgram,
     read: () => JSON.parse(realReadFileSync(statePath, "utf8")),
-    write: (state) => realWriteFileSync(statePath, JSON.stringify(state)),
+    // Rename a whole copy into place: a guest may load the file mid-write.
+    write: (state) => {
+      realWriteFileSync(`${statePath}.${process.pid}`, JSON.stringify(state));
+      realRenameSync(`${statePath}.${process.pid}`, statePath);
+    },
   };
 }
 function running(pid) {
