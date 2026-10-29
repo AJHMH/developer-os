@@ -19,6 +19,10 @@ export const realRenameSync = fs.renameSync;
 export const realMkdtempSync = fs.mkdtempSync;
 export const realRmSync = fs.rmSync;
 export const realMkdirSync = fs.mkdirSync;
+const realOpenSync = fs.openSync;
+const realReadSync = fs.readSync;
+const realWriteSync = fs.writeSync;
+const realCloseSync = fs.closeSync;
 export const guestHarness = new URL(
   "./native-coding-guest.py",
   import.meta.url,
@@ -142,6 +146,93 @@ export function nativeHost(t, respond, platform = "darwin", channel) {
   });
   return { requests, programs, processEffects, machineConfig };
 }
+// The guest runs `python3 -I`; -S also skips the site module, which the
+// stdlib-only program never needs. Each request runs in a fresh process forked
+// from one pre-imported server per test file, rather than a new interpreter.
+// Requests block on named pipes, as spawnSync did, so a test never observes
+// the engine state while a request is still changing it.
+const forkServer = new URL("./guest-fork-server.py", import.meta.url);
+const pause = (ms) =>
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+let guestServer;
+function startGuestServer() {
+  const directory = realMkdtempSync(`${realTemporaryDirectory}/aios-guest-`);
+  const [requests, responses] = ["requests", "responses"].map(
+    (name) => `${directory}/${name}`,
+  );
+  const made = realSpawnSync("mkfifo", ["-m", "600", requests, responses]);
+  if (made.status !== 0) throw Error("Unable to create guest server pipes");
+  const server = realSpawn(
+    process.env.AIOS_TEST_PYTHON || "python3",
+    ["-I", "-S", forkServer.pathname, requests, responses],
+    { stdio: "ignore" },
+  );
+  server.unref();
+  // A server that never starts fails the request rather than hanging it.
+  let opened;
+  for (const deadline = performance.now() + 30000; opened === undefined; )
+    try {
+      const { O_WRONLY, O_NONBLOCK } = fs.constants;
+      opened = realOpenSync(requests, O_WRONLY | O_NONBLOCK);
+    } catch (error) {
+      if (error.code !== "ENXIO" || performance.now() > deadline)
+        throw Error("Guest fork server did not start");
+      pause(5);
+    }
+  // With the server reading, a blocking open returns at once; writes block.
+  const output = realOpenSync(requests, "w");
+  realCloseSync(opened);
+  // The server opens its responses as soon as it has opened its requests.
+  const input = realOpenSync(responses, "r");
+  realRmSync(directory, { recursive: true, force: true });
+  // Closing the pipes at exit ends the server.
+  let buffered = Buffer.alloc(0);
+  const fill = () => {
+    const chunk = Buffer.alloc(1 << 20);
+    const count = realReadSync(input, chunk);
+    if (!count) throw Error("Guest fork server exited");
+    buffered = Buffer.concat([buffered, chunk.subarray(0, count)]);
+  };
+  const take = (size) => {
+    const taken = buffered.subarray(0, size);
+    buffered = buffered.subarray(size);
+    return taken;
+  };
+  const line = () => {
+    while (!buffered.includes("\n")) fill();
+    return take(buffered.indexOf("\n") + 1);
+  };
+  const read = (size) => {
+    while (buffered.length < size) fill();
+    return take(size);
+  };
+  return (guest, args, program) => {
+    const bytes = Buffer.from(program);
+    const header = JSON.stringify({
+      guest: guest.pathname,
+      args,
+      cwd: process.cwd(),
+      env: process.env,
+      size: bytes.length,
+    });
+    const request = Buffer.concat([Buffer.from(header + "\n"), bytes]);
+    for (let sent = 0; sent < request.length; )
+      sent += realWriteSync(output, request, sent);
+    const { status, size } = JSON.parse(line());
+    return { status, stdout: read(size).toString() };
+  };
+}
+
+/** Runs a guest simulator on `program` and returns its JSON answer, or a
+ * process failure when it exits unsuccessfully. */
+export function runGuest(guest, args, program) {
+  guestServer ??= startGuestServer();
+  const result = guestServer(guest, args, program);
+  return result.status === 0
+    ? JSON.parse(result.stdout)
+    : { processFailure: true };
+}
+
 /** A session gateway that records every call and streams `chunks`. */
 export function sessionGateway(chunks = [Buffer.from("data: done\n\n")]) {
   const gateway = {
@@ -262,16 +353,7 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
     t,
     (_request, program) => {
       lastProgram = program;
-      const result = realSpawnSync(
-        process.env.AIOS_TEST_PYTHON || "python3",
-        // The guest runs `python3 -I`; -S also skips the site module, which the
-        // stdlib-only program never needs, to save start-up time per request.
-        ["-I", "-S", guestHarness.pathname, root],
-        { input: program, encoding: "utf8" },
-      );
-      return result.status === 0
-        ? JSON.parse(result.stdout)
-        : { processFailure: true };
+      return runGuest(guestHarness, [root], program);
     },
     "darwin",
     (options) => channel(options),

@@ -7,7 +7,7 @@ import {
   realMkdtempSync,
   realReadFileSync,
   realRmSync,
-  realSpawnSync,
+  runGuest,
   realTemporaryDirectory,
   realWriteFileSync,
 } from "./native-coding-fixture.mjs";
@@ -23,18 +23,9 @@ export function validationGuest(t, engine = {}) {
   t.after(() => realRmSync(root, { recursive: true, force: true }));
   const statePath = `${root}/engine.json`;
   realWriteFileSync(statePath, JSON.stringify(engine));
-  const host = nativeHost(t, (_request, program) => {
-    const result = realSpawnSync(
-      process.env.AIOS_TEST_PYTHON || "python3",
-      // The guest runs `python3 -I`; -S also skips the site module, which the
-      // stdlib-only program never needs, to save start-up time per request.
-      ["-I", "-S", guest.pathname, root],
-      { input: program, encoding: "utf8" },
-    );
-    return result.status === 0
-      ? JSON.parse(result.stdout)
-      : { processFailure: true };
-  });
+  const host = nativeHost(t, (_request, program) =>
+    runGuest(guest, [root], program),
+  );
   const read = () => JSON.parse(realReadFileSync(statePath, "utf8"));
   return {
     root,
