@@ -85,7 +85,7 @@ export function runRequest(overrides = {}, check = {}) {
     fence: 1,
     treeSha256,
     files,
-    check: { id: "format", command: ["true"], timeoutMs: 1000, ...check },
+    check: { id: "format", command: ["true"], timeoutMs: 60000, ...check },
     mayDispatch: () => true,
     ...overrides,
   };

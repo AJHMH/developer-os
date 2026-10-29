@@ -168,7 +168,7 @@ test(
     assert.equal(create.filter((a) => a === "--volume").length, 1);
     // A guest deadline timer bounds the check at its timeout.
     const timer = g.commands("systemd-run").at(-1);
-    assert.ok(timer.includes("--on-active=1.0s"));
+    assert.ok(timer.includes("--on-active=60.0s"));
     assert.deepEqual(timer.slice(-4), [
       "kill",
       "--signal",
@@ -198,7 +198,7 @@ test(
     // The first check's write is not visible to the next check.
     const second = await g.transport.run({
       ...request,
-      check: { id: "lint", command: ["absent", "notes.txt"], timeoutMs: 1000 },
+      check: { id: "lint", command: ["absent", "notes.txt"], timeoutMs: 60000 },
     });
     assert.equal(second.exitCode, 0);
     // And every later check still gets the transferred files.
@@ -207,7 +207,7 @@ test(
       check: {
         id: "type",
         command: ["present", "index.html"],
-        timeoutMs: 1000,
+        timeoutMs: 60000,
       },
     });
     assert.equal(third.exitCode, 0);
@@ -276,7 +276,9 @@ test(
     );
     // The guest clock passes the deadline while the check hangs.
     g.write({ expireAfterStart: 5 });
-    const hung = await g.transport.run(runRequest({}, { command: ["hang"] }));
+    const hung = await g.transport.run(
+      runRequest({}, { command: ["hang"], timeoutMs: 1000 }),
+    );
     assert.equal(hung.exitCode, 137);
     assert.equal(hung.timedOut, true);
   },

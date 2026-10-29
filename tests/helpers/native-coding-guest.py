@@ -6,6 +6,11 @@ root = pathlib.Path(sys.argv[1])
 os.environ['HOME'] = str(root)
 state_path = root / 'engine.json'
 state = json.loads(state_path.read_text()) if state_path.exists() else {'commands': [], 'container': None, 'alive': False}
+def save_state():
+    # Rename a whole copy into place: concurrent guests and the test read this file.
+    temp = root / f'engine.json.{os.getpid()}.{threading.get_ident()}'
+    temp.write_text(json.dumps(state))
+    os.replace(temp, state_path)
 real_monotonic = time.monotonic
 time.monotonic = lambda: real_monotonic() + state.get('timeOffset', 0)
 real_popen = subprocess.Popen
@@ -186,7 +191,7 @@ def run(args, **kwargs):
                 with real_popen([sys.executable, '-c', program, str(database)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=kwargs.get('preexec_fn')) as probe:
                     out, err = probe.communicate(timeout=10)
                     if probe.returncode:
-                        state_path.write_text(json.dumps(state))
+                        save_state()
                         if hasattr(kwargs.get('stderr'), 'write'): kwargs['stderr'].write(err)
                         return types.SimpleNamespace(returncode=probe.returncode, stdout=out, stderr=err)
             mounts = []; env = []; labels = {}
@@ -251,7 +256,7 @@ def run(args, **kwargs):
                 if state.get('containerName') == name: state['containerName'] = None; state['container'] = None
         else: raise RuntimeError('Unexpected external command: ' + repr(args))
     else: raise RuntimeError('Unexpected external command: ' + repr(args))
-    state_path.write_text(json.dumps(state))
+    save_state()
     if hasattr(kwargs.get('stdout'), 'write'):
         kwargs['stdout'].write(output)
         output = None
@@ -314,13 +319,13 @@ def popen(args, **kwargs):
         child = real_popen([sys.executable, '-I', '-u', '-c', relay], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
         owned_groups.add(child.pid)
         state.setdefault('relayPids', []).append(child.pid)
-        state_path.write_text(json.dumps(state))
+        save_state()
         return child
     if state.get('hungObservation') and args[:2] == ['/usr/bin/podman', 'info']:
         child = real_popen([sys.executable, '-c', 'import time;time.sleep(30)'], **kwargs)
         owned_groups.add(child.pid)
         state['managementPid'] = child.pid
-        state_path.write_text(json.dumps(state))
+        save_state()
         monotonic = time.monotonic
         time.monotonic = lambda: monotonic() + 16
         return child
