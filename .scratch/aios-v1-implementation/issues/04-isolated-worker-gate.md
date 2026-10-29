@@ -981,3 +981,15 @@ bounds. A local probe confirmed `npm ci --offline` installs from a prepared
 cache by integrity, with install scripts running. D2b, the guest upload and
 offline install, follows and changes the validation pin. Production remains
 disabled. See the [registry reader receipt](../ticket04-registry-reader-receipt.md).
+
+## 29 October: controlled dependency phase, D2b: the offline install in the validation guest
+
+Validation can now install a candidate's npm dependencies inside isolation.
+The runtime plans and fetches the prepared cache on the host; the guest takes
+it in sha512-checked chunks, installs it once per attempt with `npm ci
+--offline` in its own hardened, offline container (dependency scripts run only
+there), and mounts the resulting layer read-only in each check, keeping the
+tested tree's meaning. A failed install fails the check unrun. This is a guest
+change: each host's validation record needs re-approval, and a native run
+needs an owner image with `npm`. Production remains disabled. See the
+[dependency install receipt](../ticket04-validation-dependency-install-receipt.md).

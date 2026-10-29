@@ -1,5 +1,12 @@
 import { ownerAdmission, type OwnerAdmission } from "./coding-admission.js";
 import {
+  fetchNpmCache,
+  npmCachePlan,
+  npmRegistry,
+  type NpmCache,
+  type RegistryReader,
+} from "./dependency-cache.js";
+import {
   validationDigest,
   type ValidationAttempt,
   type ValidationCheck,
@@ -43,6 +50,27 @@ export const offlineValidationNetworkPolicy = Object.freeze({
 export const offlineValidationNetworkPolicySha256 = validationDigest(
   offlineValidationNetworkPolicy,
 );
+/** The prepared npm cache policy (owner decisions, 29 October): still no
+ * network in any container; the one declared registry is reached only by
+ * the host, for the tarballs the candidate's lockfile pins. */
+export const preparedNpmValidationNetworkPolicy = Object.freeze({
+  version: 1,
+  network: "none",
+  registries: Object.freeze([npmRegistry]),
+  caches: Object.freeze(["prepared-npm"]),
+});
+/** The environment an owner contract declares for checks that install the
+ * candidate's npm dependencies offline from a prepared cache. */
+export function preparedNpmValidationEnvironment(
+  imageSha256: string,
+): ValidationEnvironment {
+  return {
+    ...offlineValidationEnvironment(imageSha256),
+    networkPolicySha256: validationDigest(preparedNpmValidationNetworkPolicy),
+    registries: [npmRegistry],
+    caches: ["prepared-npm"],
+  };
+}
 /** The environment an owner contract must declare to use this runtime. */
 export function offlineValidationEnvironment(
   imageSha256: string,
@@ -78,6 +106,20 @@ export function ownerValidationAdmission(
   );
 }
 
+/** An attempt's prepared npm cache: the verified `<sha512>.tgz` files of
+ * one plan, installed offline once before the attempt's first check. */
+export interface ValidationDependencies {
+  planSha256: string;
+  files: { path: string; bytes: Buffer }[];
+  installTimeoutMs: number;
+}
+/** The attempt's install: a layer digest when installed, else why not. */
+export interface ValidationInstall {
+  state: "installed" | "failed";
+  exitCode: number;
+  timedOut: boolean;
+  layerSha256: string | null;
+}
 /** One check of one attempt, as data. The transport binds the attempt to
  * `treeSha256` and to a manifest digest of exactly these `files`, which it
  * materializes once; each check starts from a fresh copy of them. */
@@ -87,6 +129,8 @@ export interface ValidationRunRequest {
   treeSha256: string;
   files: { path: string; bytes: Buffer; executable: boolean }[];
   check: { id: string; command: string[]; timeoutMs: number };
+  /** With these, each check also sees the installed layer, read-only. */
+  dependencies?: ValidationDependencies;
   /** Checked before every effect; false stops dispatch and polling. */
   mayDispatch(): boolean;
 }
@@ -98,6 +142,9 @@ export interface ValidationRunResult {
   /** True when the guest's own deadline ended the check. */
   timedOut: boolean;
   pins: ValidationPins;
+  /** For a request with dependencies. A failed install ends the check
+   * unrun, reporting the install's exit and deadline instead. */
+  dependencies?: ValidationInstall;
 }
 /** Trusted isolated management boundary for validation checks. */
 export interface IsolatedValidationTransport {
@@ -151,10 +198,15 @@ export class PinnedValidationRuntime implements ValidationRuntime {
   readonly pins: ValidationPins;
   readonly bindingSha256: string;
   private readonly environment: ValidationEnvironment;
+  /** Each attempt's prepared cache, fetched once on the host. */
+  private readonly caches = new Map<string, Promise<NpmCache>>();
   constructor(
     pins: ValidationPins,
     private readonly transport: IsolatedValidationTransport,
     private readonly admission?: ValidationAdmission,
+    /** With a registry reader, checks install the candidate's npm
+     * dependencies offline from a prepared cache. */
+    private readonly dependencies?: { reader: RegistryReader },
   ) {
     this.pins = Object.freeze({
       imageSha256: pins?.imageSha256,
@@ -163,7 +215,9 @@ export class PinnedValidationRuntime implements ValidationRuntime {
     });
     if (!validValidationPins(this.pins) || !this.admitted())
       throw Error("Unqualified validation transport");
-    this.environment = offlineValidationEnvironment(this.pins.imageSha256);
+    this.environment = dependencies
+      ? preparedNpmValidationEnvironment(this.pins.imageSha256)
+      : offlineValidationEnvironment(this.pins.imageSha256);
     this.bindingSha256 = validationDigest({
       scope: "aios-native-validation-runtime-v1",
       pins: this.pins,
@@ -222,6 +276,43 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       !mayDispatch()
     )
       throw Error("Validation execution refused");
+    const unrun = (status: "failure" | "cancelled"): ValidationResult => ({
+      checkId: check.id,
+      status,
+      publisher: check.publisher,
+      treeSha256: request.treeSha256,
+      environmentSha256: request.environmentSha256,
+      artifacts: [],
+    });
+    let cache: NpmCache | undefined;
+    if (this.dependencies) {
+      // A lockfile that cannot be planned fails the check; a cache that
+      // cannot be fetched leaves it unrun.
+      const lockfile = request.files.find(
+        (file) => file.path === "package-lock.json",
+      );
+      if (!lockfile) return unrun("failure");
+      let plan;
+      try {
+        plan = npmCachePlan(Buffer.from(lockfile.bytes));
+      } catch {
+        return unrun("failure");
+      }
+      const key = request.operationId + ":" + plan.planSha256;
+      if (!this.caches.has(key))
+        this.caches.set(
+          key,
+          fetchNpmCache(plan, { reader: this.dependencies.reader }),
+        );
+      try {
+        cache = await this.caches.get(key)!;
+      } catch {
+        this.caches.delete(key);
+        return unrun("cancelled");
+      }
+      if (!this.admitted() || !mayDispatch())
+        throw Error("Validation execution refused");
+    }
     const run: ValidationRunRequest = Object.freeze({
       operationId: request.operationId,
       fence: request.fence,
@@ -238,6 +329,20 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       }),
       // Every effect needs a fresh record read and the caller's authority.
       mayDispatch: () => this.admitted() && mayDispatch() && this.admitted(),
+      ...(cache
+        ? {
+            dependencies: {
+              planSha256: cache.planSha256,
+              files: cache.files.map((file) => ({
+                path: file.path,
+                bytes: Buffer.from(file.bytes),
+              })),
+              // The controller times each check with its own bound, so the
+              // first check's install fits in the same one.
+              installTimeoutMs: check.timeoutMs,
+            },
+          }
+        : {}),
     });
     const result = await this.transport.run(run);
     if (
@@ -250,23 +355,45 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       result.exitCode > 255 ||
       typeof result.timedOut !== "boolean" ||
       !this.same(result.pins) ||
-      !this.admitted()
+      !this.admitted() ||
+      (cache !== undefined) !== (result.dependencies !== undefined) ||
+      (result.dependencies !== undefined &&
+        !(
+          (result.dependencies.state === "installed" &&
+            sha256(result.dependencies.layerSha256)) ||
+          (result.dependencies.state === "failed" &&
+            result.dependencies.layerSha256 === null)
+        ))
     )
       throw Error("Untrusted validation result");
+    // A failed install fails the unrun check whatever npm exited with: a
+    // clean exit can still leave a layer that could not be admitted.
+    const installFailed = result.dependencies?.state === "failed";
     return {
       checkId: check.id,
       status: result.timedOut
         ? "timeout"
-        : result.exitCode === 0
+        : result.exitCode === 0 && !installFailed
           ? "success"
           : "failure",
       publisher: check.publisher,
       treeSha256: request.treeSha256,
       environmentSha256: request.environmentSha256,
-      artifacts: [],
+      // The installed layer, as evidence beside the tested tree.
+      artifacts: result.dependencies?.layerSha256
+        ? [
+            { name: "npm-cache-plan", sha256: cache!.planSha256 },
+            {
+              name: "npm-dependency-layer",
+              sha256: result.dependencies.layerSha256,
+            },
+          ]
+        : [],
     };
   }
   async stop(attempt: ValidationAttempt) {
+    for (const key of this.caches.keys())
+      if (key.startsWith(attempt.operationId + ":")) this.caches.delete(key);
     // Always attempt exact-attempt shutdown, even when pins or the record
     // changed. A receipt is trusted only after a fresh independent inspection.
     const receipt = {

@@ -9,6 +9,8 @@ import {
 import {
   validCheckBounds,
   type IsolatedValidationTransport,
+  type ValidationDependencies,
+  type ValidationInstall,
   type ValidationPins,
   type ValidationRunRequest,
   type ValidationRunResult,
@@ -24,7 +26,26 @@ const sha256 = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 
 /** Each management action observes the VM; only stop may report no binding. */
-type ValidationAction = "inspect" | "prepare" | "start" | "poll" | "stop";
+type ValidationAction =
+  | "inspect"
+  | "prepare"
+  | "deps-status"
+  | "cache-put"
+  | "install-start"
+  | "install-poll"
+  | "start"
+  | "poll"
+  | "stop";
+
+/** Bounds of the prepared npm dependency cache in the guest (owner decisions,
+ * 29 October): each chunk crosses as one management request. */
+export const dependencyTransfer = Object.freeze({
+  chunkBytes: 4 * 1024 * 1024,
+  tarballBytes: 64 * 1024 * 1024,
+  cacheBytes: 128 * 1024 * 1024,
+  tarballs: 2048,
+  installTimeoutMs: 600000,
+});
 
 /** Trusted VM management source for offline validation. Requests are JSON
  * data, never generated commands. Each check runs in a fresh container from
@@ -107,7 +128,7 @@ def snapshot():
  # Only this attempt's own check containers may be running.
  for c in obj('ps','--format','json'):
   names=c.get('Names') or []
-  if not R.get('name') or len(names)!=1 or not names[0].startswith(R['name']+'-c'): fail()
+  if not R.get('name') or len(names)!=1 or not (names[0].startswith(R['name']+'-c') or names[0]==R['name']+'-install'): fail()
  if not re.fullmatch('[a-f0-9]{64}',R['imageSha256']): fail()
  checked=obj('image','inspect',R['imageSha256'])[0]
  if checked.get('Id')!=R['imageSha256'] or checked.get('Architecture')!=R['guestArch']: fail()
@@ -218,18 +239,77 @@ def kill_check(entry):
   if exists(entry['container']): fail()
  stop_deadline(entry['container'])
  if not gone(entry): fail()
-def effective(c,argv,work):
- if c.get('Image')!=R['imageSha256'] or c['Config'].get('Entrypoint') not in [['/bin/sh'],'/bin/sh'] or c['Config'].get('Cmd')!=['-c','exec "$@"','--',*argv]: fail()
+def effective(c,cmd,binds):
+ # binds: the exact (source, destination, writable) bind mounts expected.
+ if c.get('Image')!=R['imageSha256'] or c['Config'].get('Entrypoint') not in [['/bin/sh'],'/bin/sh'] or c['Config'].get('Cmd')!=cmd: fail()
  hc=c['HostConfig'];env=dict(x.split('=',1) for x in c['Config']['Env'])
  expected={'PATH':'/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin','HOME':'/tmp','CI':'true','HOSTNAME':'aios-validation'}
  if hc.get('Privileged') or hc.get('VolumesFrom') or hc.get('PortBindings') or hc.get('Devices') or hc.get('CapAdd'): fail()
  if hc.get('NetworkMode')!='none' or hc.get('PidMode')!='private' or hc.get('IpcMode')!='private' or not hc.get('ReadonlyRootfs'): fail()
  if c['Config']['User']!='65534:65534' or env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no' or c['Config'].get('WorkingDir')!='/workspace': fail()
  if hc.get('PidsLimit')!=256 or hc.get('Memory')!=1073741824 or 'no-new-privileges' not in hc.get('SecurityOpt',[]) or 'seccomp='+root+'/seccomp.json' not in hc.get('SecurityOpt',[]): fail()
- binds=[m for m in c.get('Mounts',[]) if m.get('Type')=='bind']
- if len(binds)!=1 or any(m.get('Type') not in ['bind','tmpfs'] or (m.get('Type')=='tmpfs' and m.get('Destination')!='/tmp') for m in c.get('Mounts',[])): fail()
- m=binds[0]
- if m.get('Destination')!='/workspace' or m.get('Source')!=work or m.get('RW') is not True or m.get('Propagation') not in ['rprivate','private']: fail()
+ found=[m for m in c.get('Mounts',[]) if m.get('Type')=='bind']
+ if any(m.get('Type') not in ['bind','tmpfs'] or (m.get('Type')=='tmpfs' and m.get('Destination')!='/tmp') for m in c.get('Mounts',[])): fail()
+ if sorted((m.get('Source'),m.get('Destination'),m.get('RW')) for m in found)!=sorted(binds) or any(m.get('Propagation') not in ['rprivate','private'] for m in found): fail()
+# The prepared npm cache installs offline; scripts run only in here.
+INSTALL='set -e; for f in /cache/*.tgz; do [ -e "$f" ] || continue; npm cache add "$f" --cache /npm-cache --offline >/dev/null; done; exec npm ci --offline --cache /npm-cache --no-audit --no-fund'
+def create(name,cmd,volumes):
+ # One hardened, offline container from the owner image by ID.
+ pod('create','--name',name,'--hostname=aios-validation','--pull=never','--network=none','--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size=268435456','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=256','--memory=1024m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin','--env','HOME=/tmp','--env','CI=true','--workdir=/workspace','--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,*[x for v in volumes for x in ['--volume',v[0]+':'+v[1]+(':rw' if v[2] else ':ro')+',Z,rprivate']],R['imageSha256'],*cmd)
+ effective(check_container(name),cmd,sorted(volumes))
+def launch(entry,timeoutMs):
+ # The guest deadline bounds the process even when the controller is gone.
+ name=entry['container']
+ command(['systemd-run','--user','--unit='+name+'-deadline','--on-active='+str(timeoutMs/1000)+'s','--timer-property=AccuracySec=100ms','--timer-property=RemainAfterElapse=yes','--property=RemainAfterExit=yes','/usr/bin/podman','kill','--signal','KILL',name])
+ if timer_state(name+'-deadline.timer')['ActiveState']!='active': fail()
+ pod('start',name)
+ c=check_container(name)
+ if c['State'].get('Running'):
+  try:
+   live(c)
+   entry['group']=group(c['State']['Pid'])
+   entry['pids']={str(c['State']['Pid']):pathlib.Path('/proc/'+str(c['State']['Pid'])+'/stat').read_text().rsplit(')',1)[1].split()[19]}
+  except FileNotFoundError:
+   # A process may finish before it is observed; only then is a missing
+   # process acceptable. The static configuration was verified.
+   if check_container(name)['State'].get('Running'): fail()
+def finished(entry):
+ # The exit of a stopped container; only the deadline's own kill times out.
+ c=check_container(entry['container'])
+ if c['State'].get('Running'): return None
+ if not gone(entry): fail()
+ code=c['State'].get('ExitCode')
+ if type(code) is not int or not 0<=code<=255: fail()
+ entry['exitCode']=code
+ entry['timedOut']=timer_state(entry['container']+'-deadline.service')['ActiveState']!='inactive'
+ stop_deadline(entry['container'])
+ pod('rm',entry['container'])
+ if exists(entry['container']): fail()
+ return code
+def measure_layer(folder):
+ # The installed dependency layer: files by digest, links by target, within
+ # bounds. Anything else, or too much, is a change.
+ try:
+  found=[];total=0;pending=[(folder,'')]
+  while pending:
+   current,prefix=pending.pop()
+   with os.scandir(current) as entries:
+    for entry in entries:
+     if len(found)>300000: return CHANGED
+     name=prefix+entry.name
+     s=entry.stat(follow_symlinks=False)
+     if stat.S_ISDIR(s.st_mode): pending.append((entry.path,name+'/'));found.append(dict(path=name,kind='dir'));continue
+     if stat.S_ISLNK(s.st_mode): found.append(dict(path=name,kind='link',target=os.readlink(entry.path)));continue
+     if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_size>67108864: return CHANGED
+     total+=s.st_size
+     if total>1073741824: return CHANGED
+     fd=os.open(entry.path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+     digest=hashlib.sha256()
+     with os.fdopen(fd,'rb') as f:
+      for block in iter(lambda: f.read(1048576),b''): digest.update(block)
+     found.append(dict(path=name,kind='file',sha256=digest.hexdigest(),executable=bool(s.st_mode&0o111)))
+  return manifest_digest(sorted(found,key=lambda e:e['path']))
+ except (OSError,UnicodeEncodeError,ValueError,MemoryError): return CHANGED
 def live(c):
  values={x.split(':',1)[0]:x.split(':',1)[1].strip() for x in pathlib.Path('/proc/'+str(c['State']['Pid'])+'/status').read_text().splitlines() if ':' in x}
  if values.get('NoNewPrivs')!='1' or values.get('Seccomp')!='2' or int(values.get('CapEff','f'),16)!=0: fail()
@@ -262,7 +342,7 @@ else:
   record=read(recordPath) if os.path.lexists(recordPath) else None
   if record and record['identity']!=identity: fail()
   operation=root+'/'+R['name']
-  if R['action'] in ['prepare','start','poll']:
+  if R['action'] in ['prepare','deps-status','cache-put','install-start','install-poll','start','poll']:
    binding=snapshot()
    if binding!=R['expectedBinding']: fail()
   if R['action']=='prepare':
@@ -293,6 +373,73 @@ else:
     profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
     save(root+'/seccomp.json',profile)
     record['phase']='prepared';save(recordPath,record)
+  elif R['action']=='deps-status':
+   if not record: fail()
+   d=record.get('deps')
+   if d and d['planSha256']!=R.get('planSha256'): fail()
+   result=dict(state=d['state'] if d else 'absent',exitCode=d.get('exitCode') if d else None,timedOut=d.get('timedOut',False) if d else False,layerSha256=d.get('layerSha256') if d else None)
+  elif R['action']=='cache-put':
+   # The prepared cache arrives in ordered chunks before any check; each
+   # tarball is kept only once its bytes match the sha512 it is named by.
+   plan=R.get('planSha256',''); name=R.get('file','')
+   if not record or record['phase']!='prepared' or record['checks'] or not re.fullmatch('[a-f0-9]{64}',plan) or not re.fullmatch('[a-f0-9]{128}[.]tgz',name): fail()
+   size=R.get('size');offset=R.get('offset');data=base64.b64decode(R.get('data',''),validate=True)
+   if type(size) is not int or type(offset) is not int or not 0<len(data)<=${dependencyTransfer.chunkBytes} or not 0<size<=${dependencyTransfer.tarballBytes} or offset+len(data)>size: fail()
+   d=record.get('deps') or dict(planSha256=plan,state='uploading',files={},bytes=0)
+   if d['planSha256']!=plan or d['state']!='uploading': fail()
+   item=d['files'].get(name)
+   if item is None:
+    if offset!=0 or len(d['files'])>=${dependencyTransfer.tarballs} or d['bytes']+size>${dependencyTransfer.cacheBytes}: fail()
+    item=dict(size=size,received=0,done=False);d['files'][name]=item;d['bytes']+=size
+   if item['done'] or item['size']!=size or offset!=item['received']: fail()
+   directory(operation+'/cache')
+   part=operation+'/cache/'+name+'.part'
+   fd=os.open(part,os.O_WRONLY|os.O_CREAT|os.O_APPEND|os.O_NOFOLLOW,0o600)
+   with os.fdopen(fd,'ab') as f:
+    if os.fstat(f.fileno()).st_size!=offset: fail()
+    f.write(data)
+   item['received']+=len(data)
+   if item['received']==size:
+    ordinary(part)
+    if hashlib.sha512(pathlib.Path(part).read_bytes()).hexdigest()!=name[:128]: fail()
+    os.rename(part,operation+'/cache/'+name);item['done']=True
+   record['deps']=d;save(recordPath,record)
+   result=dict(received=item['received'])
+  elif R['action']=='install-start':
+   # Install once, before any check, from the complete uploaded cache.
+   d=record.get('deps') if record else None
+   if not record or record['phase']!='prepared' or record['checks'] or not d or d['state']!='uploading' or d['planSha256']!=R.get('planSha256'): fail()
+   names=R.get('files')
+   if not isinstance(names,list) or sorted(names)!=sorted(d['files']) or not all(i['done'] for i in d['files'].values()): fail()
+   # npm ci prefers a shrinkwrap to the planned lockfile, so none may come.
+   if 'package-lock.json' not in record['order'] or 'npm-shrinkwrap.json' in record['order'] or any(p=='node_modules' or p.startswith('node_modules/') for p in record['order']): fail()
+   timeout=R.get('timeoutMs')
+   if type(timeout) is not int or not 1<=timeout<=${dependencyTransfer.installTimeoutMs}: fail()
+   directory(operation+'/cache')
+   work=operation+'/install';fresh_workspace(work)
+   directory(operation+'/npm-cache')
+   d.update(state='installing',container=R['name']+'-install',workspace=work,group='',pids={},exitCode=None,timedOut=False);save(recordPath,record)
+   create(d['container'],['-c',INSTALL],[(work,'/workspace',True),(operation+'/cache','/cache',False),(operation+'/npm-cache','/npm-cache',True)])
+   launch(d,timeout)
+   save(recordPath,record)
+   result=dict(container=d['container'])
+  elif R['action']=='install-poll':
+   d=record.get('deps') if record else None
+   if not d or d['state']!='installing' or d['planSha256']!=R.get('planSha256'): fail()
+   code=finished(d)
+   if code is None:
+    result=dict(running=True)
+   else:
+    # Only a clean install's node_modules becomes the layer; anything it
+    # wrote elsewhere is discarded with its workspace.
+    modules=d['workspace']+'/node_modules';d['layerSha256']=None;d['state']='failed'
+    if code==0 and not d['timedOut'] and os.path.isdir(modules) and not os.path.islink(modules):
+     os.rename(modules,operation+'/deps')
+     layer=measure_layer(operation+'/deps')
+     if layer!=CHANGED: d['layerSha256']=layer;d['state']='installed'
+    for path in [d['workspace'],operation+'/npm-cache',operation+'/cache']: discard(path)
+    save(recordPath,record)
+    result=dict(running=False,state=d['state'],exitCode=code,timedOut=d['timedOut'],layerSha256=d['layerSha256'])
   elif R['action']=='start':
    check=R.get('check')
    if not record or record['phase']!='prepared' or record['treeSha256']!=R.get('treeSha256'): fail()
@@ -300,44 +447,26 @@ else:
    argv=check['command']
    if not isinstance(check['id'],str) or not 0<len(check['id'])<=2000 or not isinstance(argv,list) or not 1<=len(argv)<=32 or not all(isinstance(a,str) and 0<len(a)<=2000 and not re.search(r'[\x00-\x1f\x7f]',a) for a in argv): fail()
    if type(check['timeoutMs']) is not int or not 1<=check['timeoutMs']<=120000: fail()
+   # A check declared with dependencies sees exactly this attempt's
+   # installed layer, read-only; one without sees none.
+   deps=record.get('deps')
+   if R.get('dependencies') is not None and (not deps or deps['state']!='installed' or deps['planSha256']!=R['dependencies']): fail()
+   if R.get('dependencies') is None and deps: fail()
    index=len(record['checks']);name=R['name']+'-c'+str(index);work=operation+'/check-'+str(index)
    entry=dict(checkId=check['id'],container=name,workspace=work,argv=argv,group='',pids={},exitCode=None,timedOut=False,treeSha256=None)
    record['checks'].append(entry);record['phase']='running';save(recordPath,record)
    fresh_workspace(work)
-   pod('create','--name',name,'--hostname=aios-validation','--pull=never','--network=none','--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size=268435456','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=256','--memory=1024m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin','--env','HOME=/tmp','--env','CI=true','--workdir=/workspace','--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,'--volume',work+':/workspace:rw,Z,rprivate',R['imageSha256'],'-c','exec "$@"','--',*argv)
-   effective(check_container(name),argv,work)
-   # The guest deadline bounds the check even when the controller is gone.
-   command(['systemd-run','--user','--unit='+name+'-deadline','--on-active='+str(check['timeoutMs']/1000)+'s','--timer-property=AccuracySec=100ms','--timer-property=RemainAfterElapse=yes','--property=RemainAfterExit=yes','/usr/bin/podman','kill','--signal','KILL',name])
-   if timer_state(name+'-deadline.timer')['ActiveState']!='active': fail()
-   pod('start',name)
-   c=check_container(name)
-   if c['State'].get('Running'):
-    try:
-     live(c)
-     entry['group']=group(c['State']['Pid'])
-     entry['pids']={str(c['State']['Pid']):pathlib.Path('/proc/'+str(c['State']['Pid'])+'/stat').read_text().rsplit(')',1)[1].split()[19]}
-    except FileNotFoundError:
-     # A check may finish before its process is observed; only then is a
-     # missing process acceptable. The static configuration was verified.
-     if check_container(name)['State'].get('Running'): fail()
+   create(name,['-c','exec "$@"','--',*argv],[(work,'/workspace',True)]+([(operation+'/deps','/workspace/node_modules',False)] if deps else []))
+   launch(entry,check['timeoutMs'])
    save(recordPath,record)
    result=dict(container=name)
   elif R['action']=='poll':
    if not record or record['phase']!='running' or not record['checks'] or record['checks'][-1]['checkId']!=R.get('checkId'): fail()
    entry=record['checks'][-1]
-   c=check_container(entry['container'])
-   if c['State'].get('Running'):
+   code=finished(entry)
+   if code is None:
     result=dict(running=True)
    else:
-    if not gone(entry): fail()
-    code=c['State'].get('ExitCode')
-    if type(code) is not int or not 0<=code<=255: fail()
-    entry['exitCode']=code
-    # Only the guest deadline's own kill is a timeout, never any exit 137.
-    entry['timedOut']=timer_state(entry['container']+'-deadline.service')['ActiveState']!='inactive'
-    stop_deadline(entry['container'])
-    pod('rm',entry['container'])
-    if exists(entry['container']): fail()
     entry['treeSha256']=measure(entry['workspace'],record['order'])
     discard(entry['workspace'])
     record['phase']='prepared';save(recordPath,record)
@@ -348,6 +477,7 @@ else:
     # Fence when the disk allows; a full disk must never prevent shutdown.
     try: record['phase']='revoked';save(recordPath,record)
     except OSError: pass
+    if record.get('deps',{}).get('container'): kill_check(record['deps'])
     for entry in record['checks']:
      kill_check(entry)
      if entry.get('treeSha256') is None and os.path.lexists(entry.get('workspace','')): entry['treeSha256']=measure(entry['workspace'],record['order'])
@@ -360,6 +490,34 @@ else:
 print(json.dumps(dict(attempt=R.get('attempt'),binding=binding if 'binding' in globals() else None,**result)))
 `;
 
+/** A prepared cache within the guest's transfer bounds, each file named by
+ * the sha512 of its bytes. */
+function validDependencies(deps: ValidationDependencies): boolean {
+  let total = 0;
+  const names = new Set<string>();
+  return (
+    record(deps) &&
+    sha256(deps.planSha256) &&
+    Number.isSafeInteger(deps.installTimeoutMs) &&
+    deps.installTimeoutMs >= 1 &&
+    deps.installTimeoutMs <= dependencyTransfer.installTimeoutMs &&
+    Array.isArray(deps.files) &&
+    deps.files.length <= dependencyTransfer.tarballs &&
+    deps.files.every(
+      (file) =>
+        record(file) &&
+        !names.has(file.path) &&
+        names.add(file.path) &&
+        Buffer.isBuffer(file.bytes) &&
+        file.bytes.length > 0 &&
+        file.bytes.length <= dependencyTransfer.tarballBytes &&
+        (total += file.bytes.length) <= dependencyTransfer.cacheBytes &&
+        file.path ===
+          createHash("sha512").update(file.bytes).digest("hex") + ".tgz",
+    )
+  );
+}
+
 /** Offline native validation groundwork; never a production qualification.
  * The pinned validation runtime rejects this live adapter unless an owner
  * validation admission record names its exact fresh pins. */
@@ -369,11 +527,13 @@ export class NativePodmanValidationTransport
   readonly mode = "live" as const;
   readonly productionEnabled = false;
   private readonly pollMs: number;
+  /** How long past a guest deadline the host still waits for its kill. */
+  private readonly deadlineGraceMs: number;
   constructor(
     private readonly machine: string,
     private readonly authority: string,
     private readonly imageSha256: string,
-    options: { pollMs?: number } = {},
+    options: { pollMs?: number; deadlineGraceMs?: number } = {},
   ) {
     if (
       !/^aios-[a-z0-9-]+$/.test(machine) ||
@@ -382,6 +542,13 @@ export class NativePodmanValidationTransport
     )
       throw Error("Invalid native validation authority");
     this.pollMs = options.pollMs ?? 1000;
+    this.deadlineGraceMs = options.deadlineGraceMs ?? 30000;
+    if (
+      !Number.isSafeInteger(this.deadlineGraceMs) ||
+      this.deadlineGraceMs < 0 ||
+      this.deadlineGraceMs > 600000
+    )
+      throw Error("Invalid native validation authority");
     Object.freeze(this);
   }
   private async invoke(
@@ -460,7 +627,9 @@ export class NativePodmanValidationTransport
           (total += file.bytes.length) <= 1048576 &&
           typeof file.executable === "boolean",
       ) ||
-      !validCheckBounds(check)
+      !validCheckBounds(check) ||
+      (request.dependencies !== undefined &&
+        !validDependencies(request.dependencies))
     )
       throw Error("Unsupported native validation request");
     const attempt = { operationId: request.operationId, fence: request.fence };
@@ -486,11 +655,26 @@ export class NativePodmanValidationTransport
       },
       mayDispatch,
     );
+    const deps = request.dependencies;
+    const install = deps
+      ? await this.install(attempt, expectedBinding, deps, mayDispatch)
+      : undefined;
+    if (install?.state === "failed")
+      return {
+        operationId: attempt.operationId,
+        fence: attempt.fence,
+        checkId: check.id,
+        exitCode: install.exitCode,
+        timedOut: install.timedOut,
+        pins: (await this.invoke("inspect", attempt)).pins,
+        dependencies: install,
+      };
     await this.invoke(
       "start",
       attempt,
       {
         expectedBinding,
+        dependencies: deps?.planSha256 ?? null,
         treeSha256: request.treeSha256,
         check: {
           id: check.id,
@@ -502,7 +686,7 @@ export class NativePodmanValidationTransport
     );
     // The guest timer ends the check at its timeout; polling ends a little
     // after that, so a lost guest timer can never keep this call waiting.
-    const deadline = performance.now() + check.timeoutMs + 30000;
+    const deadline = performance.now() + check.timeoutMs + this.deadlineGraceMs;
     for (;;) {
       await sleep(this.pollMs);
       const polled = await this.invoke(
@@ -524,11 +708,100 @@ export class NativePodmanValidationTransport
           exitCode: polled.result.exitCode as number,
           timedOut: polled.result.timedOut as boolean,
           pins: polled.pins,
+          ...(install ? { dependencies: install } : {}),
         };
       }
       if (polled.result.running !== true || performance.now() > deadline)
         throw Error("Native validation check outlived its deadline");
     }
+  }
+  /** Upload the attempt's cache in chunks and install it once, before the
+   * first check; later checks find it installed. An upload cut short is not
+   * resumed: the attempt fails and stops. */
+  private async install(
+    attempt: { operationId: string; fence: number },
+    expectedBinding: unknown,
+    deps: ValidationDependencies,
+    mayDispatch: () => boolean,
+  ): Promise<ValidationInstall> {
+    const planSha256 = deps.planSha256;
+    const status = await this.invoke(
+      "deps-status",
+      attempt,
+      { expectedBinding, planSha256 },
+      mayDispatch,
+    );
+    if (status.result.state === "absent") {
+      for (const file of deps.files)
+        for (
+          let offset = 0;
+          offset < file.bytes.length;
+          offset += dependencyTransfer.chunkBytes
+        )
+          await this.invoke(
+            "cache-put",
+            attempt,
+            {
+              expectedBinding,
+              planSha256,
+              file: file.path,
+              size: file.bytes.length,
+              offset,
+              data: file.bytes
+                .subarray(offset, offset + dependencyTransfer.chunkBytes)
+                .toString("base64"),
+            },
+            mayDispatch,
+          );
+      await this.invoke(
+        "install-start",
+        attempt,
+        {
+          expectedBinding,
+          planSha256,
+          files: deps.files.map((file) => file.path),
+          timeoutMs: deps.installTimeoutMs,
+        },
+        mayDispatch,
+      );
+    } else if (
+      !["installing", "installed", "failed"].includes(
+        String(status.result.state),
+      )
+    )
+      throw Error("Native validation dependency upload was interrupted");
+    let observed = status.result;
+    const deadline =
+      performance.now() + deps.installTimeoutMs + this.deadlineGraceMs;
+    while (observed.state === "absent" || observed.state === "installing") {
+      await sleep(this.pollMs);
+      observed = (
+        await this.invoke(
+          "install-poll",
+          attempt,
+          { expectedBinding, planSha256 },
+          mayDispatch,
+        )
+      ).result;
+      if (observed.running === true) {
+        observed = { ...observed, state: "installing" };
+        if (performance.now() > deadline)
+          throw Error("Native validation install outlived its deadline");
+      }
+    }
+    if (
+      !["installed", "failed"].includes(String(observed.state)) ||
+      !Number.isSafeInteger(observed.exitCode) ||
+      typeof observed.timedOut !== "boolean" ||
+      (observed.state === "installed") !== sha256(observed.layerSha256)
+    )
+      throw Error("Native validation binding changed");
+    return {
+      state: observed.state as ValidationInstall["state"],
+      exitCode: observed.exitCode as number,
+      timedOut: observed.timedOut as boolean,
+      layerSha256: (observed.layerSha256 as string | null) ?? null,
+    };
   }
   async stop(attempt: { operationId: string; fence: number }) {
     if (
