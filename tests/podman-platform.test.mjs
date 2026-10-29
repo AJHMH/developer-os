@@ -1551,5 +1551,11 @@ sys.exit(1 if os.environ.get("FAIL") else 0)'
       /^Error: Native offline operation unavailable$/,
     );
     assert.deepEqual(fs.readdirSync(scratch), []);
+    // A program file that can't be made refuses generically, naming no path.
+    process.env.TMPDIR = join(root, "missing");
+    assert.throws(
+      () => channel().invoke("observe", payload),
+      /^Error: Native offline operation unavailable$/,
+    );
   },
 );
