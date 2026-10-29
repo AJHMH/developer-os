@@ -4,10 +4,13 @@
 // after every other test file, so no other file changes shard.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { createServer, request as httpRequest } from "node:http";
+import { Agent as HttpsAgent, globalAgent } from "node:https";
 import { test } from "node:test";
 import {
   dependencyCacheLimits,
   fetchNpmCache,
+  httpsRegistryReader,
   npmCachePlan,
 } from "../dist/dependency-cache.js";
 
@@ -218,7 +221,7 @@ function registryReader(served, changes = {}) {
   const reader = async (url, signal, maxBytes) => {
     requested.push(url);
     assert.ok(signal instanceof AbortSignal);
-    assert.equal(maxBytes, dependencyCacheLimits.artifactBytes);
+    assert.ok(maxBytes > 0 && maxBytes <= dependencyCacheLimits.artifactBytes);
     const path = new URL(url).pathname;
     const bytes = served.get(path);
     if (!bytes) return { status: 404, bytes: Buffer.alloc(0) };
@@ -396,4 +399,139 @@ test("a cancelled fetch stops and admits nothing", async () => {
     /dependency/i,
   );
   assert.equal(calls, 1);
+});
+
+test("v1 bounds a cache at 2048 tarballs and 128 MiB", () => {
+  assert.equal(dependencyCacheLimits.artifacts, 2048);
+  assert.equal(dependencyCacheLimits.totalBytes, 128 * 1024 * 1024);
+});
+
+/** A local stand-in for the registry, reached through the reader's injected
+ * request function; `respond` answers each request. */
+async function localRegistry(t, respond) {
+  const seen = [];
+  const server = createServer((req, res) => {
+    seen.push({ path: req.url, headers: req.headers });
+    respond(req, res);
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const { port } = server.address();
+  // The reader's own https agent and certificate checking are asserted,
+  // then left out: the stand-in speaks plain http.
+  const request = (
+    url,
+    { agent, rejectUnauthorized, ...options },
+    callback,
+  ) => {
+    assert.ok(agent instanceof HttpsAgent && agent !== globalAgent);
+    assert.equal(rejectUnauthorized, true);
+    return httpRequest(
+      `http://127.0.0.1:${port}${new URL(url).pathname}`,
+      options,
+      callback,
+    );
+  };
+  return { reader: httpsRegistryReader(request), seen };
+}
+const tarballUrl = `${registry}/x/-/x-1.0.0.tgz`;
+const never = () => new AbortController().signal;
+
+test("the registry reader returns the body uncompressed and asks for identity", async (t) => {
+  const { reader, seen } = await localRegistry(t, (_req, res) =>
+    res.end("tarball bytes"),
+  );
+  const read = await reader(tarballUrl, never(), 1024);
+  assert.equal(read.status, 200);
+  assert.equal(read.bytes.toString(), "tarball bytes");
+  assert.equal(read.encoding, undefined);
+  assert.equal(seen[0].path, "/x/-/x-1.0.0.tgz");
+  assert.equal(seen[0].headers["accept-encoding"], "identity");
+});
+
+test("the registry reader reports a redirect or compression instead of following it", async (t) => {
+  const redirect = await localRegistry(t, (_req, res) => {
+    res.writeHead(302, { location: "https://elsewhere.example/x.tgz" });
+    res.end();
+  });
+  const moved = await redirect.reader(tarballUrl, never(), 1024);
+  assert.equal(moved.status, 302);
+  assert.equal(redirect.seen.length, 1, "never followed");
+  const gzip = await localRegistry(t, (_req, res) => {
+    res.writeHead(200, { "content-encoding": "gzip" });
+    res.end("x");
+  });
+  assert.equal((await gzip.reader(tarballUrl, never(), 1024)).encoding, "gzip");
+});
+
+test("an explicit identity encoding is read like none", async (t) => {
+  const { reader } = await localRegistry(t, (_req, res) => {
+    res.writeHead(200, { "content-encoding": "identity" });
+    res.end("plain");
+  });
+  const read = await reader(tarballUrl, never(), 1024);
+  assert.equal(read.bytes.toString(), "plain");
+});
+
+test("the registry reader stops reading past its byte bound", async (t) => {
+  const { reader } = await localRegistry(t, (_req, res) =>
+    res.end(Buffer.alloc(4096)),
+  );
+  await assert.rejects(reader(tarballUrl, never(), 1024), /registry/i);
+});
+
+test("the registry reader refuses a declared length over its bound before reading", async (t) => {
+  const { reader } = await localRegistry(t, (_req, res) => {
+    res.writeHead(200, { "content-length": "4096" });
+    res.write("x");
+  });
+  await assert.rejects(reader(tarballUrl, never(), 1024), /registry/i);
+});
+
+test("the registry reader stops when aborted before any response", async (t) => {
+  const { reader } = await localRegistry(t, () => {});
+  const cancellation = new AbortController();
+  const reading = reader(tarballUrl, cancellation.signal, 1024);
+  setTimeout(() => cancellation.abort(), 20);
+  await assert.rejects(reading);
+});
+
+test("each read is bounded by what is left of the total", async () => {
+  const plan = npmCachePlan(ordinary());
+  const bounds = [];
+  const { reader } = registryReader(servedFor(plan));
+  await fetchNpmCache(plan, {
+    reader: (url, signal, maxBytes) => {
+      bounds.push(maxBytes);
+      return reader(url, signal, maxBytes);
+    },
+    totalBytes: 1000,
+  });
+  assert.equal(bounds[0], 1000);
+  assert.ok(bounds[1] < 1000, "the second read gets only the remainder");
+});
+
+test("the registry reader stops when its signal aborts", async (t) => {
+  const { reader } = await localRegistry(t, (_req, res) => {
+    res.writeHead(200);
+    res.write("partial");
+  });
+  const cancellation = new AbortController();
+  const reading = reader(tarballUrl, cancellation.signal, 1024);
+  setTimeout(() => cancellation.abort(), 20);
+  await assert.rejects(reading);
+});
+
+test("the registry reader refuses any URL but a registry tarball before connecting", async (t) => {
+  const { reader, seen } = await localRegistry(t, (_req, res) => res.end());
+  for (const url of [
+    "https://registry.example.com/x/-/x-1.0.0.tgz",
+    // The same length as the registry origin, so only the prefix check
+    // tells it apart.
+    "https://registry.npmjs.orx/x/-/x-1.0.0.tgz",
+    `${registry}/x`,
+    `${registry}/x/-/x-1.0.0.tgz?y=1`,
+  ])
+    await assert.rejects(reader(url, never(), 1024), /registry/i);
+  assert.deepEqual(seen, []);
 });

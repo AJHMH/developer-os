@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Agent, request as httpsRequest } from "node:https";
 
 /** The controlled dependency phase's prepared npm cache (owner decisions, 29
  * October): the candidate's lockfile, read only as data on the host, names
@@ -9,9 +10,9 @@ export const npmRegistry = "https://registry.npmjs.org" as const;
 
 export const dependencyCacheLimits = Object.freeze({
   lockfileBytes: 16 * 1024 * 1024,
-  artifacts: 4096,
+  artifacts: 2048,
   artifactBytes: 64 * 1024 * 1024,
-  totalBytes: 512 * 1024 * 1024,
+  totalBytes: 128 * 1024 * 1024,
   artifactMs: 60_000,
 });
 
@@ -195,10 +196,11 @@ export async function fetchNpmCache(
     ]);
     let response: Awaited<ReturnType<RegistryReader>>;
     try {
+      // Never more than one tarball's bound or what is left of the total.
       const reading = options.reader(
         npmRegistry + artifact.path,
         signal,
-        dependencyCacheLimits.artifactBytes,
+        Math.min(dependencyCacheLimits.artifactBytes, total - read),
       );
       reading.catch(() => {});
       response = await Promise.race([reading, aborted(signal)]);
@@ -228,4 +230,70 @@ export async function fetchNpmCache(
     files,
     bytes: files.reduce((n, f) => n + f.bytes.length, 0),
   };
+}
+
+/** The registry reader the host uses: one https GET of a registry tarball,
+ * asking for identity encoding, never following a redirect (the status is
+ * returned and refused by the fetch), and giving up past `maxBytes` or when
+ * `signal` aborts. Any other URL is refused before connecting. `request` is
+ * injectable for tests. */
+export function httpsRegistryReader(
+  request: typeof httpsRequest = httpsRequest,
+): RegistryReader {
+  return (url, signal, maxBytes) =>
+    new Promise((resolve, reject) => {
+      const refused = () => Error("Registry read refused");
+      if (
+        !url.startsWith(npmRegistry + "/") ||
+        !registryTarball(url.slice(npmRegistry.length))
+      ) {
+        reject(refused());
+        return;
+      }
+      const req = request(
+        url,
+        {
+          method: "GET",
+          signal,
+          headers: { "accept-encoding": "identity" },
+          // Its own connection and certificate checking: no global agent,
+          // environment proxy or disabled verification applies.
+          agent: new Agent({ keepAlive: false }),
+          rejectUnauthorized: true,
+        },
+        (res) => {
+          const encoding = res.headers["content-encoding"];
+          if (
+            res.statusCode !== 200 ||
+            (encoding !== undefined && encoding !== "identity")
+          ) {
+            res.destroy();
+            resolve({
+              status: res.statusCode ?? 0,
+              bytes: Buffer.alloc(0),
+              ...(encoding ? { encoding: String(encoding) } : {}),
+            });
+            return;
+          }
+          if (Number(res.headers["content-length"]) > maxBytes) {
+            res.destroy();
+            reject(refused());
+            return;
+          }
+          let size = 0;
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk: Buffer) => {
+            size += chunk.length;
+            if (size > maxBytes) res.destroy(refused());
+            else chunks.push(chunk);
+          });
+          res.on("error", reject);
+          res.on("end", () =>
+            resolve({ status: 200, bytes: Buffer.concat(chunks) }),
+          );
+        },
+      );
+      req.on("error", reject);
+      req.end();
+    });
 }
