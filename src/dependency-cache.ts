@@ -146,7 +146,8 @@ export function npmCachePlan(lockfile: Buffer): NpmCachePlan {
     if (byPath.size > dependencyCacheLimits.artifacts) refuseLockfile();
   }
   const artifacts = [...byPath]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    // Paths are unique keys, so no two compare equal.
+    .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([path, sha512]) => ({ path, sha512 }));
   const plan = {
     registry: npmRegistry,
@@ -269,7 +270,7 @@ export function httpsRegistryReader(
           ) {
             res.destroy();
             resolve({
-              status: res.statusCode ?? 0,
+              status: Number(res.statusCode),
               bytes: Buffer.alloc(0),
               ...(encoding ? { encoding: String(encoding) } : {}),
             });

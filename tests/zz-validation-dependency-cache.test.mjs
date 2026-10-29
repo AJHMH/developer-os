@@ -384,6 +384,18 @@ test(
   },
 );
 
+test("a fetch cancelled before it starts makes no request", async () => {
+  const plan = npmCachePlan(ordinary());
+  const { reader, requested } = registryReader(servedFor(plan));
+  const cancellation = new AbortController();
+  cancellation.abort();
+  await assert.rejects(
+    fetchNpmCache(plan, { reader, signal: cancellation.signal }),
+    /cancelled/,
+  );
+  assert.deepEqual(requested, []);
+});
+
 test("a cancelled fetch stops and admits nothing", async () => {
   const plan = npmCachePlan(ordinary());
   const cancellation = new AbortController();
@@ -474,9 +486,12 @@ test("an explicit identity encoding is read like none", async (t) => {
 });
 
 test("the registry reader stops reading past its byte bound", async (t) => {
-  const { reader } = await localRegistry(t, (_req, res) =>
-    res.end(Buffer.alloc(4096)),
-  );
+  // Chunked, with no declared length, so only the running count stops it.
+  const { reader } = await localRegistry(t, (_req, res) => {
+    res.writeHead(200);
+    res.write(Buffer.alloc(4096));
+    res.end();
+  });
   await assert.rejects(reader(tarballUrl, never(), 1024), /registry/i);
 });
 

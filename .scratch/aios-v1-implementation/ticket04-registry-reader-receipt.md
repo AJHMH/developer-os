@@ -62,4 +62,15 @@ agent and certificate checking on every request. Mutation checks: removing the b
 bound, the identity header or the registry prefix check each fails a test.
 Module coverage stays at 100% of lines.
 
+## PR 142 coverage follow-up
+
+The Factory coverage gate refused the first head: changed branches passed
+(20/22), but global branch coverage fell by a fraction (6300/6747 to
+6319/6768) and no decrease is allowed. The four uncovered branches were an
+unreachable "equal" sort result and `statusCode ?? 0` (both removed), a fetch
+cancelled before it starts (now tested, with no request made), and the
+in-stream byte bound, which the up-front length check had taken over in its
+test (the test now sends a chunked body with no declared length). The module
+is at 100% of lines and branches.
+
 Production remains disabled.
