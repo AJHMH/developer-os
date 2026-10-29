@@ -62,3 +62,10 @@ export async function routedCoding(t, turn = failedTurn, coordination = {}) {
   observeAccount(f, mediatedAccount);
   return { f, dispatched, launches, sessions, factory, mediation };
 }
+
+// Each recorded usage interruption's operation and reason.
+export const interruptions = (delivery) =>
+  delivery.feature.usageInterruptions.map(({ operationId, reason }) => ({
+    operationId,
+    reason,
+  }));
