@@ -925,6 +925,23 @@ so tests passed. The controller now draws a fresh relay capability per turn
 and the runtime refuses a gateway sharing it. From the fix, the canary
 passed natively on macOS: `observed-offline-usage-canary`, every turn
 stopped exactly, lapses recorded as `exhausted` and `withdrawn` with evidence
-only, and the new lineage completed. The Windows run is still to do. No guest
-change. Production remains disabled. See the
+only, and the new lineage completed. It passed again from merged `main`
+(`530ea51`). The Windows run is still to do. No guest change. Production
+remains disabled. See the
 [native macOS receipt](../ticket04-slice4d-native-macos-receipt.md).
+
+## 29 October: slice 5, the owner-run credentialed qualification, built
+
+The owner chose to drive slice 5's two live turns on the native transport
+directly. Nothing can yet record a real mediation decision for a new
+delivery without a third provider request, and the usage canary covers the
+controller offline. `scripts/run-native-credentialed-qualification.mjs`
+follows the plan's table: an eligible vault account and healthy fresh usage
+first; a live launch with every boundary probe; a live resume ended at its
+next request by an exhaustion stand-in, with its workspace preserved; the
+token absent from everything the sessions sent and left; and
+the lapsed thread's restart refused under the spent one-shot approval, which
+names the run and exactly two turns.
+Built and simulated only; the owner's live runs on both hosts are to do.
+Production remains disabled. See the
+[slice 5 receipt](../ticket04-slice5-credentialed-runner-receipt.md).

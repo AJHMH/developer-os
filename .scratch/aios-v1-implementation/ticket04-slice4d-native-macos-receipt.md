@@ -56,8 +56,16 @@ From the fix's clean, built branch head `e1e5366`:
   superseded, work script run through the route, completed with a candidate.
 - Final stops: all three sessions stopped again by exact identity.
 
-The run was from the branch head, not merged `main`; it is rerun from
-`main` after merge to bind the merged revision.
+### From merged `main`
+
+Rerun from clean, built `main` at `530ea51` (PR 136 merged), same day:
+`observed-offline-usage-canary`. Report
+`~/.developer-os/issue04-usage-canary-20261029-122520.json`, SHA-256
+`37b9c0a43a352e9e85a305d47b42ddd07ef3c9f3ae1536f0687da263456fa7a5`. Dist
+and runner digests equal the branch run's. Every stage passed: the launch
+ended as `exhausted` and the resume as `withdrawn` after 2 provider requests
+each, as evidence only; the new lineage completed with a candidate; every
+session stopped exactly (0 processes), and all three again at the end.
 
 ## Still to do
 

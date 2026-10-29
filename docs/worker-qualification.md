@@ -335,3 +335,63 @@ Outcomes:
 A record that doesn't match prints `freshPins`. No guest code changed, so the
 current coding records apply. No real provider or usage reading is involved;
 those are for slice 5.
+
+## Credentialed qualification
+
+`scripts/run-native-credentialed-qualification.mjs` is the plan's slice 5
+owner-run runner. **It spends subscription usage.** Two routed provider
+turns on one host, a launch and its explicit resume, each with a 3-minute
+allowance and a fixed trivial prompt (owner decision B). It drives the real
+native transport directly, as the routed acceptance does: the real
+`GeneralSessionGateway` with the real provider, the owner's vault account
+read at every model request, and a real usage observation at every model
+request. The controller's mediation decision is not used; the usage canary
+covers it offline.
+
+In order:
+- **Before the approval is spent:** usage is fresh, measured and healthy.
+  Low, unknown or exhausted usage refuses the run and leaves the approval
+  unspent. Low usage is refused rather than approved mid-run, since no one
+  approves inside an unattended run (decision C met strictly, as H does).
+- **Before any turn:** the coding record names the fresh pins; the vault
+  account is eligible for the run; usage is still healthy.
+- **Launch:** the boundary probe runs in the live session while its first
+  model request waits; the provider answers through the route; the grant
+  ends with the turn and refuses use after it; the session stops exactly and
+  its workspace is collected.
+- **Resume:** the launch's thread, with a fresh relay capability. Its first
+  model request is live; at the next, a synthetic exhaustion stand-in at the
+  gate ends the turn at once, revoking the grant and stopping the session;
+  the workspace is collected as preserved evidence.
+- **Credential:** the access token appears in no byte the sessions sent to
+  the host and no collected file. Every boundary probe must have run and
+  passed, including the credential, endpoint and npm-registry checks.
+- **Restart:** restarting the lapsed thread under the spent approval is
+  refused before any effect, though usage is healthy; only a fresh approval
+  allows more. Usage is observed again at the end.
+
+The report keeps the pinned model, usage before and after, every request
+count, refusal and provider status, and never the token, the usage windows or
+the account email; errors are redacted of the token. Each turn allows at most
+8 model requests.
+
+First, the owner prepares the run and reads the printed run ID; the plan
+expires after an hour:
+
+```sh
+node scripts/run-native-credentialed-qualification.mjs prepare aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" <account-id> <private-state-dir>
+```
+
+Then, from a clean, built checkout with the VM running (macOS shown; on
+Windows use `aios-podman-noshare` and the same arguments):
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-credentialed-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" <auth-dir> <account-id> <pinned-codex-executable> <private-state-dir> "$HOME/.developer-os/issue04-credentialed-$(date +%Y%m%d-%H%M%S).json" --approve-run <run-id> --approve-turns 2
+```
+
+The approval is spent before any credential is read, so a rerun needs a
+fresh `prepare`. Outcomes: `observed-credentialed-qualification`; `failed`
+when a boundary probe failed; `blocked` at the named stage, with later
+stages `not-run`; `uncertain` when a session could not be confirmed stopped.
+A provider refusal is recorded by status: per the plan's header risk, a
+fixed gateway-side header would be a separately reviewed change.
