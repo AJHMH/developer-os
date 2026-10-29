@@ -959,3 +959,14 @@ delivery records the cleanup once. This is a guest change: each host's
 coding record must be re-approved for the new policy pin. Production remains
 disabled. See the
 [superseded cleanup receipt](../ticket04-superseded-lineage-cleanup-receipt.md).
+
+## 29 October: controlled dependency phase, D1: the prepared npm cache
+
+The owner chose a prepared cache from the candidate's lockfile, bounded, for
+validation first. D1 is host-only: `npmCachePlan` reads the lockfile as data
+into a bounded plan of exact `registry.npmjs.org` tarballs with sha512
+integrity, refusing every other source, and `fetchNpmCache` admits the cache
+only if every fetched tarball matches. No guest change. D2, the validation
+guest's offline install with dependency scripts inside isolation, follows and
+changes the validation pin. Production remains disabled. See the
+[dependency cache receipt](../ticket04-dependency-cache-receipt.md).
