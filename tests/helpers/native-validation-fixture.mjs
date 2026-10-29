@@ -16,7 +16,7 @@ export const image = "7".repeat(64);
 const guest = new URL("./native-validation-guest.py", import.meta.url);
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
-export function validationGuest(t, engine = {}) {
+export function validationGuest(t, engine = {}, options = {}) {
   const root = realMkdtempSync(
     `${realTemporaryDirectory}/aios-native-validation-`,
   );
@@ -37,6 +37,7 @@ export function validationGuest(t, engine = {}) {
       image,
       {
         pollMs: 1,
+        ...options,
       },
     ),
     read,

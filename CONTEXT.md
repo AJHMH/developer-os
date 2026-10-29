@@ -145,6 +145,13 @@ bounds. The worker installs from it offline, so dependency scripts run only
 inside isolation.
 _Avoid_: Registry proxy (the worker never reaches the registry)
 
+**Installed dependency layer**: The `node_modules` an attempt's prepared
+dependency cache installs, offline and once, in its own container before the
+attempt's first check, with dependency scripts running only there. Each check
+sees it read-only at `/workspace/node_modules`; the tested tree stays the
+candidate's files, and the layer has its own digest in the evidence.
+_Avoid_: Vendored modules (the candidate never supplies them)
+
 **Coding restart approval**: The owner's decision to restart coding after a
 usage interruption. It names the interrupted operation and records the
 feature's account, which every turn must use anyway. The one re-dispatch that

@@ -221,6 +221,38 @@ fetch to refuse rather than following it, and giving up past the byte bound
 uses its own agent with certificate checking. Each read's bound is what is
 left of the total, at most one tarball's.
 
-Nothing installs or runs yet: transferring the cache into the validation VM
-and installing offline, with dependency scripts inside isolation, is the next
-slice, and the offline validation environment is unchanged until then.
+### Offline install in the validation guest (D2b)
+
+A `PinnedValidationRuntime` given a registry reader declares the prepared npm
+environment instead of the offline one: still no network in any container,
+with `https://registry.npmjs.org` named as the registry the host alone
+reaches and `prepared-npm` as the cache. For each attempt it plans the cache
+from the candidate's `package-lock.json` and fetches it once. A lockfile that
+is missing or refused fails the check unrun; a cache that cannot be fetched
+leaves it `cancelled`.
+
+The transport then, before the attempt's first check:
+- uploads the cache in chunks of at most 4 MiB (`cache-put`), each appended
+  at its expected offset, each tarball kept only once its bytes match the
+  sha512 it is named by, within 2048 tarballs, 64 MiB each and 128 MiB in
+  all; an upload cut short is never resumed;
+- installs it (`install-start`, `install-poll`) in its own hardened, offline
+  container from the owner image, with a fixed command: `npm cache add` of
+  each tarball into a private cache, then `npm ci --offline`. Dependency
+  scripts run only there. A guest deadline bounds it at the check's own
+  timeout. The attempt's input must carry `package-lock.json` and neither
+  `npm-shrinkwrap.json` (which npm would prefer) nor `node_modules`;
+- keeps only a clean install's `node_modules` as the installed dependency
+  layer, measured with its links (`.bin`), and discards the install's
+  workspace, the upload and npm's cache, so anything an install script wrote
+  elsewhere never reaches a check.
+
+Each check then sees the layer read-only at `/workspace/node_modules`, beside
+its fresh copy of the candidate files; the tested tree is unchanged in
+meaning. A failed or timed-out install ends the check unrun as a failure
+or timeout, whatever npm exited with. The result carries the plan's and the layer's
+digests as artifacts. Stop also ends an install still running.
+
+The guest program changed, so the validation policy pin changed: each host's
+owner validation record must be re-approved, and running it natively needs an
+owner-loaded image that contains `npm`.

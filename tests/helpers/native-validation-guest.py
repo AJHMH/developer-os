@@ -4,6 +4,11 @@ commands stand in for real processes:
   true | false | exit N | write PATH TEXT | chmod PATH | link PATH | hang
   absent PATH (exit 1 if PATH exists) | present PATH | lock PATH (mode 000) |
   deep LEVELS [NAME_LENGTH] (nested dirs)
+The dependency install container (`npm ci` from the prepared cache) is
+simulated: each cached tarball becomes node_modules/p-<digest>/package.json,
+with a .bin link. installExit, installHang, installNoModules and
+installWritesInput script it; cacheChunkDrift alters the first uploaded
+chunk and laterChunkDrift one past a tarball's start.
 """
 import sys, os, json, pathlib, subprocess, time, types, re, signal, errno
 
@@ -25,6 +30,12 @@ source = sys.stdin.read()
 namespace = {}
 exec(source.split('\n', 2)[0] + '\n' + source.split('\n', 2)[1], namespace)
 request = namespace['R']
+if request['action'] == 'cache-put' and request.get('offset', 0) > 0 and state.pop('laterChunkDrift', None):
+    import base64
+    request['data'] = base64.b64encode(b'x' + base64.b64decode(request['data'])[1:]).decode()
+if request['action'] == 'cache-put' and state.pop('cacheChunkDrift', None):
+    import base64
+    request['data'] = base64.b64encode(b'x' + base64.b64decode(request['data'])[1:]).decode()
 if request['action'] == 'prepare' and state.get('transferredInputDrift') and request.get('files'):
     import base64
     request['files'][0]['bytes'] = base64.b64encode(b'foreign input\n').decode()
@@ -33,7 +44,9 @@ def save_state():
     state_path.write_text(json.dumps(state))
 
 def fire_due_timers():
-    # A guest deadline timer kills its check once its time has come.
+    # A guest deadline timer kills its check once its time has come, unless
+    # deadlineLost stands for a timer that never fires.
+    if state.get('deadlineLost'): return
     for unit, timer in state['units'].items():
         if unit.endswith('.timer') and timer['ActiveState'] == 'active' and time.monotonic() >= timer['due']:
             c = state['containers'].get(timer['target'])
@@ -43,7 +56,29 @@ def fire_due_timers():
             # RemainAfterExit keeps the fired kill service visibly active.
             state['units'][unit[:-6] + '.service']['ActiveState'] = 'active'
 
+def run_install(name, c):
+    mounts = {m['Destination']: pathlib.Path(m['Source']) for m in c['Mounts']}
+    work, cache = mounts['/workspace'], mounts['/cache']
+    if state.get('installHang'):
+        if state.get('expireAfterStart'): state['timeOffset'] = state.get('timeOffset', 0) + state.pop('expireAfterStart')
+        state['nextPid'] += 1
+        c['State'].update(Running=True, Pid=state['nextPid'], ExitCode=0)
+        c['FixtureGroup'] = 'libpod-' + name
+        return
+    if state.get('installWritesInput'): (work / 'index.html').write_text('rewritten by an install script\n')
+    if not state.get('installNoModules'):
+        modules = work / 'node_modules'
+        (modules / '.bin').mkdir(parents=True, exist_ok=True)
+        for tgz in sorted(cache.glob('*.tgz')):
+            package = modules / ('p-' + tgz.name[:12])
+            package.mkdir()
+            (package / 'package.json').write_bytes(tgz.read_bytes())
+        (modules / '.bin' / 'tool').symlink_to('../tool/cli.js')
+        if state.get('installSpecialFile'): os.mkfifo(str(modules / 'fifo'))
+    c['State'].update(Running=False, Pid=0, ExitCode=state.get('installExit', 0))
+
 def run_check(name, c):
+    if 'npm ci' in c['Config']['Cmd'][1]: return run_install(name, c)
     argv = c['Config']['Cmd'][3:]
     work = pathlib.Path(c['Mounts'][0]['Source'])
     # Like the engine, a missing bind source fails the start.
