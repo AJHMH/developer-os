@@ -1,7 +1,17 @@
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
-import { hostname, platform } from "node:os";
-import { resolve } from "node:path";
+import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
+import {
+  closeSync,
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { hostname, platform, tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { codexEndpointFixture } from "./codex-endpoint.js";
 import { hostCanaryVersion } from "./host-canary.js";
 import { inferenceFixtureContract } from "./inference-contract.js";
@@ -1029,20 +1039,38 @@ export class VMManagementChannel {
   }
   invoke(action: VMAction, payload: Record<string, unknown> = {}): any {
     const { host, input, executableSha256 } = this.prepare(action, payload);
-    const result = spawnSync(
-      host.executable,
-      ["machine", "ssh", this.machine, "python3"],
-      {
-        cwd: host.cwd,
-        shell: false,
-        windowsHide: true,
-        encoding: "utf8",
-        timeout: host.managementMs,
-        maxBuffer: 1048576,
-        input,
-        env: host.env,
-      },
-    );
+    // The program is just over 64 KiB. Piped to spawnSync as `input`, macOS
+    // sometimes never delivers EOF to its reader, so it crosses as a private
+    // file opened as stdin instead, removed whatever the outcome.
+    let directory: string | undefined, stdin: number | undefined;
+    let result: SpawnSyncReturns<string>;
+    try {
+      try {
+        directory = mkdtempSync(join(tmpdir(), "aios-management-"));
+        const program = join(directory, "program.py");
+        writeFileSync(program, input, { flag: "wx", mode: 0o600 });
+        stdin = openSync(program, "r");
+      } catch {
+        throw Error("Native offline operation unavailable");
+      }
+      result = spawnSync(
+        host.executable,
+        ["machine", "ssh", this.machine, "python3"],
+        {
+          cwd: host.cwd,
+          shell: false,
+          windowsHide: true,
+          encoding: "utf8",
+          timeout: host.managementMs,
+          maxBuffer: 1048576,
+          stdio: [stdin, "pipe", "pipe"],
+          env: host.env,
+        },
+      );
+    } finally {
+      if (stdin !== undefined) closeSync(stdin);
+      if (directory) rmSync(directory, { recursive: true, force: true });
+    }
     if (sha256(readFileSync(host.executable)) !== executableSha256)
       throw Error("Changed native executable");
     if (result.error || result.status !== 0) {
