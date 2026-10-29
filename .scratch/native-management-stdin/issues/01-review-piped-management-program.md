@@ -99,7 +99,7 @@ diagnostics on stderr and the refusal text are all unchanged.
   the stdin fd. It asserts that `input` is unset, that stdin is an fd, and on
   POSIX that the fd's file mode is 0600. This guard is deterministic. Every
   other assertion is unchanged.
-- New `tests/vm-management-stdin.test.mjs`: the real `invoke` runs 40 times
+- A new test at the end of `tests/podman-platform.test.mjs`: the real `invoke` runs 40 times
   against a local stand-in engine whose child reads all stdin with Python
   readall. The test checks that the over-64 KiB program arrives whole (SHA-256
   and length) and that a failing call still gives the generic refusal. It also
@@ -136,3 +136,14 @@ diagnostics on stderr and the refusal text are all unchanged.
   tests, 1,302 pass, 0 fail, 4 skipped.
 - `tests/podman-platform.test.mjs` with `tests/vm-management-stdin.test.mjs`,
   5 repeats: 5 of 5 clean, 35/35 each.
+
+### 2026-10-29 PR #133 CI: guard test moved into an existing file
+
+The first head, c6bee3d, put the guard in a new
+`tests/vm-management-stdin.test.mjs`. Node's `--test-shard` splits the sorted
+file list round-robin, so the extra file shifted every later file by one
+position. `worker-native-coding` and `zz-usage-coding-session` moved from
+Windows shard 7 into shard 8, alongside its existing files. Shard 7 dropped
+from 8 to 3 minutes, and shard 8 hit its 10-minute job limit twice in a row.
+The test now sits at the end of `tests/podman-platform.test.mjs`, so the test
+file list and the shard split are exactly as on main.
