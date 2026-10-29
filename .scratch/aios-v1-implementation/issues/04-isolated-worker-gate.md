@@ -914,3 +914,19 @@ decision, and a new decision starting a new lineage that completes. No guest
 change, so the coding records stay valid. The native runs on both hosts are
 still to do. Production remains disabled. See the
 [slice 4d receipt](../ticket04-slice4d-usage-canary-receipt.md).
+
+## 29 October: slice 5, the owner-run credentialed qualification, built
+
+The owner chose to drive slice 5's two live turns on the native transport
+directly. Nothing can yet record a real mediation decision for a new
+delivery without a third provider request, and the usage canary covers the
+controller offline. `scripts/run-native-credentialed-qualification.mjs`
+follows the plan's table: an eligible vault account and healthy fresh usage
+first; a live launch with every boundary probe; a live resume ended at its
+next request by an exhaustion stand-in, with its workspace preserved; the
+token absent from everything the sessions sent and left; and
+the lapsed thread's restart refused under the spent one-shot approval, which
+names the run and exactly two turns.
+Built and simulated only; the owner's live runs on both hosts are to do.
+Production remains disabled. See the
+[slice 5 receipt](../ticket04-slice5-credentialed-runner-receipt.md).

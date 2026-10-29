@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { freshBuild } from "../scripts/fresh-build.mjs";
@@ -161,6 +161,25 @@ const runners = {
     "a".repeat(64),
     report,
   ],
+  "run-native-credentialed-qualification.mjs": (record, report) => [
+    "aios-test",
+    record,
+    dirname(record),
+    "a".repeat(64),
+    record,
+    dirname(record),
+    report,
+  ],
+};
+// The owner's approval each runner takes; the credentialed run names its
+// one-shot plan and turns.
+const approvals = {
+  "run-native-credentialed-qualification.mjs": [
+    "--approve-run",
+    "00000000-0000-4000-8000-000000000000",
+    "--approve-turns",
+    "2",
+  ],
 };
 
 for (const [runner, argumentsOf] of Object.entries(runners))
@@ -180,7 +199,11 @@ for (const [runner, argumentsOf] of Object.entries(runners))
     const args = argumentsOf(join(root, "r.json"), report);
     const result = spawnSync(
       process.execPath,
-      [join(root, "scripts", runner), ...args, "--approve-offline-native-run"],
+      [
+        join(root, "scripts", runner),
+        ...args,
+        ...(approvals[runner] ?? ["--approve-offline-native-run"]),
+      ],
       { encoding: "utf8" },
     );
     assert.equal(result.status, 1);

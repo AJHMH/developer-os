@@ -42,6 +42,10 @@ function registration(
   const inside = pathContains;
   if (paths.some((a, i) => paths.some((b, j) => i !== j && inside(a, b))))
     throw Error();
+  return hostRegistration(directory);
+}
+/** The host registration in a private auth directory. */
+export function hostRegistration(directory: string): { hostId: string } {
   const file = join(directory, "registration.json");
   assertPrivateAuthStorage(directory, "directory");
   assertPrivateAuthStorage(file, "file");

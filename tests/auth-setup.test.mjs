@@ -8,10 +8,12 @@ import {
   readFileSync,
   rmSync,
   chmodSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { hostRegistration } from "../dist/auth-status.js";
 
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-auth-setup-")));
@@ -156,4 +158,17 @@ $file.SetAccessControl($acl)
   assert.equal(result.status, 1);
   assert.equal(result.stdout, "");
   assert.equal(readFileSync(path, "utf8"), original);
+});
+
+test("the host registration reads back from private storage, and nothing else passes for one", (t) => {
+  const f = fixture(t);
+  const prepared = f.command(f.auth);
+  assert.equal(prepared.status, 0, prepared.stderr);
+  assert.equal(
+    hostRegistration(f.auth).hostId,
+    JSON.parse(prepared.stdout).hostId,
+  );
+  assert.throws(() => hostRegistration(f.repo));
+  writeFileSync(join(f.auth, "registration.json"), "{}");
+  assert.throws(() => hostRegistration(f.auth));
 });
