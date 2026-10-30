@@ -2,8 +2,11 @@
 // real controller and gateway. The name sorts after every other test file,
 // so no other file changes shard.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { GeneralSessionRefusal } from "../dist/general-session-gateway.js";
 import {
@@ -253,6 +256,32 @@ test("the usage canary passes when the controller enforces every usage control o
   assert.deepEqual(resume.route, launch.route);
   assert.ok(report.finalStops.every((s) => s.stopped));
 });
+
+test(
+  "the canary keeps its state private when the temp folder lets others read it",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    // As on an owner PC whose temp folder grants a sandbox group access:
+    // here the built-in Users group, inherited by everything created inside.
+    const loose = mkdtempSync(join(tmpdir(), "aios-loose-temp-"));
+    t.after(() => rmSync(loose, { recursive: true, force: true }));
+    const granted = spawnSync(
+      "icacls",
+      [loose, "/grant", "*S-1-5-32-545:(OI)(CI)(RX)"],
+      { encoding: "utf8" },
+    );
+    assert.equal(granted.status, 0, granted.stderr);
+    const saved = { TEMP: process.env.TEMP, TMP: process.env.TMP };
+    t.after(() => Object.assign(process.env, saved));
+    Object.assign(process.env, { TEMP: loose, TMP: loose });
+    const { report } = await canary();
+    assert.equal(
+      report.outcome,
+      passingOutcome,
+      JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
+    );
+  },
+);
 
 test("a canary whose owner record names other pins is blocked before any turn", async () => {
   const { report, effects } = await canary(
