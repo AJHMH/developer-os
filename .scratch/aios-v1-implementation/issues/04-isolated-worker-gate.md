@@ -1030,3 +1030,13 @@ be fresh, and exhaustion, unknown usage, an account or window change or a
 withdrawn decision still end the turn. Fixed workers and online runs keep the
 60-second limit. The Windows usage canary is to be
 rerun after that change. Production remains disabled.
+
+## 30 October: the Windows usage canary passes; both hosts pass the offline acceptances
+
+From `main` at `840ac2f`, with PRs 146 and 147 in, the Windows usage canary
+passed all 10 stages, its first passing Windows run. With the coding
+admission, validation admission and session acceptances from earlier the same
+day, both hosts have now passed all four offline acceptances on the current
+pins. Still open on both hosts: the slice 5 live credentialed runs and a
+native run of the npm dependency install. Production remains disabled. See
+the [Windows re-approval receipt](../ticket04-windows-reapproval-acceptances-receipt.md).
