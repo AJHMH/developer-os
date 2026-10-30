@@ -48,16 +48,16 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run build
       # A fresh runner exercises native registration before any helper is warm.
-      # The complete eight-shard inventory below still runs every test.
+      # The complete ten-shard inventory below still runs every test.
       - run: node --test --test-concurrency=1 --test-name-pattern="^separate darwin authorization completes|^Windows host storage works without PowerShell" tests/auth-host.test.mjs tests/windows-auth-store.test.mjs
   windows-tests:
-    name: Windows CLI tests (${{ matrix.shard }}/8)
+    name: Windows CLI tests (${{ matrix.shard }}/10)
     runs-on: windows-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -70,12 +70,13 @@ jobs:
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm run build
-      # Node partitions its complete discovered test inventory across these eight
-      # shards. Keep two files per runner to bound native helper contention.
+      # Node partitions its complete discovered test inventory across these ten
+      # shards, which keeps each well inside the job limit on slower runners.
+      # Keep two files per runner to bound native helper contention.
       - name: Run all tests assigned to this shard
         shell: pwsh
         env:
-          TEST_SHARD: ${{ matrix.shard }}/8
+          TEST_SHARD: ${{ matrix.shard }}/10
         run: |
           node --test --test-concurrency=2 --test-shard=$env:TEST_SHARD --test-reporter=tap 2>&1 | Tee-Object -FilePath windows-tests.tap
           exit $LASTEXITCODE
