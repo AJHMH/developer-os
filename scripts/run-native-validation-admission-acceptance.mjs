@@ -5,10 +5,14 @@
 // only by the owner's per-host record naming its fresh pins. Each check is a
 // small shell probe run in the owner-loaded image: the tree is present, there
 // is no network, the root filesystem is read-only and the user is
-// unprivileged. Planning, onboarding facts and usage are synthetic. It never
-// provisions or starts the VM, loads images, opens credentials or authorizes
-// inference, and it never enables production or claims qualification. Run it
-// through scripts/run-native-acceptance.mjs.
+// unprivileged. Planning, onboarding facts and usage are synthetic. With
+// --with-npm-dependencies it also validates a second synthetic repository whose
+// lockfile pins one small registry package: the host fetches and verifies the
+// tarball, the guest installs it offline, and a check requires it. That needs
+// an owner-loaded image with node and npm. It never provisions or starts the
+// VM, loads images, opens credentials or authorizes inference, and it never
+// enables production or claims qualification. Run it through
+// scripts/run-native-acceptance.mjs.
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -27,7 +31,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { freshBuild } from "./fresh-build.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-validation-admission-acceptance.mjs <aios-machine> <owner-validation-admission.json> <image-id> <new-report.json> --approve-offline-native-run";
+  "Usage: node scripts/run-native-validation-admission-acceptance.mjs <aios-machine> <owner-validation-admission.json> <image-id> <new-report.json> --approve-offline-native-run [--with-npm-dependencies]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const pinFields = ["imageSha256", "policySha256", "bindingSha256"];
 const samePins = (a, b) => pinFields.every((field) => a[field] === b[field]);
@@ -45,10 +49,41 @@ export const probes = Object.freeze({
   ],
 });
 
-/** A disposable repository whose owner contract declares the offline
- * environment of `imageSha256` and the probe checks. */
-function syntheticDelivery(root, environment) {
-  const repository = join(root, "repository");
+/** The registry package the dependency stage installs: small, with no
+ * dependencies and no install scripts. */
+export const dependencyPackage = Object.freeze({
+  name: "is-number",
+  version: "7.0.0",
+  integrity:
+    "sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==",
+});
+
+/** The manifest and lockfile of a project depending on exactly `dependency`. */
+function npmProject({ name, version, integrity }) {
+  const root = { name: "acceptance-page", version: "1.0.0" };
+  return {
+    "package.json": { ...root, dependencies: { [name]: version } },
+    "package-lock.json": {
+      ...root,
+      lockfileVersion: 3,
+      requires: true,
+      packages: {
+        "": { ...root, dependencies: { [name]: version } },
+        [`node_modules/${name}`]: {
+          version,
+          resolved: `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`,
+          integrity,
+        },
+      },
+    },
+  };
+}
+
+/** A disposable repository whose owner contract declares `environment` and
+ * the probe checks; with `dependency`, also its npm project and a check that
+ * requires the package. */
+function syntheticDelivery(root, environment, dependency) {
+  const repository = join(root, dependency ? "npm-repository" : "repository");
   mkdirSync(repository);
   const git = (...args) => {
     const r = spawnSync("git", ["-C", repository, ...args], {
@@ -61,6 +96,14 @@ function syntheticDelivery(root, environment) {
   git("init", "-q", "-b", "main");
   writeFileSync(join(repository, "index.html"), "<h1>Contact</h1>\n");
   git("add", "index.html");
+  if (dependency)
+    for (const [path, value] of Object.entries(npmProject(dependency))) {
+      writeFileSync(
+        join(repository, path),
+        JSON.stringify(value, null, 2) + "\n",
+      );
+      git("add", path);
+    }
   git(
     "-c",
     "commit.gpgsign=false",
@@ -81,8 +124,20 @@ function syntheticDelivery(root, environment) {
     mutablePaths: ["index.html"],
     environment,
     checks: Object.entries(probes)
-      .map(([kind, command]) => ({
-        id: kind,
+      .map(([kind, command]) => [kind, kind, command])
+      .concat(
+        dependency
+          ? [
+              [
+                "dependencies",
+                "build",
+                ["node", "-e", `require(${JSON.stringify(dependency.name)})`],
+              ],
+            ]
+          : [],
+      )
+      .map(([id, kind, command]) => ({
+        id,
         kind,
         scope: "local",
         stages: ["baseline", "candidate"],
@@ -156,7 +211,9 @@ function syntheticDelivery(root, environment) {
 }
 
 /** Validate one synthetic baseline through `transport` under `admission`;
- * `persist` receives the report after every stage. */
+ * `persist` receives the report after every stage. With
+ * `options.dependencies` (a registry `reader`, and optionally the `dependency`
+ * to pin), also validate an npm project installed offline in the guest. */
 export async function validationAcceptance(
   transport,
   admission,
@@ -165,8 +222,11 @@ export async function validationAcceptance(
 ) {
   const persist = options.persist ?? (() => {});
   const { DeliveryController } = await import("../dist/controller.js");
-  const { PinnedValidationRuntime, offlineValidationEnvironment } =
-    await import("../dist/native-validation.js");
+  const {
+    PinnedValidationRuntime,
+    offlineValidationEnvironment,
+    preparedNpmValidationEnvironment,
+  } = await import("../dist/native-validation.js");
   const report = {
     scope: "native-validation-offline-admission-acceptance",
     productionEnabled: false,
@@ -202,7 +262,10 @@ export async function validationAcceptance(
   const root = realpathSync(
     mkdtempSync(join(tmpdir(), "aios-validation-admission-acceptance-")),
   );
-  let controller, deliveryId, runtime;
+  let runtime;
+  // Every controller and delivery the run started, so an unsettled attempt
+  // is stopped.
+  const deliveries = [];
   try {
     report.pins = await stage("fresh-pins", () => transport.inspect());
     await stage("owner-record-names-fresh-pins", () =>
@@ -232,7 +295,7 @@ export async function validationAcceptance(
         root,
         offlineValidationEnvironment(imageSha256),
       );
-      controller = new DeliveryController(
+      const controller = new DeliveryController(
         join(root, "state"),
         synthetic.options,
         { featurePlanner: synthetic.planner, validationRuntime: runtime },
@@ -241,7 +304,7 @@ export async function validationAcceptance(
         repository: synthetic.repository,
         request: "Add a visible contact hint.",
       });
-      deliveryId = started.id;
+      deliveries.push([controller, started.id]);
       await controller.planFeature(started.id);
       await controller.validateBaseline(started.id);
       return controller.status(started.id).validation.attempts.at(-1);
@@ -266,30 +329,108 @@ export async function validationAcceptance(
       );
       check(attempt.outcome === "passed", "Baseline validation did not pass");
     });
+    if (options.dependencies) {
+      const dependency = options.dependencies.dependency ?? dependencyPackage;
+      const installed = await stage(
+        "controller-dependency-validation",
+        async () => {
+          const synthetic = syntheticDelivery(
+            root,
+            preparedNpmValidationEnvironment(imageSha256),
+            dependency,
+          );
+          const npm = new DeliveryController(
+            join(root, "npm-state"),
+            synthetic.options,
+            {
+              featurePlanner: synthetic.planner,
+              validationRuntime: new PinnedValidationRuntime(
+                report.pins,
+                transport,
+                admission,
+                { reader: options.dependencies.reader },
+              ),
+            },
+          );
+          const started = npm.start({
+            repository: synthetic.repository,
+            request: "Add a visible contact hint.",
+          });
+          deliveries.push([npm, started.id]);
+          await npm.planFeature(started.id);
+          await npm.validateBaseline(started.id);
+          return npm.status(started.id).validation.attempts.at(-1);
+        },
+      );
+      const artifact = (name) =>
+        installed.results[0]?.artifacts.find((a) => a.name === name)?.sha256 ??
+        null;
+      report.dependencies = {
+        package: `${dependency.name}@${dependency.version}`,
+        outcome: installed.outcome,
+        state: installed.state,
+        results: installed.results.map((r) => ({
+          checkId: r.checkId,
+          status: r.status,
+        })),
+        planSha256: artifact("npm-cache-plan"),
+        layerSha256: artifact("npm-dependency-layer"),
+        treeSha256: installed.treeSha256,
+        environmentSha256: installed.environmentSha256,
+      };
+      await stage("controller-recorded-installed-dependencies", () => {
+        check(
+          installed.state === "stopped",
+          "Dependency attempt is not stopped",
+        );
+        check(
+          installed.results.length === Object.keys(probes).length + 1 &&
+            installed.results.every((r) => r.status === "success"),
+          "A dependency check did not pass",
+        );
+        // Every check ran on the one layer installed from the one plan.
+        check(
+          report.dependencies.layerSha256 &&
+            installed.results.every(
+              (r) =>
+                r.artifacts.find((a) => a.name === "npm-cache-plan")?.sha256 ===
+                  report.dependencies.planSha256 &&
+                r.artifacts.find((a) => a.name === "npm-dependency-layer")
+                  ?.sha256 === report.dependencies.layerSha256,
+            ),
+          "The checks did not share one installed layer",
+        );
+        check(
+          installed.outcome === "passed",
+          "Dependency validation did not pass",
+        );
+      });
+    }
     report.outcome = "observed-offline-validation-admission-acceptance";
   } catch (error) {
     report.error = String(error?.message).slice(0, 300);
     report.outcome = "blocked";
   } finally {
     // An unsettled attempt is stopped by its exact identity.
-    try {
-      const open = controller
-        ?.status(deliveryId)
-        .validation?.attempts.find((a) => a.state !== "stopped");
-      if (open)
-        await stage("final-exact-attempt-stop", async () => {
-          const stopped = await transport.stop({
-            operationId: open.operationId,
-            fence: open.fence,
+    for (const [owner, id] of deliveries)
+      try {
+        const open = owner
+          .status(id)
+          .validation?.attempts.find((a) => a.state !== "stopped");
+        if (open)
+          await stage("final-exact-attempt-stop", async () => {
+            const stopped = await transport.stop({
+              operationId: open.operationId,
+              fence: open.fence,
+            });
+            check(
+              stopped.stopped === true && stopped.remainingProcesses === 0,
+              "Exact-attempt stop is uncertain",
+            );
           });
-          check(
-            stopped.stopped === true && stopped.remainingProcesses === 0,
-            "Exact-attempt stop is uncertain",
-          );
-        });
-    } catch {
-      report.outcome = "uncertain";
-    }
+      } catch {
+        report.outcome = "uncertain";
+      }
     rmSync(root, { recursive: true, force: true });
     persist(report);
   }
@@ -326,13 +467,15 @@ function sourceEvidence(root) {
 async function main() {
   const [machine, admissionPath, imageSha256, reportPath, approval, ...extra] =
     process.argv.slice(2);
+  const withDependencies =
+    extra.length === 1 && extra[0] === "--with-npm-dependencies";
   if (
     !/^aios-[a-z0-9-]+$/.test(machine ?? "") ||
     !admissionPath ||
     !/^[a-f0-9]{64}$/.test(imageSha256 ?? "") ||
     !reportPath ||
     approval !== "--approve-offline-native-run" ||
-    extra.length
+    (extra.length && !withDependencies)
   ) {
     console.error(usage);
     process.exitCode = 1;
@@ -347,6 +490,7 @@ async function main() {
   const { ownerValidationAdmission } = await import(
     "../dist/native-validation.js"
   );
+  const { httpsRegistryReader } = await import("../dist/dependency-cache.js");
   // A validation authority of its own, separate from coding's.
   const authority = sha256("issue04-native-offline-validation-v1:" + machine);
   const transport = new NativePodmanValidationTransport(
@@ -372,6 +516,9 @@ async function main() {
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", interrupt);
   const report = await validationAcceptance(transport, admission, imageSha256, {
+    ...(withDependencies
+      ? { dependencies: { reader: httpsRegistryReader() } }
+      : {}),
     persist: (r) =>
       writeFileSync(
         reportPath,

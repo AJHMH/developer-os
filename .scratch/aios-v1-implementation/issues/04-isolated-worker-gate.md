@@ -1040,3 +1040,13 @@ day, both hosts have now passed all four offline acceptances on the current
 pins. Still open on both hosts: the slice 5 live credentialed runs and a
 native run of the npm dependency install. Production remains disabled. See
 the [Windows re-approval receipt](../ticket04-windows-reapproval-acceptances-receipt.md).
+
+## 30 October: a native dependency acceptance stage
+
+The validation admission acceptance takes `--with-npm-dependencies`. It then
+also validates a synthetic npm project pinning `is-number@7.0.0` through the
+real path: host plan and verified fetch, offline install in the guest, and a
+check that requires the package, with every check on one recorded layer. It
+needs an owner-loaded image with node and npm, and a validation record naming
+that image. Scripts and tests only; no guest or pin change. Production remains
+disabled.

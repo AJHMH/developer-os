@@ -257,3 +257,38 @@ digests as artifacts. Stop also ends an install still running.
 The guest program changed, so the validation policy pin changed: each host's
 owner validation record must be re-approved, and running it natively needs an
 owner-loaded image that contains `npm`.
+
+### Native dependency acceptance
+
+`--with-npm-dependencies` adds two stages to the validation admission
+acceptance. After the baseline, the controller validates a second synthetic
+repository whose `package-lock.json` pins one small registry package,
+`is-number@7.0.0` (no dependencies, no install scripts):
+- `controller-dependency-validation`: the host plans the lockfile, fetches the
+  one tarball from `https://registry.npmjs.org` and verifies its sha512; the
+  guest installs it offline; each probe check, plus a `dependencies` check
+  running `node -e 'require("is-number")'`, runs on the installed layer.
+- `controller-recorded-installed-dependencies`: every check passed, and every
+  result names the same plan and layer digests. The report's `dependencies`
+  section keeps them, with the tree and environment digests.
+
+The host needs HTTPS access to the registry for the fetch; the VM and the
+checks stay offline. The image must contain `node` and `npm`, for example an
+official `node` Alpine image pinned by digest. The owner record pins the image,
+so a new image needs a new validation record: run the acceptance once without
+the flag to print the fresh pins, write the record, then run it with the flag.
+The baseline probes also pass on such an image.
+
+macOS (Terminal), after loading the owner-chosen image into the VM:
+
+```sh
+NODE_IMAGE='docker.io/library/node@sha256:<owner-chosen digest>'
+IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "$NODE_IMAGE")"
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "$IMAGE" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies
+```
+
+Windows (PowerShell, not elevated):
+
+```powershell
+$nodeImage = 'docker.io/library/node@sha256:<owner-chosen digest>'; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" $nodeImage; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-dependency-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run --with-npm-dependencies
+```
