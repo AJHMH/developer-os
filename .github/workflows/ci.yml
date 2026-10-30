@@ -53,7 +53,9 @@ jobs:
   windows-tests:
     name: Windows CLI tests (${{ matrix.shard }}/10)
     runs-on: windows-latest
-    timeout-minutes: 10
+    # Hosted Windows runners are at times about 1.5x slower; this still stops
+    # a hung shard.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

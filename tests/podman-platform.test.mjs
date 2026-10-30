@@ -608,7 +608,8 @@ for cleanupExit in [0,7]:
 print('preserved')
 `,
     ],
-    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+    // Generous: parsing the generated program is slow on hosted Windows.
+    { input: f.programs[0], encoding: "utf8", timeout: 30000 },
   );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim(), "preserved");
