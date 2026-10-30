@@ -2863,11 +2863,16 @@ export class DeliveryController {
     // owner's decision record still naming the same decision (decision E).
     // The record is re-read, not re-probed; launch re-qualifies fully.
     // The turn's usage permits this operation, and is measured (decision H).
-    const usagePermitsTurn = (usage: UsageReport | undefined) =>
+    // Once dispatched, the owner's bound approval covers the whole turn.
+    const usagePermitsTurn = (
+      usage: UsageReport | undefined,
+      dispatchedTurn = true,
+    ) =>
       usage?.remainingPercent !== null &&
       this.usageGate.permits(usage, {
         operationId: session.operationId,
         accountId: account,
+        dispatchedTurn,
       });
     // Why authority observed now no longer permits this turn, or null while
     // it does: usage first, then a mediated turn's decision. Throws when the
@@ -2993,7 +2998,10 @@ export class DeliveryController {
       // Dispatch takes usage observed now, not a report up to 60 s old. A
       // refusal here stops the session before any turn, so no interruption
       // is recorded and no restart approval is needed.
-      if (!usagePermitsTurn((await this.checkUsage(id)).usage) || !checkpoint())
+      if (
+        !usagePermitsTurn((await this.checkUsage(id)).usage, false) ||
+        !checkpoint()
+      )
         throw Error();
       // Opened inside the guarded turn, so a refusal still stops the session.
       if (route)

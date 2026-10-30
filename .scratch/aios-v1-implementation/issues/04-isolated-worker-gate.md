@@ -1004,3 +1004,29 @@ passed offline on this Mac. The validation image has no `npm`, so the
 dependency install has not yet run natively. Windows and the slice 5 live runs
 remain owner steps. Production remains disabled. See the
 [macOS re-approval receipt](../ticket04-macos-reapproval-acceptances-receipt.md).
+
+## 30 October: Windows acceptances, and a bound usage approval now covers its turn
+
+On Windows, from `main` at `95e8fc1` and then `d21dd73`, the owner re-approved
+both admission records (only the policy pins changed). The coding admission,
+validation admission and session acceptances passed. Getting there needed
+three host fixes, none of them a VM or pin change:
+- a stale `aios-podman-noshare-api.sock` that stopped `gvproxy`, as before;
+- a VM SSH key readable by `CodexSandboxUsers`;
+- `.local\share\containers`, including the VM disks, readable by that group.
+
+The usage canary first blocked because `%TEMP%` grants that group and other
+accounts inherited access, so the controller refused to trust a decision
+record in the canary's state. PR 146 now locks down the canary's root.
+
+It then blocked at `routed-launch-exhausted-mid-turn`. The slow Windows launch
+outlasted the 60-second age limit of the owner's low-usage approval, which the
+gate rechecked at every mid-turn usage read, so the turn ended as
+`approval-required` after one request. Any approved low-usage turn longer
+than a minute was cut off this way, on either host. The owner decided that a
+usage approval bound to a dispatched coding turn covers that whole turn. It
+must still be fresh when bound and at dispatch, every observation must still
+be fresh, and exhaustion, unknown usage, an account or window change or a
+withdrawn decision still end the turn. Fixed workers and online runs keep the
+60-second limit. The Windows usage canary is to be
+rerun after that change. Production remains disabled.
