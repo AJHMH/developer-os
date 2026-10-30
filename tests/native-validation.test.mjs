@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -63,6 +64,12 @@ function liveTransport(hooks = {}) {
         timeoutMs: request.check.timeoutMs,
         files: request.files.length,
         treeSha256: request.treeSha256,
+        ...(request.dependencies
+          ? {
+              planSha256: request.dependencies.planSha256,
+              tarballs: request.dependencies.files.length,
+            }
+          : {}),
       });
       if (!request.mayDispatch()) throw Error("Dispatch refused");
       trees.set(request.operationId, request.treeSha256);
@@ -75,6 +82,15 @@ function liveTransport(hooks = {}) {
         exitCode: hooks.exitCode?.(request) ?? 0,
         timedOut: hooks.timedOut?.(request) ?? false,
         pins: { ...pins },
+        // Like the guest, a prepared cache yields an installed layer.
+        ...(request.dependencies
+          ? {
+              dependencies: hooks.dependencies?.(request) ?? {
+                state: "installed",
+                layerSha256: "e".repeat(64),
+              },
+            }
+          : {}),
       };
     },
     async stop(attempt) {
@@ -577,6 +593,134 @@ test("the validation acceptance blocks on a failed probe and stops an unsettled 
   assert.ok(transport.effects.stops >= 2);
 });
 
+// A registry package for the dependency stage, served by a fake reader.
+function fakeRegistry() {
+  const tarball = Buffer.from("synthetic is-number tarball");
+  const reads = [];
+  return {
+    reads,
+    dependency: {
+      name: "is-number",
+      version: "7.0.0",
+      integrity:
+        "sha512-" + createHash("sha512").update(tarball).digest("base64"),
+    },
+    reader: async (url) => {
+      reads.push(url);
+      return { status: 200, bytes: tarball };
+    },
+  };
+}
+
+test("the validation acceptance installs a pinned npm dependency offline when asked", async (t) => {
+  const { validationAcceptance, probes } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t);
+  const transport = liveTransport();
+  const registry = fakeRegistry();
+  const report = await validationAcceptance(
+    transport,
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { dependencies: registry },
+  );
+  assert.equal(
+    report.outcome,
+    "observed-offline-validation-admission-acceptance",
+    report.error,
+  );
+  assert.deepEqual(report.stages.map((s) => [s.name, s.outcome]).slice(-2), [
+    ["controller-dependency-validation", "passed"],
+    ["controller-recorded-installed-dependencies", "passed"],
+  ]);
+  // The host fetched exactly the one planned tarball.
+  assert.deepEqual(registry.reads, [
+    "https://registry.npmjs.org/is-number/-/is-number-7.0.0.tgz",
+  ]);
+  // The baseline probes ran without a cache; every dependency check got it.
+  const plain = Object.keys(probes).length;
+  assert.ok(transport.effects.runs.slice(0, plain).every((r) => !r.planSha256));
+  const installed = transport.effects.runs.slice(plain);
+  assert.deepEqual(
+    installed.map((r) => r.checkId),
+    [...Object.keys(probes), "dependencies"],
+  );
+  assert.ok(
+    installed.every(
+      (r) =>
+        r.planSha256 === report.dependencies.planSha256 && r.tarballs === 1,
+    ),
+  );
+  assert.deepEqual(installed.at(-1).command, [
+    "node",
+    "-e",
+    'require("is-number")',
+  ]);
+  assert.equal(report.dependencies.outcome, "passed");
+  assert.equal(report.dependencies.layerSha256, "e".repeat(64));
+  assert.ok(report.dependencies.results.every((r) => r.status === "success"));
+});
+
+test("the validation acceptance blocks when the dependency install fails", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t);
+  const report = await validationAcceptance(
+    liveTransport({
+      dependencies: () => ({ state: "failed", layerSha256: null }),
+    }),
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { dependencies: fakeRegistry() },
+  );
+  assert.equal(report.outcome, "blocked");
+  assert.match(report.error, /dependency check did not pass/);
+  assert.ok(report.dependencies.results.every((r) => r.status === "failure"));
+});
+
+test("the validation acceptance blocks when checks report different layers", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t);
+  let layers = 0;
+  const report = await validationAcceptance(
+    liveTransport({
+      dependencies: () => ({
+        state: "installed",
+        layerSha256: String(++layers % 10).repeat(64),
+      }),
+    }),
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { dependencies: fakeRegistry() },
+  );
+  assert.equal(report.outcome, "blocked");
+  assert.match(report.error, /did not share one installed layer/);
+});
+
+test("the validation acceptance installs nothing unless asked", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t);
+  const transport = liveTransport();
+  const report = await validationAcceptance(
+    transport,
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+  );
+  assert.equal(
+    report.outcome,
+    "observed-offline-validation-admission-acceptance",
+  );
+  assert.equal(report.dependencies, undefined);
+  assert.ok(!report.stages.some((s) => s.name.includes("dependency")));
+  assert.ok(transport.effects.runs.every((r) => !r.planSha256));
+});
+
 test("the validation acceptance runs only with explicit, well-formed arguments", async () => {
   const { spawnSync } = await import("node:child_process");
   const image = "a".repeat(64);
@@ -604,6 +748,23 @@ test("the validation acceptance runs only with explicit, well-formed arguments",
       image,
       "/report.json",
       "--approve-offline-native-run",
+      "extra",
+    ],
+    [
+      "aios-macos-noshare",
+      "/r.json",
+      image,
+      "/report.json",
+      "--with-npm-dependencies",
+      "--approve-offline-native-run",
+    ],
+    [
+      "aios-macos-noshare",
+      "/r.json",
+      image,
+      "/report.json",
+      "--approve-offline-native-run",
+      "--with-npm-dependencies",
       "extra",
     ],
   ]) {
