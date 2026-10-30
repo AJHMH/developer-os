@@ -993,3 +993,14 @@ tested tree's meaning. A failed install fails the check unrun. This is a guest
 change: each host's validation record needs re-approval, and a native run
 needs an owner image with `npm`. Production remains disabled. See the
 [dependency install receipt](../ticket04-validation-dependency-install-receipt.md).
+
+## 30 October: macOS re-approval and offline acceptances on main
+
+PRs 139 and 143 changed the coding and validation guest programs, so the
+owner re-approved both macOS admission records with the new policy pins (no
+other pin changed). From clean, freshly built `main` at `27b7db1`, the coding
+admission, validation admission, session and usage canary acceptances all
+passed offline on this Mac. The validation image has no `npm`, so the
+dependency install has not yet run natively. Windows and the slice 5 live runs
+remain owner steps. Production remains disabled. See the
+[macOS re-approval receipt](../ticket04-macos-reapproval-acceptances-receipt.md).

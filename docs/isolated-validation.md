@@ -185,7 +185,8 @@ inference and never starts the VM.
 ### Remaining
 
 The following remain open:
-- dependency installs through declared registries, and caches;
+- a native run of the dependency install (see below), which needs an
+  owner-loaded image with `npm`;
 - disposable browser and database fixtures;
 - hosted checks;
 - native qualification of this executor on both hosts.
