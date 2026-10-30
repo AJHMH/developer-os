@@ -172,6 +172,42 @@ test("a usage poll that loses delivery authority interrupts the turn without rec
   );
 });
 
+test("a usage poll that finishes after the turn ended changes nothing", async (t) => {
+  let coding, release, late;
+  coding = await routedCoding(
+    t,
+    async (request) => {
+      const { f } = coding,
+        healthy = f.subscription;
+      request.onEvent({ type: "thread.started", thread_id: firstThread });
+      // The monitor's usage read is held until after the turn has ended.
+      await new Promise((started) => {
+        f.subscription = async (at) => {
+          f.subscription = healthy;
+          started();
+          await new Promise((resolve) => (release = resolve));
+          late = true;
+          return healthy(at);
+        };
+      });
+      return failedTurn(request);
+    },
+    { codingUsagePollMs: 5 },
+  );
+  const { f } = coding;
+  await f.controller.codeFeature(f.delivery.id).catch(() => {});
+  const ended = structuredClone(f.controller.status(f.delivery.id));
+  // The late read now sees exhaustion, which would lapse a running turn.
+  f.usedPercent = 100;
+  release();
+  for (let i = 0; i < 400 && !late; i++)
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(late, true, "the held read finished after the turn");
+  assert.deepEqual(coding.sessions[0].gateway.revoked, ["stopped"]);
+  assert.deepEqual(f.controller.status(f.delivery.id), ended);
+});
+
 test("a turn whose pins change revokes its general session as pin-changed", async (t) => {
   let coding;
   coding = await routedCoding(t, async (request) => {
