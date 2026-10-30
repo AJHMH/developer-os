@@ -92,9 +92,9 @@ export function assessSubscription(
 }
 
 const usageFreshnessMs = 60_000;
-function fresh(at: string, now: number): boolean {
+function fresh(at: string, now: number, maximum = usageFreshnessMs): boolean {
   const age = now - Date.parse(at);
-  return Number.isFinite(age) && age >= 0 && age <= usageFreshnessMs;
+  return Number.isFinite(age) && age >= 0 && age <= maximum;
 }
 
 /** Owns observation assessment and one-operation owner allowances. The gate is
@@ -144,6 +144,8 @@ export class UsageApprovalGate {
       operationId?: string;
       accountId?: string;
       scope?: string;
+      /** A dispatched coding turn: its bound approval covers the whole turn. */
+      dispatchedTurn?: boolean;
     } = {},
   ): boolean {
     const now = this.clock();
@@ -158,7 +160,15 @@ export class UsageApprovalGate {
           (usage.decision === "approval-required" &&
             usage.approval?.scope === usage.scope &&
             usage.approval.operationId === operation.operationId &&
-            fresh(usage.approval.at, now))),
+            // Fresh to bind; once bound to a dispatched coding turn, the
+            // observation's freshness governs for the rest of that turn.
+            fresh(
+              usage.approval.at,
+              now,
+              operation.dispatchedTurn && usage.approval.operationId
+                ? Infinity
+                : usageFreshnessMs,
+            ))),
     );
   }
 

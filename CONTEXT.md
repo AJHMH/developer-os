@@ -95,7 +95,13 @@ _Avoid_: Repair budget
 ## Runtime evidence terms
 
 **Usage approval**: Fresh owner authorization for one observed account/window
-scope and at most one operation. It grants no worker, credential or publication authority.
+scope and at most one operation. It must be at most 60 s old when it is bound
+to an operation and at a coding turn's dispatch. Once that turn is
+dispatched, the approval covers the whole turn while each usage observation
+stays fresh, so a long turn is not cut off by the approval's age; exhaustion,
+unknown usage, an account or window change, or a withdrawn decision still
+ends it. Other operations, such as fixed workers and online runs, keep the
+60 s limit throughout. It grants no worker, credential or publication authority.
 
 **Vault credential account**: The mediated subscription credential's identity
 (issuer, client, subject and host). Online plans and relays use it.

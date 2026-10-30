@@ -66,6 +66,51 @@ test("a low allowance needs owner approval, bound to exactly one coding operatio
   assert.equal(resumed.usage.approval.operationId, dispatched[1]);
 });
 
+test(
+  "an approved low-usage turn keeps its approval while it runs past 60 s",
+  { timeout: 10_000 },
+  async (t) => {
+    const f = codingFixture(t),
+      healthy = f.subscription;
+    // One allowance window throughout, so re-reads carry the approval.
+    const resetsAt = Math.floor(f.now / 1000) + 3600;
+    let reads = 0;
+    f.subscription = async (at) => {
+      reads++;
+      const observed = await healthy(at);
+      observed.windows[0].resetsAt = resetsAt;
+      return observed;
+    };
+    f.runtime.execute = async (request) => {
+      request.onEvent({ type: "thread.started", thread_id: firstThread });
+      // The turn outlasts the approval's 60-second freshness, and the usage
+      // monitor re-reads usage twice after that.
+      f.now += 61_000;
+      const after = reads + 2;
+      for (let i = 0; i < 400 && reads < after; i++)
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      return failedTurn(request);
+    };
+    f.controller = new DeliveryController(f.state, f.options, {
+      featurePlanner: f.criteria,
+      featureRuntime: f.runtime,
+      subscription: () => f.subscription(),
+      validationRuntime: f.validation,
+      clock: () => f.now,
+      codingUsagePollMs: 5,
+    });
+    await planAndValidate(f);
+    f.usedPercent = 85;
+    await assert.rejects(f.controller.codeFeature(f.delivery.id), /usage/i);
+    const pending = f.controller.status(f.delivery.id).usage;
+    f.controller.approveUsage(f.delivery.id, pending.checkId);
+    const ended = await f.controller.codeFeature(f.delivery.id);
+    assert.ok(reads >= 4, "the monitor re-read usage during the turn");
+    assert.equal(ended.feature.usageInterruptions, undefined);
+    assert.equal(ended.feature.session.state, "stopped");
+  },
+);
+
 test("an authorization that goes stale before dispatch is refused at the recheck", async (t) => {
   const { f } = await authorizedCoding(t);
   let permitted;

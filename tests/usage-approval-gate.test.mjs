@@ -165,3 +165,40 @@ test("check and approval freshness use the same injected clock including exact e
     );
   }
 });
+
+test("a bound approval covers its whole dispatched coding turn, and only that", () => {
+  let at = now;
+  const gate = new subscription.UsageApprovalGate(() => at);
+  const approved = gate.approve(report(), "check");
+  const bound = gate.bind(approved, "operation");
+  const turn = { operationId: "operation", dispatchedTurn: true };
+  // An hour later, with a fresh observation, the turn is still covered.
+  at = now + 3_600_000;
+  const observed = { ...bound, checkedAt: new Date(at).toISOString() };
+  assert.equal(gate.permits(observed, turn), true);
+  // Not another operation, not an unbound approval, and not other
+  // bound operations such as fixed workers or online runs.
+  assert.equal(
+    gate.permits(observed, { ...turn, operationId: "other" }),
+    false,
+  );
+  assert.equal(
+    gate.permits({ ...approved, checkedAt: observed.checkedAt }, turn),
+    false,
+  );
+  assert.equal(gate.permits(observed, { operationId: "operation" }), false);
+  // The observation must still be fresh, and the approval well-formed.
+  assert.equal(gate.permits(bound, turn), false);
+  for (const date of ["invalid", new Date(at + 1).toISOString()])
+    assert.equal(
+      gate.permits(
+        { ...observed, approval: { ...observed.approval, at: date } },
+        turn,
+      ),
+      false,
+    );
+  assert.equal(
+    gate.permits({ ...observed, decision: "exhausted" }, turn),
+    false,
+  );
+});
