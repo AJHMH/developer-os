@@ -11,6 +11,7 @@ export const cliOptions = {
   "podman-machine": { type: "string" },
   "worker-policy": { type: "string" },
   "dependency-policy": { type: "string" },
+  "coding-admission": { type: "string" },
   repo: { type: "string" },
   request: { type: "string" },
   issue: { type: "string" },
@@ -140,9 +141,19 @@ const commands: Record<string, CliCommand> = {
     [...nativeOptions, "codex-executable"],
     ["native", "subscription"],
   ),
-  pause: idAction("pause", nativeOptions, ["native"]),
-  cancel: idAction("cancel", nativeOptions, ["native"]),
-  recover: idAction("recover", nativeOptions, ["native"]),
+  // With an owner coding admission, these also stop or recover the exact
+  // native coding session.
+  pause: idAction("pause", [...nativeOptions, "coding-admission"], ["native"]),
+  cancel: idAction(
+    "cancel",
+    [...nativeOptions, "coding-admission"],
+    ["native"],
+  ),
+  recover: idAction(
+    "recover",
+    [...nativeOptions, "coding-admission"],
+    ["native"],
+  ),
   resume: idAction("resume"),
   release: idAction("release"),
   "plan-feature": idAction("planFeature"),
@@ -269,6 +280,11 @@ export function validateCliCommand(
     (!values["dependency-policy"] ||
       !values["podman-machine"] ||
       !values["worker-policy"])
+  )
+    return { error: "arguments" };
+  if (
+    values["coding-admission"] !== undefined &&
+    (!values["coding-admission"] || !values["podman-machine"])
   )
     return { error: "arguments" };
   if (

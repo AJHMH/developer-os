@@ -1088,3 +1088,17 @@ unobserved one. Active time is charged only while the session runs. New
 tests prove both orders of a pause racing the turn with the stops forced to
 overlap, and two concurrent guest stops of one session. Tests and docs only:
 no source, guest or pin change. Production remains disabled.
+
+## 31 October: the CLI stops and recovers native coding sessions
+
+The third lifecycle recovery slice. `pause`, `cancel` and `recover` take
+`--coding-admission <owner-record>` with `--podman-machine`. The CLI then
+installs the owner-admitted native coding runtime (`nativeCodingRuntime`):
+the record's pins, the live native transport, and the coding authority the
+native acceptances already use. So a CLI pause, cancel or recover attempts
+the exact coding session's stop and trusts it only when independently
+observed (PR 155). Without the option, the CLI still installs no coding
+runtime and a running session is left uncertain. A missing or invalid record
+refuses before any delivery or VM effect. `code-feature` still refuses: the
+CLI has no trusted planner or validation adapter. No guest or pin change.
+Production remains disabled.
