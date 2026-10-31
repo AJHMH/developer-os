@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   cliCommands,
   cliOptions,
@@ -97,4 +102,53 @@ test("native prerequisites and numeric extensions remain bounded", () => {
     validateCliCommand(["extend-repair"], { id: "d" }, ["id"]).error,
     "arguments",
   );
+});
+
+test("an owner coding admission is accepted only with a native machine on pause, cancel and recover", () => {
+  for (const name of ["pause", "cancel", "recover"]) {
+    const values = {
+      id: "d",
+      "podman-machine": "aios-test",
+      "coding-admission": "/owner/coding-admission.json",
+    };
+    assert.equal(
+      validateCliCommand([name], values, Object.keys(values)).name,
+      name,
+    );
+    for (const refused of [
+      { id: "d", "coding-admission": "/owner/coding-admission.json" },
+      { id: "d", "podman-machine": "aios-test", "coding-admission": "" },
+    ])
+      assert.equal(
+        validateCliCommand([name], refused, Object.keys(refused)).error,
+        "arguments",
+      );
+  }
+});
+
+test("a missing owner coding admission refuses before any delivery or VM effect", (t) => {
+  const state = mkdtempSync(join(tmpdir(), "aios-cli-coding-admission-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      "pause",
+      "--id",
+      "11111111-2222-4333-8444-555555555555",
+      "--state-dir",
+      state,
+      "--podman-machine",
+      "aios-test",
+      "--coding-admission",
+      join(state, "missing-coding-admission.json"),
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.match(
+    JSON.parse(result.stderr).error,
+    /owner coding admission record is missing or invalid/,
+  );
+  assert.deepEqual(readdirSync(state), []);
 });

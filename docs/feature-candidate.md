@@ -12,7 +12,7 @@ The integration boundary is `DeliveryController`, with owner-supplied `featurePl
 - `planFeature(id)` records observable criteria and relevant verification through the trusted planner. Material ambiguity produces `needs-info` and does not create a branch or dispatch coding.
 - `clarifyFeature(id, text)` retains an explicit owner clarification and re-plans without rewriting the original request. CLI: `clarify-feature --id ID --clarification TEXT`.
 - `codeFeature(id)` checks onboarding and owner policy, clean unchanged main, passing revision-bound baseline validation, coding pins and stopped session state. It records operation intent before creating `codex/feature-ID`, leaves the host checkout untouched, and supplies plain admitted files rather than host Git metadata.
-- `pause`, `cancel`, `recover` and `release` retain the existing ownership/fencing rules and also reconcile coding shutdown. An uncertain coding worker blocks import, resume and ownership release.
+- `pause`, `cancel`, `recover` and `release` retain the existing ownership/fencing rules and also reconcile coding shutdown. An uncertain coding worker blocks import, resume and ownership release. On the CLI, `pause`, `cancel` and `recover` take `--coding-admission <owner-record>` with `--podman-machine` to install the owner-admitted native coding runtime for that; without it a running coding session is left uncertain.
 - `extendCoding(id, minutes)` is an explicit owner control for stopped exhausted work. CLI: `extend-coding --id ID --minutes N`. It appends the changed allowance; worker output cannot request an extension.
 
 ## Coding and candidate evidence

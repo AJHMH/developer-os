@@ -13,6 +13,11 @@ import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
 import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
 import { ownerCodingAdmission } from "../dist/coding-admission.js";
+import {
+  nativeCodingAuthority,
+  nativeCodingRuntime,
+} from "../dist/native-coding-runtime.js";
+import { createHash } from "node:crypto";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 import { planAndValidate } from "./helpers/validation-fixture.mjs";
 import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
@@ -654,4 +659,25 @@ test("the admission acceptance runs only with explicit, well-formed arguments", 
     assert.equal(result.status, 1, args.join(" "));
     assert.match(result.stderr, /owner-admission\.json/);
   }
+});
+
+test("the CLI's native coding runtime takes the owner's record pins and the acceptances' authority", (t) => {
+  assert.equal(
+    nativeCodingAuthority("aios-test"),
+    createHash("sha256")
+      .update("issue04-native-offline-lifecycle-v1:aios-test")
+      .digest("hex"),
+  );
+  const record = ownerRecord(t);
+  const runtime = nativeCodingRuntime("aios-test", record.path);
+  assert.equal(runtime.mode, "controlled");
+  assert.deepEqual({ ...runtime.pins }, { ...pins });
+  assert.equal(runtime.agent.provider, "codex");
+  assert.throws(() =>
+    nativeCodingRuntime("aios-test", join(record.directory, "missing.json")),
+  );
+  assert.throws(
+    () => nativeCodingRuntime("other", record.path),
+    /Invalid native coding authority/,
+  );
 });
