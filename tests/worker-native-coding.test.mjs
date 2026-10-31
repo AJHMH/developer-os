@@ -327,6 +327,35 @@ test("revocation during preparation stops the exact session without releasing Co
   assert.deepEqual(stopped.session, session);
 });
 
+test(
+  "the guest observes a session stopped before it was prepared as stopped",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t);
+    // Nothing was recorded for the session, so observation refuses.
+    await assert.rejects(transport.observeSession(session));
+    const stopped = await transport.stop(session);
+    assert.equal(stopped.stopped, true);
+    const observed = await transport.observeSession(session);
+    assert.deepEqual(
+      {
+        phase: observed.phase,
+        running: observed.running,
+        remainingProcesses: observed.remainingProcesses,
+        processesGone: observed.processesGone,
+      },
+      {
+        phase: "stopped",
+        running: false,
+        remainingProcesses: 0,
+        processesGone: true,
+      },
+    );
+    assert.equal(observed.operationId, session.operationId);
+    assert.equal(observed.fence, session.fence);
+  },
+);
+
 test("retained launch mutations and malformed streams cannot bypass native shutdown", async (t) => {
   for (const failure of ["mutation", "stream", "checkpoint", "pins"])
     await t.test(failure, async (t) => {
