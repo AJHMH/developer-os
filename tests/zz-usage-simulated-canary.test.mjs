@@ -176,10 +176,17 @@ function vm(faults = {}) {
       const s = sessions.get(session.operationId);
       if (!s) throw Error("Native coding observe-session unavailable");
       return {
+        operationId: session.operationId,
+        fence: session.fence,
         phase: s.phase,
         running: s.phase === "running",
         remainingProcesses: s.processes,
         processesGone: s.processes === 0,
+        timers: {
+          lease: { loadState: "not-found", activeState: "inactive" },
+          deadline: { loadState: "not-found", activeState: "inactive" },
+        },
+        pins: { ...pins },
       };
     },
     async stop(session) {

@@ -583,7 +583,7 @@ else:
    if not record: fail()
    binding=snapshot()
    # Only stop writes a record without preparing, and it has no binding.
-   unprepared=R['action']=='recover-resume' and record['binding']=={} and 'admission' not in record
+   unprepared=R['action'] in ['recover-resume','observe-session'] and record['binding']=={} and 'admission' not in record
    if binding!=record['binding'] and not unprepared: fail()
    if R['action']=='launch':
     if record['phase']!='prepared' or not isinstance(record.get('admission'),dict) or record['admission']!=R.get('admission') or record.get('pins')!=R.get('pins'): fail()
@@ -692,7 +692,12 @@ else:
     result=timer_execution()
    elif R['action']=='observe-session':
     # Observe independently: no log consumption, lease renewal, stop or journal write.
-    c=container();running=c['State'].get('Running')
+    # A session stopped before it was prepared never had a container.
+    exists=subprocess.run(['/usr/bin/podman','container','exists',R['name']],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+    if exists.returncode==0: c=container()
+    elif exists.returncode==1 and unprepared and record['phase']=='stopped': c=dict(State=dict(Running=False,Pid=0))
+    else: fail()
+    running=c['State'].get('Running')
     if not isinstance(running,bool): fail()
     if running:
      if not record['group'] or group(c['State']['Pid'])!=record['group']: fail()

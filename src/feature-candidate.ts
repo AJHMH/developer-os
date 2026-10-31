@@ -700,6 +700,17 @@ import { StringDecoder } from "node:string_decoder";
  * those expected pins and call request.mayDispatch() immediately before each
  * worker effect after asynchronous preparation. Use argv (never a shell), and close the
  * CLI output stream before resolving. No host coding executor is provided. */
+/** An independent, read-only census of one exact session in the guest. */
+export interface CodingSessionObservation {
+  operationId: string;
+  fence: number;
+  phase: string;
+  running: boolean;
+  remainingProcesses: number;
+  processesGone: boolean;
+  timers: Record<"lease" | "deadline", { activeState: string }>;
+  pins: CodingPins;
+}
 export interface IsolatedCodingTransport {
   readonly mode: "controlled" | "live";
   inspect(session: CodingSession): Promise<CodingPins>;
@@ -731,6 +742,8 @@ export interface IsolatedCodingTransport {
   cleanupSupersededLineage?(
     session: CodingSession,
   ): Promise<CodingCleanup & { pins: CodingPins }>;
+  /** Required of a live transport: it confirms each stop independently. */
+  observeSession?(session: CodingSession): Promise<CodingSessionObservation>;
   stop: FeatureRuntime["stop"];
   collect: FeatureRuntime["collect"];
 }
@@ -937,9 +950,26 @@ export class PinnedCodingRuntime implements FeatureRuntime {
   async stop(session: CodingSession) {
     const binding = Object.freeze(structuredClone(session));
     // Always attempt exact-session shutdown, even when execution pins changed.
-    // A receipt only becomes trusted after a fresh independent observation.
+    // A receipt only becomes trusted after a fresh independent observation:
+    // the pins, and for a live transport the exact session's own census.
     const receipt = { ...(await this.transport.stop(binding)) };
     await this.inspectSession(binding);
+    if (this.transport.mode === "live" || this.transport.observeSession) {
+      const seen = await this.transport.observeSession?.(binding);
+      if (
+        !seen ||
+        seen.operationId !== binding.operationId ||
+        seen.fence !== binding.fence ||
+        seen.phase !== "stopped" ||
+        seen.running !== false ||
+        seen.remainingProcesses !== 0 ||
+        seen.processesGone !== true ||
+        Object.values(seen.timers).some((t) => t.activeState === "active") ||
+        JSON.stringify(seen.pins) !== JSON.stringify(this.pins)
+      )
+        throw Error("Coding session stop was not independently observed");
+      await this.inspectSession(binding);
+    }
     return receipt;
   }
   async recover(

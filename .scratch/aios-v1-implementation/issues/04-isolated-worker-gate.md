@@ -1060,3 +1060,19 @@ host fetched and verified `is-number@7.0.0`, the guest installed it offline,
 and all six checks passed on one recorded layer. It is the first native run of
 the offline install. Windows remains. Production remains disabled. See the
 [macOS dependency acceptance receipt](../ticket04-macos-dependency-acceptance-receipt.md).
+
+## 30 October: a coding stop is trusted only when independently observed
+
+The first lifecycle recovery slice, after the coding provider seam (ADR 0003,
+PR 154). Pause, cancel, recover, the post-turn stop and every other caller of
+the pinned runtime's stop now trust a live transport's stop receipt only with
+the guest's independent `observe-session` census of the exact session: phase
+`stopped`, not running, no remaining process, every recorded process gone, no
+timer active, and the same pins before and after. Anything else leaves the
+session uncertain, which already blocks collection, resume, redispatch and
+release until exact-session recovery. The guest's `observe-session` now also
+accepts a session stopped before it was prepared, which has no container, so
+such a session no longer stays uncertain for good. This is a guest change:
+each host's coding admission record must be re-approved for the new policy
+pin and the coding acceptances rerun. The CLI still installs no coding
+runtime. Production remains disabled.

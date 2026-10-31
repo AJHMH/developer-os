@@ -80,6 +80,22 @@ function liveTransport(f, hooks = {}) {
       effects.stops++;
       return f.runtime.stop(request);
     },
+    // The independent census a live transport needs before a stop is trusted.
+    async observeSession(request) {
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        phase: "stopped",
+        running: false,
+        remainingProcesses: 0,
+        processesGone: true,
+        timers: {
+          lease: { loadState: "not-found", activeState: "inactive" },
+          deadline: { loadState: "not-found", activeState: "inactive" },
+        },
+        pins: { ...pins },
+      };
+    },
     collect: (request) => f.runtime.collect(request),
   };
   return transport;
@@ -112,6 +128,116 @@ test("an owner record naming the exact pins admits a live transport through codi
   assert.equal(transport.effects.runs, 1);
   // Production delivery stays disabled; admission only reaches coding.
   assert.equal(result.blocker.code, "DELIVERY_NOT_ENABLED");
+});
+
+const stoppedObservation = (request) => ({
+  operationId: request.operationId,
+  fence: request.fence,
+  phase: "stopped",
+  running: false,
+  remainingProcesses: 0,
+  processesGone: true,
+  timers: {
+    lease: { loadState: "not-found", activeState: "inactive" },
+    deadline: { loadState: "loaded", activeState: "failed" },
+  },
+  pins: { ...pins },
+});
+
+test("a live stop is trusted only with an independent observation of the exact stopped session", async (t) => {
+  const f = codingFixture(t);
+  const record = ownerRecord(t);
+  const session = {
+    operationId: "11111111-2222-4333-8444-555555555555",
+    fence: 2,
+    state: "running",
+    intent: "start",
+  };
+  const stopping = (observeSession) => {
+    const transport = {
+      ...liveTransport(f),
+      async stop(request) {
+        return {
+          operationId: request.operationId,
+          fence: request.fence,
+          stopped: true,
+          remainingProcesses: 0,
+        };
+      },
+      ...(observeSession ? { observeSession } : {}),
+    };
+    if (!observeSession) delete transport.observeSession;
+    return new PinnedCodingRuntime(
+      pins,
+      transport,
+      ownerCodingAdmission(record.path),
+    );
+  };
+  const observed = [];
+  assert.equal(
+    (
+      await stopping(async (request) => {
+        observed.push(request);
+        return stoppedObservation(request);
+      }).stop(session)
+    ).stopped,
+    true,
+  );
+  assert.deepEqual(observed, [session], "the exact session is observed");
+  await assert.rejects(stopping().stop(session), /independently observed/);
+  for (const [name, change] of [
+    ["another operation", { operationId: "f".repeat(8) }],
+    ["another fence", { fence: 3 }],
+    ["a revoked phase", { phase: "revoked" }],
+    ["a running worker", { running: true, remainingProcesses: 1 }],
+    ["a surviving process", { remainingProcesses: 1, processesGone: false }],
+    ["an unproven census", { processesGone: false }],
+    [
+      "an active timer",
+      { timers: { lease: { loadState: "loaded", activeState: "active" } } },
+    ],
+    ["changed pins", { pins: { ...pins, cliSha256: "f".repeat(64) } }],
+  ])
+    await assert.rejects(
+      stopping(async (request) => ({
+        ...stoppedObservation(request),
+        ...change,
+      })).stop(session),
+      /independently observed/,
+      name,
+    );
+  await assert.rejects(
+    stopping(async () => {
+      throw Error("Native coding session observation unavailable");
+    }).stop(session),
+    /observation unavailable/,
+  );
+});
+
+test("an unobserved live stop leaves the coding session uncertain, blocking release", async (t) => {
+  const f = codingFixture(t);
+  const record = ownerRecord(t);
+  const transport = {
+    ...liveTransport(f),
+    async observeSession(request) {
+      return {
+        ...stoppedObservation(request),
+        remainingProcesses: 1,
+        processesGone: false,
+      };
+    },
+  };
+  f.controller = admittedController(
+    f,
+    new PinnedCodingRuntime(pins, transport, ownerCodingAdmission(record.path)),
+  );
+  await planAndValidate(f);
+  await f.controller.codeFeature(f.delivery.id).catch(() => {});
+  const status = f.controller.status(f.delivery.id);
+  assert.equal(status.feature.session.state, "uncertain");
+  assert.equal(status.feature.candidate, undefined);
+  assert.equal(status.blocker.code, "UNCERTAIN_SESSION");
+  assert.throws(() => f.controller.release(f.delivery.id));
 });
 
 test("a live transport needs an owner record and a controlled one refuses it", (t) => {
