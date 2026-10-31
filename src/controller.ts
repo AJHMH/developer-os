@@ -29,7 +29,7 @@ import {
   candidateRevisionFiles,
   candidateSource,
   codingBinding,
-  codingTurn,
+  codexAgent,
   advanceFeatureBranch,
   featureBranchAdvance,
   featureBranch,
@@ -37,7 +37,8 @@ import {
   unrestartedInterruption,
   featurePlan,
   validCodingPins,
-  lockedCodingArgv,
+  recordedProvider,
+  sessionProvider,
   type CodingResult,
   type CodingCleanup,
   type CodingSession,
@@ -2546,6 +2547,7 @@ export class DeliveryController {
     repairId?: string,
   ): Promise<Delivery> {
     const runtime = this.coordination.featureRuntime,
+      agent = runtime?.agent ?? codexAgent,
       snapshot = this.status(id),
       feature = snapshot.feature;
     if (
@@ -2758,7 +2760,12 @@ export class DeliveryController {
       // A resume keeps its predecessor's route. Under another route (a new
       // decision, or a change between offline and routed) coding starts a
       // new lineage instead.
-      const sameRoute = JSON.stringify(prior?.route) === JSON.stringify(route);
+      // A provider change (ADR 0003) likewise starts a new lineage: one
+      // provider's CLI never continues another's conversation.
+      const sameRoute =
+        JSON.stringify(prior?.route) === JSON.stringify(route) &&
+        !!prior &&
+        sessionProvider(prior) === agent.provider;
       const resuming = resumable && sameRoute;
       // A recovered resume never ran, so its predecessor's revision is the one
       // it recorded; otherwise the predecessor built its own workspace.
@@ -2782,6 +2789,7 @@ export class DeliveryController {
           ? { baseMove: { from: predecessorRevision!, to: source.revision } }
           : {}),
         ...(route ? { route } : {}),
+        ...recordedProvider(agent.provider),
         ...(resuming
           ? {
               threadId: prior!.threadId,
@@ -2799,6 +2807,7 @@ export class DeliveryController {
           operationId: predecessor!.operationId,
           threadId: prior!.threadId!,
           ...(prior!.route ? { route: prior!.route } : {}),
+          ...recordedProvider(sessionProvider(prior!)),
           at: new Date().toISOString(),
           by: f.session.operationId,
           session: codingBinding(predecessor!),
@@ -3034,7 +3043,7 @@ export class DeliveryController {
         ...route!,
         capability: randomBytes(32).toString("hex"),
       };
-      const argv = [...lockedCodingArgv(session.threadId, modelRoute), prompt];
+      const argv = [...agent.argv(session.threadId, modelRoute), prompt];
       result = await Promise.race([
         runtime.execute(
           {
@@ -3044,18 +3053,9 @@ export class DeliveryController {
             sourceRevision: source.revision,
             inputSha256: input.digest,
             onEvent: (event) => {
-              if (!checkpoint() || !event || typeof event !== "object")
-                return false;
-              const item = event as Record<string, unknown>;
-              if (
-                item.type !== "thread.started" ||
-                typeof item.thread_id !== "string" ||
-                !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-                  item.thread_id,
-                )
-              )
-                return false;
-              const threadId = item.thread_id;
+              if (!checkpoint()) return false;
+              const threadId = agent.boundThread(event);
+              if (threadId === undefined) return false;
               if (session.threadId && session.threadId !== threadId)
                 return false;
               const updated = this.change(id, (delivery) => {
@@ -3125,7 +3125,7 @@ export class DeliveryController {
         result.fence !== session.fence
       )
         throw Error();
-      const turn = codingTurn(
+      const turn = agent.turn(
         result,
         this.status(id).feature?.session?.threadId ?? session.threadId,
       );
@@ -4414,10 +4414,11 @@ export class DeliveryController {
   }
 
   /** The owner's explicit guest cleanup of a superseded lineage, named by
-   * the session coding left when it restarted under another route: the guest
-   * removes its session folders and stopped containers, keeps the records as
-   * tombstones and marks the head never to be resumed. Recorded once; an
-   * unverified cleanup records nothing. */
+   * the session coding left when it restarted under another route or
+   * provider: the guest removes its session folders and stopped containers,
+   * keeps the records as tombstones and marks the head never to be resumed.
+   * Only the runtime of the lineage's own provider cleans it (ADR 0003).
+   * Recorded once; an unverified cleanup records nothing. */
   async cleanupSupersededLineage(
     id: string,
     operationId: string,
@@ -4433,6 +4434,7 @@ export class DeliveryController {
       !snapshot.ownership.held ||
       !sessionsQuiescent(snapshot) ||
       !this.sameCodingRuntime(snapshot) ||
+      sessionProvider(lineage) !== (runtime!.agent ?? codexAgent).provider ||
       !runtime!.cleanupSuperseded
     )
       throw new DeliveryError(
