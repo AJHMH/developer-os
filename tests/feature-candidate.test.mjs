@@ -1336,3 +1336,109 @@ test("owner criteria are read only from a private absolute file outside every re
     );
   }
 });
+
+test("the CLI's owner inputs carry one offline delivery from start to an admitted candidate", async (t) => {
+  const { inspectLocalRepository, inspectOnboarding } = await import(
+    "../dist/onboarding.js"
+  );
+  const { createHash } = await import("node:crypto");
+  const { readFileSync } = await import("node:fs");
+  const f = codingFixture(t),
+    revision = f.git("rev-parse", "HEAD");
+  // The local hints the CLI's inspector reads; nothing else is observed.
+  f.git("remote", "add", "origin", "https://github.com/AJHMH/profile-page.git");
+  f.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main");
+  const owner = mkdtempSync(join(tmpdir(), "aios-cli-delivery-owner-"));
+  t.after(() => rmSync(owner, { recursive: true, force: true }));
+  chmodSync(owner, 0o700);
+  const policy = JSON.parse(readFileSync(f.options.policyPath, "utf8"));
+  const attestationPath = join(owner, "onboarding-attestation.json");
+  writeFileSync(
+    attestationPath,
+    JSON.stringify({
+      scope: "aios-onboarding-attestation-v1",
+      policySha256: createHash("sha256")
+        .update(readFileSync(f.options.policyPath))
+        .digest("hex"),
+      attestedAt: "2026-10-31T12:00:00.000Z",
+      facts: {
+        repository: policy.repository,
+        defaultBranch: policy.defaultBranch,
+        factoryCommit: policy.factoryCommit,
+        appLogin: policy.appLogin,
+        appRepositoryAccess: true,
+        eligibleApprovers: [policy.approver],
+        protectionsEnforced: true,
+        requiredChecks: policy.requiredChecks,
+        trustedCheckPublishers: true,
+        publicationLogin: policy.publicationLogin,
+        publicationAccess: true,
+        localSignature: {
+          commit: revision,
+          valid: true,
+          login: policy.approver,
+        },
+        githubSignature: {
+          commit: revision,
+          valid: true,
+          login: policy.approver,
+        },
+        validation: policy.validation,
+      },
+    }),
+    { mode: 0o600 },
+  );
+  const criteriaPath = join(owner, "criteria.json");
+  writeFileSync(
+    criteriaPath,
+    JSON.stringify({
+      scope: "aios-feature-criteria-v1",
+      deliveryId: f.delivery.id,
+      request: "Add a visible contact hint.",
+      criteria: ["The contact page shows an email hint."],
+      verification: ["Check the email hint in the isolated page."],
+      ambiguity: null,
+    }),
+    { mode: 0o600 },
+  );
+  ownWindowsFixturePaths([owner, attestationPath, criteriaPath]);
+  // What the CLI installs for plan-feature, validate-baseline and
+  // code-feature, with simulated coding, validation and usage transports.
+  const controller = new DeliveryController(
+    f.state,
+    {
+      inspect: inspectLocalRepository,
+      policyPath: f.options.policyPath,
+      attestationPath,
+    },
+    {
+      featurePlanner: ownerCriteriaPlanner(criteriaPath, f.delivery.id),
+      featureRuntime: f.runtime,
+      validationRuntime: f.validation,
+      subscription: () => f.subscription(),
+      clock: () => f.now,
+    },
+  );
+  const planned = await controller.planFeature(f.delivery.id);
+  assert.deepEqual(planned.feature.criteria, [
+    "The contact page shows an email hint.",
+  ]);
+  await controller.validateBaseline(f.delivery.id);
+  const result = await controller.codeFeature(f.delivery.id, {
+    codingMinutes: 30,
+  });
+  assert.equal(result.feature.outcome, "admitted");
+  assert.equal(result.feature.allowanceMs, 30 * 60000);
+  assert.equal(result.feature.session.state, "stopped");
+  assert.equal(result.feature.sourceRevision, revision);
+  assert.equal(f.git("branch", "--show-current"), "main");
+  // Every step re-read onboarding from the local hints and the attestation.
+  const onboarding = inspectOnboarding(f.repository, {
+    inspect: inspectLocalRepository,
+    policyPath: f.options.policyPath,
+    attestationPath,
+  });
+  assert.equal(onboarding.ready, true);
+  assert.equal(onboarding.attestation.source, "owner-attested");
+  assert.equal(result.blocker.code, "DELIVERY_NOT_ENABLED");
+});

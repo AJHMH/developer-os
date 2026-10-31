@@ -1142,3 +1142,13 @@ with the authority the native acceptances derive. `validate-baseline` and
 run offline, with no dependency installs. A missing or invalid record refuses
 before any state or VM effect. No guest or pin change. Production remains
 disabled.
+
+## 31 October: ADR 0004 slice 4, offline `code-feature` from the CLI
+
+`code-feature` takes the owner policy and attestation, `--podman-machine`
+with the coding and validation admissions, `--codex-executable` for usage and
+`--coding-minutes`, and installs the owner-admitted native runtimes. Without a
+qualified mediation decision the turn is offline. A test carries one delivery
+through the CLI's owner inputs (local hints, attestation, criteria file) from
+`start` to an admitted candidate at `DELIVERY_NOT_ENABLED`, on simulated
+transports. No guest or pin change. Production remains disabled.
