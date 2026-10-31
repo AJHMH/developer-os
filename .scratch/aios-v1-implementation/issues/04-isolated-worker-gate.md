@@ -1120,3 +1120,14 @@ owner's private criteria file outside every repository. The file answers only
 its own delivery's exact request and clarifications, which it names
 verbatim, and `featurePlan()` still validates the plan. `code-feature` still
 refuses from the CLI. No guest or pin change. Production remains disabled.
+
+## 31 October: ADR 0004 slice 2, owner-attested onboarding
+
+The CLI observes only local repository hints, so onboarding could never be
+ready there. `start`, `validate-baseline`, `validate-candidate` and
+`code-feature` now take `--owner-policy` with `--onboarding-attestation`, the
+owner's private record of the facts the CLI cannot observe, bound to the
+policy's SHA-256. Inspected facts outrank attested ones. Matching attested
+facts get the new status `attested`, never `verified`, and the report records
+the attestation's SHA-256. Attested readiness admits controlled delivery
+only. No guest or pin change. Production remains disabled.

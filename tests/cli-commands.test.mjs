@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -197,4 +203,79 @@ test("the CLI installs the owner criteria planner only for the named delivery", 
   // No such delivery: planning refuses before the criteria are read.
   assert.equal(result.status, 1);
   assert.equal(typeof JSON.parse(result.stderr).error, "string");
+});
+
+test("an onboarding attestation needs the owner policy it attests", () => {
+  for (const [name, values] of [
+    ["start", { repo: "/r", request: "Add a hint" }],
+    ["validate-baseline", { id: "d" }],
+    ["validate-candidate", { id: "d" }],
+    ["code-feature", { id: "d" }],
+  ]) {
+    const attested = {
+      ...values,
+      "owner-policy": "/owner/policy.json",
+      "onboarding-attestation": "/owner/onboarding.json",
+    };
+    assert.equal(
+      validateCliCommand([name], attested, Object.keys(attested)).name,
+      name,
+    );
+    for (const refused of [
+      { ...values, "onboarding-attestation": "/owner/onboarding.json" },
+      { ...attested, "onboarding-attestation": "" },
+    ])
+      assert.equal(
+        validateCliCommand([name], refused, Object.keys(refused)).error,
+        "arguments",
+        name,
+      );
+  }
+});
+
+test("the CLI records an unusable onboarding attestation as a policy conflict, never as readiness", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "aios-cli-attestation-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const repository = join(root, "repository");
+  mkdirSync(repository);
+  const policy = join(root, "owner-policy.json");
+  writeFileSync(
+    policy,
+    JSON.stringify({
+      repository: "AJHMH/profile-page",
+      defaultBranch: "main",
+      factoryCommit: "a".repeat(40),
+      approver: "aaron-howard",
+      appLogin: "factory[bot]",
+      publicationLogin: "aaron-howard",
+      requiredChecks: ["lint"],
+      validation: ["node"],
+    }),
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      "start",
+      "--repo",
+      repository,
+      "--request",
+      "Add a visible contact hint.",
+      "--state-dir",
+      join(root, "state"),
+      "--owner-policy",
+      policy,
+      "--onboarding-attestation",
+      join(root, "missing-attestation.json"),
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const delivery = JSON.parse(result.stdout);
+  assert.equal(delivery.onboarding.ready, false);
+  assert.equal(delivery.onboarding.attestation, undefined);
+  assert.equal(
+    delivery.onboarding.facts.find((f) => f.requirement === "policy").status,
+    "conflict",
+  );
 });
