@@ -1111,3 +1111,12 @@ onboarding record. Attested facts admit controlled delivery only, never
 production. [ADR 0004](../../../docs/adr/0004-cli-delivery-integration.md) and
 the [slice plan](../plan-cli-delivery-integration.md) are proposed for the
 owner's acceptance. Docs only. Production remains disabled.
+
+## 31 October: ADR 0004 accepted; slice 1, the owner criteria planner
+
+The owner accepted ADR 0004 and its plan. Slice 1 adds the v1 feature
+planner: `plan-feature` and `clarify-feature` take `--feature-criteria`, the
+owner's private criteria file outside every repository. The file answers only
+its own delivery's exact request and clarifications, which it names
+verbatim, and `featurePlan()` still validates the plan. `code-feature` still
+refuses from the CLI. No guest or pin change. Production remains disabled.

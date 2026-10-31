@@ -49,9 +49,9 @@ function insideRepository(folder: string): boolean {
 }
 
 /** Read the private record through one descriptor bound to the checked file. */
-function readRecord(file: string): unknown {
+function readRecord(file: string, maxBytes = 4096): unknown {
   assertOwnerControlledStorage(dirname(file), "directory", 4096, "readable");
-  assertPrivateAuthStorage(file, "file", 4096);
+  assertPrivateAuthStorage(file, "file", maxBytes);
   const checked = lstatSync(file);
   const descriptor = openSync(
     file,
@@ -63,13 +63,24 @@ function readRecord(file: string): unknown {
       !opened.isFile() ||
       opened.dev !== checked.dev ||
       opened.ino !== checked.ino ||
-      opened.size > 4096
+      opened.size > maxBytes
     )
       throw Error();
     return JSON.parse(readFileSync(descriptor, "utf8"));
   } finally {
     closeSync(descriptor);
   }
+}
+
+/** A private, owner-written record of up to `maxBytes`, read afresh from an
+ * absolute path outside every repository. */
+export function readOwnerRecord(path: string, maxBytes = 4096): unknown {
+  if (typeof path !== "string" || !isAbsolute(path))
+    throw Error("Owner record path must be absolute");
+  const file = resolve(path);
+  if (insideRepository(dirname(file)))
+    throw Error("Owner records never live in a repository");
+  return readRecord(file, maxBytes);
 }
 
 /** What an owner record admits: its scope, exact pin fields and pin check.

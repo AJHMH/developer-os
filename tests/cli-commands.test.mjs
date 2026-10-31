@@ -152,3 +152,49 @@ test("a missing owner coding admission refuses before any delivery or VM effect"
   );
   assert.deepEqual(readdirSync(state), []);
 });
+
+test("owner criteria are named only on plan-feature and clarify-feature, never empty", () => {
+  for (const [name, values] of [
+    ["plan-feature", { id: "d", "feature-criteria": "/owner/criteria.json" }],
+    [
+      "clarify-feature",
+      {
+        id: "d",
+        clarification: "Use email",
+        "feature-criteria": "/owner/criteria.json",
+      },
+    ],
+  ]) {
+    assert.equal(
+      validateCliCommand([name], values, Object.keys(values)).name,
+      name,
+    );
+    const empty = { ...values, "feature-criteria": "" };
+    assert.equal(
+      validateCliCommand([name], empty, Object.keys(empty)).error,
+      "arguments",
+    );
+  }
+});
+
+test("the CLI installs the owner criteria planner only for the named delivery", (t) => {
+  const state = mkdtempSync(join(tmpdir(), "aios-cli-feature-criteria-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      "plan-feature",
+      "--id",
+      "11111111-2222-4333-8444-555555555555",
+      "--state-dir",
+      state,
+      "--feature-criteria",
+      join(state, "criteria.json"),
+    ],
+    { encoding: "utf8" },
+  );
+  // No such delivery: planning refuses before the criteria are read.
+  assert.equal(result.status, 1);
+  assert.equal(typeof JSON.parse(result.stderr).error, "string");
+});
