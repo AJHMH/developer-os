@@ -172,8 +172,27 @@ const commands: Record<string, CliCommand> = {
   resume: idAction("resume"),
   release: idAction("release"),
   "plan-feature": idAction("planFeature", ["feature-criteria"]),
-  // These re-read the owner policy, and its attestation, at each step.
-  "code-feature": idAction("codeFeature", ownerPolicyOptions),
+  // These re-read the owner policy, and its attestation, at each step. With
+  // owner coding and validation admissions, code-feature runs one offline
+  // turn on the native runtimes; usage comes from the host Codex.
+  "code-feature": {
+    kind: "delivery",
+    required: ["id"],
+    optional: [
+      ...validationOptions,
+      "coding-admission",
+      "codex-executable",
+      "coding-minutes",
+    ],
+    runtimes: ["subscription"],
+    invoke: (c, v) =>
+      c.codeFeature(
+        v.id!,
+        v["coding-minutes"] === undefined
+          ? {}
+          : { codingMinutes: Number(v["coding-minutes"]) },
+      ),
+  },
   // With an owner validation admission, these run on the native runtime.
   "validate-baseline": idAction("validateBaseline", validationOptions),
   "validate-candidate": idAction("validateCandidate", validationOptions),

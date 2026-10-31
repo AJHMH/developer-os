@@ -278,6 +278,119 @@ test("a valid owner validation admission installs the native runtime without any
   assert.equal(JSON.parse(result.stderr).error, "Delivery not found.");
 });
 
+test("code-feature takes the owner's coding and validation inputs and its initial coding minutes", async () => {
+  const values = {
+    id: "d",
+    "owner-policy": "/owner/policy.json",
+    "onboarding-attestation": "/owner/onboarding-attestation.json",
+    "podman-machine": "aios-test",
+    "coding-admission": "/owner/coding-admission.json",
+    "validation-admission": "/owner/validation-admission.json",
+    "codex-executable": "/owner/codex",
+    "coding-minutes": "30",
+  };
+  const invocation = validateCliCommand(
+    ["code-feature"],
+    values,
+    Object.keys(values),
+  );
+  assert.equal(invocation.name, "code-feature");
+  assert.ok(invocation.command.runtimes.includes("subscription"));
+  const calls = [];
+  const controller = { codeFeature: (...args) => calls.push(args) };
+  await invocation.command.invoke(controller, values);
+  await invocation.command.invoke(controller, { id: "d" });
+  assert.deepEqual(calls, [
+    ["d", { codingMinutes: 30 }],
+    ["d", {}],
+  ]);
+  for (const refused of [
+    { id: "d", "coding-admission": "/owner/coding-admission.json" },
+    { id: "d", "podman-machine": "aios-test", "coding-admission": "" },
+    { id: "d", "coding-minutes": "0" },
+    { id: "d", "worker-policy": "/owner/worker-policy.json" },
+  ])
+    assert.equal(
+      validateCliCommand(["code-feature"], refused, Object.keys(refused)).error,
+      "arguments",
+    );
+});
+
+test("code-feature from the CLI installs the owner-admitted runtimes without any VM effect", (t) => {
+  const state = mkdtempSync(join(tmpdir(), "aios-cli-code-feature-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  chmodSync(state, 0o700);
+  const coding = join(state, "coding-admission.json"),
+    validation = join(state, "validation-admission.json");
+  writeFileSync(
+    coding,
+    JSON.stringify({
+      scope: "aios-native-coding-admission-v1",
+      approvedAt: "2026-10-21T12:00:00.000Z",
+      pins: {
+        cliSha256: "c".repeat(64),
+        codeModeHostSha256: "b".repeat(64),
+        cliVersion: "0.161.0",
+        policySha256: "d".repeat(64),
+        bindingSha256: "e".repeat(64),
+      },
+    }),
+    { mode: 0o600 },
+  );
+  writeFileSync(
+    validation,
+    JSON.stringify({
+      scope: "aios-native-validation-admission-v1",
+      approvedAt: "2026-10-22T12:00:00.000Z",
+      pins: {
+        imageSha256: "a".repeat(64),
+        policySha256: "b".repeat(64),
+        bindingSha256: "c".repeat(64),
+      },
+    }),
+    { mode: 0o600 },
+  );
+  ownWindowsFixturePaths([state, coding, validation]);
+  const cli = (...args) =>
+    spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+        "code-feature",
+        "--id",
+        "11111111-2222-4333-8444-555555555555",
+        "--state-dir",
+        join(state, "state"),
+        "--podman-machine",
+        "aios-test",
+        ...args,
+      ],
+      { encoding: "utf8" },
+    );
+  const installed = cli(
+    "--coding-admission",
+    coding,
+    "--validation-admission",
+    validation,
+    "--coding-minutes",
+    "30",
+  );
+  assert.equal(installed.status, 1);
+  // Both runtimes were installed; only the unknown delivery refuses.
+  assert.equal(JSON.parse(installed.stderr).error, "Delivery not found.");
+  const missing = cli(
+    "--coding-admission",
+    join(state, "missing.json"),
+    "--validation-admission",
+    validation,
+  );
+  assert.equal(missing.status, 1);
+  assert.match(
+    JSON.parse(missing.stderr).error,
+    /owner coding admission record is missing or invalid/,
+  );
+});
+
 test("owner criteria are named only on plan-feature and clarify-feature, never empty", () => {
   for (const [name, values] of [
     ["plan-feature", { id: "d", "feature-criteria": "/owner/criteria.json" }],
