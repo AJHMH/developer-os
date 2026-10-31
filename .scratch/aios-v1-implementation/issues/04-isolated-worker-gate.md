@@ -1076,3 +1076,15 @@ such a session no longer stays uncertain for good. This is a guest change:
 each host's coding admission record must be re-approved for the new policy
 pin and the coding acceptances rerun. The CLI still installs no coding
 runtime. Production remains disabled.
+
+## 31 October: overlapping coding stops
+
+The second lifecycle recovery slice checked whether a pause racing the
+turn's own stop needs new serialization. It does not. Every guest management
+action, stop and observe included, already holds one exclusive lock in the
+guest, across controller processes. The ledger keeps a session stopped once
+any stop is observed, and lets a later observed stop supersede an earlier
+unobserved one. Active time is charged only while the session runs. New
+tests prove both orders of a pause racing the turn with the stops forced to
+overlap, and two concurrent guest stops of one session. Tests and docs only:
+no source, guest or pin change. Production remains disabled.

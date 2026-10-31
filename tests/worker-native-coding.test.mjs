@@ -356,6 +356,28 @@ test(
   },
 );
 
+test(
+  "concurrent stops of one session are serialized by the guest's management lock",
+  posixGuest,
+  async (t) => {
+    const { transport } = guestFixture(t);
+    const stops = await Promise.all([
+      transport.stop(session),
+      transport.stop(session),
+    ]);
+    assert.deepEqual(
+      stops.map((s) => [s.stopped, s.remainingProcesses]),
+      [
+        [true, 0],
+        [true, 0],
+      ],
+    );
+    const observed = await transport.observeSession(session);
+    assert.equal(observed.phase, "stopped");
+    assert.equal(observed.processesGone, true);
+  },
+);
+
 test("retained launch mutations and malformed streams cannot bypass native shutdown", async (t) => {
   for (const failure of ["mutation", "stream", "checkpoint", "pins"])
     await t.test(failure, async (t) => {
