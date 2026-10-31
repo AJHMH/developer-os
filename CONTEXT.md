@@ -164,15 +164,20 @@ feature's account, which every turn must use anyway. The one re-dispatch that
 passes the controller's dispatch recheck spends it, and it never replaces the
 fresh usage authority every turn needs.
 
-**Coding-session resume**: A new coding turn that continues the Codex
-conversation of an exact stopped predecessor session, named to the coding VM
+**Coding provider**: The coding CLI a session runs, today only Codex. A
+session recorded without one ran Codex. A resume keeps its predecessor's
+provider; a provider change starts a new lineage (ADR 0003).
+_Avoid_: Model, vendor
+
+**Coding-session resume**: A new coding turn that continues the provider
+conversation (Codex's thread) of an exact stopped predecessor session, named to the coding VM
 by operation and fence rather than by a "last session" lookup. It needs fresh
 authority like any turn, keeps its predecessor's route, and repair turns never
 resume.
 _Avoid_: Resume (unqualified; a delivery's resumption leaves a pause)
 
-**Retained session home**: A stopped coding session's private Codex home in
-the coding VM. A resume reserves it, one successor at a time, and moves it into
+**Retained session home**: A stopped coding session's private provider home
+in the coding VM (for Codex, its `CODEX_HOME`). A resume reserves it, one successor at a time, and moves it into
 its own session. Codex's regenerated `skills/.system` and temp folders are
 removed first; any other configuration, link or unusual file refuses the
 resume.
@@ -197,9 +202,10 @@ candidate exists; an admitted candidate refreshes through repair.
 _Avoid_: Base refresh (that is repair's merge-base refresh)
 
 **Superseded lineage**: A stopped coding lineage left behind because coding
-restarted under another route: a new mediation decision, or a change between
-offline and routed turns. It is never resumed again; its thread and workspace
-stay as evidence until the owner's lineage cleanup.
+restarted under another route (a new mediation decision, or a change between
+offline and routed turns) or another coding provider. It is never resumed
+again; its thread and workspace stay as evidence until the owner's lineage
+cleanup, which only its own provider's runtime performs.
 _Avoid_: Retired resume lineage (that one never reported its thread)
 
 **Retired resume lineage**: A resumed coding session the owner retired because

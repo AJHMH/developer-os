@@ -1,7 +1,11 @@
 import { realpathSync } from "node:fs";
 import { redact } from "./redaction.js";
 import type { CodingAdmission } from "./coding-admission.js";
-import { gatewayModel } from "./inference-contract.js";
+import {
+  codexAgent,
+  type CodingAgent,
+  type CodingProvider,
+} from "./coding-agent.js";
 
 export interface FeaturePlan {
   requires?: ("browser" | "database")[];
@@ -67,6 +71,8 @@ export interface FeatureEvidence extends FeaturePlan {
     operationId: string;
     threadId: string;
     route?: SessionRoute;
+    /** Absent means Codex, as on `CodingSession`. */
+    provider?: CodingProvider;
     at: string;
     by: string;
     session: CodingSession;
@@ -138,7 +144,12 @@ export interface CodingSession {
   fence: number;
   state: "running" | "stopped" | "uncertain";
   intent: "start" | "resume";
+  /** The provider's conversation id (Codex's thread), which a resume continues. */
   threadId?: string;
+  /** The coding provider this session ran. Absent means Codex, so sessions
+   * recorded before ADR 0003 keep their meaning; a resume keeps its
+   * predecessor's provider. */
+  provider?: CodingProvider;
   /** The exact stopped session whose retained home a resume continues. */
   resumeFrom?: CodingSession;
   /** Durable: this operation's CLI thread was observed starting. */
@@ -195,6 +206,20 @@ export function codingBinding(session: CodingSession): CodingSession {
       : {}),
   };
 }
+/** The provider a session (or superseded lineage) ran; one recorded without
+ * a provider ran Codex. */
+export function sessionProvider(session: {
+  provider?: CodingProvider;
+}): CodingProvider {
+  return session.provider ?? "codex";
+}
+/** The `provider` a new session records: omitted for Codex, so Codex evidence
+ * stays as it was recorded before ADR 0003. */
+export function recordedProvider(provider: CodingProvider): {
+  provider?: CodingProvider;
+} {
+  return provider === "codex" ? {} : { provider };
+}
 export interface CodingRecovery {
   operationId: string;
   fence: number;
@@ -226,8 +251,15 @@ export interface ModelRoute {
   capability: string;
   decisionSha256: string;
 }
-export const modelRoutePort = 18091;
-export const modelRouteVariable = "AIOS_MODEL_ROUTE";
+export {
+  codexAgent,
+  codingTurn,
+  lockedCodingArgv,
+  modelRoutePort,
+  modelRouteVariable,
+  type CodingAgent,
+  type CodingProvider,
+} from "./coding-agent.js";
 export function validModelRoute(route: unknown): route is ModelRoute {
   return (
     !!route &&
@@ -242,51 +274,6 @@ export function validModelRoute(route: unknown): route is ModelRoute {
     /^[a-f0-9]{64}$/.test((route as ModelRoute).decisionSha256)
   );
 }
-/** The locked Codex argv before the prompt. Offline turns keep Codex's own
- * workspace-write sandbox. A routed turn runs with full access inside the
- * hardened container, the only sandbox that can start there (ADR 0002
- * amendment), and fixed provider overrides with no config file. */
-export function lockedCodingArgv(
-  threadId: string | undefined,
-  route?: ModelRoute,
-): string[] {
-  const sandbox = route ? "danger-full-access" : "workspace-write";
-  const provider = "model_providers.aios.";
-  const overrides = route
-    ? [
-        'model_provider="aios"',
-        `${provider}name="AIOS session relay"`,
-        `${provider}base_url="http://127.0.0.1:${modelRoutePort}/v1"`,
-        `${provider}env_key="${modelRouteVariable}"`,
-        `${provider}wire_api="responses"`,
-        `${provider}requires_openai_auth=false`,
-        `${provider}supports_websockets=false`,
-        `${provider}http_headers.X-AIOS-Delivery="${route.deliveryId}"`,
-        `model="${gatewayModel}"`,
-      ].flatMap((value) => ["-c", value])
-    : [];
-  // `exec resume` has no --sandbox flag; pin the same mode by explicit override.
-  return threadId
-    ? [
-        "exec",
-        "resume",
-        "--json",
-        "--skip-git-repo-check",
-        "-c",
-        `sandbox_mode="${sandbox}"`,
-        ...overrides,
-        threadId,
-      ]
-    : [
-        "exec",
-        "--json",
-        "--skip-git-repo-check",
-        "--sandbox",
-        sandbox,
-        ...overrides,
-      ];
-}
-
 export interface CodingRequest extends CodingSession {
   baseRefresh?: {
     from: {
@@ -339,6 +326,8 @@ export interface CodingCollection {
 export interface FeatureRuntime {
   readonly mode: "controlled";
   readonly pins: CodingPins;
+  /** The provider whose CLI this runtime runs; absent means Codex. */
+  readonly agent?: CodingAgent;
   /** A routed turn (`request.modelRoute`) carries its session's gateway,
    * which stays on the host; an offline turn carries none. */
   execute(
@@ -393,69 +382,6 @@ export function validCodingPins(pins: CodingPins): boolean {
         pins.bindingSha256,
       ].every((x) => /^[a-f0-9]{64}$/.test(x)),
   );
-}
-export function codingTurn(
-  result: CodingResult,
-  expectedThread?: string,
-): { threadId: string; completed: boolean } {
-  if (
-    !Array.isArray(result.events) ||
-    result.events.length > 4096 ||
-    Buffer.byteLength(JSON.stringify(result.events)) > 65536
-  )
-    throw Error("Invalid coding events");
-  let thread: string | undefined,
-    started = false,
-    terminal = false,
-    completed = false;
-  for (const item of result.events) {
-    if (!item || typeof item !== "object" || terminal)
-      throw Error("Invalid coding ordering");
-    const event = item as Record<string, unknown>;
-    if (event.type === "thread.started") {
-      if (
-        thread ||
-        started ||
-        typeof event.thread_id !== "string" ||
-        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-          event.thread_id,
-        ) ||
-        (expectedThread && expectedThread !== event.thread_id)
-      )
-        throw Error("Invalid coding session");
-      thread = event.thread_id;
-    } else if (event.type === "turn.started") {
-      if (!thread || started) throw Error("Invalid coding turn");
-      started = true;
-    } else if (
-      event.type === "turn.completed" ||
-      event.type === "turn.failed"
-    ) {
-      if (!started) throw Error("Invalid coding completion");
-      terminal = true;
-      completed = event.type === "turn.completed" && result.exitCode === 0;
-    } else if (
-      ["item.started", "item.updated", "item.completed"].includes(
-        String(event.type),
-      )
-    ) {
-      const value = event.item as Record<string, unknown> | undefined;
-      if (
-        !started ||
-        !value ||
-        ![
-          "agent_message",
-          "reasoning",
-          "command_execution",
-          "file_change",
-          "todo_list",
-        ].includes(String(value.type))
-      )
-        throw Error("Unsupported coding item");
-    } else throw Error("Unsupported coding event");
-  }
-  if (!thread) throw Error("Missing coding session");
-  return { threadId: thread, completed };
 }
 
 import { spawnSync } from "node:child_process";
@@ -861,6 +787,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     pins: CodingPins,
     private readonly transport: IsolatedCodingTransport,
     private readonly admission?: CodingAdmission,
+    readonly agent: CodingAgent = codexAgent,
   ) {
     this.pins = Object.freeze(structuredClone(pins));
     if (!validCodingPins(pins) || !this.admitted())
@@ -957,10 +884,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
         !launch.checkpoint()
       )
         throw Error("Invalid coding frame");
-      if (
-        (event as Record<string, unknown>).type === "thread.started" &&
-        !onEvent(event)
-      )
+      if (this.agent.bindsThread(event) && !onEvent(event))
         throw Error("Invalid coding session");
       events.push(event);
     };
@@ -999,7 +923,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
       exitCode: result.exitCode,
       events: structuredClone(events),
     };
-    codingTurn(execution, launch.threadId);
+    this.agent.turn(execution, launch.threadId);
     return execution;
   }
   private async inspectSession(session: CodingSession): Promise<void> {

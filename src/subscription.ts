@@ -1,9 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
 
+/** How a usage reader's account authenticates. Each coding provider's
+ * subscription adds its own mode (ADR 0003); only ChatGPT is read today. */
+export type SubscriptionAuthMode = "chatgpt";
+export const subscriptionAuthModes: readonly SubscriptionAuthMode[] = [
+  "chatgpt",
+];
 export interface SubscriptionObservation {
   observedAt: string;
   accountId: string;
-  authMode: "chatgpt";
+  authMode: SubscriptionAuthMode;
   windows: { id: string; usedPercent: number; resetsAt: number }[];
   exhausted: boolean;
 }
@@ -26,7 +32,11 @@ const unknownAccountScope = (account: string) =>
 export function assessSubscription(
   observation: SubscriptionObservation | undefined,
   now = Date.now(),
+  authModes: readonly SubscriptionAuthMode[] = subscriptionAuthModes,
 ): UsageReport {
+  const accepted = (
+    o: SubscriptionObservation | undefined,
+  ): o is SubscriptionObservation => !!o && authModes.includes(o.authMode);
   const report: UsageReport = {
     checkId: randomUUID(),
     checkedAt: new Date(now).toISOString(),
@@ -35,18 +45,18 @@ export function assessSubscription(
     scope: "unknown",
   };
   if (
-    observation?.authMode === "chatgpt" &&
+    accepted(observation) &&
     typeof observation.accountId === "string" &&
     observation.accountId
   ) {
     report.accountId = observation.accountId;
     report.scope = unknownAccountScope(observation.accountId);
   }
-  if (observation?.authMode === "chatgpt" && observation.exhausted === true)
+  if (accepted(observation) && observation.exhausted === true)
     report.decision = "exhausted";
   if (
     !observation ||
-    observation.authMode !== "chatgpt" ||
+    !accepted(observation) ||
     typeof observation.accountId !== "string" ||
     !observation.accountId ||
     !Number.isFinite(Date.parse(observation.observedAt)) ||

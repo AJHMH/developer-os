@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { unlinkSync } from "node:fs";
+import { codexAgent } from "../dist/coding-agent.js";
 import { failedTurn, firstThread } from "./helpers/coding-turns.mjs";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
 import {
@@ -425,4 +426,70 @@ test("the pinned adapter trusts a superseded cleanup receipt only for the exact 
     runtime(exact, false).cleanupSuperseded(head),
     /unsupported/,
   );
+});
+
+test("a session is superseded when the feature's coding provider changes (ADR 0003)", async (t) => {
+  const { f, dispatched } = await authorizedCoding(t);
+  const { turn } = threadedTurn();
+  const recorded = [];
+  f.runtime.execute = async (request, gateway) => {
+    dispatched.push(request.operationId);
+    recorded.push({ request, gateway });
+    return turn(request);
+  };
+  await mediatedCoding(f, t, mediatedAccount);
+  observeAccount(f, mediatedAccount);
+  const codex = await f.controller.codeFeature(f.delivery.id);
+  // Codex sessions record no provider, so their evidence is unchanged.
+  assert.equal("provider" in codex.feature.session, false);
+  assert.equal(codex.feature.session.threadId, firstThread);
+  f.runtime.agent = { ...codexAgent, provider: "claude-code" };
+  const other = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(other.feature.session.intent, "start");
+  assert.equal(other.feature.session.provider, "claude-code");
+  assert.equal(recorded[1].request.threadId, undefined);
+  assert.deepEqual(
+    other.feature.supersededLineages.map(
+      ({ operationId, threadId, provider }) => ({
+        operationId,
+        threadId,
+        provider,
+      }),
+    ),
+    [
+      {
+        operationId: dispatched[0],
+        threadId: firstThread,
+        provider: undefined,
+      },
+    ],
+  );
+  // The same provider again resumes its own lineage.
+  const resumed = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(resumed.feature.session.intent, "resume");
+  assert.equal(resumed.feature.session.provider, "claude-code");
+  assert.equal(resumed.feature.supersededLineages.length, 1);
+  // Only the runtime of the lineage's own provider cleans it up.
+  const cleanups = [];
+  f.runtime.cleanupSuperseded = async (session) => {
+    cleanups.push(session);
+    return {
+      operationId: session.operationId,
+      fence: session.fence,
+      cleaned: 1,
+    };
+  };
+  const [lineage] = resumed.feature.supersededLineages;
+  await assert.rejects(
+    f.controller.cleanupSupersededLineage(f.delivery.id, lineage.operationId),
+    /superseded/,
+  );
+  assert.equal(cleanups.length, 0);
+  f.runtime.agent = codexAgent;
+  const cleaned = await f.controller.cleanupSupersededLineage(
+    f.delivery.id,
+    lineage.operationId,
+  );
+  assert.equal(cleaned.feature.supersededLineages[0].cleaned, 1);
+  assert.deepEqual(cleanups, [lineage.session]);
 });
