@@ -185,8 +185,8 @@ inference and never starts the VM.
 ### Remaining
 
 The following remain open:
-- a native run of the dependency install (see below), which needs an
-  owner-loaded image with `npm`;
+- a native run of the dependency install on Windows (it passed on macOS on
+  30 October), which needs an owner-loaded image with `npm`;
 - disposable browser and database fixtures;
 - hosted checks;
 - native qualification of this executor on both hosts.

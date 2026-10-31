@@ -1050,3 +1050,13 @@ check that requires the package, with every check on one recorded layer. It
 needs an owner-loaded image with node and npm, and a validation record naming
 that image. Scripts and tests only; no guest or pin change. Production remains
 disabled.
+
+## 30 October: the npm dependency install runs natively on macOS
+
+On the owner's official `node:24-alpine3.24` image, pinned by its multi-arch
+digest and named in a re-approved validation record, the validation
+acceptance with `--with-npm-dependencies` passed on macOS from `3f2f5d6`: the
+host fetched and verified `is-number@7.0.0`, the guest installed it offline,
+and all six checks passed on one recorded layer. It is the first native run of
+the offline install. Windows remains. Production remains disabled. See the
+[macOS dependency acceptance receipt](../ticket04-macos-dependency-acceptance-receipt.md).
