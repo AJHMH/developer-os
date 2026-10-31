@@ -1131,3 +1131,14 @@ policy's SHA-256. Inspected facts outrank attested ones. Matching attested
 facts get the new status `attested`, never `verified`, and the report records
 the attestation's SHA-256. Attested readiness admits controlled delivery
 only. No guest or pin change. Production remains disabled.
+
+## 31 October: ADR 0004 slice 3, the CLI validation runtime
+
+`nativeValidationRuntime(machine, admission)` in `src/` builds the
+owner-admitted native validation runtime from the record's pins and image,
+with the authority the native acceptances derive. `validate-baseline` and
+`validate-candidate` take `--podman-machine` and `--validation-admission`, and
+`pause`, `cancel` and `recover` take them to stop the exact attempt. Checks
+run offline, with no dependency installs. A missing or invalid record refuses
+before any state or VM effect. No guest or pin change. Production remains
+disabled.

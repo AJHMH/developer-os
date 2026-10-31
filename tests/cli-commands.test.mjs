@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -11,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import {
   cliCommands,
   cliOptions,
@@ -157,6 +159,123 @@ test("a missing owner coding admission refuses before any delivery or VM effect"
     /owner coding admission record is missing or invalid/,
   );
   assert.deepEqual(readdirSync(state), []);
+});
+
+test("an owner validation admission is accepted only with a native machine on validation, pause, cancel and recover", () => {
+  for (const name of [
+    "validate-baseline",
+    "validate-candidate",
+    "pause",
+    "cancel",
+    "recover",
+  ]) {
+    const values = {
+      id: "d",
+      "podman-machine": "aios-test",
+      "validation-admission": "/owner/validation-admission.json",
+    };
+    assert.equal(
+      validateCliCommand([name], values, Object.keys(values)).name,
+      name,
+    );
+    for (const refused of [
+      { id: "d", "validation-admission": "/owner/validation-admission.json" },
+      { id: "d", "podman-machine": "aios-test", "validation-admission": "" },
+    ])
+      assert.equal(
+        validateCliCommand([name], refused, Object.keys(refused)).error,
+        "arguments",
+      );
+  }
+  const policy = {
+    id: "d",
+    "owner-policy": "/owner/policy.json",
+    "podman-machine": "aios-test",
+    "validation-admission": "/owner/validation-admission.json",
+  };
+  assert.equal(
+    validateCliCommand(["validate-baseline"], policy, Object.keys(policy)).name,
+    "validate-baseline",
+  );
+  const unrelated = {
+    id: "d",
+    "podman-machine": "aios-test",
+    "validation-admission": "/owner/validation-admission.json",
+  };
+  assert.equal(
+    validateCliCommand(["plan-feature"], unrelated, Object.keys(unrelated))
+      .error,
+    "arguments",
+  );
+});
+
+test("a missing owner validation admission refuses before any delivery or VM effect", (t) => {
+  const state = mkdtempSync(join(tmpdir(), "aios-cli-validation-admission-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  for (const command of ["validate-baseline", "pause"]) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+        command,
+        "--id",
+        "11111111-2222-4333-8444-555555555555",
+        "--state-dir",
+        state,
+        "--podman-machine",
+        "aios-test",
+        "--validation-admission",
+        join(state, "missing-validation-admission.json"),
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 1, command);
+    assert.match(
+      JSON.parse(result.stderr).error,
+      /owner validation admission record is missing or invalid/,
+    );
+    assert.deepEqual(readdirSync(state), []);
+  }
+});
+
+test("a valid owner validation admission installs the native runtime without any VM effect", (t) => {
+  const state = mkdtempSync(join(tmpdir(), "aios-cli-validation-runtime-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  chmodSync(state, 0o700);
+  const record = join(state, "validation-admission.json");
+  writeFileSync(
+    record,
+    JSON.stringify({
+      scope: "aios-native-validation-admission-v1",
+      approvedAt: "2026-10-22T12:00:00.000Z",
+      pins: {
+        imageSha256: "a".repeat(64),
+        policySha256: "b".repeat(64),
+        bindingSha256: "c".repeat(64),
+      },
+    }),
+    { mode: 0o600 },
+  );
+  ownWindowsFixturePaths([state, record]);
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      "validate-baseline",
+      "--id",
+      "11111111-2222-4333-8444-555555555555",
+      "--state-dir",
+      join(state, "state"),
+      "--podman-machine",
+      "aios-test",
+      "--validation-admission",
+      record,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  // The runtime was installed; only the unknown delivery refuses.
+  assert.equal(JSON.parse(result.stderr).error, "Delivery not found.");
 });
 
 test("owner criteria are named only on plan-feature and clarify-feature, never empty", () => {
