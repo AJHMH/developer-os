@@ -12,6 +12,7 @@ export const cliOptions = {
   "worker-policy": { type: "string" },
   "dependency-policy": { type: "string" },
   "coding-admission": { type: "string" },
+  "validation-admission": { type: "string" },
   "feature-criteria": { type: "string" },
   "onboarding-attestation": { type: "string" },
   repo: { type: "string" },
@@ -48,6 +49,12 @@ type IdAction = {
 }[keyof DeliveryController];
 const nativeOptions = ["podman-machine", "worker-policy"] as const;
 const ownerPolicyOptions = ["owner-policy", "onboarding-attestation"] as const;
+const admissionOptions = ["coding-admission", "validation-admission"] as const;
+const validationOptions = [
+  ...ownerPolicyOptions,
+  "podman-machine",
+  "validation-admission",
+] as const;
 function idAction(
   method: IdAction,
   optional: readonly CliOptionName[] = [],
@@ -149,17 +156,17 @@ const commands: Record<string, CliCommand> = {
     [...nativeOptions, "codex-executable"],
     ["native", "subscription"],
   ),
-  // With an owner coding admission, these also stop or recover the exact
-  // native coding session.
-  pause: idAction("pause", [...nativeOptions, "coding-admission"], ["native"]),
+  // With owner coding or validation admissions, these also stop or recover
+  // the exact native coding session or validation attempt.
+  pause: idAction("pause", [...nativeOptions, ...admissionOptions], ["native"]),
   cancel: idAction(
     "cancel",
-    [...nativeOptions, "coding-admission"],
+    [...nativeOptions, ...admissionOptions],
     ["native"],
   ),
   recover: idAction(
     "recover",
-    [...nativeOptions, "coding-admission"],
+    [...nativeOptions, ...admissionOptions],
     ["native"],
   ),
   resume: idAction("resume"),
@@ -167,8 +174,9 @@ const commands: Record<string, CliCommand> = {
   "plan-feature": idAction("planFeature", ["feature-criteria"]),
   // These re-read the owner policy, and its attestation, at each step.
   "code-feature": idAction("codeFeature", ownerPolicyOptions),
-  "validate-baseline": idAction("validateBaseline", ownerPolicyOptions),
-  "validate-candidate": idAction("validateCandidate", ownerPolicyOptions),
+  // With an owner validation admission, these run on the native runtime.
+  "validate-baseline": idAction("validateBaseline", validationOptions),
+  "validate-candidate": idAction("validateCandidate", validationOptions),
   "repair-feature": idAction("repairFeature"),
   "publish-feature": idAction("publishFeature"),
   "reconcile-publication": idAction("reconcilePublication"),
@@ -300,6 +308,11 @@ export function validateCliCommand(
   if (
     values["coding-admission"] !== undefined &&
     (!values["coding-admission"] || !values["podman-machine"])
+  )
+    return { error: "arguments" };
+  if (
+    values["validation-admission"] !== undefined &&
+    (!values["validation-admission"] || !values["podman-machine"])
   )
     return { error: "arguments" };
   if (

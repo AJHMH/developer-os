@@ -12,6 +12,10 @@ import {
   ownerValidationAdmission,
 } from "../dist/native-validation.js";
 import { validationDigest } from "../dist/isolated-validation.js";
+import {
+  nativeValidationAuthority,
+  nativeValidationRuntime,
+} from "../dist/native-validation-runtime.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 
@@ -776,4 +780,31 @@ test("the validation acceptance runs only with explicit, well-formed arguments",
     assert.equal(result.status, 1, args.join(" "));
     assert.match(result.stderr, /owner-validation-admission\.json/);
   }
+});
+
+test("the CLI's native validation runtime takes the owner's record pins and the acceptances' authority", (t) => {
+  assert.equal(
+    nativeValidationAuthority("aios-test"),
+    createHash("sha256")
+      .update("issue04-native-offline-validation-v1:aios-test")
+      .digest("hex"),
+  );
+  const record = ownerRecord(t);
+  const runtime = nativeValidationRuntime("aios-test", record.path);
+  assert.equal(runtime.mode, "controlled");
+  assert.deepEqual({ ...runtime.pins }, { ...pins });
+  assert.equal(
+    runtime.bindingSha256,
+    validationDigest({ scope: "aios-native-validation-runtime-v1", pins }),
+  );
+  assert.throws(() =>
+    nativeValidationRuntime(
+      "aios-test",
+      join(record.directory, "missing.json"),
+    ),
+  );
+  assert.throws(
+    () => nativeValidationRuntime("other", record.path),
+    /Invalid native validation authority/,
+  );
 });
