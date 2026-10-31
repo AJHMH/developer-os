@@ -13,6 +13,7 @@ export const cliOptions = {
   "dependency-policy": { type: "string" },
   "coding-admission": { type: "string" },
   "feature-criteria": { type: "string" },
+  "onboarding-attestation": { type: "string" },
   repo: { type: "string" },
   request: { type: "string" },
   issue: { type: "string" },
@@ -46,6 +47,7 @@ type IdAction = {
     : never;
 }[keyof DeliveryController];
 const nativeOptions = ["podman-machine", "worker-policy"] as const;
+const ownerPolicyOptions = ["owner-policy", "onboarding-attestation"] as const;
 function idAction(
   method: IdAction,
   optional: readonly CliOptionName[] = [],
@@ -63,7 +65,12 @@ const commands: Record<string, CliCommand> = {
   start: {
     kind: "delivery",
     required: ["repo", "request"],
-    optional: ["issue", "coding-minutes", "owner-policy"],
+    optional: [
+      "issue",
+      "coding-minutes",
+      "owner-policy",
+      "onboarding-attestation",
+    ],
     runtimes: [],
     invoke: (c, v) =>
       c.start({
@@ -158,9 +165,10 @@ const commands: Record<string, CliCommand> = {
   resume: idAction("resume"),
   release: idAction("release"),
   "plan-feature": idAction("planFeature", ["feature-criteria"]),
-  "code-feature": idAction("codeFeature"),
-  "validate-baseline": idAction("validateBaseline"),
-  "validate-candidate": idAction("validateCandidate"),
+  // These re-read the owner policy, and its attestation, at each step.
+  "code-feature": idAction("codeFeature", ownerPolicyOptions),
+  "validate-baseline": idAction("validateBaseline", ownerPolicyOptions),
+  "validate-candidate": idAction("validateCandidate", ownerPolicyOptions),
   "repair-feature": idAction("repairFeature"),
   "publish-feature": idAction("publishFeature"),
   "reconcile-publication": idAction("reconcilePublication"),
@@ -284,6 +292,11 @@ export function validateCliCommand(
   )
     return { error: "arguments" };
   if (values["feature-criteria"] === "") return { error: "arguments" };
+  if (
+    values["onboarding-attestation"] !== undefined &&
+    (!values["onboarding-attestation"] || !values["owner-policy"])
+  )
+    return { error: "arguments" };
   if (
     values["coding-admission"] !== undefined &&
     (!values["coding-admission"] || !values["podman-machine"])

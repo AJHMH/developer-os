@@ -5,6 +5,7 @@ import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { pathContains } from "./path-containment.js";
 import { redact } from "./redaction.js";
+import { readOwnerRecord } from "./coding-admission.js";
 
 export const prerequisites = {
   repositoryIdentity:
@@ -61,6 +62,60 @@ export interface OnboardingObservation {
 export interface OnboardingOptions {
   policyPath?: string;
   inspect?: (repository: string) => OnboardingObservation;
+  /** The owner's private onboarding attestation (ADR 0004): facts the host
+   * cannot observe, attested for exactly the pinned policy. */
+  attestationPath?: string;
+}
+const attestationScope = "aios-onboarding-attestation-v1";
+/** What an attestation may supply: never the local repository hints, which
+ * are always observed. */
+const attestable = [
+  "repository",
+  "defaultBranch",
+  "factoryCommit",
+  "appLogin",
+  "appRepositoryAccess",
+  "eligibleApprovers",
+  "protectionsEnforced",
+  "requiredChecks",
+  "trustedCheckPublishers",
+  "publicationLogin",
+  "publicationAccess",
+  "localSignature",
+  "githubSignature",
+  "validation",
+] as const satisfies readonly (keyof OnboardingObservation)[];
+/** The owner's attested facts for exactly `policySha256`; throws otherwise. */
+function attestedFacts(
+  path: string,
+  policySha256: string,
+): { facts: OnboardingObservation; sha256: string; attestedAt: string } {
+  const record = readOwnerRecord(path, 65536) as Record<string, unknown>;
+  const facts = record?.facts as Record<string, unknown> | undefined;
+  if (
+    !record ||
+    typeof record !== "object" ||
+    Array.isArray(record) ||
+    Object.keys(record).sort().join() !==
+      "attestedAt,facts,policySha256,scope" ||
+    record.scope !== attestationScope ||
+    record.policySha256 !== policySha256 ||
+    typeof record.attestedAt !== "string" ||
+    new Date(record.attestedAt).toISOString() !== record.attestedAt ||
+    Date.parse(record.attestedAt) > Date.now() ||
+    !facts ||
+    typeof facts !== "object" ||
+    Array.isArray(facts) ||
+    Object.keys(facts).some(
+      (key) => !(attestable as readonly string[]).includes(key),
+    )
+  )
+    throw Error("Invalid onboarding attestation");
+  return {
+    facts: facts as OnboardingObservation,
+    sha256: createHash("sha256").update(JSON.stringify(record)).digest("hex"),
+    attestedAt: record.attestedAt,
+  };
 }
 /** Local hints only: never fetch, execute hooks, contact a remote or claim live verification. */
 export function inspectLocalRepository(
@@ -110,9 +165,17 @@ export interface OnboardingReport {
   checkedAt: string;
   policy?: { source: string; sha256: string; factoryCommit: string };
   canonicalRepository?: { name: string; defaultBranch: string };
+  /** The owner attestation the `attested` facts came from. */
+  attestation?: {
+    source: "owner-attested";
+    sha256: string;
+    attestedAt: string;
+  };
   facts: {
     requirement: Requirement;
-    status: "verified" | "unknown" | "conflict";
+    /** `attested` matches the policy on the owner's word, not live
+     * verification; it admits controlled delivery only (ADR 0004). */
+    status: "verified" | "attested" | "unknown" | "conflict";
     detail: string;
   }[];
   checklist: { requirement: Requirement; action: string }[];
@@ -206,7 +269,7 @@ export function inspectOnboarding(
   };
   const record = (
     requirement: Requirement,
-    status: "verified" | "unknown" | "conflict",
+    status: "verified" | "attested" | "unknown" | "conflict",
     detail: string,
   ) => {
     const fact = report.facts.find((fact) => fact.requirement === requirement)!;
@@ -243,20 +306,49 @@ export function inspectOnboarding(
     } catch {
       /* Unknown evidence blocks delivery; never retain provider errors. */
     }
+    // Attested facts fill only what inspection left unobserved.
+    const attested = new Set<string>();
+    if (options.attestationPath) {
+      let attestation: ReturnType<typeof attestedFacts> | undefined;
+      try {
+        attestation = attestedFacts(options.attestationPath, pinned.sha256);
+      } catch {
+        record(
+          "policy",
+          "conflict",
+          "The owner onboarding attestation must be a valid private external record for exactly this policy.",
+        );
+      }
+      if (attestation) {
+        report.attestation = {
+          source: "owner-attested",
+          sha256: attestation.sha256,
+          attestedAt: attestation.attestedAt,
+        };
+        for (const [key, value] of Object.entries(attestation.facts))
+          if (observation[key as keyof OnboardingObservation] === undefined) {
+            attested.add(key);
+            observation = { ...observation, [key]: value };
+          }
+      }
+    }
     const evaluate = (
       requirement: Requirement,
-      values: unknown[],
+      keys: (keyof OnboardingObservation)[],
       matches: () => boolean,
     ) => {
-      if (values.some((value) => value === undefined)) return;
+      if (keys.some((key) => observation[key] === undefined)) return;
       try {
-        const verified = matches();
+        const verified = matches(),
+          byOwner = keys.some((key) => attested.has(key));
         record(
           requirement,
-          verified ? "verified" : "conflict",
-          verified
-            ? "Trusted inspection matches the pinned owner policy."
-            : "Observed evidence conflicts with the pinned owner policy.",
+          !verified ? "conflict" : byOwner ? "attested" : "verified",
+          !verified
+            ? "Observed evidence conflicts with the pinned owner policy."
+            : byOwner
+              ? "The owner's attestation, not live verification, matches the pinned owner policy."
+              : "Trusted inspection matches the pinned owner policy.",
         );
       } catch {
         record(
@@ -269,7 +361,7 @@ export function inspectOnboarding(
     const o = observation;
     evaluate(
       "repositoryIdentity",
-      [o.localRepository, o.localDefaultBranch, o.repository, o.defaultBranch],
+      ["localRepository", "localDefaultBranch", "repository", "defaultBranch"],
       () =>
         o.localRepository === p.repository &&
         o.repository === p.repository &&
@@ -291,12 +383,14 @@ export function inspectOnboarding(
       );
     evaluate(
       "factory",
-      [o.factoryCommit],
+      ["factoryCommit"],
       () => o.factoryCommit === p.factoryCommit,
     );
     if (
-      report.facts.find((fact) => fact.requirement === "repositoryIdentity")
-        ?.status === "verified"
+      ["verified", "attested"].includes(
+        report.facts.find((fact) => fact.requirement === "repositoryIdentity")
+          ?.status ?? "",
+      )
     )
       report.canonicalRepository = {
         name: p.repository,
@@ -304,19 +398,19 @@ export function inspectOnboarding(
       };
     evaluate(
       "app",
-      [o.appLogin, o.appRepositoryAccess],
+      ["appLogin", "appRepositoryAccess"],
       () => o.appLogin === p.appLogin && o.appRepositoryAccess === true,
     );
     evaluate(
       "approver",
-      [o.eligibleApprovers],
+      ["eligibleApprovers"],
       () =>
         o.eligibleApprovers?.length === 1 &&
         o.eligibleApprovers[0] === p.approver,
     );
     evaluate(
       "protections",
-      [o.protectionsEnforced, o.requiredChecks, o.trustedCheckPublishers],
+      ["protectionsEnforced", "requiredChecks", "trustedCheckPublishers"],
       () =>
         o.protectionsEnforced === true &&
         o.trustedCheckPublishers === true &&
@@ -326,14 +420,14 @@ export function inspectOnboarding(
     );
     evaluate(
       "publication",
-      [o.publicationLogin, o.publicationAccess],
+      ["publicationLogin", "publicationAccess"],
       () =>
         o.publicationLogin === p.publicationLogin &&
         o.publicationAccess === true,
     );
     evaluate(
       "signing",
-      [o.localSignature, o.githubSignature],
+      ["localSignature", "githubSignature"],
       () =>
         o.localSignature?.valid === true &&
         o.githubSignature?.valid === true &&
@@ -342,12 +436,12 @@ export function inspectOnboarding(
         o.localSignature.login === p.publicationLogin &&
         o.githubSignature.login === p.publicationLogin,
     );
-    evaluate("validation", [o.validation], () =>
+    evaluate("validation", ["validation"], () =>
       p.validation.every((resource) => o.validation?.includes(resource)),
     );
   }
   report.checklist = report.facts
-    .filter((fact) => fact.status !== "verified")
+    .filter((fact) => !["verified", "attested"].includes(fact.status))
     .map((fact) => ({
       requirement: fact.requirement,
       action: prerequisites[fact.requirement],

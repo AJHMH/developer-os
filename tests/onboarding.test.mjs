@@ -273,3 +273,177 @@ test("a repository alias cannot hide candidate-controlled policy redirection", (
     "conflict",
   );
 });
+
+// ADR 0004: the owner attests what the CLI cannot observe locally.
+async function attestedOnboarding(t, facts, fields = {}, inspected = {}) {
+  const { inspectOnboarding } = await import("../dist/onboarding.js");
+  const { ownWindowsFixturePaths } = await import(
+    "./helpers/windows-fixture-owner.mjs"
+  );
+  const { createHash } = await import("node:crypto");
+  const { chmodSync, readFileSync } = await import("node:fs");
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-attested-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  chmodSync(root, 0o700);
+  const repository = join(root, "repository");
+  mkdirSync(repository);
+  const policyPath = join(root, "owner-policy.json");
+  writeFileSync(
+    policyPath,
+    JSON.stringify({
+      repository: "AJHMH/profile-page",
+      defaultBranch: "main",
+      factoryCommit: "a".repeat(40),
+      approver: "aaron-howard",
+      appLogin: "factory[bot]",
+      publicationLogin: "aaron-howard",
+      requiredChecks: ["lint"],
+      validation: ["node"],
+    }),
+  );
+  const policySha256 = createHash("sha256")
+    .update(readFileSync(policyPath))
+    .digest("hex");
+  const attestationPath = join(root, "onboarding-attestation.json");
+  writeFileSync(
+    attestationPath,
+    JSON.stringify({
+      scope: "aios-onboarding-attestation-v1",
+      policySha256,
+      attestedAt: "2026-10-31T12:00:00.000Z",
+      facts,
+      ...fields,
+    }),
+    { mode: 0o600 },
+  );
+  ownWindowsFixturePaths([root, attestationPath]);
+  return inspectOnboarding(repository, {
+    policyPath,
+    attestationPath,
+    inspect: () => ({
+      localRepository: "AJHMH/profile-page",
+      localDefaultBranch: "main",
+      ...inspected,
+    }),
+  });
+}
+const attestable = {
+  repository: "AJHMH/profile-page",
+  defaultBranch: "main",
+  factoryCommit: "a".repeat(40),
+  appLogin: "factory[bot]",
+  appRepositoryAccess: true,
+  eligibleApprovers: ["aaron-howard"],
+  protectionsEnforced: true,
+  requiredChecks: ["lint"],
+  trustedCheckPublishers: true,
+  publicationLogin: "aaron-howard",
+  publicationAccess: true,
+  localSignature: {
+    commit: "b".repeat(40),
+    valid: true,
+    login: "aaron-howard",
+  },
+  githubSignature: {
+    commit: "b".repeat(40),
+    valid: true,
+    login: "aaron-howard",
+  },
+  validation: ["node"],
+};
+
+test("an owner attestation for exactly the pinned policy makes onboarding ready, labelled as attested", async (t) => {
+  const report = await attestedOnboarding(t, attestable);
+  assert.equal(report.ready, true);
+  assert.equal(report.attestation.source, "owner-attested");
+  assert.match(report.attestation.sha256, /^[a-f0-9]{64}$/);
+  const status = Object.fromEntries(
+    report.facts.map((f) => [f.requirement, f.status]),
+  );
+  assert.equal(status.policy, "verified");
+  for (const requirement of [
+    "repositoryIdentity",
+    "factory",
+    "app",
+    "approver",
+    "protections",
+    "signing",
+    "publication",
+    "validation",
+  ])
+    assert.equal(status[requirement], "attested", requirement);
+  assert.ok(
+    report.facts
+      .filter((f) => f.status === "attested")
+      .every((f) => /not live verification/.test(f.detail)),
+  );
+  assert.deepEqual(report.canonicalRepository, {
+    name: "AJHMH/profile-page",
+    defaultBranch: "main",
+  });
+});
+
+test("inspected facts outrank attested ones, and missing or wrong facts are not ready", async (t) => {
+  const conflicting = await attestedOnboarding(
+    t,
+    attestable,
+    {},
+    {
+      appLogin: "someone-else[bot]",
+      appRepositoryAccess: true,
+    },
+  );
+  assert.equal(conflicting.ready, false);
+  assert.equal(
+    conflicting.facts.find((f) => f.requirement === "app").status,
+    "conflict",
+  );
+  const { localSignature, githubSignature, ...partial } = attestable;
+  const missing = await attestedOnboarding(t, partial);
+  assert.equal(missing.ready, false);
+  assert.deepEqual(
+    missing.checklist.map((c) => c.requirement),
+    ["signing"],
+  );
+  const wrong = await attestedOnboarding(t, {
+    ...attestable,
+    eligibleApprovers: ["aaron-howard", "another"],
+  });
+  assert.equal(wrong.ready, false);
+  assert.equal(
+    wrong.facts.find((f) => f.requirement === "approver").status,
+    "conflict",
+  );
+});
+
+test("an attestation for another policy, with local hints or malformed is refused entirely", async (t) => {
+  for (const [name, facts, fields] of [
+    ["another policy", attestable, { policySha256: "f".repeat(64) }],
+    ["another scope", attestable, { scope: "aios-feature-criteria-v1" }],
+    ["a future date", attestable, { attestedAt: "2999-01-01T00:00:00.000Z" }],
+    [
+      "an unknown field",
+      attestable,
+      { approvedAt: "2026-10-31T00:00:00.000Z" },
+    ],
+    [
+      "a local hint",
+      { ...attestable, localRepository: "AJHMH/profile-page" },
+      {},
+    ],
+    ["facts that are not an object", [], {}],
+  ]) {
+    const report = await attestedOnboarding(t, facts, fields);
+    assert.equal(report.ready, false, name);
+    assert.equal(report.attestation, undefined, name);
+    assert.equal(
+      report.facts.find((f) => f.requirement === "policy").status,
+      "conflict",
+      name,
+    );
+    assert.ok(
+      report.facts.every((f) => f.status !== "attested"),
+      name,
+    );
+  }
+});
