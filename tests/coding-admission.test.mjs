@@ -240,6 +240,77 @@ test("an unobserved live stop leaves the coding session uncertain, blocking rele
   assert.throws(() => f.controller.release(f.delivery.id));
 });
 
+// A pause stops the turn while the turn stops itself: the two stops overlap,
+// and the guest serializes them under its management lock.
+for (const order of [
+  ["unobserved", "observed"],
+  ["observed", "unobserved"],
+])
+  test(`a pause racing the turn's own stop ends stopped once either stop is observed (${order.join(", then ")})`, async (t) => {
+    const f = codingFixture(t);
+    const record = ownerRecord(t);
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    t.after(() => release());
+    let paused, secondStarted;
+    const stops = [];
+    const transport = {
+      ...liveTransport(f, {
+        dispatched: async () => {
+          paused = f.controller.pause(f.delivery.id);
+          await held;
+        },
+      }),
+      async observeSession(request) {
+        const n = stops.push(request),
+          outcome = order[n - 1] ?? "observed";
+        // The first stop settles only once the second has started, first.
+        if (n === 1)
+          await new Promise((resolve) => {
+            const limit = setTimeout(resolve, 10000);
+            secondStarted = () => resolve(clearTimeout(limit));
+          });
+        else {
+          secondStarted?.();
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return outcome === "observed"
+          ? stoppedObservation(request)
+          : {
+              ...stoppedObservation(request),
+              remainingProcesses: 1,
+              processesGone: false,
+            };
+      },
+    };
+    f.controller = admittedController(
+      f,
+      new PinnedCodingRuntime(
+        pins,
+        transport,
+        ownerCodingAdmission(record.path),
+      ),
+    );
+    await planAndValidate(f);
+    const coded = f.controller.codeFeature(f.delivery.id).catch(() => {});
+    while (!paused) await new Promise((resolve) => setTimeout(resolve, 10));
+    await Promise.all([paused.catch(() => {}), coded]);
+    const status = f.controller.status(f.delivery.id);
+    assert.equal(status.phase, "paused");
+    assert.equal(status.feature.session.state, "stopped");
+    assert.equal(status.feature.candidate, undefined);
+    assert.notEqual(status.blocker.code, "UNCERTAIN_SESSION");
+    assert.equal(stops.length, 2, "the pause's and the turn's stops overlap");
+    assert.ok(
+      stops.every(
+        (s) =>
+          s.operationId === status.feature.session.operationId &&
+          s.fence === status.feature.session.fence,
+      ),
+      "every stop names the turn's exact session",
+    );
+  });
+
 test("a live transport needs an owner record and a controlled one refuses it", (t) => {
   const f = codingFixture(t);
   const record = ownerRecord(t);
