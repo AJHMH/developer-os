@@ -176,3 +176,25 @@ test("owner criteria are named only on plan-feature and clarify-feature, never e
     );
   }
 });
+
+test("the CLI installs the owner criteria planner only for the named delivery", (t) => {
+  const state = mkdtempSync(join(tmpdir(), "aios-cli-feature-criteria-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      "plan-feature",
+      "--id",
+      "11111111-2222-4333-8444-555555555555",
+      "--state-dir",
+      state,
+      "--feature-criteria",
+      join(state, "criteria.json"),
+    ],
+    { encoding: "utf8" },
+  );
+  // No such delivery: planning refuses before the criteria are read.
+  assert.equal(result.status, 1);
+  assert.equal(typeof JSON.parse(result.stderr).error, "string");
+});

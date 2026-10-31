@@ -1296,11 +1296,18 @@ test("owner criteria for another delivery, request or shape plan nothing", async
     );
     assert.equal(f.controller.status(f.delivery.id).feature, undefined, name);
   }
-  criteria.write();
-  assert.equal(
-    (await f.controller.planFeature(f.delivery.id)).feature.outcome,
-    "planned",
-  );
+  for (const raw of ["[]", "null", '"criteria"']) {
+    writeFileSync(criteria.path, raw, { mode: 0o600 });
+    await assert.rejects(
+      f.controller.planFeature(f.delivery.id),
+      /could not be established safely/,
+      raw,
+    );
+  }
+  criteria.write({ requires: ["browser"] });
+  const planned = await f.controller.planFeature(f.delivery.id);
+  assert.equal(planned.feature.outcome, "planned");
+  assert.deepEqual(planned.feature.requires, ["browser"]);
 });
 
 test("owner criteria are read only from a private absolute file outside every repository", async (t) => {
