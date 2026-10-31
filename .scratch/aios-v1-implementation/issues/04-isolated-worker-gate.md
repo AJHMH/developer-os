@@ -1102,3 +1102,12 @@ runtime and a running session is left uncertain. A missing or invalid record
 refuses before any delivery or VM effect. `code-feature` still refuses: the
 CLI has no trusted planner or validation adapter. No guest or pin change.
 Production remains disabled.
+
+## 31 October: ADR 0004 proposed, CLI delivery integration
+
+The owner chose how the CLI gets the inputs it lacks for one delivery: an
+owner-written criteria file as the v1 feature planner, and an owner-attested
+onboarding record. Attested facts admit controlled delivery only, never
+production. [ADR 0004](../../../docs/adr/0004-cli-delivery-integration.md) and
+the [slice plan](../plan-cli-delivery-integration.md) are proposed for the
+owner's acceptance. Docs only. Production remains disabled.
