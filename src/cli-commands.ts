@@ -12,6 +12,7 @@ export const cliOptions = {
   "worker-policy": { type: "string" },
   "dependency-policy": { type: "string" },
   "coding-admission": { type: "string" },
+  "feature-criteria": { type: "string" },
   repo: { type: "string" },
   request: { type: "string" },
   issue: { type: "string" },
@@ -156,7 +157,7 @@ const commands: Record<string, CliCommand> = {
   ),
   resume: idAction("resume"),
   release: idAction("release"),
-  "plan-feature": idAction("planFeature"),
+  "plan-feature": idAction("planFeature", ["feature-criteria"]),
   "code-feature": idAction("codeFeature"),
   "validate-baseline": idAction("validateBaseline"),
   "validate-candidate": idAction("validateCandidate"),
@@ -199,7 +200,7 @@ const commands: Record<string, CliCommand> = {
   "clarify-feature": {
     kind: "delivery",
     required: ["id", "clarification"],
-    optional: [],
+    optional: ["feature-criteria"],
     runtimes: [],
     invoke: (c, v) => c.clarifyFeature(v.id!, v.clarification!),
   },
@@ -282,6 +283,7 @@ export function validateCliCommand(
       !values["worker-policy"])
   )
     return { error: "arguments" };
+  if (values["feature-criteria"] === "") return { error: "arguments" };
   if (
     values["coding-admission"] !== undefined &&
     (!values["coding-admission"] || !values["podman-machine"])

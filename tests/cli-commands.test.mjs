@@ -152,3 +152,27 @@ test("a missing owner coding admission refuses before any delivery or VM effect"
   );
   assert.deepEqual(readdirSync(state), []);
 });
+
+test("owner criteria are named only on plan-feature and clarify-feature, never empty", () => {
+  for (const [name, values] of [
+    ["plan-feature", { id: "d", "feature-criteria": "/owner/criteria.json" }],
+    [
+      "clarify-feature",
+      {
+        id: "d",
+        clarification: "Use email",
+        "feature-criteria": "/owner/criteria.json",
+      },
+    ],
+  ]) {
+    assert.equal(
+      validateCliCommand([name], values, Object.keys(values)).name,
+      name,
+    );
+    const empty = { ...values, "feature-criteria": "" };
+    assert.equal(
+      validateCliCommand([name], empty, Object.keys(empty)).error,
+      "arguments",
+    );
+  }
+});

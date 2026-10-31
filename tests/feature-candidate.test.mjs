@@ -13,6 +13,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { DeliveryController } from "../dist/controller.js";
+import { ownerCriteriaPlanner } from "../dist/feature-criteria.js";
+import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
+import { chmodSync } from "node:fs";
 
 import { fixture, codingFixture } from "./helpers/feature-fixture.mjs";
 
@@ -1212,4 +1215,117 @@ test("changed prepared launch refuses effect acceptance after an asynchronous wa
   );
   assert.equal(result.feature.candidate, undefined);
   assert.equal(result.feature.session.state, "stopped");
+});
+
+// The owner's private criteria file for one delivery (ADR 0004).
+function ownerCriteria(t, f, fields = {}) {
+  const directory = mkdtempSync(join(tmpdir(), "aios-feature-criteria-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  chmodSync(directory, 0o700);
+  const path = join(directory, "criteria.json");
+  const write = (changes = {}) => {
+    writeFileSync(
+      path,
+      JSON.stringify({
+        scope: "aios-feature-criteria-v1",
+        deliveryId: f.delivery.id,
+        request: "Add a visible contact hint.",
+        criteria: ["The contact page shows an email hint."],
+        verification: ["Check the email hint in the isolated page."],
+        ambiguity: null,
+        ...fields,
+        ...changes,
+      }),
+      { mode: 0o600 },
+    );
+    ownWindowsFixturePaths([directory, path]);
+  };
+  write();
+  f.controller = new DeliveryController(
+    f.state,
+    {},
+    { featurePlanner: ownerCriteriaPlanner(path, f.delivery.id) },
+  );
+  return { directory, path, write };
+}
+
+test("the owner's criteria file plans and clarifies exactly its own delivery's request", async (t) => {
+  const f = fixture(t);
+  const criteria = ownerCriteria(t, f, {
+    ambiguity: "Choose email or telephone.",
+  });
+  const blocked = await f.controller.planFeature(f.delivery.id);
+  assert.equal(blocked.feature.outcome, "needs-info");
+  // A clarification is answered only by a file naming it.
+  await assert.rejects(
+    f.controller.clarifyFeature(f.delivery.id, "Use email"),
+    /could not be established safely/,
+  );
+  criteria.write({ ambiguity: null, clarifications: ["Use email"] });
+  const clarified = await f.controller.clarifyFeature(
+    f.delivery.id,
+    "Use email",
+  );
+  assert.equal(clarified.feature.outcome, "planned");
+  assert.deepEqual(clarified.feature.criteria, [
+    "The contact page shows an email hint.",
+  ]);
+  assert.deepEqual(clarified.feature.clarifications, ["Use email"]);
+});
+
+test("owner criteria for another delivery, request or shape plan nothing", async (t) => {
+  const f = fixture(t);
+  const criteria = ownerCriteria(t, f);
+  for (const [name, changes] of [
+    [
+      "another delivery",
+      { deliveryId: "11111111-2222-4333-8444-555555555555" },
+    ],
+    ["another request", { request: "Add a visible phone hint." }],
+    ["unasked clarifications", { clarifications: ["Use email"] }],
+    ["another scope", { scope: "aios-native-coding-admission-v1" }],
+    ["an unknown field", { approvedAt: "2026-10-31T00:00:00.000Z" }],
+    ["no criteria", { criteria: [] }],
+    ["unsafe criteria", { criteria: ["line\nbreak"] }],
+  ]) {
+    criteria.write(changes);
+    await assert.rejects(
+      f.controller.planFeature(f.delivery.id),
+      /could not be established safely/,
+      name,
+    );
+    assert.equal(f.controller.status(f.delivery.id).feature, undefined, name);
+  }
+  criteria.write();
+  assert.equal(
+    (await f.controller.planFeature(f.delivery.id)).feature.outcome,
+    "planned",
+  );
+});
+
+test("owner criteria are read only from a private absolute file outside every repository", async (t) => {
+  const f = fixture(t);
+  const inside = join(f.repository, "criteria.json");
+  writeFileSync(inside, "{}");
+  for (const path of ["criteria.json", inside]) {
+    f.controller = new DeliveryController(
+      f.state,
+      {},
+      { featurePlanner: ownerCriteriaPlanner(path, f.delivery.id) },
+    );
+    await assert.rejects(
+      f.controller.planFeature(f.delivery.id),
+      /could not be established safely/,
+      path,
+    );
+  }
+  if (process.platform !== "win32") {
+    const criteria = ownerCriteria(t, f);
+    chmodSync(criteria.path, 0o644);
+    await assert.rejects(
+      f.controller.planFeature(f.delivery.id),
+      /could not be established safely/,
+      "a file others can read",
+    );
+  }
 });

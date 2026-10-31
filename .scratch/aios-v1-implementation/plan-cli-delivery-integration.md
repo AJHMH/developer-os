@@ -1,6 +1,6 @@
 # Plan: CLI delivery integration
 
-Status: **proposed for the owner's approval.** The decisions are in
+Status: **approved by the owner on 31 October 2026.** The decisions are in
 [ADR 0004](../../docs/adr/0004-cli-delivery-integration.md).
 Date: 31 October 2026.
 
@@ -21,7 +21,7 @@ PR through the bot publisher. None changes a guest program or pin.
 
 1. **Owner criteria planner.** `ownerCriteriaPlanner(path, deliveryId)`
    implements `FeaturePlanner` from the private criteria file: scope, delivery
-   id and request SHA-256 must match. `plan-feature` and `clarify-feature`
+   id and the verbatim request (and clarifications) must match. `plan-feature` and `clarify-feature`
    take `--feature-criteria`. Tests cover a valid plan, `needs-info`, and
    refusals for another delivery, another request, a public or in-repository
    path, and malformed criteria.

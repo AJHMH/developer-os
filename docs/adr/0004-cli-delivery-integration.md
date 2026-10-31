@@ -1,7 +1,7 @@
 # CLI delivery integration
 
 Date: 2026-10-31
-Status: proposed
+Status: accepted (31 October 2026)
 
 ## Context
 
@@ -39,8 +39,8 @@ The owner decided the following on 31 October 2026.
    `clarify-feature` take `--feature-criteria <file>`. It is a private,
    owner-written file outside every repository, with the same path and
    permission checks as the owner admission records. It holds scope
-   `aios-feature-criteria-v1`, the delivery id, the SHA-256 of the exact
-   request (and clarifications) it answers, and `criteria`, `verification`,
+   `aios-feature-criteria-v1`, the delivery id, the exact request (and any
+   clarifications) it answers, verbatim, and `criteria`, `verification`,
    `ambiguity` and optional `requires`. `featurePlan()` validates it
    unchanged. A file for another delivery or request is refused. This
    departs from the spec's "AIOS derives the criteria": the owner writes
