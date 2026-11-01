@@ -174,7 +174,7 @@ function fixture(t) {
     mismatch = false;
   t.mock.method(cp, "spawnSync", (_exe, args, options) => {
     assert.equal(options.shell, false);
-    assert.equal(options.timeout, 15000);
+    assert.equal(options.timeout, 60000);
     assert.equal(options.windowsHide, true);
     assert.deepEqual(options.env, { SystemRoot: process.env.SystemRoot });
     assert.ok(args.includes("-EncodedCommand"));
