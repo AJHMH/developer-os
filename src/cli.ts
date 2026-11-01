@@ -5,6 +5,12 @@ import { parseArgs } from "node:util";
 import { authorizeSubscriptionAuth } from "./auth-host.js";
 import { inspectSubscriptionAuth } from "./auth-status.js";
 import { credentialedGeneralSessions } from "./general-sessions.js";
+import { ownerCodingAdmission } from "./coding-admission.js";
+import {
+  approvedGeneralSessions,
+  approvedRoutedTurns,
+  prepareRoutedTurns,
+} from "./routed-turn-approval.js";
 import { cliOptions, validateCliCommand } from "./cli-commands.js";
 import { codexSubscriptionReader } from "./codex-usage.js";
 import { DeliveryController, DeliveryError } from "./controller.js";
@@ -21,7 +27,7 @@ import { nativeValidationRuntime } from "./native-validation-runtime.js";
 import { ownerCriteriaPlanner } from "./feature-criteria.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, validate-baseline, validate-candidate and code-feature, with optional --onboarding-attestation <owner-record> for the onboarding facts the CLI cannot observe (attested, never live verification; ADR 0004), --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Add --coding-admission <owner-record> to pause/cancel/recover to also stop or recover the exact native coding session through the owner-admitted pins. Add --validation-admission <owner-record> with --podman-machine to validate-baseline/validate-candidate to run checks offline on the owner-admitted native validation runtime, or to pause/cancel/recover to also stop the exact native validation attempt. Use qualify-windows-controls or qualify-macos-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use auth-status with the same repo/state/auth-directory and a required --auth-account to inspect host-only eligibility before requesting inference approval; it performs no refresh and grants no inference authority. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows or Mac worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent host authentication qualification. Use --coding-minutes <1..1440> on start for the initial coding allowance (default 120). plan-feature/code-feature address an explicit --id. plan-feature and clarify-feature take --feature-criteria <owner-file>: the owner's private criteria for this delivery's exact request and clarifications (ADR 0004); without it planning refuses. code-feature --id <id> takes --owner-policy (with optional --onboarding-attestation), --podman-machine with --coding-admission and --validation-admission, --codex-executable for usage, and optional --coding-minutes <1..1440>: it runs one offline coding turn on the owner-admitted native runtimes to a validated candidate (ADR 0004). Add --auth-directory <external-directory> with --auth-account <identifier> to route a mediated delivery's turn through the host-only general session with the owner's authorized account; it still needs a qualified mediation decision, fresh usage at every model request and the owner's approval. Production delivery stays disabled. clarify-feature --id <id> --clarification <text> retains an explicit owner answer to material planning ambiguity. extend-coding --id <id> --minutes <1..1440> records an owner extension for stopped exhausted work. validate-baseline/validate-candidate --id <id> require an owner validation contract and, from the CLI, --validation-admission. repair-feature --id <id> repairs a failed candidate within three cycles or 60 active minutes, including local revalidation. extend-repair --id <id> [--cycles <0..100>] [--minutes <0..1440>] records an explicit owner extension for stopped exhausted repairs. publish-feature/reconcile-publication --id <id> require qualified controlled signing/publication and separate App PR adapters; no native publisher is installed. monitor-pr-checks/repair-pr-checks --id <id> and rerun-pr-check --id <id> --check-id <id> require a trusted controlled PR check adapter; no native monitor is installed. monitor-review/repair-review --id <id> and resolve-review-thread --id <id> --thread-id <id> require a trusted controlled review adapter; no native reviewer is installed. merge-feature/reconcile-merge/refresh-merge-base --id <id> require controlled conditional merge authority; no native merge adapter is installed. monitor-main-checks --id <id> observes trusted checks for the confirmed merged/main revision; no native main observer is installed. sync-main/reconcile-main-sync --id <id> require fresh trusted main checks and a controlled conditional Git adapter; no native synchronization adapter is installed. cleanup-branches/reconcile-cleanup --id <id> require synchronized verified main and controlled conditional branch authority; no native cleanup adapter is installed. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, validate-baseline, validate-candidate and code-feature, with optional --onboarding-attestation <owner-record> for the onboarding facts the CLI cannot observe (attested, never live verification; ADR 0004), --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Add --coding-admission <owner-record> to pause/cancel/recover to also stop or recover the exact native coding session through the owner-admitted pins. Add --validation-admission <owner-record> with --podman-machine to validate-baseline/validate-candidate to run checks offline on the owner-admitted native validation runtime, or to pause/cancel/recover to also stop the exact native validation attempt. Use qualify-windows-controls or qualify-macos-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare non-secret external host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; Use authorize-auth with the same options for explicit browser consent and protected host-only storage on macOS or Windows x64, optionally selecting a saved --auth-account <identifier>; model-only VM mediation remains a separate prerequisite. Use auth-status with the same repo/state/auth-directory and a required --auth-account to inspect host-only eligibility before requesting inference approval; it performs no refresh and grants no inference authority. Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Windows or Mac worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent host authentication qualification. Use --coding-minutes <1..1440> on start for the initial coding allowance (default 120). plan-feature/code-feature address an explicit --id. plan-feature and clarify-feature take --feature-criteria <owner-file>: the owner's private criteria for this delivery's exact request and clarifications (ADR 0004); without it planning refuses. code-feature --id <id> takes --owner-policy (with optional --onboarding-attestation), --podman-machine with --coding-admission and --validation-admission, --codex-executable for usage, and optional --coding-minutes <1..1440>: it runs one offline coding turn on the owner-admitted native runtimes to a validated candidate (ADR 0004). Add --auth-directory <external-directory> with --auth-account <identifier> to route a mediated delivery's turn through the host-only general session with the owner's authorized account; it still needs a qualified mediation decision, fresh usage at every model request and the owner's one-shot approval: prepare-routed-turns --id <id> --podman-machine <aios-name> --coding-admission <owner-record> --auth-account <identifier> --turns <1|2> prints a run ID, and code-feature names it with --approve-run <run-id> --approve-turns <1|2>; each routed turn spends one approved turn. Production delivery stays disabled. clarify-feature --id <id> --clarification <text> retains an explicit owner answer to material planning ambiguity. extend-coding --id <id> --minutes <1..1440> records an owner extension for stopped exhausted work. validate-baseline/validate-candidate --id <id> require an owner validation contract and, from the CLI, --validation-admission. repair-feature --id <id> repairs a failed candidate within three cycles or 60 active minutes, including local revalidation. extend-repair --id <id> [--cycles <0..100>] [--minutes <0..1440>] records an explicit owner extension for stopped exhausted repairs. publish-feature/reconcile-publication --id <id> require qualified controlled signing/publication and separate App PR adapters; no native publisher is installed. monitor-pr-checks/repair-pr-checks --id <id> and rerun-pr-check --id <id> --check-id <id> require a trusted controlled PR check adapter; no native monitor is installed. monitor-review/repair-review --id <id> and resolve-review-thread --id <id> --thread-id <id> require a trusted controlled review adapter; no native reviewer is installed. merge-feature/reconcile-merge/refresh-merge-base --id <id> require controlled conditional merge authority; no native merge adapter is installed. monitor-main-checks --id <id> observes trusted checks for the confirmed merged/main revision; no native main observer is installed. sync-main/reconcile-main-sync --id <id> require fresh trusted main checks and a controlled conditional Git adapter; no native synchronization adapter is installed. cleanup-branches/reconcile-cleanup --id <id> require synchronized verified main and controlled conditional branch authority; no native cleanup adapter is installed. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -83,6 +89,26 @@ try {
     result = prepared;
     if (command.authAction === "status" && prepared.status !== "eligible")
       process.exitCode = 1;
+  } else if (command.kind === "approval") {
+    // The delivery must exist; the plan binds it with the admitted pins.
+    const delivery = new DeliveryController(stateDirectory, {
+      inspect: inspectLocalRepository,
+    }).status(values.id!);
+    let pins;
+    try {
+      pins = ownerCodingAdmission(values["coding-admission"]!).pins();
+    } catch {
+      throw new DeliveryError(
+        "The owner coding admission record is missing or invalid, or does not admit valid coding pins. Production remains disabled.",
+      );
+    }
+    result = prepareRoutedTurns(stateDirectory, {
+      deliveryId: delivery.id,
+      accountId: values["auth-account"]!,
+      machine: values["podman-machine"]!,
+      pins,
+      turns: Number(values.turns),
+    });
   } else {
     const native =
       command.runtimes.includes("native") &&
@@ -132,6 +158,24 @@ try {
       } catch {
         throw new DeliveryError(
           "The owner's host registration is missing or invalid. Prepare it with prepare-auth and authorize-auth. Production remains disabled.",
+        );
+      }
+    if (generalSessions)
+      try {
+        generalSessions = approvedGeneralSessions(
+          generalSessions,
+          approvedRoutedTurns(stateDirectory, {
+            deliveryId: values.id!,
+            accountId: values["auth-account"]!,
+            machine: values["podman-machine"]!,
+            pins: ownerCodingAdmission(values["coding-admission"]!).pins(),
+            runId: values["approve-run"]!,
+            turns: Number(values["approve-turns"]),
+          }),
+        );
+      } catch {
+        throw new DeliveryError(
+          "The routed-turn approval does not match a current plan for this delivery, account, VM and coding record. Prepare one with prepare-routed-turns and approve its run ID and turns. Production remains disabled.",
         );
       }
     const controller = new DeliveryController(
