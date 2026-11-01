@@ -10,6 +10,10 @@ merged and no longer needed, then create a `codex/` branch from synchronized
 additional validation only when source changes, merge conflict resolution, failed
 checks, or new evidence invalidate the passing results.
 
+When `main` moves from a worktree, `~/Repos/developer-os` keeps `main` checked
+out and goes stale: if its files still equal the old `main` and it has nothing
+untracked, reset it to the new `main`.
+
 ### Issue tracker
 
 Issues and specs are tracked as local Markdown under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
@@ -25,3 +29,7 @@ Use a single-context layout: root `CONTEXT.md` and `docs/adr/`. See `docs/agents
 ### Operator tools
 
 For investigation accounting or App-authored publication, see `docs/operator-tools.md`.
+
+### Owner hosts
+
+For commands the owner runs natively, or a guest program change, see `docs/owner-hosts.md`.

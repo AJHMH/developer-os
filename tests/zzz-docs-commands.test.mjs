@@ -40,3 +40,25 @@ test("owner-facing shell commands name their inputs as variables, not <placehold
   const files = [join(root, "README.md"), ...markdown(join(root, "docs"))];
   assert.deepEqual(files.flatMap(placeholders), []);
 });
+
+// A guest program change invalidates every owner admission record that pins
+// it, so it must not land without the owner hosts table naming it.
+test("the owner hosts table names the current guest program digests", async () => {
+  const admitted = (guest) =>
+    new RegExp(`^\\| ${guest} +\\| \`([a-f0-9]{64})\` +\\|$`, "m").exec(
+      readFileSync(join(root, "docs", "owner-hosts.md"), "utf8"),
+    )?.[1];
+  const coding = await import("../dist/podman-coding.js");
+  const validation = await import("../dist/podman-validation.js");
+  assert.deepEqual(
+    {
+      coding: admitted("Coding"),
+      validation: admitted("Validation"),
+    },
+    {
+      coding: coding.managementPolicySha256,
+      validation: validation.managementPolicySha256,
+    },
+    "A guest program changed: the owner must re-pin that admission record on both hosts; then update docs/owner-hosts.md",
+  );
+});

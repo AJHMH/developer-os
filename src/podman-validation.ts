@@ -489,6 +489,9 @@ else:
   else: fail()
 print(json.dumps(dict(attempt=R.get('attempt'),binding=binding if 'binding' in globals() else None,**result)))
 `;
+/** The validation guest program's digest: the `policySha256` an owner validation
+ * admission pins. */
+export const managementPolicySha256 = digest(management);
 
 /** A prepared cache within the guest's transfer bounds, each file named by
  * the sha512 of its bytes. */
@@ -596,7 +599,7 @@ export class NativePodmanValidationTransport
       throw Error("Native validation binding changed");
     const pins: ValidationPins = {
       imageSha256: this.imageSha256,
-      policySha256: digest(management),
+      policySha256: managementPolicySha256,
       bindingSha256: managementBindingSha256(
         managed,
         this.authority,
