@@ -202,3 +202,17 @@ test("a bound approval covers its whole dispatched coding turn, and only that", 
     false,
   );
 });
+
+test("an unavailable usage read keeps its bounded reason and still requires approval", () => {
+  const gate = new subscription.UsageApprovalGate(() => now);
+  const usage = gate.observe({ refusal: "executable-size" });
+  assert.equal(usage.unavailable, "executable-size");
+  assert.equal(usage.decision, "approval-required");
+  assert.equal(usage.scope, "unknown");
+  // A reason outside the bounded set is dropped, never stored.
+  assert.equal(
+    gate.observe({ refusal: "synthetic private provider text" }).unavailable,
+    undefined,
+  );
+  assert.equal(gate.observe(undefined).unavailable, undefined);
+});

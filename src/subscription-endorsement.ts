@@ -81,7 +81,10 @@ export async function endorseUsageAccount(options: {
   const usage = assessSubscription(observation, (options.now ?? Date.now)());
   // Only a fresh, measured observation identifies the subscription's account.
   if (!hex(usage.accountId) || usage.remainingPercent === null)
-    refuse("no fresh, measured usage observation identifies the account");
+    refuse(
+      "no fresh, measured usage observation identifies the account" +
+        (usage.unavailable ? ` (usage read: ${usage.unavailable})` : ""),
+    );
   const usageAccountId = usage.accountId!;
   if (
     options.expectedUsageAccountId !== undefined &&

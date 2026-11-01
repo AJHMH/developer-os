@@ -148,6 +148,7 @@ import {
 import {
   UsageApprovalGate,
   type SubscriptionObservation,
+  type SubscriptionRefusal,
   type SubscriptionReader,
   type UsageReport,
 } from "./subscription.js";
@@ -3532,7 +3533,7 @@ export class DeliveryController {
 
   async checkUsage(id: string): Promise<Delivery> {
     const snapshot = this.status(id);
-    let observation: SubscriptionObservation | undefined;
+    let observation: SubscriptionObservation | SubscriptionRefusal | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       observation = await Promise.race([
