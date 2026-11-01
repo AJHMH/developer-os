@@ -30,7 +30,7 @@ function fixture(t, mode = "valid") {
     script,
     `import readline from 'node:readline';
 const mode=process.argv[2];
-if(process.argv.includes('--version')){console.log('codex-cli 0.161.0');process.exit(0);}
+if(process.argv.includes('--version')){console.log(mode==='old-version'?'codex-cli 0.160.0':'codex-cli 0.161.0');process.exit(0);}
 const isolated=process.argv.some(arg=>arg.includes('aios_capability'));
 if(isolated && !(process.env.CODEX_HOME===process.env.HOME && process.env.HOME===process.env.USERPROFILE && process.cwd()===process.env.HOME))process.exit(19);
 const send=value=>{const text=JSON.stringify(value)+'\\n';process.stdout.write(text.slice(0,3));process.stdout.write(text.slice(3));};
@@ -38,6 +38,7 @@ for await(const line of readline.createInterface({input:process.stdin})){
  const value=JSON.parse(line);
  if(mode==='hung')continue;
  if(mode==='exit')process.exit(0);
+ if(mode==='mutate'&&value.method==='initialize')(await import('node:fs')).appendFileSync(process.argv[3],'#');
  if(mode==='rpc-error'){send({id:value.id,error:{message:'synthetic-private-error'}});continue;}
  if(mode==='malformed'){console.log('invalid');continue;}
  if(mode==='oversized'){process.stdout.write('x'.repeat(256*1024+1));continue;}
@@ -149,6 +150,21 @@ test("a refused account read names one bounded reason, never the provider's erro
     ["rpc-error", "rpc-error"],
   ])
     assert.equal(await refusal(fixture(t, mode).executable), reason, mode);
+  // A path that is not one plain file, and a version other than the pin's.
+  assert.equal(
+    await refusal({ ...valid.executable, path: valid.home }),
+    "executable-path",
+  );
+  const old = fixture(t, "old-version");
+  assert.equal(
+    (
+      await observeCodexAccount(old.executable, {
+        policy: "isolated",
+        home: old.home,
+      })
+    ).refusal,
+    "version",
+  );
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-codex-size-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const large = join(root, "codex");
@@ -159,3 +175,32 @@ test("a refused account read names one bounded reason, never the provider's erro
     "executable-size",
   );
 });
+
+test(
+  "an executable that changes during the session is refused after it stops",
+  {
+    skip:
+      process.platform === "win32" &&
+      "a shell wrapper is the pinned executable",
+  },
+  async (t) => {
+    const f = fixture(t, "mutate");
+    const [script] = f.executable.argumentsPrefix;
+    const wrapper = join(f.home, "..", "codex");
+    writeFileSync(
+      wrapper,
+      `#!/bin/sh\nexec ${JSON.stringify(node)} ${JSON.stringify(script)} mutate "$0" "$@"\n`,
+      { mode: 0o700 },
+    );
+    const executable = {
+      path: wrapper,
+      sha256: createHash("sha256").update(readFileSync(wrapper)).digest("hex"),
+    };
+    // The fake app-server appends to its own wrapper once it is initialized.
+    assert.equal(
+      (await observeCodexAccount(executable, { policy: "owner" }, true))
+        .refusal,
+      "executable-hash",
+    );
+  },
+);

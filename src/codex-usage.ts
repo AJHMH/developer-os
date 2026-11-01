@@ -34,7 +34,6 @@ export function codexSubscriptionReader(
         typeof account.email !== "string"
       )
         return { refusal: "not-chatgpt" };
-      if (!limits) return { refusal: "limits" };
       const buckets =
         limits.rateLimitsByLimitId !== undefined &&
         limits.rateLimitsByLimitId !== null
@@ -65,7 +64,7 @@ export function codexSubscriptionReader(
         exhausted,
       };
     } catch {
-      return undefined;
+      return { refusal: "protocol" };
     }
   };
 }
