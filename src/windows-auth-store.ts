@@ -62,7 +62,9 @@ try {
     {
       input: Buffer.from(directory, "utf8").toString("base64"),
       encoding: "utf8",
-      timeout: 15000,
+      // A cold PowerShell start on a busy Windows runner has taken over 15 s
+      // (PR 171); a slow start must not read as a refusal.
+      timeout: 60000,
       maxBuffer: 8192,
       windowsHide: true,
       shell: false,
@@ -183,7 +185,8 @@ function windowsStorageAccess(directory: string, metadataPaths: string[] = []) {
           ...paths.map((path) => Buffer.from(path, "utf8").toString("base64")),
         ].join("\n"),
         encoding: "utf8",
-        timeout: 15000,
+        // The same cold start as directory setup; see above.
+        timeout: 60000,
         maxBuffer: 524288,
         windowsHide: true,
         shell: false,
