@@ -491,6 +491,14 @@ async function main() {
     "../dist/native-validation.js"
   );
   const { ownerCodingAdmission } = await import("../dist/coding-admission.js");
+  const { hostTarget } = await import("../dist/host-target.js");
+  // Usage is read only through the pinned native codex; any other executable
+  // reads as unknown usage, which coding refuses.
+  const pinned = hostTarget(process.platform, process.arch)?.nativeCodexSha256;
+  if (!pinned || sha256(readFileSync(codex)) !== pinned)
+    throw Error(
+      `The codex executable is not the pinned native codex 0.161.0 (SHA-256 ${pinned ?? "unknown for this host"})`,
+    );
   // Both records must admit pins before any worker effect; the CLI re-reads
   // them at each step.
   ownerCodingAdmission(codingAdmission).pins();
