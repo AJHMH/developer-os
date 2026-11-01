@@ -1164,3 +1164,17 @@ imports them. A missing or invalid registration refuses before any state; a
 turn for another account opens no session; the vault is opened only at a
 model request. Tests use a fake vault and provider, with no inference. No
 guest or pin change. Production remains disabled.
+
+## 31 October: ADR 0004 slice 6, owner-run CLI delivery acceptance
+
+`scripts/run-native-cli-delivery-acceptance.mjs` runs one offline delivery
+through the real CLI: `start`, `plan-feature`, `validate-baseline`,
+`code-feature` and `validate-candidate`, each its own process given only its
+owner inputs. The repository, policy, attestation and criteria are synthetic.
+An offline turn never completes, so the run expects an exact launch and stop
+with no candidate, a refused candidate validation and an unchanged host
+checkout. A validated candidate needs a routed live turn, which stays the
+owner's. The validation acceptance's contract is now the shared
+`acceptanceContract`. Tests run the real CLI for `start` and `plan-feature` on
+the synthetic inputs and simulate the VM steps. The native run on each host is
+the owner's. No guest or pin change. Production remains disabled.

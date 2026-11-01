@@ -79,47 +79,11 @@ function npmProject({ name, version, integrity }) {
   };
 }
 
-/** A disposable repository whose owner contract declares `environment` and
- * the probe checks; with `dependency`, also its npm project and a check that
- * requires the package. */
-function syntheticDelivery(root, environment, dependency) {
-  const repository = join(root, dependency ? "npm-repository" : "repository");
-  mkdirSync(repository);
-  const git = (...args) => {
-    const r = spawnSync("git", ["-C", repository, ...args], {
-      encoding: "utf8",
-      timeout: 10000,
-    });
-    if (r.status !== 0) throw Error("Synthetic repository setup failed");
-    return r.stdout.trim();
-  };
-  git("init", "-q", "-b", "main");
-  writeFileSync(join(repository, "index.html"), "<h1>Contact</h1>\n");
-  git("add", "index.html");
-  if (dependency)
-    for (const [path, value] of Object.entries(npmProject(dependency))) {
-      writeFileSync(
-        join(repository, path),
-        JSON.stringify(value, null, 2) + "\n",
-      );
-      git("add", path);
-    }
-  git(
-    "-c",
-    "commit.gpgsign=false",
-    "-c",
-    "core.hooksPath=/nonexistent",
-    "-c",
-    "user.name=Acceptance",
-    "-c",
-    "user.email=acceptance@example.invalid",
-    "commit",
-    "-q",
-    "-m",
-    "base",
-  );
-  const revision = git("rev-parse", "HEAD");
-  const contract = {
+/** The owner contract the acceptances validate under: `environment`, the
+ * probe checks, with `dependency` a check requiring it, a passing candidate
+ * acceptance check and the trusted CI checks the policy names. */
+export function acceptanceContract(environment, dependency) {
+  return {
     version: 1,
     mutablePaths: ["index.html"],
     environment,
@@ -170,6 +134,49 @@ function syntheticDelivery(root, environment, dependency) {
         })),
       ]),
   };
+}
+
+/** A disposable repository whose owner contract declares `environment` and
+ * the probe checks; with `dependency`, also its npm project and a check that
+ * requires the package. */
+function syntheticDelivery(root, environment, dependency) {
+  const repository = join(root, dependency ? "npm-repository" : "repository");
+  mkdirSync(repository);
+  const git = (...args) => {
+    const r = spawnSync("git", ["-C", repository, ...args], {
+      encoding: "utf8",
+      timeout: 10000,
+    });
+    if (r.status !== 0) throw Error("Synthetic repository setup failed");
+    return r.stdout.trim();
+  };
+  git("init", "-q", "-b", "main");
+  writeFileSync(join(repository, "index.html"), "<h1>Contact</h1>\n");
+  git("add", "index.html");
+  if (dependency)
+    for (const [path, value] of Object.entries(npmProject(dependency))) {
+      writeFileSync(
+        join(repository, path),
+        JSON.stringify(value, null, 2) + "\n",
+      );
+      git("add", path);
+    }
+  git(
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "core.hooksPath=/nonexistent",
+    "-c",
+    "user.name=Acceptance",
+    "-c",
+    "user.email=acceptance@example.invalid",
+    "commit",
+    "-q",
+    "-m",
+    "base",
+  );
+  const revision = git("rev-parse", "HEAD");
+  const contract = acceptanceContract(environment, dependency);
   const facts = {
     repository: "AJHMH/acceptance-page",
     defaultBranch: "main",

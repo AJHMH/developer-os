@@ -32,3 +32,35 @@ Input admission disables Git hooks, system/global attributes and optional index 
 Output collection is possible only after matching shutdown evidence reports zero remaining processes. The pinned adapter always attempts exact-session shutdown, then refreshes independent pins before trusting its receipt. For a live transport it also needs the guest's independent census of that exact session: phase `stopped`, not running, no remaining process, every recorded process gone and no timer active. A session stopped before it was ever prepared observes as stopped with no container. A mismatch or failed observation leaves shutdown uncertain, which blocks collection, resume and release until exact-session recovery. Overlapping stops of one session, such as a pause racing the turn's own stop, are serialized by the guest's management lock; once one is observed the session stays stopped, and an earlier unobserved stop is superseded by a later observed one. It also refreshes independent pins immediately before and after asynchronous collection, refusing dispatch or candidate admission on drift. Management requests use frozen session copies. These checks bind observations; native management must still independently prove descendant/cgroup shutdown and stopped ordinary-file collection. The management adapter must attest a complete ordinary-file inventory with independent before/after hashes. Traversal, Git metadata/hooks, linked/reparse output, duplicate paths, oversized or credential-like content and changed output refuse admission. Policy, source and branch are rechecked after collection before persisting a candidate. A turn ended by a usage interruption is collected only as `interrupted-turn` evidence (`artifacts/interrupted-<operationId>.json`), never as a candidate, and its stopped thread stays resumable after the owner's restart approval. Each session records its route (`route`: delivery and mediation decision, absent offline). A restart resumes only under the same route; otherwise coding starts a new lineage and records the old one in `supersededLineages`, never to be resumed. The owner may later remove a superseded lineage's guest folders and stopped containers with `cleanupSupersededLineage(id, operationId)`: the guest marks its head never to be resumed and keeps every record as a tombstone, and the entry records `cleanedAt` and `cleaned` once.
 
 The admitted candidate records a SHA-256 of its complete manifest, original input identity, source revision, feature branch and policy/CLI/host pins in durable state. Its validation status is explicitly `not-run`. The [isolated validation slice](isolated-validation.md) must validate the exact candidate before signing or publication. Production delivery remains disabled.
+
+## Owner-run CLI acceptance (ADR 0004)
+
+`scripts/run-native-cli-delivery-acceptance.mjs` runs one offline delivery through the real CLI. Each step is its own `dist/cli.js` process, given only the owner inputs that command names:
+
+1. `start`
+2. `plan-feature`
+3. `validate-baseline` on the owner-admitted validation runtime
+4. `code-feature` on the owner-admitted coding and validation runtimes
+5. `validate-candidate`
+
+The script writes the repository, owner policy, onboarding attestation and criteria file itself. They are synthetic, private and outside every repository, and the report labels them so.
+
+The coding turn is offline. With no model access it never completes, so it proves the delivery mechanics only: a launch that reports a thread, an exact stop, no route and no candidate. `validate-candidate` must refuse, and the host checkout must stay on unchanged `main`. A validated candidate needs a routed live turn, which stays under the owner's one-shot approval (ADR 0002).
+
+The run reads usage through the pinned `codex` executable, as every coding turn does. It sends no inference and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. The CLI's delivery state stays in the printed `state` directory as evidence. Run it from a fresh build of `main`. The commands set the `codex` the run uses: on macOS the Codex app's bundled executable, on Windows the `codex` on `PATH`. Point them at your pinned executable if it lives elsewhere.
+
+macOS (Terminal):
+
+```sh
+cd ~/Repos/developer-os
+git switch main && git pull --ff-only
+npm ci --ignore-scripts && npm run build
+CODEX="/Applications/Codex.app/Contents/Resources/codex"
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$CODEX" "$HOME/.developer-os/issue04-cli-delivery-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+```
+
+Windows (PowerShell, not elevated), from the checkout. The first run creates its own state directory, which holds the acceptance lock:
+
+```powershell
+git switch main; git pull --ff-only; npm ci --ignore-scripts; npm run build; $codex = (Get-Command codex).Source; New-Item -ItemType Directory -Force -Path "C:/Users/mraar/.developer-os/cli-delivery/state" | Out-Null; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/cli-delivery/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/admission/validation-admission.json" $codex "C:/Users/mraar/.developer-os/issue04-cli-delivery-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
+```
