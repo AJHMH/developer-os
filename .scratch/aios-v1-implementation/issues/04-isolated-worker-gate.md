@@ -1152,3 +1152,15 @@ qualified mediation decision the turn is offline. A test carries one delivery
 through the CLI's owner inputs (local hints, attestation, criteria file) from
 `start` to an admitted candidate at `DELIVERY_NOT_ENABLED`, on simulated
 transports. No guest or pin change. Production remains disabled.
+
+## 31 October: ADR 0004 slice 5, routed `code-feature` from the CLI
+
+`code-feature` takes `--auth-directory` and `--auth-account`, together. The
+CLI then installs `credentialedGeneralSessions` (`src/general-sessions.ts`):
+each routed turn gets a real `GeneralSessionGateway` with the owner's vault
+account and the real provider. `hostRegistration` and the vault account
+reader moved there from the credentialed qualification script, which now
+imports them. A missing or invalid registration refuses before any state; a
+turn for another account opens no session; the vault is opened only at a
+model request. Tests use a fake vault and provider, with no inference. No
+guest or pin change. Production remains disabled.
