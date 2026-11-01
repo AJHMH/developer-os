@@ -47,6 +47,8 @@ The script writes the repository, owner policy, onboarding attestation and crite
 
 The coding turn is offline. With no model access it never completes, so it proves the delivery mechanics only: a launch that reports a thread, an exact stop, no route and no candidate. `validate-candidate` must refuse, and the host checkout must stay on unchanged `main`. A validated candidate needs a routed live turn, which stays under the owner's one-shot approval (ADR 0002).
 
+Before any CLI step, the run reads the VM's fresh coding and validation pins and checks that both admission records name them. If either record is stale, for example after a guest program change, it stops there and prints the fresh pins, so that you can check or rewrite the record. A stale record otherwise refuses the coding turn and leaves its stop unverifiable.
+
 The run reads usage through the pinned `codex` executable, as every coding turn does. It sends no inference and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. The CLI's delivery state stays in the printed `state` directory as evidence. Run it from a fresh build of `main`. Usage is read only through the pinned native `codex` 0.161.0 (`nativeCodexSha256` in `src/host-target.ts`): on macOS `12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de` from `@openai/codex@0.161.0-darwin-arm64`, on Windows `a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30`. Any other executable, such as the Codex app's bundled one, reads as unknown usage, and `code-feature` refuses before launch. On Windows, set `$codex` to your pinned copy; `(Get-FileHash $codex).Hash` must equal the Windows digest.
 
 macOS (Terminal):

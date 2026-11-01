@@ -13,7 +13,7 @@
 // claims qualification. It reads usage through the owner's codex executable,
 // as every coding turn does. Run it through scripts/run-native-acceptance.mjs.
 import { spawn, spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   closeSync,
   mkdirSync,
@@ -41,6 +41,7 @@ export const request = "Add a visible contact hint.";
 export const codingMinutes = 5;
 /** Every stage, in order. */
 export const stageNames = Object.freeze([
+  "owner-records-name-fresh-pins",
   "owner-inputs",
   "cli-start",
   "cli-plan-feature",
@@ -49,6 +50,17 @@ export const stageNames = Object.freeze([
   "cli-candidate-refused",
   "host-checkout-unchanged",
 ]);
+
+const pinFields = {
+  coding: [
+    "cliVersion",
+    "cliSha256",
+    "codeModeHostSha256",
+    "policySha256",
+    "bindingSha256",
+  ],
+  validation: ["imageSha256", "policySha256", "bindingSha256"],
+};
 
 /** The synthetic owner inputs under the private `root`: a disposable
  * repository with the local hints the CLI reads, an owner policy validating
@@ -182,10 +194,20 @@ export function cliRunner(state) {
 
 /** Run the delivery through `cli` (one CLI process per call, from
  * `cliRunner`) on `machine`, with the owner's admission records, `codex` for
- * usage and the validation image `imageSha256`; `persist` receives the report
- * after every stage. */
+ * usage and the validation image `imageSha256`. `pins` holds, for coding and
+ * validation, the record's `admitted` pins and `fresh()`, the VM's own; a
+ * record that does not name them stops the run before any CLI step. `persist`
+ * receives the report after every stage. */
 export async function cliDeliveryAcceptance(
-  { cli, machine, codingAdmission, validationAdmission, codex, imageSha256 },
+  {
+    cli,
+    pins,
+    machine,
+    codingAdmission,
+    validationAdmission,
+    codex,
+    imageSha256,
+  },
   options = {},
 ) {
   const persist = options.persist ?? (() => {});
@@ -247,6 +269,20 @@ export async function cliDeliveryAcceptance(
   const vm = ["--podman-machine", machine];
   const validation = [...vm, "--validation-admission", validationAdmission];
   try {
+    await stage("owner-records-name-fresh-pins", async () => {
+      report.freshPins = {
+        coding: await pins.coding.fresh(),
+        validation: await pins.validation.fresh(),
+      };
+      for (const kind of ["coding", "validation"])
+        check(
+          pinFields[kind].every(
+            (field) =>
+              pins[kind].admitted[field] === report.freshPins[kind][field],
+          ),
+          `The owner ${kind} admission does not name the fresh pins`,
+        );
+    });
     inputs = await stage("owner-inputs", () =>
       ownerInputs(root, offlineValidationEnvironment(imageSha256)),
     );
@@ -501,8 +537,46 @@ async function main() {
     );
   // Both records must admit pins before any worker effect; the CLI re-reads
   // them at each step.
-  ownerCodingAdmission(codingAdmission).pins();
-  const { imageSha256 } = ownerValidationAdmission(validationAdmission).pins();
+  const codingPins = ownerCodingAdmission(codingAdmission).pins();
+  const validationPins = ownerValidationAdmission(validationAdmission).pins();
+  const { imageSha256 } = validationPins;
+  const { NativePodmanCodingTransport } = await import(
+    "../dist/podman-coding.js"
+  );
+  const { NativePodmanValidationTransport } = await import(
+    "../dist/podman-validation.js"
+  );
+  const { nativeCodingAuthority } = await import(
+    "../dist/native-coding-runtime.js"
+  );
+  const { nativeValidationAuthority } = await import(
+    "../dist/native-validation-runtime.js"
+  );
+  // The VM's own pins, read without starting any session or check.
+  const pins = {
+    coding: {
+      admitted: codingPins,
+      fresh: () =>
+        new NativePodmanCodingTransport(
+          machine,
+          nativeCodingAuthority(machine),
+        ).inspect({
+          operationId: randomUUID(),
+          fence: 1,
+          state: "running",
+          intent: "start",
+        }),
+    },
+    validation: {
+      admitted: validationPins,
+      fresh: () =>
+        new NativePodmanValidationTransport(
+          machine,
+          nativeValidationAuthority(machine),
+          imageSha256,
+        ).inspect(),
+    },
+  };
   // Refuse overwriting retained evidence before any worker effect.
   closeSync(openSync(reportPath, "wx", 0o600));
   const state = realpathSync(
@@ -523,6 +597,7 @@ async function main() {
   const report = await cliDeliveryAcceptance(
     {
       cli: cliRunner(state),
+      pins,
       machine,
       codingAdmission,
       validationAdmission,
@@ -540,7 +615,17 @@ async function main() {
   );
   process.off("SIGINT", interrupt);
   process.off("SIGTERM", interrupt);
-  console.log(JSON.stringify({ outcome: report.outcome, reportPath, state }));
+  console.log(
+    JSON.stringify({
+      outcome: report.outcome,
+      reportPath,
+      state,
+      // Fresh pins, so the owner can write or check the records.
+      ...(report.outcome === passingOutcome
+        ? {}
+        : { freshPins: report.freshPins ?? null }),
+    }),
+  );
   if (report.outcome !== passingOutcome) process.exitCode = 1;
 }
 

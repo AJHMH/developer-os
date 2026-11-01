@@ -20,7 +20,31 @@ import {
 } from "../scripts/run-native-cli-delivery-acceptance.mjs";
 
 const imageSha256 = "a".repeat(64);
+const codingPins = {
+  cliVersion: "0.161.0",
+  cliSha256: "1".repeat(64),
+  codeModeHostSha256: "2".repeat(64),
+  policySha256: "3".repeat(64),
+  bindingSha256: "4".repeat(64),
+};
+const validationPins = {
+  imageSha256,
+  policySha256: "5".repeat(64),
+  bindingSha256: "6".repeat(64),
+};
+/** The VM's fresh pins and the owner's records; `changes` alters the fresh. */
+const pins = (changes = {}) => ({
+  coding: {
+    admitted: codingPins,
+    fresh: async () => ({ ...codingPins, ...changes.coding }),
+  },
+  validation: {
+    admitted: validationPins,
+    fresh: async () => ({ ...validationPins, ...changes.validation }),
+  },
+});
 const host = {
+  pins: pins(),
   machine: "aios-test",
   codingAdmission: "/owner/coding-admission.json",
   validationAdmission: "/owner/validation-admission.json",
@@ -266,4 +290,27 @@ test("an open coding session is stopped exactly at the end, and an unverified st
     (await cliDeliveryAcceptance({ cli: uncertain.cli, ...host })).outcome,
     "uncertain",
   );
+});
+
+test("a record that does not name the VM's fresh pins stops the run before any CLI step, and reports the fresh pins", async () => {
+  for (const [changes, record] of [
+    [{ coding: { policySha256: "9".repeat(64) } }, /coding admission/],
+    [{ validation: { bindingSha256: "9".repeat(64) } }, /validation admission/],
+  ]) {
+    const { cli, calls } = simulatedCli();
+    const report = await cliDeliveryAcceptance({
+      cli,
+      ...host,
+      pins: pins(changes),
+    });
+    assert.equal(report.outcome, "blocked");
+    assert.equal(report.stages.length, 1);
+    assert.equal(report.stages[0].name, "owner-records-name-fresh-pins");
+    assert.match(report.error, record);
+    assert.deepEqual(calls, [], "no CLI step ran");
+    assert.deepEqual(report.freshPins, {
+      coding: { ...codingPins, ...changes.coding },
+      validation: { ...validationPins, ...changes.validation },
+    });
+  }
 });
