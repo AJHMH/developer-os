@@ -1819,6 +1819,11 @@ export class DeliveryController {
       throw new DeliveryError(
         "Validate unchanged main before candidate checks.",
       );
+    // An owner-facing refusal, after the runtime and authority gates.
+    if (stage === "candidate" && !snapshot.feature.candidate)
+      throw new DeliveryError(
+        "Candidate validation requires an admitted candidate from a completed coding turn.",
+      );
     const input =
       stage === "baseline"
         ? source
