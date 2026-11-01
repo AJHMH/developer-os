@@ -167,6 +167,25 @@ export function ownerInputs(root, environment) {
   };
 }
 
+/** A new folder under `parent` that only its owner, SYSTEM and Administrators
+ * can use. The CLI refuses owner records and decision state that anyone else
+ * can reach, and a Windows temp folder can grant other accounts access by
+ * inheritance; elsewhere a new temp folder is already private. */
+export async function privateRoot(prefix, parent = tmpdir()) {
+  const root = realpathSync(mkdtempSync(join(parent, prefix)));
+  if (process.platform === "win32")
+    try {
+      const { initializeWindowsAuthDirectory } = await import(
+        "../dist/windows-auth-store.js"
+      );
+      initializeWindowsAuthDirectory(root);
+    } catch (error) {
+      rmSync(root, { recursive: true, force: true });
+      throw error;
+    }
+  return root;
+}
+
 /** One CLI process: its parsed result, or its bounded refusal as an error. */
 export function cliRunner(state) {
   const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
@@ -262,9 +281,7 @@ export async function cliDeliveryAcceptance(
     return JSON.parse(result.stdout);
   }
 
-  const root = realpathSync(
-    mkdtempSync(join(tmpdir(), "aios-cli-delivery-acceptance-")),
-  );
+  const root = await privateRoot("aios-cli-delivery-acceptance-");
   let inputs, id, last;
   const vm = ["--podman-machine", machine];
   const validation = [...vm, "--validation-admission", validationAdmission];
@@ -579,10 +596,7 @@ async function main() {
   };
   // Refuse overwriting retained evidence before any worker effect.
   closeSync(openSync(reportPath, "wx", 0o600));
-  const state = realpathSync(
-    mkdtempSync(join(tmpdir(), "aios-cli-delivery-state-")),
-  );
-  ownWindowsPaths([state]);
+  const state = await privateRoot("aios-cli-delivery-state-");
   const context = {
     host: { platform: platform(), arch: arch(), release: release(), machine },
     imageSha256,

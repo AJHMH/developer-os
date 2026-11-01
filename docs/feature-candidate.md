@@ -43,7 +43,7 @@ The admitted candidate records a SHA-256 of its complete manifest, original inpu
 4. `code-feature` on the owner-admitted coding and validation runtimes
 5. `validate-candidate`
 
-The script writes the repository, owner policy, onboarding attestation and criteria file itself. They are synthetic, private and outside every repository, and the report labels them so.
+The script writes the repository, owner policy, onboarding attestation and criteria file itself. They are synthetic, private and outside every repository, and the report labels them so. On Windows, a new temp folder can inherit access for other accounts, such as a sandbox group, and the CLI refuses owner records anyone else can reach. So the script restricts its records folder and the CLI state folder to you, SYSTEM and Administrators before writing anything. Your `TEMP` folder itself is left unchanged.
 
 The coding turn is offline. With no model access it never completes, so it proves the delivery mechanics only: a launch that reports a thread, an exact stop, no route and no candidate. `validate-candidate` must refuse, and the host checkout must stay on unchanged `main`. A validated candidate needs a routed live turn, which stays under the owner's one-shot approval (ADR 0002).
 
