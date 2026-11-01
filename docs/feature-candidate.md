@@ -84,3 +84,33 @@ On both, the turn was not routed and admitted no candidate. The host checkout st
 - a usage executable bound that admits the 317 MiB Windows `codex` (PR 168).
 
 A validated candidate still needs a routed live turn, which stays under the owner's one-shot approval.
+
+## Owner-run routed live turn
+
+`scripts/run-native-routed-delivery.mjs` runs one delivery to a routed live turn through the real CLI, on one host, in its VM's authority state (`docs/owner-hosts.md`). The repository, owner policy, attestation and criteria are synthetic, as in the CLI acceptance, and are written to a private folder beside the state. It runs as four commands, so each approval is yours, given in between:
+
+1. **`prepare`**: `start`, `plan-feature`, `validate-baseline`, the fixed worker's `qualify --adversarial`, and a planned decision inference. It reads no credential and sends nothing live. It prints the session file and the decision run ID.
+2. **`decide`**: spends your approval of that run. It sends one live request through the host-only gateway and records the delivery's mediation decision (`docs/operator-tools.md`), then prints the usage account it observed.
+3. **`route`**: endorses that usage account once you've checked it's yours, re-qualifies until the decision qualifies, and prints the routed run ID for the turns you name (1 or 2).
+4. **`code`**: spends your approval of the routed run on a routed `code-feature` turn, which sends live model requests. It validates an admitted candidate, stops anything left open by its exact identity, and writes `report.json` in the session folder. The outcome is `observed-routed-validated-candidate`, `observed-routed-turn-without-candidate`, `blocked` or `uncertain`.
+
+Production stays disabled: a validated candidate still ends at `DELIVERY_NOT_ENABLED`, and nothing is published. Start from a fresh build of clean `main` with the VM running.
+
+macOS (Terminal). Set `WORKER_POLICY` to the fixed worker's pins, `AUTH_DIR` and `AUTH_ACCOUNT` to your authorized account, then `SESSION`, `DECISION_RUN`, `USAGE_ACCOUNT` and `ROUTED_RUN` from each step's output:
+
+```sh
+H="$HOME/.developer-os"
+node scripts/run-native-routed-delivery.mjs prepare --state-dir "$H/ticket4-macos/state" --podman-machine aios-macos-noshare --worker-policy "${WORKER_POLICY:?}" --coding-admission "$H/admission/coding-admission.json" --validation-admission "$H/admission/validation-admission.json" --codex-executable "$H/ticket4-macos/runtime/codex-0.161.0" --auth-directory "${AUTH_DIR:?}" --auth-account "${AUTH_ACCOUNT:?}"
+node scripts/run-native-routed-delivery.mjs decide --session "${SESSION:?}" --approve-run "${DECISION_RUN:?}" --approve-unknown-usage
+node scripts/run-native-routed-delivery.mjs route --session "${SESSION:?}" --expect-usage-account "${USAGE_ACCOUNT:?}" --turns 1
+node scripts/run-native-routed-delivery.mjs code --session "${SESSION:?}" --approve-run "${ROUTED_RUN:?}" --approve-turns 1
+```
+
+Windows (PowerShell, not elevated), from `D:/repos/developer-os`. Set `$workerPolicy`, `$authDir` and `$authAccount` first, then `$session`, `$decisionRun`, `$usageAccount` and `$routedRun` from each step's output; each line refuses to run while its values are unset:
+
+```powershell
+if (-not ($workerPolicy -and $authDir -and $authAccount)) { throw 'Set $workerPolicy, $authDir and $authAccount' }; $h = "C:/Users/mraar/.developer-os"; node scripts/run-native-routed-delivery.mjs prepare --state-dir "$h/ticket19-native/state" --podman-machine aios-podman-noshare --worker-policy $workerPolicy --coding-admission "$h/admission/coding-admission.json" --validation-admission "$h/admission/validation-admission.json" --codex-executable "D:/repos/developer-os/.scratch/codex-runtime/node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe" --auth-directory $authDir --auth-account $authAccount
+if (-not ($session -and $decisionRun)) { throw 'Set $session and $decisionRun' }; node scripts/run-native-routed-delivery.mjs decide --session $session --approve-run $decisionRun --approve-unknown-usage
+if (-not ($session -and $usageAccount)) { throw 'Set $session and $usageAccount' }; node scripts/run-native-routed-delivery.mjs route --session $session --expect-usage-account $usageAccount --turns 1
+if (-not ($session -and $routedRun)) { throw 'Set $session and $routedRun' }; node scripts/run-native-routed-delivery.mjs code --session $session --approve-run $routedRun --approve-turns 1
+```
