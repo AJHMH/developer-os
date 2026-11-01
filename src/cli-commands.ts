@@ -6,6 +6,9 @@ export const cliOptions = {
   adversarial: { type: "boolean" },
   "auth-directory": { type: "string" },
   "auth-account": { type: "string" },
+  "approve-run": { type: "string" },
+  "approve-turns": { type: "string" },
+  turns: { type: "string" },
   "check-id": { type: "string" },
   "thread-id": { type: "string" },
   "podman-machine": { type: "string" },
@@ -30,7 +33,7 @@ export type CliValues = {
 } & { adversarial?: boolean | undefined };
 type Runtime = "native" | "synthetic" | "controls" | "subscription";
 export interface CliCommand {
-  kind: "delivery" | "auth" | "pin";
+  kind: "delivery" | "auth" | "pin" | "approval";
   required: readonly CliOptionName[];
   optional: readonly CliOptionName[];
   runtimes: readonly Runtime[];
@@ -123,6 +126,19 @@ const commands: Record<string, CliCommand> = {
     optional: [],
     runtimes: [],
   },
+  // The owner's plan for one routed run, which a one-shot approval names.
+  "prepare-routed-turns": {
+    kind: "approval",
+    required: [
+      "id",
+      "podman-machine",
+      "coding-admission",
+      "auth-account",
+      "turns",
+    ],
+    optional: [],
+    runtimes: [],
+  },
   qualify: idAction(
     "qualify",
     [...nativeOptions, "codex-executable", "adversarial"],
@@ -185,6 +201,8 @@ const commands: Record<string, CliCommand> = {
       "coding-minutes",
       "auth-directory",
       "auth-account",
+      "approve-run",
+      "approve-turns",
     ],
     runtimes: ["subscription"],
     invoke: (c, v) =>
@@ -307,6 +325,23 @@ export function validateCliCommand(
       values["auth-account"] !== undefined) &&
     (!values["auth-directory"] || !values["auth-account"])
   )
+    return { error: "arguments" };
+  // A routed turn spends the owner's one-shot approval for its run, on the
+  // owner-admitted coding runtime (ADR 0002): 1 or 2 turns, never more.
+  if (
+    command.kind === "delivery" &&
+    (values["auth-directory"] !== undefined ||
+      values["approve-run"] !== undefined ||
+      values["approve-turns"] !== undefined) &&
+    (!values["auth-directory"] ||
+      !values["coding-admission"] ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+        values["approve-run"] ?? "",
+      ) ||
+      !["1", "2"].includes(values["approve-turns"] ?? ""))
+  )
+    return { error: "arguments" };
+  if (values.turns !== undefined && !["1", "2"].includes(values.turns))
     return { error: "arguments" };
   if (
     (values["podman-machine"] !== undefined ||

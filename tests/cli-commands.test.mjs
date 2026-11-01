@@ -26,6 +26,7 @@ const sample = (key) =>
     minutes: "1",
     cycles: "1",
     "coding-minutes": "1",
+    turns: "1",
     adversarial: true,
   })[key] ?? "fixture";
 for (const [name, command] of Object.entries(cliCommands)) {
@@ -291,6 +292,8 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     "coding-minutes": "30",
     "auth-directory": "/owner/auth",
     "auth-account": "a".repeat(64),
+    "approve-run": "11111111-2222-4333-8444-555555555555",
+    "approve-turns": "2",
   };
   const invocation = validateCliCommand(
     ["code-feature"],
@@ -316,7 +319,23 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     { id: "d", "auth-directory": "/owner/auth" },
     { id: "d", "auth-account": "a".repeat(64) },
     { id: "d", "auth-directory": "", "auth-account": "a".repeat(64) },
-  ])
+    // A routed turn spends the owner's one-shot approval for this run, on
+    // the owner-admitted coding runtime (ADR 0002).
+    { ...values, "approve-run": undefined, "approve-turns": undefined },
+    { ...values, "approve-turns": undefined },
+    { ...values, "approve-run": "not-a-run" },
+    { ...values, "approve-turns": "3" },
+    { ...values, "coding-admission": undefined },
+    {
+      id: "d",
+      "approve-run": "11111111-2222-4333-8444-555555555555",
+      "approve-turns": "1",
+    },
+  ].map((refused) =>
+    Object.fromEntries(
+      Object.entries(refused).filter(([, value]) => value !== undefined),
+    ),
+  ))
     assert.equal(
       validateCliCommand(["code-feature"], refused, Object.keys(refused)).error,
       "arguments",
@@ -331,6 +350,53 @@ test("code-feature takes the owner's coding and validation inputs and its initia
       .error,
     "account",
   );
+});
+
+test("prepare-routed-turns names one delivery, account, VM, coding record and 1 or 2 turns", () => {
+  const values = {
+    id: "d",
+    "podman-machine": "aios-test",
+    "coding-admission": "/owner/coding-admission.json",
+    "auth-account": "a".repeat(64),
+    turns: "2",
+  };
+  assert.equal(
+    validateCliCommand(["prepare-routed-turns"], values, Object.keys(values))
+      .name,
+    "prepare-routed-turns",
+  );
+  for (const refused of [
+    { ...values, turns: "3" },
+    { ...values, turns: "0" },
+    { ...values, "coding-admission": "" },
+    { ...values, "approve-run": "11111111-2222-4333-8444-555555555555" },
+  ])
+    assert.equal(
+      validateCliCommand(
+        ["prepare-routed-turns"],
+        refused,
+        Object.keys(refused),
+      ).error,
+      "arguments",
+    );
+  for (const missing of [
+    "id",
+    "podman-machine",
+    "coding-admission",
+    "auth-account",
+    "turns",
+  ]) {
+    const { [missing]: _, ...partial } = values;
+    assert.equal(
+      validateCliCommand(
+        ["prepare-routed-turns"],
+        partial,
+        Object.keys(partial),
+      ).error,
+      "arguments",
+      missing,
+    );
+  }
 });
 
 test("code-feature from the CLI installs the owner-admitted runtimes without any VM effect", (t) => {
@@ -427,7 +493,7 @@ test("code-feature from the CLI installs the owner-admitted runtimes without any
     { encoding: "utf8" },
   );
   assert.equal(prepared.status, 0, prepared.stderr);
-  const routed = (directory) =>
+  const routed = (directory, ...approval) =>
     cli(
       "--coding-admission",
       coding,
@@ -437,15 +503,100 @@ test("code-feature from the CLI installs the owner-admitted runtimes without any
       directory,
       "--auth-account",
       "a".repeat(64),
+      "--approve-run",
+      "99999999-2222-4333-8444-555555555555",
+      "--approve-turns",
+      "2",
+      ...approval,
     );
-  const opened = routed(auth);
-  assert.equal(opened.status, 1);
-  assert.equal(JSON.parse(opened.stderr).error, "Delivery not found.");
+  const unapproved = routed(auth);
+  assert.equal(unapproved.status, 1);
+  assert.match(
+    JSON.parse(unapproved.stderr).error,
+    /routed-turn approval does not match a current plan/,
+  );
   const unregistered = routed(repo);
   assert.equal(unregistered.status, 1);
   assert.match(
     JSON.parse(unregistered.stderr).error,
     /owner's host registration is missing or invalid/,
+  );
+  // The owner prepares a plan for an existing delivery; its run ID is what
+  // the one-shot approval names.
+  const run = (...args) =>
+    spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+        ...args,
+        "--state-dir",
+        join(owned, "state"),
+      ],
+      { encoding: "utf8" },
+    );
+  const started = run("start", "--repo", repo, "--request", "Add a hint.");
+  assert.equal(started.status, 0, started.stderr);
+  const { id } = JSON.parse(started.stdout);
+  const prepare = (delivery, record = coding) =>
+    run(
+      "prepare-routed-turns",
+      "--id",
+      delivery,
+      "--podman-machine",
+      "aios-test",
+      "--coding-admission",
+      record,
+      "--auth-account",
+      "a".repeat(64),
+      "--turns",
+      "2",
+    );
+  const unknown = prepare("99999999-2222-4333-8444-555555555555");
+  assert.equal(unknown.status, 1);
+  assert.equal(JSON.parse(unknown.stderr).error, "Delivery not found.");
+  assert.match(
+    JSON.parse(prepare(id, join(owned, "missing.json")).stderr).error,
+    /owner coding admission record is missing or invalid/,
+  );
+  const planned = prepare(id);
+  assert.equal(planned.status, 0, planned.stderr);
+  const plan = JSON.parse(planned.stdout);
+  assert.equal(plan.deliveryId, id);
+  assert.equal(plan.turns, 2);
+  const code = (turns) =>
+    run(
+      "code-feature",
+      "--id",
+      id,
+      "--podman-machine",
+      "aios-test",
+      "--coding-admission",
+      coding,
+      "--validation-admission",
+      validation,
+      "--auth-directory",
+      auth,
+      "--auth-account",
+      "a".repeat(64),
+      "--approve-run",
+      plan.runId,
+      "--approve-turns",
+      turns,
+    );
+  assert.match(
+    JSON.parse(code("1").stderr).error,
+    /routed-turn approval does not match a current plan/,
+  );
+  // The matching approval is accepted; the unplanned delivery then refuses
+  // coding, so no turn is spent.
+  const approved = code("2");
+  assert.equal(approved.status, 1);
+  assert.doesNotMatch(JSON.parse(approved.stderr).error, /approval/);
+  assert.equal(
+    readdirSync(join(owned, "state")).filter((name) =>
+      name.endsWith(".consumed"),
+    ).length,
+    0,
   );
 });
 
