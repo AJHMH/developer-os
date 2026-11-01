@@ -76,6 +76,9 @@ async function qualifiedDelivery(t) {
     policyPath,
     registrationPath,
     account: () => (reads.push(accountId), {}),
+    // On Windows, each file the script writes gets the owner-only access
+    // the decision projection checks, as the host's `windowsAuthStore` gives.
+    protect: (paths) => ownWindowsFixturePaths(paths),
   };
   return { f, id, inputs, native, reads, mediation };
 }
