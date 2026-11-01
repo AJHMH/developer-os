@@ -1178,3 +1178,23 @@ owner's. The validation acceptance's contract is now the shared
 `acceptanceContract`. Tests run the real CLI for `start` and `plan-feature` on
 the synthetic inputs and simulate the VM steps. The native run on each host is
 the owner's. No guest or pin change. Production remains disabled.
+
+## 31 October: ADR 0004 native CLI delivery acceptance passed on both hosts
+
+The owner ran `scripts/run-native-cli-delivery-acceptance.mjs` from clean
+`main` on each host. Both reported `observed-offline-cli-delivery-acceptance`:
+macOS at `81eb317`, Windows at `3354df8`. On each, every step ran through the
+real CLI with only its owner inputs: start, plan, a native baseline (five of five
+checks), an offline coding turn that reported a thread and was stopped exactly
+(`exhausted` on macOS, `failed` on Windows), and a refused candidate
+validation. The host checkout stayed unchanged. Production remains disabled.
+
+The runs needed fresh coding admission records (the coding guest program changed
+in PRs 155 and 157), the pinned `codex` for usage (PR 165), private records
+folders on Windows (PR 167) and a usage executable bound that admits the 317 MiB
+Windows `codex` (PR 168). The candidate refusal reached the CLI as an internal
+error, so its reason was lost; `validateCandidate` now refuses with a
+`DeliveryError` when no candidate is admitted, and the acceptance finds the
+CLI's error line among Node's warnings. A validated candidate still needs a
+routed live turn, under the owner's one-shot approval.
+

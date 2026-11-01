@@ -49,7 +49,7 @@ The coding turn is offline. With no model access it never completes, so it prove
 
 Before any CLI step, the run reads the VM's fresh coding and validation pins and checks that both admission records name them. If either record is stale, for example after a guest program change, it stops there and prints the fresh pins, so that you can check or rewrite the record. A stale record otherwise refuses the coding turn and leaves its stop unverifiable.
 
-The run reads usage through the pinned `codex` executable, as every coding turn does. It sends no inference and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. The CLI's delivery state stays in the printed `state` directory as evidence. Run it from a fresh build of `main`. Usage is read only through the pinned native `codex` 0.161.0 (`nativeCodexSha256` in `src/host-target.ts`): on macOS `12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de` from `@openai/codex@0.161.0-darwin-arm64`, on Windows `a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30`. Any other executable, such as the Codex app's bundled one, reads as unknown usage, and `code-feature` refuses before launch. On Windows, set `$codex` to your pinned copy; `(Get-FileHash $codex).Hash` must equal the Windows digest.
+The run reads usage through the pinned `codex` executable, as every coding turn does. It sends no inference and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. The CLI's delivery state stays in the printed `state` directory as evidence. Run it from a fresh build of `main`. Usage is read only through the pinned native `codex` 0.161.0 (`nativeCodexSha256` in `src/host-target.ts`): on macOS `12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de` from `@openai/codex@0.161.0-darwin-arm64`, on Windows `a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30`. Any other executable, such as the Codex app's bundled one, reads as unknown usage, and `code-feature` refuses before launch. On Windows, the pinned copy is the one under the checkout's ignored `.scratch/codex-runtime`; if yours is elsewhere, set `$codex` to it. `(Get-FileHash $codex).Hash` must equal the Windows digest.
 
 macOS (Terminal):
 
@@ -64,5 +64,23 @@ node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state"
 Windows (PowerShell, not elevated), from the checkout. The first run creates its own state directory, which holds the acceptance lock:
 
 ```powershell
-git switch main; git pull --ff-only; npm ci --ignore-scripts; npm run build; $codex = "<pinned codex-0.161.0 x64 executable>"; New-Item -ItemType Directory -Force -Path "C:/Users/mraar/.developer-os/cli-delivery/state" | Out-Null; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/cli-delivery/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/admission/validation-admission.json" $codex "C:/Users/mraar/.developer-os/issue04-cli-delivery-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
+git switch main; git pull --ff-only; npm ci --ignore-scripts; npm run build; $codex = "D:/repos/developer-os/.scratch/codex-runtime/node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe"; New-Item -ItemType Directory -Force -Path "C:/Users/mraar/.developer-os/cli-delivery/state" | Out-Null; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/cli-delivery/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/admission/validation-admission.json" $codex "C:/Users/mraar/.developer-os/issue04-cli-delivery-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
 ```
+
+### Native results (31 October 2026)
+
+Both hosts passed with outcome `observed-offline-cli-delivery-acceptance`, from clean `main`:
+
+| Host                            | Source    | Baseline             | Coding turn                                                                | Candidate           |
+| ------------------------------- | --------- | -------------------- | -------------------------------------------------------------------------- | ------------------- |
+| macOS (`aios-macos-noshare`)    | `81eb317` | 5 of 5 checks, 34 s  | thread reported, stopped exactly, `exhausted` after its 5-minute allowance | refused, no attempt |
+| Windows (`aios-podman-noshare`) | `3354df8` | 5 of 5 checks, 163 s | thread reported, stopped exactly, `failed` after 153 s                     | refused, no attempt |
+
+On both, the turn was not routed and admitted no candidate. The host checkout stayed on unchanged `main`, and production stayed disabled. Reaching these passes needed:
+
+- fresh coding admission records on both hosts (the coding guest program changed in PRs 155 and 157);
+- the pinned `codex` for usage (PR 165);
+- private records folders on Windows (PR 167);
+- a usage executable bound that admits the 317 MiB Windows `codex` (PR 168).
+
+A validated candidate still needs a routed live turn, which stays under the owner's one-shot approval.

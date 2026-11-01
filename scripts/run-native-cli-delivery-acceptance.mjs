@@ -267,13 +267,15 @@ export async function cliDeliveryAcceptance(
       persist(report);
     }
   }
-  // A refusal is the CLI's own bounded message, never its environment. It is
-  // the last stderr line; Node may warn before it (on Windows, about SQLite).
+  // A refusal is the CLI's own bounded message, never its environment: the
+  // last stderr line that is its JSON error. Node may warn before or after
+  // it (on Windows, about SQLite and a deprecation).
   const refusal = (result) => {
-    try {
-      const error = JSON.parse(result.stderr.trim().split("\n").at(-1)).error;
-      if (typeof error === "string") return bounded(error);
-    } catch {}
+    for (const line of result.stderr.split("\n").reverse())
+      try {
+        const error = JSON.parse(line).error;
+        if (typeof error === "string") return bounded(error);
+      } catch {}
     return `The CLI exited with ${result.status}`;
   };
   async function run(...args) {

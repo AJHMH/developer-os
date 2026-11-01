@@ -12,12 +12,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { DeliveryController } from "../dist/controller.js";
+import { DeliveryController, DeliveryError } from "../dist/controller.js";
 import { ownerCriteriaPlanner } from "../dist/feature-criteria.js";
 import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import { chmodSync } from "node:fs";
 
 import { fixture, codingFixture } from "./helpers/feature-fixture.mjs";
+import { failedTurn } from "./helpers/coding-turns.mjs";
 
 test("ordinary requests retain observable criteria and verification across restart without approval", async (t) => {
   const f = fixture(t);
@@ -1441,4 +1442,25 @@ test("the CLI's owner inputs carry one offline delivery from start to an admitte
   assert.equal(onboarding.ready, true);
   assert.equal(onboarding.attestation.source, "owner-attested");
   assert.equal(result.blocker.code, "DELIVERY_NOT_ENABLED");
+});
+
+test("candidate validation without an admitted candidate is an owner-facing refusal that leaves no attempt", async (t) => {
+  const f = codingFixture(t);
+  await planAndValidate(f);
+  f.runtime.execute = failedTurn;
+  const coded = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(coded.feature.outcome, "failed");
+  assert.equal(coded.feature.candidate, undefined);
+  const attempts = coded.validation.attempts.length;
+  // A DeliveryError, so the CLI reports this reason, not its generic one.
+  await assert.rejects(
+    f.controller.validateCandidate(f.delivery.id),
+    (error) =>
+      error instanceof DeliveryError &&
+      /admitted candidate/.test(error.message),
+  );
+  assert.equal(
+    f.controller.status(f.delivery.id).validation.attempts.length,
+    attempts,
+  );
 });
