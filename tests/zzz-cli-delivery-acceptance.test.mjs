@@ -15,6 +15,7 @@ import {
   codingMinutes,
   ownerInputs,
   passingOutcome,
+  privateRoot,
   request,
   stageNames,
 } from "../scripts/run-native-cli-delivery-acceptance.mjs";
@@ -54,7 +55,7 @@ const host = {
 const option = (args, name) => args[args.indexOf(name) + 1];
 
 test("the synthetic owner inputs start and plan a delivery through the real CLI", async (t) => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-cli-owner-")));
+  const root = await privateRoot("aios-cli-owner-");
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const inputs = ownerInputs(root, offlineValidationEnvironment(imageSha256));
   const cli = cliRunner(join(root, "state"));
@@ -100,6 +101,50 @@ test("the synthetic owner inputs start and plan a delivery through the real CLI"
   ]);
   assert.equal(refused.status, 1);
 });
+
+test(
+  "a Windows temp folder that grants others access by inheritance is made private before the owner records are written",
+  { skip: process.platform !== "win32" && "Windows ACL inheritance" },
+  async (t) => {
+    // A parent like the owner's TEMP: another account may modify anything
+    // created inside it, by inheritance.
+    const parent = realpathSync(
+      mkdtempSync(join(tmpdir(), "aios-cli-shared-")),
+    );
+    t.after(() => rmSync(parent, { recursive: true, force: true }));
+    const grant = spawnSync(
+      join(process.env.SystemRoot, "System32", "icacls.exe"),
+      [parent, "/grant", "*S-1-5-32-545:(OI)(CI)(M)"],
+      { encoding: "utf8", windowsHide: true },
+    );
+    assert.equal(grant.status, 0, grant.stderr);
+    const ready = async (root) => {
+      const inputs = ownerInputs(
+        root,
+        offlineValidationEnvironment(imageSha256),
+      );
+      const result = await cliRunner(join(root, "state"))([
+        "start",
+        "--repo",
+        inputs.repository,
+        "--request",
+        request,
+        "--owner-policy",
+        inputs.policyPath,
+        "--onboarding-attestation",
+        inputs.attestationPath,
+      ]);
+      // A refused record either fails `start` or leaves onboarding unready.
+      return result.status === 0 && JSON.parse(result.stdout).onboarding.ready;
+    };
+    // Without the lockdown the CLI refuses the records, as on the owner's host.
+    assert.equal(
+      await ready(realpathSync(mkdtempSync(join(parent, "inherited-")))),
+      false,
+    );
+    assert.equal(await ready(await privateRoot("private-", parent)), true);
+  },
+);
 
 /** A CLI whose VM steps are simulated; `faults` changes what they report. */
 function simulatedCli(faults = {}) {
