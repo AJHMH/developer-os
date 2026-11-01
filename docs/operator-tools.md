@@ -105,12 +105,50 @@ After publication attach the PR to the chat and monitor its exact-head checks.
 Current-head human approval, main verification and production qualification remain
 independent. Neither tool approves, merges, reruns checks or supplies flake waivers.
 
+## Recording a delivery's mediation decision
+
+A routed coding turn needs the delivery's protected mediation decision record.
+`scripts/record-mediation-decision.mjs` writes it from one fixed-worker
+inference through the host-only subscription gateway (ADR 0002), on the
+delivery's macOS or Windows host. It needs the fixed worker's qualification of
+that delivery first (`qualify --adversarial` with the fixed worker's pins).
+
+Set `STATE_DIR`, `DELIVERY_ID`, `MACHINE`, `WORKER_POLICY` (the fixed worker's
+pins), `AUTH_DIR` and `AUTH_ACCOUNT`. `prepare` re-qualifies, checks the
+gateway evidence and plans one inference, reading no credential; set `RUN_ID`
+to the run ID it prints. `execute` spends that approval, sends one live request
+and records the decision:
+
+```sh
+node scripts/record-mediation-decision.mjs prepare --state-dir "${STATE_DIR:?}" \
+  --id "${DELIVERY_ID:?}" --podman-machine "${MACHINE:?}" \
+  --worker-policy "${WORKER_POLICY:?}" --auth-directory "${AUTH_DIR:?}" \
+  --auth-account "${AUTH_ACCOUNT:?}"
+node scripts/record-mediation-decision.mjs execute --state-dir "${STATE_DIR:?}" \
+  --id "${DELIVERY_ID:?}" --podman-machine "${MACHINE:?}" \
+  --worker-policy "${WORKER_POLICY:?}" --auth-directory "${AUTH_DIR:?}" \
+  --auth-account "${AUTH_ACCOUNT:?}" --approve-run "${RUN_ID:?}" \
+  --approve-unknown-usage
+```
+
+The plan lapses after an hour. `execute` re-qualifies and refuses a plan that
+no longer matches the delivery, account, host registration, gateway request,
+fixed-worker pins or worker executable. It then writes
+`inference-RUN.consumed` before any credential can be read, so each approval
+spends at most one live request, with no retries, refresh or paid fallback.
+The gateway is revoked afterwards. A proof that fails (an unstopped worker or
+relay, a changed executable or gateway) still spends the approval and records
+nothing. A passing run writes `subscription-decision-DELIVERY.json`, keeping
+any record it replaces as `.before-RUN`. The record does not name the usage
+account yet, so it qualifies only after the endorsement below.
+
 ## Usage-account endorsement
 
 A protected mediation decision record must name the usage reader's account for
 the same subscription (`usageAccountId`). Usage observations and the vault
-credential identify accounts differently, so the owner endorses the link. Set `STATE_DIR`, `DELIVERY_ID` and `CODEX` (the
-pinned codex executable), and then `USAGE_HASH` to the hash the preview prints:
+credential identify accounts differently, so the owner endorses the link. Set
+`STATE_DIR`, `DELIVERY_ID` and `CODEX` (the pinned codex executable), and then
+`USAGE_HASH` to the hash the preview prints:
 
 ```sh
 # Preview: prints the observed usage account hash and writes nothing.
