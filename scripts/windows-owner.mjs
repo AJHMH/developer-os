@@ -38,7 +38,9 @@ foreach($path in $paths) {
     {
       input: JSON.stringify(paths),
       encoding: "utf8",
-      timeout: 15000,
+      // A cold PowerShell start on a busy Windows runner has taken over 15 s
+      // (PRs 163 and 169); a slow start must not read as a refusal.
+      timeout: 60000,
       shell: false,
       windowsHide: true,
       env: { SystemRoot: process.env.SystemRoot },
