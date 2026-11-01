@@ -7,11 +7,15 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  truncateSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readCodexAccount } from "../dist/codex-app-server.js";
+import {
+  maxExecutableBytes,
+  readCodexAccount,
+} from "../dist/codex-app-server.js";
 
 const node = realpathSync(process.execPath);
 const pin = createHash("sha256").update(readFileSync(node)).digest("hex");
@@ -87,4 +91,25 @@ test("caller mutation cannot change the executable pin selected for an active se
   f.executable.sha256 = "0".repeat(64);
   f.executable.argumentsPrefix.length = 0;
   assert.equal((await pending).account.type, "chatgpt");
+});
+
+test("the executable bound admits the pinned Windows codex and refuses anything larger before hashing it", async (t) => {
+  // The pinned native Windows codex 0.161.0 is 317 MiB.
+  assert.ok(maxExecutableBytes > 317 * 1024 * 1024);
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-codex-size-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const path = join(root, "codex");
+  writeFileSync(path, "");
+  truncateSync(path, maxExecutableBytes + 1);
+  const started = Date.now();
+  assert.equal(
+    await readCodexAccount(
+      { path, sha256: "0".repeat(64) },
+      { policy: "owner" },
+      true,
+    ),
+    undefined,
+  );
+  // Refused on its size alone: hashing it would read every byte first.
+  assert.ok(Date.now() - started < 1000);
 });

@@ -155,10 +155,15 @@ function simulatedCli(faults = {}) {
     stdout: JSON.stringify(value),
     stderr: "",
   });
+  // As on Windows, Node warns on stderr before the CLI's own refusal.
   const refuse = (error) => ({
     status: 1,
     stdout: "",
-    stderr: JSON.stringify({ error }),
+    stderr:
+      "(node:1) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n" +
+      "(Use `node --trace-warnings ...` to show where the warning was created)\n" +
+      JSON.stringify({ error }) +
+      "\n",
   });
   const commands = {
     start(args) {
