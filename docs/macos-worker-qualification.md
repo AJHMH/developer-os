@@ -99,15 +99,16 @@ the policy, and a separate controller state directory. The observed synthetic
 setup is `/Users/aaronhoward/.developer-os/ticket4-macos/`: `input/` contains only
 the fixed canary input, `state/` is the authority, and `pins-v3b.json` is external
 to both. Keep this dedicated VM bound to that one authority. Never reuse it for
-another delivery store. Enrollment refuses existing policy files.
+another delivery store. Enrollment refuses existing policy files. Set `DELIVERY_ID` to the id that
+`start` prints.
 
 ```sh
 npm ci --ignore-scripts
 npm run build
 node dist/cli.js pin-offline --repo /absolute/input --state-dir /absolute/state --podman-machine aios-macos-noshare --worker-policy /absolute/new-pins.json
 node dist/cli.js start --repo /absolute/input --state-dir /absolute/state --request "Synthetic offline qualification"
-node dist/cli.js qualify --id <returned-id> --state-dir /absolute/state --podman-machine aios-macos-noshare --worker-policy /absolute/new-pins.json
-node dist/cli.js offline-canary --id <returned-id> --state-dir /absolute/state --podman-machine aios-macos-noshare --worker-policy /absolute/new-pins.json
+node dist/cli.js qualify --id "${DELIVERY_ID:?}" --state-dir /absolute/state --podman-machine aios-macos-noshare --worker-policy /absolute/new-pins.json
+node dist/cli.js offline-canary --id "${DELIVERY_ID:?}" --state-dir /absolute/state --podman-machine aios-macos-noshare --worker-policy /absolute/new-pins.json
 ```
 
 The input is exactly `AIOS offline canary input` followed by a newline. The
@@ -117,10 +118,11 @@ empty and seccomp/no-new-privileges are observed on its actual process. Result
 collection occurs only after revocation and independent cgroup/PID shutdown.
 No guest-selected paths or archives are imported.
 
-Run the three retained `macos-*-acceptance.mjs` scripts through the serial runner:
+Run the three retained `macos-*-acceptance.mjs` scripts through the serial runner,
+with `DELIVERY_ID` naming the qualified delivery:
 
 ```sh
-npm run acceptance:macos -- <delivery-id> /absolute/external-pins.json
+npm run acceptance:macos -- "${DELIVERY_ID:?}" /absolute/external-pins.json
 ```
 
 The runner executes round-trip, fencing and isolation in that order, stopping

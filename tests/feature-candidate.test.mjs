@@ -558,6 +558,8 @@ test("ambient Git variables never redirect a source observation", async (t) => {
   const other = fixture(t);
   other.git(
     "-c",
+    "commit.gpgsign=false",
+    "-c",
     "user.name=Fixture",
     "-c",
     "user.email=fixture@example.invalid",
@@ -618,6 +620,8 @@ test("a main baseline is the checked-out default branch, and nothing else", asyn
   // HEAD on another commit than main is refused, in both directions.
   f.git("checkout", "-q", "-b", "other");
   f.git(
+    "-c",
+    "commit.gpgsign=false",
     "-c",
     "user.name=Fixture",
     "-c",
