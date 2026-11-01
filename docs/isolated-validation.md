@@ -279,16 +279,19 @@ so a new image needs a new validation record: run the acceptance once without
 the flag to print the fresh pins, write the record, then run it with the flag.
 The baseline probes also pass on such an image.
 
+Set the owner-chosen image digest, without `sha256:`, as `NODE_DIGEST` on
+macOS or `$nodeDigest` on Windows.
+
 macOS (Terminal), after loading the owner-chosen image into the VM:
 
 ```sh
-NODE_IMAGE='docker.io/library/node@sha256:<owner-chosen digest>'
-IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "$NODE_IMAGE")"
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "$IMAGE" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies
+NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
+IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies
 ```
 
 Windows (PowerShell, not elevated):
 
 ```powershell
-$nodeImage = 'docker.io/library/node@sha256:<owner-chosen digest>'; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" $nodeImage; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-dependency-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run --with-npm-dependencies
+if (-not $nodeDigest) { throw 'Set $nodeDigest to the owner-chosen image digest, without sha256:' }; $nodeImage = "docker.io/library/node@sha256:$nodeDigest"; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" $nodeImage; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-dependency-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run --with-npm-dependencies
 ```

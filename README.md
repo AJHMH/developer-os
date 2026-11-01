@@ -21,9 +21,11 @@ On this Mac, use `AIOS_TEST_PYTHON=/usr/bin/python3 npm test` for host fixtures.
 
 ## Submit and inspect a request
 
+Set `DELIVERY_ID` to the id that `start` prints before inspecting one delivery.
+
 ```sh
 node dist/cli.js start --repo "/absolute/existing/repository" --request "Add a visible contact hint." --state-dir "/absolute/controller-state"
-node dist/cli.js status --id "<delivery-id>" --state-dir "/absolute/controller-state"
+node dist/cli.js status --id "${DELIVERY_ID:?}" --state-dir "/absolute/controller-state"
 node dist/cli.js status --state-dir "/absolute/controller-state"
 ```
 
@@ -35,12 +37,14 @@ Requests, optional `--issue` references and request artifacts survive restart in
 
 `start --owner-policy "/absolute/external/owner-policy.json"` selects an explicit owner-controlled onboarding policy. It is never discovered from candidate files. Onboarding records verified, unknown and conflicting facts; an onboarding snapshot does not replace fresh dispatch authorization. The [canonical specification](.scratch/aios-feature-delivery/spec.md) defines authority and approval requirements.
 
+Each control names a delivery by `DELIVERY_ID`:
+
 ```sh
-node dist/cli.js pause --id "<delivery-id>" --state-dir "/absolute/controller-state"
-node dist/cli.js resume --id "<delivery-id>" --state-dir "/absolute/controller-state"
-node dist/cli.js cancel --id "<delivery-id>" --state-dir "/absolute/controller-state"
-node dist/cli.js recover --id "<delivery-id>" --state-dir "/absolute/controller-state"
-node dist/cli.js release --id "<delivery-id>" --state-dir "/absolute/controller-state"
+node dist/cli.js pause --id "${DELIVERY_ID:?}" --state-dir "/absolute/controller-state"
+node dist/cli.js resume --id "${DELIVERY_ID:?}" --state-dir "/absolute/controller-state"
+node dist/cli.js cancel --id "${DELIVERY_ID:?}" --state-dir "/absolute/controller-state"
+node dist/cli.js recover --id "${DELIVERY_ID:?}" --state-dir "/absolute/controller-state"
+node dist/cli.js release --id "${DELIVERY_ID:?}" --state-dir "/absolute/controller-state"
 ```
 
 One configured authority directory coordinates ownership per canonical repository. Queued requests wait for safe release. Pause/cancel/recovery fence sessions and require matching descendant-shutdown evidence; unknown shutdown retains ownership. Cancellation preserves work and does not close PRs, delete branches or roll back effects. For native sessions, supply the same `--podman-machine` and external `--worker-policy` to pause, cancel and recover. Separate state stores do not share ownership.

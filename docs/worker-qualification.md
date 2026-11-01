@@ -375,18 +375,20 @@ count, refusal and provider status, and never the token, the usage windows or
 the account email; errors are redacted of the token. Each turn allows at most
 8 model requests.
 
-First, the owner prepares the run and reads the printed run ID; the plan
-expires after an hour:
+First, the owner sets `ACCOUNT_ID` (the vault account) and `PRIVATE_STATE` (a
+private state directory), prepares the run and sets `RUN_ID` to the printed run
+ID; the plan expires after an hour:
 
 ```sh
-node scripts/run-native-credentialed-qualification.mjs prepare aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" <account-id> <private-state-dir>
+node scripts/run-native-credentialed-qualification.mjs prepare aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "${ACCOUNT_ID:?}" "${PRIVATE_STATE:?}"
 ```
 
 Then, from a clean, built checkout with the VM running (macOS shown; on
-Windows use `aios-podman-noshare` and the same arguments):
+Windows use `aios-podman-noshare` and the same arguments), with `AUTH_DIR` and
+`CODEX` (the pinned codex executable) set:
 
 ```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-credentialed-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" <auth-dir> <account-id> <pinned-codex-executable> <private-state-dir> "$HOME/.developer-os/issue04-credentialed-$(date +%Y%m%d-%H%M%S).json" --approve-run <run-id> --approve-turns 2
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-credentialed-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "${AUTH_DIR:?}" "${ACCOUNT_ID:?}" "${CODEX:?}" "${PRIVATE_STATE:?}" "$HOME/.developer-os/issue04-credentialed-$(date +%Y%m%d-%H%M%S).json" --approve-run "${RUN_ID:?}" --approve-turns 2
 ```
 
 The approval is spent before any credential is read, so a rerun needs a

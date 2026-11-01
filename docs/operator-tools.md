@@ -109,16 +109,17 @@ independent. Neither tool approves, merges, reruns checks or supplies flake waiv
 
 A protected mediation decision record must name the usage reader's account for
 the same subscription (`usageAccountId`). Usage observations and the vault
-credential identify accounts differently, so the owner endorses the link:
+credential identify accounts differently, so the owner endorses the link. Set `STATE_DIR`, `DELIVERY_ID` and `CODEX` (the
+pinned codex executable), and then `USAGE_HASH` to the hash the preview prints:
 
 ```sh
 # Preview: prints the observed usage account hash and writes nothing.
-node scripts/endorse-subscription-usage.mjs --state-dir <controller-state> \
-  --delivery <delivery-id> --codex-executable <pinned-codex-executable>
+node scripts/endorse-subscription-usage.mjs --state-dir "${STATE_DIR:?}" \
+  --delivery "${DELIVERY_ID:?}" --codex-executable "${CODEX:?}"
 # Write: requires the previewed hash.
-node scripts/endorse-subscription-usage.mjs --state-dir <controller-state> \
-  --delivery <delivery-id> --codex-executable <pinned-codex-executable> \
-  --expect <usage-account-hash> --confirm true
+node scripts/endorse-subscription-usage.mjs --state-dir "${STATE_DIR:?}" \
+  --delivery "${DELIVERY_ID:?}" --codex-executable "${CODEX:?}" \
+  --expect "${USAGE_HASH:?}" --confirm true
 ```
 
 The usage observation comes from your own Codex login, read through the pinned
