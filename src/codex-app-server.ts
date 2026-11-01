@@ -20,6 +20,9 @@ export interface CodexAccountSession {
   executableSha256: string;
 }
 const sessionDeadlineMs = 4000;
+/** A bound before hashing; the pin is the control. The pinned native Windows
+ * codex 0.161.0 is 317 MiB. */
+export const maxExecutableBytes = 512 * 1024 * 1024;
 const outputLimits = { owner: 256 * 1024, isolated: 64 * 1024 };
 export function pinnedHostCodex(path: string): CodexExecutable {
   return {
@@ -81,7 +84,7 @@ export async function readCodexAccount(
     if (
       !entry.isFile() ||
       entry.size < 1 ||
-      entry.size > 256 * 1024 * 1024 ||
+      entry.size > maxExecutableBytes ||
       entry.isSymbolicLink() ||
       entry.nlink !== 1 ||
       (process.platform === "win32"
