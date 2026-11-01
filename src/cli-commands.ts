@@ -203,8 +203,11 @@ const commands: Record<string, CliCommand> = {
       "auth-account",
       "approve-run",
       "approve-turns",
+      "worker-policy",
+      "adversarial",
     ],
-    runtimes: ["subscription"],
+    // A routed turn re-qualifies on the fixed worker before it dispatches.
+    runtimes: ["native", "subscription"],
     invoke: (c, v) =>
       c.codeFeature(
         v.id!,
@@ -335,6 +338,10 @@ export function validateCliCommand(
       values["approve-turns"] !== undefined) &&
     (!values["auth-directory"] ||
       !values["coding-admission"] ||
+      // The delivery's decision is re-qualified at dispatch with the same
+      // fixed-worker probe that qualified it (`qualify --adversarial`).
+      !values["worker-policy"] ||
+      values.adversarial !== true ||
       !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
         values["approve-run"] ?? "",
       ) ||

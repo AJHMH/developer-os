@@ -294,6 +294,8 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     "auth-account": "a".repeat(64),
     "approve-run": "11111111-2222-4333-8444-555555555555",
     "approve-turns": "2",
+    "worker-policy": "/owner/fixed-worker-pins.json",
+    adversarial: true,
   };
   const invocation = validateCliCommand(
     ["code-feature"],
@@ -302,6 +304,9 @@ test("code-feature takes the owner's coding and validation inputs and its initia
   );
   assert.equal(invocation.name, "code-feature");
   assert.ok(invocation.command.runtimes.includes("subscription"));
+  // A routed turn re-qualifies the delivery on the fixed worker, as the
+  // decision it uses was qualified (`qualify --adversarial`).
+  assert.ok(invocation.command.runtimes.includes("native"));
   const calls = [];
   const controller = { codeFeature: (...args) => calls.push(args) };
   await invocation.command.invoke(controller, values);
@@ -326,6 +331,8 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     { ...values, "approve-run": "not-a-run" },
     { ...values, "approve-turns": "3" },
     { ...values, "coding-admission": undefined },
+    { ...values, "worker-policy": undefined },
+    { ...values, adversarial: undefined },
     {
       id: "d",
       "approve-run": "11111111-2222-4333-8444-555555555555",
@@ -507,6 +514,9 @@ test("code-feature from the CLI installs the owner-admitted runtimes without any
       "99999999-2222-4333-8444-555555555555",
       "--approve-turns",
       "2",
+      "--worker-policy",
+      join(owned, "fixed-worker-pins.json"),
+      "--adversarial",
       ...approval,
     );
   const unapproved = routed(auth);
@@ -582,6 +592,9 @@ test("code-feature from the CLI installs the owner-admitted runtimes without any
       plan.runId,
       "--approve-turns",
       turns,
+      "--worker-policy",
+      join(owned, "fixed-worker-pins.json"),
+      "--adversarial",
     );
   assert.match(
     JSON.parse(code("1").stderr).error,
