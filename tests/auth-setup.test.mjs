@@ -13,7 +13,18 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { hostRegistration } from "../scripts/run-native-credentialed-qualification.mjs";
+import { randomUUID } from "node:crypto";
+import { GeneralSessionGateway } from "../dist/general-session-gateway.js";
+import {
+  credentialedGeneralSessions,
+  hostRegistration,
+} from "../dist/general-sessions.js";
+import { gatewayModel } from "../dist/inference-contract.js";
+import {
+  requiredSubscriptionScopes,
+  subscriptionAccountId,
+  subscriptionIssuer,
+} from "../dist/subscription-account.js";
 
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-auth-setup-")));
@@ -160,15 +171,117 @@ $file.SetAccessControl($acl)
   assert.equal(readFileSync(path, "utf8"), original);
 });
 
-test("the credentialed run reads the host registration back from private storage, and nothing else passes for one", async (t) => {
+test("the credentialed run reads the host registration back from private storage, and nothing else passes for one", (t) => {
   const f = fixture(t);
   const prepared = f.command(f.auth);
   assert.equal(prepared.status, 0, prepared.stderr);
   assert.equal(
-    (await hostRegistration(f.auth)).hostId,
+    hostRegistration(f.auth).hostId,
     JSON.parse(prepared.stdout).hostId,
   );
-  await assert.rejects(hostRegistration(f.repo));
+  assert.throws(() => hostRegistration(f.repo));
   writeFileSync(join(f.auth, "registration.json"), "{}");
-  await assert.rejects(hostRegistration(f.auth), /registration is invalid/);
+  assert.throws(() => hostRegistration(f.auth), /registration is invalid/);
+});
+
+// ADR 0004 slice 5: the CLI's routed turns, over a fake vault and provider.
+function credentialedSessions(t, vaultAccount = {}) {
+  const f = fixture(t);
+  const prepared = f.command(f.auth);
+  assert.equal(prepared.status, 0, prepared.stderr);
+  const { hostId } = JSON.parse(prepared.stdout);
+  const owner = {
+    issuer: subscriptionIssuer,
+    clientId: "oaiapp_owner",
+    subject: "owner",
+    hostId,
+    planUsageAuthorized: true,
+    scopes: [...requiredSubscriptionScopes],
+    expiresAt: Date.now() + 40 * 60_000,
+    accessToken: "owner-access-token-" + "t".repeat(32),
+  };
+  const accountId = subscriptionAccountId(owner);
+  const reads = [],
+    tokens = [];
+  const factory = credentialedGeneralSessions(f.auth, accountId, {
+    vault: {
+      read: (id) => {
+        reads.push(id);
+        return Buffer.from(
+          JSON.stringify({ ...owner, ...vaultAccount }),
+        ).toString("base64");
+      },
+    },
+    async *provider(token) {
+      tokens.push(token);
+      yield Buffer.from('data: {"type":"response.completed"}\n\n');
+    },
+  });
+  const turn = (changes = {}) => ({
+    deliveryId: randomUUID(),
+    sessionId: randomUUID(),
+    decisionSha256: "d".repeat(64),
+    accountId,
+    expiresAt: Date.now() + 10 * 60_000,
+    ...changes,
+  });
+  const body = JSON.stringify({
+    model: gatewayModel,
+    instructions: "synthetic",
+    input: [{ role: "user", content: "synthetic turn" }],
+    store: false,
+    stream: true,
+  });
+  async function respond(gateway, deliveryId) {
+    let text = "";
+    for await (const chunk of await gateway.respond(
+      deliveryId,
+      gateway.capability,
+      body,
+    ))
+      text += Buffer.from(chunk).toString();
+    return text;
+  }
+  return { f, owner, accountId, reads, tokens, factory, turn, respond };
+}
+
+test("the CLI's general sessions open a real gateway on the registered host, reading the vault only at a model request", async (t) => {
+  const s = credentialedSessions(t);
+  const turn = s.turn();
+  let asked = 0;
+  const gateway = s.factory(turn, async () => {
+    asked++;
+    return "permitted";
+  });
+  assert.ok(gateway instanceof GeneralSessionGateway);
+  assert.deepEqual(s.reads, [], "no credential is read to open the session");
+  assert.match(await s.respond(gateway, turn.deliveryId), /completed/);
+  assert.deepEqual(s.reads, [s.accountId]);
+  assert.deepEqual(s.tokens, [s.owner.accessToken]);
+  assert.equal(asked, 1);
+  assert.equal(gateway.observation.completed, 1);
+});
+
+test("the CLI's general sessions refuse another account, an unusable vault account and a missing registration", async (t) => {
+  const s = credentialedSessions(t);
+  assert.throws(
+    () =>
+      s.factory(s.turn({ accountId: "c".repeat(64) }), async () => "permitted"),
+    /another account/,
+  );
+  assert.deepEqual(s.reads, []);
+  // Fresh authority still gates the provider.
+  const lapsed = s.turn(),
+    gateway = s.factory(lapsed, async () => "exhausted");
+  await assert.rejects(s.respond(gateway, lapsed.deliveryId));
+  assert.equal(gateway.observation.revokedFor, "exhausted");
+  assert.deepEqual(s.tokens, []);
+  // An expired vault account never reaches the provider.
+  const expired = credentialedSessions(t, { expiresAt: Date.now() - 1 });
+  const stale = expired.turn(),
+    refused = expired.factory(stale, async () => "permitted");
+  await assert.rejects(expired.respond(refused, stale.deliveryId));
+  assert.equal(refused.observation.revokedFor, "account");
+  assert.deepEqual(expired.tokens, []);
+  assert.throws(() => credentialedGeneralSessions(s.f.repo, s.accountId));
 });

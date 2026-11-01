@@ -183,6 +183,8 @@ const commands: Record<string, CliCommand> = {
       "coding-admission",
       "codex-executable",
       "coding-minutes",
+      "auth-directory",
+      "auth-account",
     ],
     runtimes: ["subscription"],
     invoke: (c, v) =>
@@ -298,6 +300,14 @@ export function validateCliCommand(
     !/^[a-f0-9]{64}$/.test(values["auth-account"])
   )
     return { error: "account" };
+  // Routed coding names the owner's auth directory and account together.
+  if (
+    command.kind === "delivery" &&
+    (values["auth-directory"] !== undefined ||
+      values["auth-account"] !== undefined) &&
+    (!values["auth-directory"] || !values["auth-account"])
+  )
+    return { error: "arguments" };
   if (
     (values["podman-machine"] !== undefined ||
       values["worker-policy"] !== undefined) &&

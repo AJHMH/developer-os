@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -288,6 +289,8 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     "validation-admission": "/owner/validation-admission.json",
     "codex-executable": "/owner/codex",
     "coding-minutes": "30",
+    "auth-directory": "/owner/auth",
+    "auth-account": "a".repeat(64),
   };
   const invocation = validateCliCommand(
     ["code-feature"],
@@ -309,11 +312,25 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     { id: "d", "podman-machine": "aios-test", "coding-admission": "" },
     { id: "d", "coding-minutes": "0" },
     { id: "d", "worker-policy": "/owner/worker-policy.json" },
+    // Routed coding names the owner's auth directory and account together.
+    { id: "d", "auth-directory": "/owner/auth" },
+    { id: "d", "auth-account": "a".repeat(64) },
+    { id: "d", "auth-directory": "", "auth-account": "a".repeat(64) },
   ])
     assert.equal(
       validateCliCommand(["code-feature"], refused, Object.keys(refused)).error,
       "arguments",
     );
+  const malformed = {
+    id: "d",
+    "auth-directory": "/owner/auth",
+    "auth-account": "owner@example.com",
+  };
+  assert.equal(
+    validateCliCommand(["code-feature"], malformed, Object.keys(malformed))
+      .error,
+    "account",
+  );
 });
 
 test("code-feature from the CLI installs the owner-admitted runtimes without any VM effect", (t) => {
@@ -388,6 +405,47 @@ test("code-feature from the CLI installs the owner-admitted runtimes without any
   assert.match(
     JSON.parse(missing.stderr).error,
     /owner coding admission record is missing or invalid/,
+  );
+  // Routed coding: the general sessions open on the prepared host
+  // registration, and no credential is read before a model request.
+  const owned = realpathSync(state),
+    repo = join(owned, "repo"),
+    auth = join(owned, "auth");
+  mkdirSync(repo);
+  const prepared = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      "prepare-auth",
+      "--repo",
+      repo,
+      "--state-dir",
+      join(owned, "state"),
+      "--auth-directory",
+      auth,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(prepared.status, 0, prepared.stderr);
+  const routed = (directory) =>
+    cli(
+      "--coding-admission",
+      coding,
+      "--validation-admission",
+      validation,
+      "--auth-directory",
+      directory,
+      "--auth-account",
+      "a".repeat(64),
+    );
+  const opened = routed(auth);
+  assert.equal(opened.status, 1);
+  assert.equal(JSON.parse(opened.stderr).error, "Delivery not found.");
+  const unregistered = routed(repo);
+  assert.equal(unregistered.status, 1);
+  assert.match(
+    JSON.parse(unregistered.stderr).error,
+    /owner's host registration is missing or invalid/,
   );
 });
 

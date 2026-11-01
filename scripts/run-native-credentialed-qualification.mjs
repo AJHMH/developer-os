@@ -529,24 +529,6 @@ function privateState(directory) {
   return realpathSync(directory);
 }
 
-/** The host registration in the owner's private auth directory, read as
- * `inspectSubscriptionAuth` reads it. */
-export async function hostRegistration(directory) {
-  const { assertPrivateAuthStorage } = await import(
-    "../dist/subscription-auth.js"
-  );
-  const { validHostRegistration } = await import(
-    "../dist/subscription-account.js"
-  );
-  const file = join(directory, "registration.json");
-  assertPrivateAuthStorage(directory, "directory");
-  assertPrivateAuthStorage(file, "file");
-  const record = JSON.parse(readFileSync(file, "utf8"));
-  if (!validHostRegistration(record))
-    throw Error("The host registration is invalid");
-  return record;
-}
-
 /** The owner's plan: what the one-shot approval names. */
 export function prepareRun(
   { machine, pins, accountId, stateDir },
@@ -689,8 +671,8 @@ async function main() {
   const { generalSessionGatewayVersion, generalSessionResponses } =
     await import("../dist/general-session-gateway.js");
   const { hostCredentialVault } = await import("../dist/credential-vault.js");
-  const { decodeSubscriptionAccount } = await import(
-    "../dist/subscription-account.js"
+  const { hostRegistration, vaultAccount } = await import(
+    "../dist/general-sessions.js"
   );
   const { codexSubscriptionReader } = await import("../dist/codex-usage.js");
   const { assessSubscription } = await import("../dist/subscription.js");
@@ -717,18 +699,12 @@ async function main() {
     runId,
     turns: Number(turns),
   });
-  const { hostId } = await hostRegistration(authDir);
-  const vault = hostCredentialVault(authDir, true);
-  // Read at each model request, so a changed or expired account is seen.
-  const account = () => {
-    const current = decodeSubscriptionAccount(
-      vault.read(accountId),
-      accountId,
-      hostId,
-    );
-    if (!current) throw Error("The owner's account is unavailable");
-    return current;
-  };
+  const { hostId } = hostRegistration(authDir);
+  const account = vaultAccount(
+    hostCredentialVault(authDir, true),
+    accountId,
+    hostId,
+  );
   const context = {
     host: { platform: platform(), arch: arch(), release: release(), machine },
     authority,

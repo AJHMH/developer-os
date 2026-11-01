@@ -231,8 +231,8 @@ export interface GeneralSessionTurn {
 }
 /** Opens the host side of a routed coding turn. `authority` is fresh at each
  * model request: usage observed now, the decision re-qualified. The real,
- * credential-backed factory belongs to slice 5; without one, coding stays
- * offline. */
+ * credential-backed factory is `credentialedGeneralSessions`; without one,
+ * coding stays offline. */
 export type GeneralSessionFactory = (
   turn: GeneralSessionTurn,
   authority: () => Promise<GeneralSessionAuthority>,
