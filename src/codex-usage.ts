@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import {
+  observeCodexAccount,
   pinnedHostCodex,
-  readCodexAccount,
   type CodexExecutable,
 } from "./codex-app-server.js";
 import type {
@@ -20,16 +20,21 @@ export function codexSubscriptionReader(
       : { ...executable };
   return async () => {
     try {
-      const result = await readCodexAccount(pin, { policy: "owner" }, true);
-      const account = result?.account,
-        limits = result?.rateLimits;
+      const observed = await observeCodexAccount(
+        pin,
+        { policy: "owner" },
+        true,
+      );
+      if ("refusal" in observed) return observed;
+      const account = observed.session.account,
+        limits = observed.session.rateLimits;
       if (
         !account ||
-        !limits ||
         account.type !== "chatgpt" ||
         typeof account.email !== "string"
       )
-        return undefined;
+        return { refusal: "not-chatgpt" };
+      if (!limits) return { refusal: "limits" };
       const buckets =
         limits.rateLimitsByLimitId !== undefined &&
         limits.rateLimitsByLimitId !== null
@@ -39,7 +44,8 @@ export function codexSubscriptionReader(
       let exhausted = false;
       for (const raw of buckets) {
         const bucket = raw as any;
-        if (!bucket || typeof bucket.limitId !== "string") return undefined;
+        if (!bucket || typeof bucket.limitId !== "string")
+          return { refusal: "limits" };
         exhausted ||= Boolean(bucket.rateLimitReachedType);
         for (const key of ["primary", "secondary"] as const) {
           const window = bucket[key];

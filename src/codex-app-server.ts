@@ -19,6 +19,23 @@ export interface CodexAccountSession {
   rateLimits?: any;
   executableSha256: string;
 }
+/** Why an account read returned nothing. Bounded labels only: provider
+ * errors, paths and protocol output never leave the reader. */
+export type CodexReadRefusal =
+  | "executable-path"
+  | "executable-size"
+  | "executable-hash"
+  | "version"
+  | "transport"
+  | "exited"
+  | "timeout"
+  | "output-limit"
+  | "rpc-error"
+  | "protocol"
+  | "stop";
+export type CodexAccountObservation =
+  | { session: CodexAccountSession }
+  | { refusal: CodexReadRefusal };
 const sessionDeadlineMs = 4000;
 /** A bound before hashing; the pin is the control. The pinned native Windows
  * codex 0.161.0 is 317 MiB. */
@@ -65,6 +82,20 @@ export async function readCodexAccount(
   context: CodexSessionContext,
   includeRateLimits = false,
 ): Promise<CodexAccountSession | undefined> {
+  const observed = await observeCodexAccount(
+    executable,
+    context,
+    includeRateLimits,
+  );
+  return "session" in observed ? observed.session : undefined;
+}
+/** `readCodexAccount`, naming why a read returned nothing. */
+export async function observeCodexAccount(
+  executable: CodexExecutable,
+  context: CodexSessionContext,
+  includeRateLimits = false,
+): Promise<CodexAccountObservation> {
+  let stage: CodexReadRefusal = "executable-path";
   executable = {
     ...executable,
     argumentsPrefix: [...(executable.argumentsPrefix ?? [])],
@@ -78,23 +109,25 @@ export async function readCodexAccount(
       !isAbsolute(executable.path) ||
       !/^[a-f0-9]{64}$/.test(executable.sha256)
     )
-      return undefined;
+      return { refusal: stage };
     const entry = lstatSync(executable.path),
       canonical = realpathSync(executable.path);
+    if (entry.isFile() && entry.size > maxExecutableBytes)
+      return { refusal: "executable-size" };
     if (
       !entry.isFile() ||
       entry.size < 1 ||
-      entry.size > maxExecutableBytes ||
       entry.isSymbolicLink() ||
       entry.nlink !== 1 ||
       (process.platform === "win32"
         ? canonical.toLowerCase() !== resolve(executable.path).toLowerCase()
         : canonical !== resolve(executable.path))
     )
-      return undefined;
+      return { refusal: stage };
     const digest = () =>
       createHash("sha256").update(readFileSync(canonical)).digest("hex");
-    if (digest() !== executable.sha256) return undefined;
+    if (digest() !== executable.sha256) return { refusal: "executable-hash" };
+    stage = "version";
     const execution = executionContext(context),
       prefix = [...(executable.argumentsPrefix ?? [])];
     if (context.policy === "isolated") {
@@ -111,8 +144,9 @@ export async function readCodexAccount(
         version.stdout.trim() !== "codex-cli 0.161.0" ||
         digest() !== executable.sha256
       )
-        return undefined;
+        return { refusal: stage };
     }
+    stage = "transport";
     const args =
       context.policy === "owner"
         ? ["app-server"]
@@ -144,6 +178,7 @@ export async function readCodexAccount(
         closed = false,
         initialized = false;
       let result: CodexAccountSession | undefined,
+        refusal: CodexReadRefusal = "exited",
         reaper: ReturnType<typeof setTimeout> | undefined;
       const replies = new Map<number, any>(),
         decoder = new StringDecoder("utf8");
@@ -153,39 +188,52 @@ export async function readCodexAccount(
         clearTimeout(timer);
         clearTimeout(reaper);
         try {
+          if (stopping && digest() !== executable.sha256)
+            refusal = "executable-hash";
           resolveResult(
-            stopping && digest() === executable.sha256 ? result : undefined,
+            stopping && result && refusal !== "executable-hash"
+              ? { session: result }
+              : { refusal },
           );
         } catch {
-          resolveResult(undefined);
+          resolveResult({ refusal: "executable-hash" });
         }
       };
-      const finish = (value?: CodexAccountSession) => {
+      const finish = (
+        value?: CodexAccountSession,
+        reason: CodexReadRefusal = "protocol",
+      ) => {
         if (stopping) return;
         stopping = true;
         result = value;
+        refusal = reason;
         clearTimeout(timer);
         reaper = setTimeout(() => {
           result = undefined;
+          refusal = "stop";
           child.kill("SIGKILL");
           complete();
         }, 250);
         child.stdin.end();
         child.kill();
       };
-      const timer = setTimeout(() => finish(), sessionDeadlineMs);
+      const timer = setTimeout(
+        () => finish(undefined, "timeout"),
+        sessionDeadlineMs,
+      );
       const send = (message: object) =>
         child.stdin.write(JSON.stringify(message) + "\n");
       child.on("error", () => {
-        finish();
+        finish(undefined, "transport");
         complete();
       });
       child.once("close", complete);
-      child.stdin.on("error", () => finish());
+      child.stdin.on("error", () => finish(undefined, "transport"));
       child.stdout.on("data", (chunk: Buffer) => {
         if (stopping) return;
         total += chunk.length;
-        if (total > outputLimits[context.policy]) return finish();
+        if (total > outputLimits[context.policy])
+          return finish(undefined, "output-limit");
         pending += decoder.write(chunk);
         let newline;
         while (!stopping && (newline = pending.indexOf("\n")) >= 0) {
@@ -193,7 +241,7 @@ export async function readCodexAccount(
           pending = pending.slice(newline + 1);
           try {
             const message = JSON.parse(line);
-            if (message.error) return finish();
+            if (message.error) return finish(undefined, "rpc-error");
             if (message.id === undefined) {
               if (typeof message.method !== "string") return finish();
               continue;
@@ -250,6 +298,6 @@ export async function readCodexAccount(
       });
     });
   } catch {
-    return undefined;
+    return { refusal: stage };
   }
 }

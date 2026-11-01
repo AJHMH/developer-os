@@ -13,6 +13,27 @@ export interface SubscriptionObservation {
   windows: { id: string; usedPercent: number; resetsAt: number }[];
   exhausted: boolean;
 }
+/** Why a usage read observed nothing: the reader's bounded label, never its
+ * error text. */
+export const usageRefusals = [
+  "executable-path",
+  "executable-size",
+  "executable-hash",
+  "version",
+  "transport",
+  "exited",
+  "timeout",
+  "output-limit",
+  "rpc-error",
+  "protocol",
+  "stop",
+  "not-chatgpt",
+  "limits",
+] as const;
+export type UsageRefusal = (typeof usageRefusals)[number];
+export interface SubscriptionRefusal {
+  refusal: UsageRefusal;
+}
 export interface UsageReport {
   checkId: string;
   checkedAt: string;
@@ -20,20 +41,29 @@ export interface UsageReport {
   decision: "ready" | "approval-required" | "exhausted";
   remainingPercent: number | null;
   scope: string;
+  /** Set only when the reader named why it observed nothing. */
+  unavailable?: UsageRefusal;
   approval?: { scope: string; at: string; operationId?: string };
 }
 export type SubscriptionReader = () => Promise<
-  SubscriptionObservation | undefined
+  SubscriptionObservation | SubscriptionRefusal | undefined
 >;
 const unknownAccountScope = (account: string) =>
   createHash("sha256")
     .update(JSON.stringify({ account, windows: "unknown" }))
     .digest("hex");
 export function assessSubscription(
-  observation: SubscriptionObservation | undefined,
+  read: SubscriptionObservation | SubscriptionRefusal | undefined,
   now = Date.now(),
   authModes: readonly SubscriptionAuthMode[] = subscriptionAuthModes,
 ): UsageReport {
+  const refused =
+    !!read &&
+    "refusal" in read &&
+    (usageRefusals as readonly unknown[]).includes(read.refusal)
+      ? read.refusal
+      : undefined;
+  const observation = read && !("refusal" in read) ? read : undefined;
   const accepted = (
     o: SubscriptionObservation | undefined,
   ): o is SubscriptionObservation => !!o && authModes.includes(o.authMode);
@@ -43,6 +73,7 @@ export function assessSubscription(
     decision: "approval-required",
     remainingPercent: null,
     scope: "unknown",
+    ...(refused ? { unavailable: refused } : {}),
   };
   if (
     accepted(observation) &&
@@ -113,7 +144,7 @@ export class UsageApprovalGate {
   constructor(private readonly clock: () => number = Date.now) {}
 
   observe(
-    observation: SubscriptionObservation | undefined,
+    observation: SubscriptionObservation | SubscriptionRefusal | undefined,
     previous?: UsageReport,
     endorsedAccount?: string,
   ): UsageReport {

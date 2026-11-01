@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   maxExecutableBytes,
+  observeCodexAccount,
   readCodexAccount,
 } from "../dist/codex-app-server.js";
 
@@ -36,6 +37,8 @@ const send=value=>{const text=JSON.stringify(value)+'\\n';process.stdout.write(t
 for await(const line of readline.createInterface({input:process.stdin})){
  const value=JSON.parse(line);
  if(mode==='hung')continue;
+ if(mode==='exit')process.exit(0);
+ if(mode==='rpc-error'){send({id:value.id,error:{message:'synthetic-private-error'}});continue;}
  if(mode==='malformed'){console.log('invalid');continue;}
  if(mode==='oversized'){process.stdout.write('x'.repeat(256*1024+1));continue;}
  if(value.method==='initialize')send({id:1,result:{}});
@@ -112,4 +115,47 @@ test("the executable bound admits the pinned Windows codex and refuses anything 
   );
   // Refused on its size alone: hashing it would read every byte first.
   assert.ok(Date.now() - started < 1000);
+});
+
+test("a refused account read names one bounded reason, never the provider's error", async (t) => {
+  const refusal = async (executable, includeRateLimits = true) =>
+    (
+      await observeCodexAccount(
+        executable,
+        { policy: "owner" },
+        includeRateLimits,
+      )
+    ).refusal;
+  const valid = fixture(t);
+  assert.deepEqual(
+    Object.keys(
+      await observeCodexAccount(valid.executable, { policy: "owner" }, true),
+    ),
+    ["session"],
+  );
+  assert.equal(
+    await refusal({ ...valid.executable, path: "relative-codex" }),
+    "executable-path",
+  );
+  assert.equal(
+    await refusal({ ...valid.executable, sha256: "0".repeat(64) }),
+    "executable-hash",
+  );
+  for (const [mode, reason] of [
+    ["malformed", "protocol"],
+    ["oversized", "output-limit"],
+    ["hung", "timeout"],
+    ["exit", "exited"],
+    ["rpc-error", "rpc-error"],
+  ])
+    assert.equal(await refusal(fixture(t, mode).executable), reason, mode);
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-codex-size-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const large = join(root, "codex");
+  writeFileSync(large, "");
+  truncateSync(large, maxExecutableBytes + 1);
+  assert.equal(
+    await refusal({ path: large, sha256: "0".repeat(64) }),
+    "executable-size",
+  );
 });

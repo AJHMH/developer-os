@@ -146,6 +146,11 @@ for (const [name, reason, arrange] of [
     (e) => ({ reader: async () => undefined }),
   ],
   [
+    "a usage read that names why it failed",
+    "no fresh, measured usage observation identifies the account (usage read: executable-size)",
+    () => ({ reader: async () => ({ refusal: "executable-size" }) }),
+  ],
+  [
     "an unmeasured observation",
     "no fresh, measured",
     (e) => ({ reader: async () => ({ ...e.observation, windows: [] }) }),

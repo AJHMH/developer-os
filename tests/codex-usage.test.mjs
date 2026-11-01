@@ -147,15 +147,15 @@ test("subscription reader supports the legacy limits response without fabricatin
   assert.equal(fake.stopped(), true);
 });
 
-for (const mode of [
-  "malformed",
-  "oversized",
-  "transport-error",
-  "rpc-error",
-  "api-account",
-  "invalid-limits",
-  "invalid-email",
-  "stdin-error",
+for (const [mode, refusal] of [
+  ["malformed", "protocol"],
+  ["oversized", "output-limit"],
+  ["transport-error", "transport"],
+  ["rpc-error", "rpc-error"],
+  ["api-account", "not-chatgpt"],
+  ["invalid-limits", "limits"],
+  ["invalid-email", "not-chatgpt"],
+  ["stdin-error", "transport"],
 ]) {
   test(`subscription reader refuses ${mode} without returning private diagnostics`, async (t) => {
     const fake = transport(t, mode, {
@@ -169,14 +169,19 @@ for (const mode of [
               },
       },
     });
-    assert.equal(await codexSubscriptionReader(fakeExecutable)(), undefined);
+    // Only the bounded reason crosses, never the provider's error text.
+    assert.deepEqual(await codexSubscriptionReader(fakeExecutable)(), {
+      refusal,
+    });
     assert.equal(fake.stopped(), true);
   });
 }
 
 test("subscription reader refuses a relative executable without launching a transport", async (t) => {
   const fake = transport(t, "valid", {});
-  assert.equal(await codexSubscriptionReader("synthetic-codex")(), undefined);
+  assert.deepEqual(await codexSubscriptionReader("synthetic-codex")(), {
+    refusal: "executable-path",
+  });
   assert.equal(fake.messages.length, 0);
 });
 
@@ -197,5 +202,7 @@ test("subscription reader handles a null modern-limit inventory through the lega
 
 test("subscription reader refuses a missing limit bucket rather than returning fabricated usage", async (t) => {
   transport(t, "valid", { rateLimitsByLimitId: { missing: null } });
-  assert.equal(await codexSubscriptionReader(fakeExecutable)(), undefined);
+  assert.deepEqual(await codexSubscriptionReader(fakeExecutable)(), {
+    refusal: "limits",
+  });
 });
