@@ -798,6 +798,9 @@ print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha25
 if R['action']=='relay': pump(relayProcess)
 
 `;
+/** The coding guest program's digest: the `policySha256` an owner coding
+ * admission pins. */
+export const managementPolicySha256 = digest(management);
 
 /** Native resume names its exact stopped predecessor through
  * `CodingRequest.resumeFrom`; there is no global session selection. */
@@ -901,7 +904,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       cliVersion: "0.161.0",
       cliSha256,
       codeModeHostSha256: hostSha256,
-      policySha256: digest(management),
+      policySha256: managementPolicySha256,
       bindingSha256: managementBindingSha256(
         managed,
         this.authority,
