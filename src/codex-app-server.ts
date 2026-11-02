@@ -37,6 +37,9 @@ export type CodexAccountObservation =
   | { session: CodexAccountSession }
   | { refusal: CodexReadRefusal };
 const sessionDeadlineMs = 4000;
+/** How long a stopped app-server may take to exit before it is killed and its
+ * read discarded. The pinned Windows codex has taken longer than 250 ms. */
+export const stopGraceMs = 5000;
 /** A bound before hashing; the pin is the control. The pinned native Windows
  * codex 0.161.0 is 317 MiB. */
 export const maxExecutableBytes = 512 * 1024 * 1024;
@@ -213,7 +216,7 @@ export async function observeCodexAccount(
           refusal = "stop";
           child.kill("SIGKILL");
           complete();
-        }, 250);
+        }, stopGraceMs);
         child.stdin.end();
         child.kill();
       };
