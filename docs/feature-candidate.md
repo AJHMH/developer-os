@@ -67,21 +67,24 @@ Windows (PowerShell, not elevated), from the checkout. The first run creates its
 git switch main; git pull --ff-only; npm ci --ignore-scripts; npm run build; $codex = "D:/repos/developer-os/.scratch/codex-runtime/node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe"; New-Item -ItemType Directory -Force -Path "C:/Users/mraar/.developer-os/cli-delivery/state" | Out-Null; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/cli-delivery/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/admission/validation-admission.json" $codex "C:/Users/mraar/.developer-os/issue04-cli-delivery-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
 ```
 
-### Native results (31 October 2026)
+### Native results (1 November 2026)
 
-Both hosts passed with outcome `observed-offline-cli-delivery-acceptance`, from clean `main`:
+Both hosts passed with outcome `observed-offline-cli-delivery-acceptance`, from clean `main` at `84b80d7`:
 
-| Host                            | Source    | Baseline             | Coding turn                                                                | Candidate           |
-| ------------------------------- | --------- | -------------------- | -------------------------------------------------------------------------- | ------------------- |
-| macOS (`aios-macos-noshare`)    | `81eb317` | 5 of 5 checks, 34 s  | thread reported, stopped exactly, `exhausted` after its 5-minute allowance | refused, no attempt |
-| Windows (`aios-podman-noshare`) | `3354df8` | 5 of 5 checks, 163 s | thread reported, stopped exactly, `failed` after 153 s                     | refused, no attempt |
+| Host                            | Baseline             | Coding turn                                                                | Candidate           |
+| ------------------------------- | -------------------- | -------------------------------------------------------------------------- | ------------------- |
+| macOS (`aios-macos-noshare`)    | 5 of 5 checks, 31 s  | thread reported, stopped exactly, `exhausted` after its 5-minute allowance | refused, no attempt |
+| Windows (`aios-podman-noshare`) | 5 of 5 checks, 163 s | thread reported, stopped exactly, `failed` after 307 s                     | refused, no attempt |
+
+The previous passes, on 31 October, were at `81eb317` (macOS) and `3354df8` (Windows).
 
 On both, the turn was not routed and admitted no candidate. The host checkout stayed on unchanged `main`, and production stayed disabled. Reaching these passes needed:
 
 - fresh coding admission records on both hosts (the coding guest program changed in PRs 155 and 157);
 - the pinned `codex` for usage (PR 165);
 - private records folders on Windows (PR 167);
-- a usage executable bound that admits the 317 MiB Windows `codex` (PR 168).
+- a usage executable bound that admits the 317 MiB Windows `codex` (PR 168);
+- a 5-second wait for the usage reader's `codex` to exit, which the Windows `codex` often needs (PR 181). Before it, the read was discarded as `stop`, usage read as unknown and the turn never dispatched.
 
 A validated candidate still needs a routed live turn, which stays under the owner's one-shot approval.
 
