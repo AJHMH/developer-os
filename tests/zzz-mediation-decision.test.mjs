@@ -220,6 +220,54 @@ test("an inference whose proof fails is spent and records no decision", async (t
   );
 });
 
+test("a refused inference names where it stopped, with no credential detail", async (t) => {
+  const { f, id, inputs, native } = await qualifiedDelivery(t);
+  const refuse = async (fail) => {
+    const plan = await prepareMediationInference(inputs);
+    native.inferThroughGateway = async (repository, deliveryId, begin) => {
+      fail(begin);
+      throw Error("Unverified inference bridge");
+    };
+    const error = await executeMediationInference({
+      ...inputs,
+      native,
+      runId: plan.runId,
+      unknownUsageApproved: true,
+    }).catch((error) => error);
+    assert.ok(existsSync(join(f.state, `inference-${plan.runId}.consumed`)));
+    assert.equal(
+      existsSync(join(f.state, `subscription-decision-${id}.json`)),
+      false,
+    );
+    // The owner sees it through the routed runner, which keeps 300 characters.
+    assert.ok(error.message.length <= 300, error.message);
+    return error.message;
+  };
+  // The provider refused the gateway's one request.
+  const provider = await refuse((begin) => {
+    const gateway = begin();
+    Object.assign(gateway, {
+      phase: "provider-request",
+      providerAttempts: 1,
+      providerStatus: 401,
+    });
+  });
+  assert.match(provider, /^The live inference was refused/);
+  assert.match(provider, /Unverified inference bridge/);
+  assert.match(provider, /gateway phase provider-request/);
+  assert.match(provider, /1 provider request/);
+  assert.match(provider, /provider status 401/);
+  // The worker failed before it asked the gateway for anything.
+  const isolation = await refuse(() => {});
+  assert.match(isolation, /the gateway was never opened/);
+  // An unlisted error is named only as such.
+  const unlisted = await refuse(() => {
+    throw Error("token sk-secret");
+  });
+  assert.match(unlisted, /an unlisted error/);
+  assert.doesNotMatch(unlisted, /sk-secret/);
+});
+
 test("a new decision keeps the one it replaces", async (t) => {
   const { f, id, inputs, native } = await qualifiedDelivery(t);
   const run = async () => {

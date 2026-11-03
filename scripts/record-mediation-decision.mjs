@@ -130,6 +130,33 @@ export async function prepareMediationInference({
  * and record the delivery's decision once its proof passes. `account` reads
  * the owner's credential; it is reached only through the gateway, after the
  * approval is spent. Returns the record. */
+// Messages the native bridge and gateway raise themselves; any other error is
+// named only as unlisted, so no provider or credential text reaches the owner.
+const knownRefusals = [
+  "Unverified isolation",
+  "Unverified inference bridge",
+  "Invalid host inference approval",
+  "Gateway refused",
+  "Gateway revoked",
+  "The owner's account is unavailable",
+];
+
+/** Where a spent inference stopped: the error, if listed, and the gateway's
+ * own non-secret observation (phase, request count, provider HTTP status). */
+function refusal(error, observation) {
+  const message = String(error?.message ?? "");
+  const named = knownRefusals.includes(message)
+    ? `"${message}"`
+    : "an unlisted error";
+  const stage = observation
+    ? `gateway phase ${observation.phase}, ${observation.providerAttempts} provider request(s)` +
+      (observation.providerStatus === undefined
+        ? ""
+        : `, provider status ${observation.providerStatus}`)
+    : "the gateway was never opened";
+  return `The live inference was refused with ${named}; ${stage}. No decision is recorded.`;
+}
+
 export async function executeMediationInference({
   controller,
   native,
@@ -195,23 +222,27 @@ export async function executeMediationInference({
   protect([consumed]);
   let gateway;
   try {
-    const proof = await native.inferThroughGateway(
-      repository,
-      deliveryId,
-      () =>
-        (gateway = new HostSubscriptionGateway(
-          {
-            runId,
-            deliveryId,
-            accountId,
-            hostId,
-            requestSha256: plan.requestSha256,
-            expiresAt: Date.now() + inferenceWindowMs,
-            unknownUsageApproved: true,
-          },
-          account,
-        )),
-    );
+    const proof = await native
+      .inferThroughGateway(
+        repository,
+        deliveryId,
+        () =>
+          (gateway = new HostSubscriptionGateway(
+            {
+              runId,
+              deliveryId,
+              accountId,
+              hostId,
+              requestSha256: plan.requestSha256,
+              expiresAt: Date.now() + inferenceWindowMs,
+              unknownUsageApproved: true,
+            },
+            account,
+          )),
+      )
+      .catch((error) => {
+        throw Error(refusal(error, gateway?.observation));
+      });
     if (
       proof?.explicitResume !== "passed" ||
       proof.resumeInferenceRequests !== 0 ||
