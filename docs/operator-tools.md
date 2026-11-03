@@ -138,7 +138,9 @@ fixed-worker pins or worker executable. It then writes
 spends at most one live request, with no retries, refresh or paid fallback.
 The gateway is revoked afterwards. A proof that fails (an unstopped worker or
 relay, a changed executable or gateway) still spends the approval and records
-nothing. A passing run writes `subscription-decision-DELIVERY.json`, keeping
+nothing. A refused inference says where it stopped: the bridge's or gateway's
+own refusal, if listed, the gateway's phase and request count, and the
+provider's HTTP status. It never includes provider or credential text. A passing run writes `subscription-decision-DELIVERY.json`, keeping
 any record it replaces as `.before-RUN`. The record does not name the usage
 account yet, so it qualifies only after the endorsement below.
 
