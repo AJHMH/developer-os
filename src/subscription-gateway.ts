@@ -17,9 +17,10 @@ export {
   syntheticGatewayResponse,
 } from "./inference-contract.js";
 
-/** Reasoning events a reply may carry; they never reach the output. */
-const allowedReasoning =
-  /^response\.reasoning_(summary_)?(text|part)\.(added|delta|done)$/;
+/** Reasoning and metadata events a reply may carry; they never reach the
+ * output, since the worker receives only the canonical stream. */
+const ignoredEvents =
+  /^response\.(reasoning_(summary_)?(text|part)\.(added|delta|done)|metadata)$/;
 
 export const subscriptionGatewayVersion = createHash("sha256")
   .update(readFileSync(new URL(import.meta.url)))
@@ -261,7 +262,7 @@ export class HostSubscriptionGateway {
       if (
         knownType === "other" &&
         this.stream.unrecognizedTypes.length < 8 &&
-        !allowedReasoning.test(event.type ?? "")
+        !ignoredEvents.test(event.type ?? "")
       )
         this.stream.unrecognizedTypes.push(
           typeof event.type === "string" &&
@@ -381,7 +382,7 @@ export class HostSubscriptionGateway {
         }
         item.done = true;
       }
-      if (knownType === "other" && !allowedReasoning.test(event.type ?? ""))
+      if (knownType === "other" && !ignoredEvents.test(event.type ?? ""))
         throw Error("Gateway refused");
       if (event.type === "response.output_text.delta") {
         if (

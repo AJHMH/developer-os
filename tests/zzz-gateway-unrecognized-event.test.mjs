@@ -73,3 +73,30 @@ test("a recognised reply records no unrecognised types", async () => {
   await gateway.respond(deliveryId, gateway.capability, gatewayRequest);
   assert.deepEqual(gateway.observation.stream.unrecognizedTypes, []);
 });
+
+test("a response.metadata event is ignored and never reaches the worker", async () => {
+  const gateway = replyWith([
+    { type: "response.metadata", metadata: { note: "secret" } },
+  ]);
+  const reply = await gateway.respond(
+    deliveryId,
+    gateway.capability,
+    gatewayRequest,
+  );
+  assert.deepEqual(reply, syntheticGatewayResponse());
+  assert.doesNotMatch(reply.toString(), /secret/);
+  const { stream } = gateway.observation;
+  assert.deepEqual(stream.unrecognizedTypes, []);
+  assert.equal(stream.completed, true);
+});
+
+test("only the exact response.metadata type is ignored", async () => {
+  for (const type of ["response.metadata.delta", "response.metadata_extra"]) {
+    const gateway = replyWith([{ type }]);
+    await assert.rejects(
+      gateway.respond(deliveryId, gateway.capability, gatewayRequest),
+      /Gateway refused/,
+    );
+    assert.deepEqual(gateway.observation.stream.unrecognizedTypes, [type]);
+  }
+});
