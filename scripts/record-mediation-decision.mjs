@@ -36,6 +36,7 @@ const planPath = (state, runId) =>
 // The name the decision projection checks for the spent approval.
 const consumedPath = (state, runId) =>
   join(state, `inference-${runId}.consumed`);
+const refusalName = (runId) => `inference-${runId}.refusal.json`;
 const evidenceFields = [
   "deliveryId",
   "accountId",
@@ -135,26 +136,33 @@ export async function prepareMediationInference({
 const knownRefusals = [
   "Unverified isolation",
   "Unverified inference bridge",
+  "Unverified gateway integration",
+  "Gateway transport unavailable",
   "Invalid host inference approval",
   "Gateway refused",
   "Gateway revoked",
   "The owner's account is unavailable",
 ];
 
+const listed = (error) => {
+  const message = String(error?.message ?? "");
+  return knownRefusals.includes(message) ? message : undefined;
+};
+
 /** Where a spent inference stopped: the error, if listed, and the gateway's
  * own non-secret observation (phase, request count, provider HTTP status). */
-function refusal(error, observation) {
-  const message = String(error?.message ?? "");
-  const named = knownRefusals.includes(message)
-    ? `"${message}"`
-    : "an unlisted error";
+function refusal(error, observation, summary) {
+  const named = listed(error) ? `"${listed(error)}"` : "an unlisted error";
   const stage = observation
     ? `gateway phase ${observation.phase}, ${observation.providerAttempts} provider request(s)` +
       (observation.providerStatus === undefined
         ? ""
         : `, provider status ${observation.providerStatus}`)
     : "the gateway was never opened";
-  return `The live inference was refused with ${named}; ${stage}. No decision is recorded.`;
+  return (
+    `The live inference was refused with ${named}; ${stage}. No decision is recorded.` +
+    (summary ? ` Summary: ${summary} in the state folder.` : "")
+  );
 }
 
 export async function executeMediationInference({
@@ -241,7 +249,33 @@ export async function executeMediationInference({
           )),
       )
       .catch((error) => {
-        throw Error(refusal(error, gateway?.observation));
+        const observation = gateway?.observation;
+        let summary;
+        // The gateway's labels and counts, never content, kept beside the
+        // spent approval so a rejected reply can be told apart without
+        // spending another one.
+        if (observation)
+          try {
+            const path = join(state, refusalName(runId));
+            writeFileSync(
+              path,
+              JSON.stringify(
+                {
+                  schema: 1,
+                  runId,
+                  observedAt: new Date().toISOString(),
+                  refusal: listed(error) ?? "unlisted",
+                  gateway: observation,
+                },
+                null,
+                2,
+              ) + "\n",
+              { flag: "wx", mode: 0o600, flush: true },
+            );
+            protect([path]);
+            summary = refusalName(runId);
+          } catch {}
+        throw Error(refusal(error, observation, summary));
       });
     if (
       proof?.explicitResume !== "passed" ||

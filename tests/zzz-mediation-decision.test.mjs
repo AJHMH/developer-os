@@ -268,6 +268,49 @@ test("a refused inference names where it stopped, with no credential detail", as
   assert.doesNotMatch(unlisted, /sk-secret/);
 });
 
+test("a reply the gateway rejects keeps the gateway's content-free summary beside the spent approval", async (t) => {
+  const { f, inputs, native } = await qualifiedDelivery(t);
+  const plan = await prepareMediationInference(inputs);
+  native.inferThroughGateway = async (repository, deliveryId, begin) => {
+    const gateway = begin();
+    // What the gateway itself records while checking a reply: labels and
+    // counts only. The bridge reports the rejection as its own error.
+    Object.assign(gateway, {
+      phase: "response-validation",
+      providerAttempts: 1,
+    });
+    Object.assign(gateway.stream, {
+      format: "event-stream-or-invalid",
+      records: 3,
+      eventTypes: ["response.created", "response.in_progress", "other"],
+    });
+    throw Error("Gateway transport unavailable");
+  };
+  const error = await executeMediationInference({
+    ...inputs,
+    native,
+    runId: plan.runId,
+    unknownUsageApproved: true,
+  }).catch((error) => error);
+  const name = `inference-${plan.runId}.refusal.json`;
+  assert.match(error.message, /"Gateway transport unavailable"/);
+  assert.match(error.message, /gateway phase response-validation/);
+  assert.ok(error.message.includes(name), error.message);
+  assert.ok(error.message.length <= 300, error.message);
+  const path = join(f.state, name);
+  const summary = JSON.parse(readFileSync(path, "utf8"));
+  assert.equal(summary.runId, plan.runId);
+  assert.equal(summary.refusal, "Gateway transport unavailable");
+  assert.equal(summary.gateway.phase, "response-validation");
+  assert.deepEqual(summary.gateway.stream.eventTypes, [
+    "response.created",
+    "response.in_progress",
+    "other",
+  ]);
+  if (process.platform !== "win32")
+    assert.equal(statSync(path).mode & 0o777, 0o600);
+});
+
 test("a new decision keeps the one it replaces", async (t) => {
   const { f, id, inputs, native } = await qualifiedDelivery(t);
   const run = async () => {
