@@ -56,6 +56,8 @@ test("a type that is not a plain identifier is kept only as unnamed", async () =
     "x".repeat(81),
     "response..added",
     42,
+    // No type at all.
+    undefined,
   ]) {
     const gateway = replyWith([{ type }]);
     await assert.rejects(
