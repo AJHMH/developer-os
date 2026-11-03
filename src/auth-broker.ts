@@ -60,15 +60,35 @@ const scopes = [
   ...requiredSubscriptionScopes,
 ].join(" ");
 export class AuthorizationFailure extends DeliveryError {
-  constructor(stage: string, status?: number) {
+  constructor(stage: string, status?: number, code?: string) {
     super(
-      `Authentication could not be verified at ${stage}${status ? ` (HTTP ${status})` : ""}; start a fresh authorization. Existing account credentials remain unchanged and delivery remains disabled.`,
+      `Authentication could not be verified at ${stage}${status ? ` (HTTP ${status}${code ? `, ${code}` : ""})` : ""}; start a fresh authorization. Existing account credentials remain unchanged and delivery remains disabled.`,
     );
   }
 }
+// The standard OAuth error codes (RFC 6749 and RFC 8707). Any other value is
+// reported only as unlisted, so no provider text is carried.
+const oauthErrors = [
+  "invalid_request",
+  "invalid_client",
+  "invalid_grant",
+  "unauthorized_client",
+  "unsupported_grant_type",
+  "invalid_scope",
+  "invalid_target",
+];
 export class AuthorizationHttpFailure extends Error {
-  constructor(readonly status: number) {
+  readonly code?: string;
+  constructor(
+    readonly status: number,
+    error?: unknown,
+  ) {
     super("Authorization HTTP request refused");
+    if (error !== undefined)
+      this.code =
+        typeof error === "string" && oauthErrors.includes(error)
+          ? error
+          : "unlisted";
   }
 }
 const failure = () => new AuthorizationFailure("request");
@@ -297,10 +317,9 @@ export class SubscriptionAuthBroker {
         ),
       };
     } catch (error) {
-      throw new AuthorizationFailure(
-        stage,
-        error instanceof AuthorizationHttpFailure ? error.status : undefined,
-      );
+      throw error instanceof AuthorizationHttpFailure
+        ? new AuthorizationFailure(stage, error.status, error.code)
+        : new AuthorizationFailure(stage);
     }
   }
 }
