@@ -9,7 +9,8 @@
 //     is read and nothing live is sent.
 //   decide: spends the owner's approval of the decision run (one live
 //     request), records the delivery's mediation decision and previews the
-//     usage account to endorse.
+//     usage account to endorse. Rerun after a refused preview, it resumes at
+//     the preview without a second request.
 //   route: endorses that usage account, re-qualifies until the decision
 //     qualifies, and plans the routed turns.
 //   code: spends the owner's approval of the routed run on a routed
@@ -175,24 +176,54 @@ export async function prepareRouted({ run, script, host, root, environment }) {
   return save(session);
 }
 
+/** The delivery's decision record in the host's state, if there is one. */
+function decisionRecord(session) {
+  try {
+    return JSON.parse(
+      readFileSync(
+        join(
+          session.host.state,
+          `subscription-decision-${session.deliveryId}.json`,
+        ),
+        "utf8",
+      ),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
 /** Spend the owner's approval of the prepared decision run, and preview the
- * usage account the owner then endorses. */
-export async function decideRouted({ script, session, approveRun }) {
+ * usage account the owner then endorses. A decision this run already recorded
+ * resumes at the preview, so a refused preview needs no second live request;
+ * route still re-qualifies the record itself. */
+export async function decideRouted({
+  script,
+  session,
+  approveRun,
+  recorded = decisionRecord,
+}) {
   check(
     approveRun === session.decisionRunId,
     "The approval does not name the prepared decision run",
   );
-  const recorded = await script("record-mediation-decision", [
-    "execute",
-    ...decisionInputs(session),
-    "--approve-run",
-    approveRun,
-    "--approve-unknown-usage",
-  ]);
-  check(
-    recorded.status === "recorded" && recorded.runId === approveRun,
-    "No decision was recorded",
-  );
+  const existing = recorded(session);
+  if (
+    existing?.runId !== approveRun ||
+    existing.deliveryId !== session.deliveryId
+  ) {
+    const decision = await script("record-mediation-decision", [
+      "execute",
+      ...decisionInputs(session),
+      "--approve-run",
+      approveRun,
+      "--approve-unknown-usage",
+    ]);
+    check(
+      decision.status === "recorded" && decision.runId === approveRun,
+      "No decision was recorded",
+    );
+  }
   const preview = await script(
     "endorse-subscription-usage",
     endorsement(session),

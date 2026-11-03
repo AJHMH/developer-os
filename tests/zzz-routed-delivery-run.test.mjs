@@ -274,6 +274,42 @@ test("the owner's approvals pass through unchanged, each phase checks the last, 
   );
 });
 
+test("decide resumes at the usage preview when this run's decision is already recorded", async (t) => {
+  const { sim, session } = await prepared(t);
+  const decided = await decideRouted({
+    ...sim,
+    session,
+    approveRun: sim.decisionRun,
+    recorded: () => ({ runId: sim.decisionRun, deliveryId: sim.id }),
+  });
+  assert.equal(decided.decisionRecorded, true);
+  assert.equal(decided.usageAccountId, usageAccount);
+  assert.deepEqual(
+    commands(sim, "record-mediation-decision").map(([, phase]) => phase),
+    ["prepare"],
+  );
+});
+
+test("decide spends its approval when the recorded decision is another run's", async (t) => {
+  for (const record of [
+    { runId: randomUUID() },
+    { runId: "", deliveryId: "" },
+    undefined,
+  ]) {
+    const { sim, session } = await prepared(t);
+    await decideRouted({
+      ...sim,
+      session,
+      approveRun: sim.decisionRun,
+      recorded: () => record && { deliveryId: sim.id, ...record },
+    });
+    assert.deepEqual(
+      commands(sim, "record-mediation-decision").map(([, phase]) => phase),
+      ["prepare", "execute"],
+    );
+  }
+});
+
 test("route stops when the endorsed decision does not qualify", async (t) => {
   const { sim, session } = await prepared(t, { decision: false });
   const decided = await decideRouted({
