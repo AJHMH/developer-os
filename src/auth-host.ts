@@ -28,8 +28,15 @@ async function fetchBoundedJson(url: string, init?: RequestInit): Promise<any> {
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) throw new AuthorizationHttpFailure(response.status);
-  // Bound untrusted OAuth and JWKS response bodies before parsing.
+  if (!response.ok) {
+    // Keep only a refusal's OAuth error field; its code is allow-listed.
+    const reply = await boundedJson(response).catch(() => undefined);
+    throw new AuthorizationHttpFailure(response.status, reply?.error);
+  }
+  return boundedJson(response);
+}
+// Bound untrusted OAuth and JWKS response bodies before parsing.
+async function boundedJson(response: Response): Promise<any> {
   const reader = response.body?.getReader();
   if (!reader) throw refusal();
   let bytes = 0;
@@ -47,7 +54,7 @@ async function fetchBoundedJson(url: string, init?: RequestInit): Promise<any> {
     await reader.cancel();
   }
 }
-const openAI: AuthorizationTransport = {
+export const openAI: AuthorizationTransport = {
   exchange: (params) =>
     fetchBoundedJson("https://auth.openai.com/api/accounts/oauth/token", {
       method: "POST",
