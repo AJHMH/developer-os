@@ -142,7 +142,8 @@ nothing. A refused inference says where it stopped: the bridge's or gateway's
 own refusal, if listed, the gateway's phase and request count, and the
 provider's HTTP status. It never includes provider or credential text. Once
 the gateway has opened, its own summary of the reply (format, event types and
-counts, any allow-listed provider error code; never content) is also kept as
+counts, any allow-listed provider error code, and the plain type names of
+events it does not recognise; never content) is also kept as
 `inference-RUN.refusal.json` in the state folder. A passing run writes `subscription-decision-DELIVERY.json`, keeping
 any record it replaces as `.before-RUN`. The record does not name the usage
 account yet, so it qualifies only after the endorsement below.

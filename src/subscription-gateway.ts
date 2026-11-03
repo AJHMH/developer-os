@@ -17,6 +17,10 @@ export {
   syntheticGatewayResponse,
 } from "./inference-contract.js";
 
+/** Reasoning events a reply may carry; they never reach the output. */
+const allowedReasoning =
+  /^response\.reasoning_(summary_)?(text|part)\.(added|delta|done)$/;
+
 export const subscriptionGatewayVersion = createHash("sha256")
   .update(readFileSync(new URL(import.meta.url)))
   .update(readFileSync(new URL("./inference-contract.js", import.meta.url)))
@@ -75,6 +79,9 @@ export class HostSubscriptionGateway {
     // Temporary ticket 21 diagnostics: fixed labels/counts only, never content.
     eventTypes: [] as string[],
     eventTypesTruncated: false,
+    // The type names of events outside the known list: plain identifiers
+    // only, so a provider's new event can be named without its content.
+    unrecognizedTypes: [] as string[],
     deltaTextLength: 0,
     textDoneSeen: false,
     textDoneLength: 0,
@@ -89,7 +96,11 @@ export class HostSubscriptionGateway {
       phase: this.phase,
       providerAttempts: this.providerAttempts,
       providerStatus: this.providerStatus,
-      stream: { ...this.stream, eventTypes: [...this.stream.eventTypes] },
+      stream: {
+        ...this.stream,
+        eventTypes: [...this.stream.eventTypes],
+        unrecognizedTypes: [...this.stream.unrecognizedTypes],
+      },
     };
   }
   constructor(
@@ -247,6 +258,18 @@ export class HostSubscriptionGateway {
       if (this.stream.eventTypes.length < 32)
         this.stream.eventTypes.push(knownType);
       else this.stream.eventTypesTruncated = true;
+      if (
+        knownType === "other" &&
+        this.stream.unrecognizedTypes.length < 8 &&
+        !allowedReasoning.test(event.type ?? "")
+      )
+        this.stream.unrecognizedTypes.push(
+          typeof event.type === "string" &&
+            event.type.length <= 80 &&
+            /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/.test(event.type)
+            ? event.type
+            : "unnamed",
+        );
       if (event.type === "response.output_text.done") {
         this.stream.textDoneSeen = true;
         this.stream.textDoneLength =
@@ -358,12 +381,7 @@ export class HostSubscriptionGateway {
         }
         item.done = true;
       }
-      if (
-        knownType === "other" &&
-        !/^response\.reasoning_(summary_)?(text|part)\.(added|delta|done)$/.test(
-          event.type ?? "",
-        )
-      )
+      if (knownType === "other" && !allowedReasoning.test(event.type ?? ""))
         throw Error("Gateway refused");
       if (event.type === "response.output_text.delta") {
         if (
