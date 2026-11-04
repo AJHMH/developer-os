@@ -887,12 +887,14 @@ export const vmManagementVersion = sha256(
 );
 
 export const codexProbeStages = [
+  "initialization",
   "codex-binding",
   "codex-binary",
   "codex-create",
   "codex-copy",
   "codex-version",
   "codex-credential-denials",
+  "codex-host-credential-denials",
   "codex-initialize",
   "codex-account-read",
   "codex-start-task-budget",
@@ -900,6 +902,7 @@ export const codexProbeStages = [
   "codex-relay-task-budget",
   "codex-explicit-resume",
   "codex-resume-persistence",
+  "codex-persistence-task-budget",
   "codex-persistence-read-error",
   "codex-persistence-thread",
   "codex-persistence-history",
@@ -922,6 +925,9 @@ export const codexProbeStages = [
   "codex-process-environment",
   "codex-relay-start",
   "codex-relay-denials",
+  "codex-relay-peer-denial",
+  "codex-relay-cross-namespace",
+  "codex-relay-peer-positive",
   "codex-relay-turn",
   "codex-relay-revocation",
   "codex-relay-revoke-event",
@@ -929,7 +935,16 @@ export const codexProbeStages = [
   "codex-relay-peer-response",
   "codex-relay-peer-count",
   "codex-relay-expiry",
+  "codex-protocol-deadline",
 ] as const;
+/** A guest's stopping stage as recorded: a listed stage or an indexed relay
+ * denial, otherwise only "unlisted", so no guest text is carried. */
+export function codexProbeStage(stage: string): string {
+  return (codexProbeStages as readonly string[]).includes(stage) ||
+    /^codex-relay-denial-\d{1,2}$/.test(stage)
+    ? stage
+    : "unlisted";
+}
 export const boundaryProbeStages = [
   "authority",
   "root",

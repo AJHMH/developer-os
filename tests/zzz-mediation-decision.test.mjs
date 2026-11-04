@@ -104,6 +104,46 @@ test("prepare names the qualified fixed worker's evidence and reads no credentia
   );
 });
 
+test("refused mediation evidence names where the probe stopped", async (t) => {
+  const { inputs, mediation } = await qualifiedDelivery(t);
+  mediation.regress();
+  const { probe } = mediation;
+  await assert.rejects(prepareMediationInference(inputs), (error) => {
+    assert.doesNotMatch(error.message, /stopped at/);
+    return true;
+  });
+  for (const [change, named] of [
+    [
+      (q) => {
+        q.subscriptionMediation.workerBlocker = "codex-protocol-deadline";
+        q.subscriptionMediation.workerDiagnostic = {
+          elapsedMs: 41000,
+          failureKind: "timeout",
+        };
+      },
+      /stopped at codex-protocol-deadline after 41000 ms\./,
+    ],
+    [
+      (q) => {
+        delete q.subscriptionMediation.workerBlocker;
+        delete q.subscriptionMediation.workerDiagnostic;
+        q.adversarialBlocker = "isolation-probe";
+      },
+      /stopped at isolation-probe\./,
+    ],
+    [
+      (q) => {
+        delete q.adversarialBlocker;
+        q.offlineAdmission.refusal = "binding";
+      },
+      /stopped at binding\./,
+    ],
+  ]) {
+    change(probe);
+    await assert.rejects(prepareMediationInference(inputs), named);
+  }
+});
+
 test("execute spends the one-shot approval before any credential, then records the decision", async (t) => {
   const { f, id, inputs, native } = await qualifiedDelivery(t);
   const plan = await prepareMediationInference(inputs);

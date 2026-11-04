@@ -20,7 +20,7 @@ import {
   type WorkerQualification,
 } from "./qualification.js";
 import { subscriptionGatewayVersion } from "./subscription-gateway.js";
-import { codexProbeStages } from "./vm-management.js";
+import { codexProbeStage } from "./vm-management.js";
 
 export interface PodmanObservation {
   binding: Record<string, unknown>;
@@ -332,14 +332,10 @@ export class PodmanHostAdapter implements WorkerAdapter {
               "synthetic-restricted-alpine";
             if (observed.modelFrameTransport === "passed")
               report.subscriptionMediation.modelFrameTransport = "passed";
-            if (
-              typeof observed.codex?.blockedStage === "string" &&
-              (codexProbeStages as readonly string[]).includes(
+            if (typeof observed.codex?.blockedStage === "string") {
+              report.subscriptionMediation.workerBlocker = codexProbeStage(
                 observed.codex.blockedStage,
-              )
-            ) {
-              report.subscriptionMediation.workerBlocker =
-                observed.codex.blockedStage;
+              );
               const diagnostic = nativeProbeDiagnostic(
                 observed.codex.diagnostic,
               );
