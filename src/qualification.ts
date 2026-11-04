@@ -34,6 +34,10 @@ export interface WorkerQualification {
   offlineAdmission?: {
     allowed: boolean;
     scope: "offline-probe-only";
+    /** Where a refused admission stopped. */
+    refusal?: OfflineAdmissionRefusal;
+    /** The pinned binding keys an observation no longer matched; names only. */
+    mismatchedKeys?: string[];
     binding?: Record<string, string>;
     effective?: Record<string, string | boolean | string[]>;
     configurationIntent?: { hostSharesConfigured: boolean; rootful: boolean };
@@ -57,6 +61,15 @@ export interface WorkerQualification {
   }[];
   blockers: string[];
 }
+export type OfflineAdmissionRefusal =
+  | "authority-directory"
+  | "observation"
+  | "configuration"
+  | "policy"
+  | "binding"
+  | "unsupported-binding"
+  | "effective-controls"
+  | "adversarial-driver";
 export function unavailableQualification(): WorkerQualification {
   return {
     ready: false,

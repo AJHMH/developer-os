@@ -111,6 +111,15 @@ node dist/cli.js qualify --id "${DELIVERY_ID:?}" --state-dir /absolute/state --p
 node dist/cli.js offline-canary --id "${DELIVERY_ID:?}" --state-dir /absolute/state --podman-machine aios-macos-noshare --worker-policy /absolute/new-pins.json
 ```
 
+If `qualify` refuses offline admission, the delivery's qualification says
+where in `offlineAdmission.refusal`: `observation`, `configuration`, `policy`,
+`binding`, `unsupported-binding` or `effective-controls`. For `binding`,
+`offlineAdmission.mismatchedKeys` names the pinned keys that no longer match
+(names only, never values). A `hostId`-only mismatch means the host identity
+moved (it hashes the hostname, the Podman client and the VM's UUID): enroll
+new pins into a new file and compare them with the old file before using them.
+A refused adversarial probe names its stage in `adversarialBlocker`.
+
 The input is exactly `AIOS offline canary input` followed by a newline. The
 fixed worker receives bytes through management copy, not host mounts. Its root
 filesystem is read-only, network is none, UID/GID is 65534, capabilities are
