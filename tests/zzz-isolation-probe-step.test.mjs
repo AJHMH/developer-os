@@ -216,6 +216,55 @@ test("a Codex stream that failed names how it ended", async (t) => {
     );
 });
 
+test("a Codex stream that can't start is named as a spawn failure", async (t) => {
+  assert.deepEqual(
+    await refused(t, {
+      invoke: isolate,
+      openCodex: () => {
+        const opened = stream({ hang: true });
+        opened.start = () =>
+          queueMicrotask(() =>
+            opened.child.emit("error", Error("synthetic-private-detail")),
+          );
+        return opened;
+      },
+    }),
+    { step: "codex-stream", failure: "spawn" },
+  );
+});
+
+test("a Codex stage the guest reports isn't a refused probe, and carries its diagnostic", async (t) => {
+  const { native, repository } = driver(t, {
+    invoke: (action, request) =>
+      action === "isolate"
+        ? isolate(action, request)
+        : {
+            binding: request.expected,
+            frame: request.frame,
+            shutdown: { remainingProcesses: 0 },
+          },
+    openCodex: () =>
+      stream({
+        frames: [
+          {
+            blockedStage: "codex-protocol-deadline",
+            diagnostic: {
+              elapsedMs: 41000,
+              failureKind: "timeout",
+              private: "synthetic-private-detail",
+            },
+          },
+        ],
+      }),
+  });
+  const proof = await native.probeIsolation(repository);
+  assert.deepEqual(proof.codex, {
+    blockedStage: "codex-protocol-deadline",
+    diagnostic: { elapsedMs: 41000, failureKind: "timeout" },
+  });
+  assert.equal(proof.modelFrameTransport, "passed");
+});
+
 test("unverified gateway integration is a failed check in the Codex stream", async (t) => {
   // The fake never asks the gateway, so its integration can't be verified.
   assert.deepEqual(
