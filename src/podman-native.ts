@@ -15,7 +15,13 @@ import {
 } from "./gateway-canary.js";
 import { hostCanaryVersion, withHostCanary } from "./host-canary.js";
 import { codexWorkerSha256, hostTargets } from "./host-target.js";
-import { nativeProbeDiagnostic } from "./native-diagnostics.js";
+import {
+  IsolationProbeError,
+  nativeProbeDiagnostic,
+  NativeOperationError,
+  probeFailure,
+  type IsolationProbeStep,
+} from "./native-diagnostics.js";
 import {
   canaryInput,
   canaryOutput,
@@ -138,7 +144,11 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
       child.stdin.end();
       child.kill();
     };
-    const timer = setTimeout(refuse, stream.deadlineMs);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      refuse();
+    }, stream.deadlineMs);
     child.stdin.on("error", refuse);
     child.stderr.on("data", (chunk: Buffer) => {
       bytes += chunk.length;
@@ -197,13 +207,32 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     try {
       const closed = new Promise<number | null>((resolve, reject) => {
         child.once("close", resolve);
-        child.once("error", reject);
+        child.once("error", () =>
+          reject(
+            new NativeOperationError("Gateway transport unavailable", {
+              failure: "spawn",
+            }),
+          ),
+        );
       });
       stream.start();
       const status = await closed;
       await processing;
       if (failure || status !== 0 || pending || !result || !stream.unchanged())
-        throw Error("Gateway transport unavailable");
+        throw new NativeOperationError(
+          "Gateway transport unavailable",
+          timedOut
+            ? { failure: "timeout" }
+            : failure
+              ? { failure: "check" }
+              : status === null
+                ? { failure: "signal" }
+                : status !== 0
+                  ? { failure: "exit", exitStatus: status }
+                  : pending || !result
+                    ? { failure: "output" }
+                    : { failure: "check" },
+        );
       if (
         !result.blockedStage &&
         ((!approvedGateway && forwarded !== 1) ||
@@ -272,65 +301,88 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     repository: string,
     deliveryId: string = randomUUID(),
   ): Promise<any> {
-    const expected = this.policy(repository);
-    const evidence = await withHostCanary(
-      async (challenge) => {
-        const observed = this.invoke("isolate", { expected, challenge });
-        if (observed.challengeId !== challenge.id)
-          throw Error("Unbound isolation evidence");
-        if (
-          observed.passed === true &&
-          codexWorkerSha256(expected.platform!, expected.arch!)
-        ) {
-          const codex = await this.gatewayInvocation(
-            { expected, challenge, deliveryId },
-            deliveryId,
-          );
-          if (codex.blockedStage) {
-            observed.codex = {
-              blockedStage: codex.blockedStage,
-              diagnostic: nativeProbeDiagnostic(codex.diagnostic),
-            };
-          } else if (
-            codex.protocol !== "passed" ||
-            codex.explicitResume !== "passed" ||
-            codex.resumeInferenceRequests !== 0 ||
-            codex.credentialIsolation !== "passed" ||
-            codex.shutdown?.remainingProcesses !== 0 ||
-            codex.observedCodexProcesses < 1 ||
-            JSON.stringify(codex.binding) !== JSON.stringify(expected)
-          )
-            throw Error("Unverified Codex worker");
-          if (!codex.blockedStage) observed.codex = codex;
-        }
-        return {
-          ...observed,
-          probeVersion: sha256(vmManagementVersion + hostCanaryVersion),
-        };
-      },
-      expected.platform === "darwin" ? 120000 : 25000,
-    );
-    if (evidence.passed === true) {
-      const body = JSON.stringify({
-        model: "gpt-6.1-sol",
-        input: [
-          {
-            role: "user",
-            content: "Say exactly: AIOS model-only inference complete",
-          },
-        ],
-        store: false,
-        stream: true,
-      });
-      this.modelFrame(repository, "request", body);
-      this.modelFrame(
-        repository,
-        "response",
-        "AIOS model-only inference complete",
+    const started = Date.now();
+    let step: IsolationProbeStep = "policy",
+      stepStarted = started;
+    const enter = (next: IsolationProbeStep) => {
+      step = next;
+      stepStarted = Date.now();
+    };
+    try {
+      const expected = this.policy(repository);
+      enter("canary");
+      const evidence = await withHostCanary(
+        async (challenge) => {
+          enter("isolate");
+          const observed = this.invoke("isolate", { expected, challenge });
+          if (observed.challengeId !== challenge.id)
+            throw Error("Unbound isolation evidence");
+          if (
+            observed.passed === true &&
+            codexWorkerSha256(expected.platform!, expected.arch!)
+          ) {
+            enter("codex-stream");
+            const codex = await this.gatewayInvocation(
+              { expected, challenge, deliveryId },
+              deliveryId,
+            );
+            enter("codex-evidence");
+            if (codex.blockedStage) {
+              observed.codex = {
+                blockedStage: codex.blockedStage,
+                diagnostic: nativeProbeDiagnostic(codex.diagnostic),
+              };
+            } else if (
+              codex.protocol !== "passed" ||
+              codex.explicitResume !== "passed" ||
+              codex.resumeInferenceRequests !== 0 ||
+              codex.credentialIsolation !== "passed" ||
+              codex.shutdown?.remainingProcesses !== 0 ||
+              codex.observedCodexProcesses < 1 ||
+              JSON.stringify(codex.binding) !== JSON.stringify(expected)
+            )
+              throw Error("Unverified Codex worker");
+            if (!codex.blockedStage) observed.codex = codex;
+          }
+          enter("canary-recheck");
+          return {
+            ...observed,
+            probeVersion: sha256(vmManagementVersion + hostCanaryVersion),
+          };
+        },
+        expected.platform === "darwin" ? 120000 : 25000,
       );
-      evidence.modelFrameTransport = "passed";
+      if (evidence.passed === true) {
+        enter("model-frame");
+        const body = JSON.stringify({
+          model: "gpt-6.1-sol",
+          input: [
+            {
+              role: "user",
+              content: "Say exactly: AIOS model-only inference complete",
+            },
+          ],
+          store: false,
+          stream: true,
+        });
+        this.modelFrame(repository, "request", body);
+        this.modelFrame(
+          repository,
+          "response",
+          "AIOS model-only inference complete",
+        );
+        evidence.modelFrameTransport = "passed";
+      }
+      return evidence;
+    } catch (error) {
+      const now = Date.now();
+      throw new IsolationProbeError({
+        step,
+        ...probeFailure(error),
+        stepElapsedMs: now - stepStarted,
+        elapsedMs: now - started,
+      });
     }
-    return evidence;
   }
   /** Explicit owner-approved one-shot only. The gateway never serializes its
    * account callback/token: only its disposable capability enters management. */

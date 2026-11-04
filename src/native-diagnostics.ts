@@ -169,3 +169,76 @@ export function nativeProbeDiagnostic(
   }
   return result;
 }
+
+/** How a native VM command failed: fixed names and an exit status, never text. */
+export type NativeOperationFailure =
+  | "timeout"
+  | "exit"
+  | "signal"
+  | "output-limit"
+  | "spawn"
+  | "output"
+  | "check";
+export interface NativeFailureDetail {
+  failure: NativeOperationFailure;
+  exitStatus?: number;
+}
+export class NativeOperationError extends Error {
+  readonly failure: NativeOperationFailure;
+  readonly exitStatus?: number;
+  constructor(message: string, detail: NativeFailureDetail) {
+    super(message);
+    this.failure = detail.failure;
+    if (detail.exitStatus !== undefined) this.exitStatus = detail.exitStatus;
+  }
+}
+export function spawnFailure(result: {
+  error?: Error;
+  status: number | null;
+}): NativeFailureDetail {
+  if (result.error) {
+    const code = (result.error as NodeJS.ErrnoException).code;
+    return {
+      failure:
+        code === "ETIMEDOUT"
+          ? "timeout"
+          : code === "ENOBUFS"
+            ? "output-limit"
+            : "spawn",
+    };
+  }
+  return result.status === null
+    ? { failure: "signal" }
+    : { failure: "exit", exitStatus: result.status };
+}
+
+/** Where inside the isolation probe it failed, how, and after how long. */
+export type IsolationProbeStep =
+  | "policy"
+  | "canary"
+  | "isolate"
+  | "codex-stream"
+  | "codex-evidence"
+  | "canary-recheck"
+  | "model-frame";
+export interface IsolationProbeDiagnostic extends NativeFailureDetail {
+  step: IsolationProbeStep;
+  stepElapsedMs: number;
+  elapsedMs: number;
+}
+export class IsolationProbeError extends Error {
+  constructor(readonly diagnostic: IsolationProbeDiagnostic) {
+    super("Isolation probe unavailable");
+  }
+}
+/** Reduces whatever a probe step threw to the fixed names; its text is dropped. */
+export function probeFailure(error: unknown): NativeFailureDetail {
+  if (error instanceof NativeOperationError)
+    return {
+      failure: error.failure,
+      ...(error.exitStatus === undefined
+        ? {}
+        : { exitStatus: error.exitStatus }),
+    };
+  return { failure: error instanceof SyntaxError ? "output" : "check" };
+}

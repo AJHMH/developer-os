@@ -9,7 +9,10 @@ import type {
   WorkerSession,
 } from "./controller.js";
 import { validEffectiveControls, validHostBinding } from "./host-target.js";
-import { nativeProbeDiagnostic } from "./native-diagnostics.js";
+import {
+  IsolationProbeError,
+  nativeProbeDiagnostic,
+} from "./native-diagnostics.js";
 import { pathContains } from "./path-containment.js";
 import { NativePodmanDriver, codexWorkerSha256 } from "./podman-native.js";
 import { podmanCommand, podmanMachine } from "./podman-platform.js";
@@ -404,8 +407,10 @@ export class PodmanHostAdapter implements WorkerAdapter {
               }
             }
           }
-        } catch {
+        } catch (error) {
           report.adversarialBlocker = probeStage;
+          if (error instanceof IsolationProbeError)
+            report.adversarialDiagnostic = error.diagnostic;
           report.blockers.push(
             "Synthetic host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation.",
           );

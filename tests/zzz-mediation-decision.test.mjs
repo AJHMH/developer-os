@@ -133,7 +133,31 @@ test("refused mediation evidence names where the probe stopped", async (t) => {
     ],
     [
       (q) => {
+        q.adversarialDiagnostic = {
+          step: "isolate",
+          failure: "timeout",
+          stepElapsedMs: 90004,
+          elapsedMs: 90011,
+        };
+      },
+      /stopped at isolation-probe \(isolate, timeout\) after 90004 ms\./,
+    ],
+    [
+      (q) => {
+        q.adversarialDiagnostic = {
+          step: "codex-stream",
+          failure: "exit",
+          exitStatus: 255,
+          stepElapsedMs: 41000,
+          elapsedMs: 70000,
+        };
+      },
+      /stopped at isolation-probe \(codex-stream, exit 255\) after 41000 ms\./,
+    ],
+    [
+      (q) => {
         delete q.adversarialBlocker;
+        delete q.adversarialDiagnostic;
         q.offlineAdmission.refusal = "binding";
       },
       /stopped at binding\./,
