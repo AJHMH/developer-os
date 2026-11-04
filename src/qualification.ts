@@ -24,6 +24,8 @@ export interface WorkerQualification {
   /** Intended host target is descriptive; it never grants admission. */
   intendedPlatform?: "darwin" | "win32";
   adversarialBlocker?: string;
+  /** Where inside a refused isolation probe it failed; fixed names only. */
+  adversarialDiagnostic?: import("./native-diagnostics.js").IsolationProbeDiagnostic;
   adversarial?: {
     scope: "synthetic-windows-controls" | "synthetic-macos-controls";
     challengeId: string;

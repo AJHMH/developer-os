@@ -118,7 +118,12 @@ where in `offlineAdmission.refusal`: `observation`, `configuration`, `policy`,
 (names only, never values). A `hostId`-only mismatch means the host identity
 moved (it hashes the hostname, the Podman client and the VM's UUID): enroll
 new pins into a new file and compare them with the old file before using them.
-A refused adversarial probe names its stage in `adversarialBlocker`. A Codex
+A refused adversarial probe names its stage in `adversarialBlocker`. When that
+stage is `isolation-probe`, `adversarialDiagnostic` says which step failed
+(`policy`, `canary`, `isolate`, `codex-stream`, `codex-evidence`,
+`canary-recheck` or `model-frame`), how (`timeout`, `exit` with its `exitStatus`,
+`signal`, `output-limit`, `spawn`, `output` or `check`), and its `stepElapsedMs`
+and total `elapsedMs`. A Codex
 worker probe that stopped partway names its stage in
 `subscriptionMediation.workerBlocker`, with its timing in `workerDiagnostic`.
 
@@ -294,12 +299,10 @@ VM explicitly before repeating probes; boot/image/runtime drift still requires
 fresh matching observations. All state, stopped synthetic containers and revoked
 worker records are preserved.
 
-
 The approved provider gateway is activated only after the first transport frame
 passes its delivery and capability binding checks. This gives its existing
 thirty-second, one-request lease to the provider exchange; VM preparation does
 not consume that lease. The host provider capability stays outside the VM.
-
 
 Native forbidden-path and credential-read probes each use a single bounded
 management exec. Paths remain quoted arguments, and management transport errors
@@ -309,12 +312,10 @@ shutdown. The offline fixture has eight persistent processes, including two
 orphan sleeps, so its minimum descendant census does not rely on transient
 startup commands. The worker's 32-task ceiling remains unchanged.
 
-
 The current native validation configuration uses 2 CPUs, 3 GiB guest memory and
 20 GiB disk. The earlier 2 GiB guest exhibited severe memory and I/O stalls
 during the Codex proof. Qualification evidence is for the explicitly recorded
 3 GiB configuration; the Codex worker remains capped at 512 MiB and 32 tasks.
-
 
 Explicit native acceptance uses a Mac keep-awake assertion bound to the runner
 PID and releases it during cleanup. Keep the lid open during validation; sleep

@@ -15,7 +15,11 @@ import { join, resolve } from "node:path";
 import { codexEndpointFixture } from "./codex-endpoint.js";
 import { hostCanaryVersion } from "./host-canary.js";
 import { inferenceFixtureContract } from "./inference-contract.js";
-import { persistenceErrorVocabulary } from "./native-diagnostics.js";
+import {
+  NativeOperationError,
+  persistenceErrorVocabulary,
+  spawnFailure,
+} from "./native-diagnostics.js";
 import { canaryInput, sha256 } from "./offline-canary.js";
 import { podmanCommand, podmanMachine } from "./podman-platform.js";
 
@@ -1104,7 +1108,10 @@ export class VMManagementChannel {
               : { syntheticTaskRefusal: stage },
           ) + "\n",
         );
-      throw Error("Native offline operation unavailable");
+      throw new NativeOperationError(
+        "Native offline operation unavailable",
+        spawnFailure(result),
+      );
     }
     return JSON.parse(result.stdout);
   }

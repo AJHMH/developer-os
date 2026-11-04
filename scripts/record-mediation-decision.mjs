@@ -78,11 +78,16 @@ async function mediationEvidence({
     // Fixed stage names only: where the fresh qualification stopped, if known.
     const stopped =
       m?.workerBlocker ?? q?.adversarialBlocker ?? q?.offlineAdmission?.refusal;
-    const elapsed = m?.workerDiagnostic?.elapsedMs;
+    // The isolation probe's own detail, only when that is where it stopped.
+    const probe = m?.workerBlocker ? undefined : q?.adversarialDiagnostic;
+    const detail = probe
+      ? ` (${probe.step}, ${probe.failure}${probe.exitStatus === undefined ? "" : ` ${probe.exitStatus}`})`
+      : "";
+    const elapsed = m?.workerDiagnostic?.elapsedMs ?? probe?.stepElapsedMs;
     throw Error(
       "The fixed worker's mediation evidence for this delivery has not passed. Qualify it with the fixed worker (qualify --adversarial) first." +
         (stopped
-          ? ` The qualification stopped at ${stopped}${elapsed === undefined ? "" : ` after ${elapsed} ms`}.`
+          ? ` The qualification stopped at ${stopped}${detail}${elapsed === undefined ? "" : ` after ${elapsed} ms`}.`
           : ""),
     );
   }

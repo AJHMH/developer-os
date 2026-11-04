@@ -335,7 +335,21 @@ for (const platform of ["darwin", "win32"]) {
     f.setResult({ status: 1, stdout: "private-error" });
     assert.throws(
       () => driver.observe("/candidate"),
-      /Native offline operation unavailable/,
+      (error) => {
+        assert.match(error.message, /Native offline operation unavailable/);
+        assert.equal(error.failure, "exit");
+        assert.equal(error.exitStatus, 1);
+        assert.doesNotMatch(JSON.stringify(error), /private-error/);
+        return true;
+      },
+    );
+    f.setResult({
+      status: null,
+      error: Object.assign(Error("private-error"), { code: "ETIMEDOUT" }),
+    });
+    assert.throws(
+      () => driver.observe("/candidate"),
+      (error) => error.failure === "timeout" && error.exitStatus === undefined,
     );
     f.setResult({ status: 0, stdout: "malformed" });
     assert.throws(() => driver.observe("/candidate"), SyntaxError);
