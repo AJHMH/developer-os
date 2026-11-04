@@ -118,7 +118,9 @@ where in `offlineAdmission.refusal`: `observation`, `configuration`, `policy`,
 (names only, never values). A `hostId`-only mismatch means the host identity
 moved (it hashes the hostname, the Podman client and the VM's UUID): enroll
 new pins into a new file and compare them with the old file before using them.
-A refused adversarial probe names its stage in `adversarialBlocker`.
+A refused adversarial probe names its stage in `adversarialBlocker`. A Codex
+worker probe that stopped partway names its stage in
+`subscriptionMediation.workerBlocker`, with its timing in `workerDiagnostic`.
 
 The input is exactly `AIOS offline canary input` followed by a newline. The
 fixed worker receives bytes through management copy, not host mounts. Its root

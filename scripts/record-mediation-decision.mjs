@@ -74,10 +74,18 @@ async function mediationEvidence({
     m.deliveryCapabilities !== "passed" ||
     m.relayDeliveryId !== deliveryId ||
     !hex(m.workerExecutableSha256)
-  )
+  ) {
+    // Fixed stage names only: where the fresh qualification stopped, if known.
+    const stopped =
+      m?.workerBlocker ?? q?.adversarialBlocker ?? q?.offlineAdmission?.refusal;
+    const elapsed = m?.workerDiagnostic?.elapsedMs;
     throw Error(
-      "The fixed worker's mediation evidence for this delivery has not passed. Qualify it with the fixed worker (qualify --adversarial) first.",
+      "The fixed worker's mediation evidence for this delivery has not passed. Qualify it with the fixed worker (qualify --adversarial) first." +
+        (stopped
+          ? ` The qualification stopped at ${stopped}${elapsed === undefined ? "" : ` after ${elapsed} ms`}.`
+          : ""),
     );
+  }
   return {
     repository: delivery.repository,
     evidence: {
