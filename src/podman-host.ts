@@ -16,6 +16,7 @@ import { podmanCommand, podmanMachine } from "./podman-platform.js";
 import { stampQualificationVersions } from "./qualification-versions.js";
 import {
   unavailableQualification,
+  type OfflineAdmissionRefusal,
   type WorkerQualification,
 } from "./qualification.js";
 import { subscriptionGatewayVersion } from "./subscription-gateway.js";
@@ -141,6 +142,8 @@ export class PodmanHostAdapter implements WorkerAdapter {
     ];
     report.offlineAdmission = { allowed: false, scope: "offline-probe-only" };
     let observed: PodmanObservation;
+    // Where admission stopped; named in the report, never the error itself.
+    let stage: OfflineAdmissionRefusal = "authority-directory";
     try {
       if (
         this.options.native &&
@@ -148,6 +151,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
           resolve(authorityDirectory).toLowerCase()
       )
         throw Error("Changed native authority directory");
+      stage = "observation";
       observed = this.options.native
         ? this.options.native.observe(delivery.repository)
         : this.options.observe
@@ -186,11 +190,13 @@ export class PodmanHostAdapter implements WorkerAdapter {
           effective[key] = value;
       }
       report.offlineAdmission.effective = effective;
+      stage = "configuration";
       if (
         observed.configurationIntent?.hostSharesConfigured ||
         observed.configurationIntent?.rootful
       )
         throw Error("Conflicting machine configuration");
+      stage = "policy";
       if (!this.options.policyPath) throw Error("Missing policy");
       const policyPath = ordinary(this.options.policyPath);
       if (
@@ -210,23 +216,33 @@ export class PodmanHostAdapter implements WorkerAdapter {
       )
         throw Error("Invalid policy");
       report.policySha256 = digest(raw);
-      for (const key of bindingKeys)
-        if (!binding[key] || binding[key] !== policy.binding[key])
-          throw Error("Changed binding");
+      stage = "binding";
+      const mismatched = bindingKeys.filter(
+        (key) => !binding[key] || binding[key] !== policy.binding[key],
+      );
+      if (mismatched.length) {
+        report.offlineAdmission.mismatchedKeys = mismatched;
+        throw Error("Changed binding");
+      }
+      stage = "unsupported-binding";
       if (
         !validHostBinding(binding) ||
         binding.machine !== this.options.machine
       )
         throw Error("Unsupported binding");
+      stage = "effective-controls";
       if (!validEffectiveControls(effective))
         throw Error("Unsafe effective policy");
       report.bindingSha256 = digest(
         JSON.stringify(bindingKeys.map((key) => [key, binding[key]])),
       );
       report.offlineAdmission.allowed = true;
+      stage = "adversarial-driver";
       if (this.options.adversarial) {
         if (!this.options.native)
           throw Error("Native adversarial driver required");
+        // Where the adversarial probe stopped, when it names no stage itself.
+        let probeStage = "isolation-probe";
         try {
           const observed = await this.options.native.probeIsolation(
             delivery.repository,
@@ -252,13 +268,15 @@ export class PodmanHostAdapter implements WorkerAdapter {
               "post-guest-file-positive",
             ].includes(observed.blockedStage)
           ) {
-            report.adversarialBlocker = observed.blockedStage;
+            probeStage = observed.blockedStage;
             throw Error();
           }
+          probeStage = "isolation-binding";
           if (
             bindingKeys.some((key) => observed.binding?.[key] !== binding[key])
           )
             throw Error();
+          probeStage = "isolation-evidence";
           if (
             !/^[a-f0-9-]{36}$/.test(observed.challengeId) ||
             !/^[a-f0-9]{64}$/.test(observed.probeVersion) ||
@@ -282,6 +300,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
             probeVersion: observed.probeVersion,
             escapeAttempts: observed.escapeAttempts,
           };
+          probeStage = "mediation-evidence";
           for (const probe of report.probes) {
             const result = observed.probes?.find(
               (value: any) => value.name === probe.name,
@@ -390,12 +409,14 @@ export class PodmanHostAdapter implements WorkerAdapter {
             }
           }
         } catch {
+          report.adversarialBlocker = probeStage;
           report.blockers.push(
             "Synthetic host/MCP positive controls could not be verified; adversarial qualification is not run. Restore reachable disposable canaries and retry without relaxing worker isolation.",
           );
         }
       }
     } catch {
+      report.offlineAdmission.refusal = stage;
       report.blockers.push(
         "Offline admission refused: provide an external ordinary pin policy and fresh matching supported Windows Hyper-V or macOS AppleHV bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify.",
       );
