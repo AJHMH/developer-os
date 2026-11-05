@@ -313,3 +313,28 @@ Still open:
 - **Recreated VM.** Still not checked with `podman machine rm` and `init`.
 
 Production remains disabled.
+
+## Native macOS offline restart proof (4 November 2026)
+
+After PR #195 and PR #196 merged at `ed090bb`, the owner rebuilt on the Mac,
+with Podman Desktop closed, and enrolled new offline pins for the VM
+`aios-macos-noshare`.
+
+- **First pin, `pins-routed-20261104d.json`.** Compared with the previous pins,
+  only `hostId` and `policyVersion` moved, as PR #195 and PR #196 said they
+  would. `hostId` is now `e3398757…`, and `policyVersion` ends in `c7997251…`.
+- **Restart.** The owner ran `podman machine stop` and then `start`.
+- **Second pin, `pins-routed-20261104e.json`.** `pin-offline` wrote a new file,
+  and `diff` found no difference from the first. Both files have SHA-256
+  `b72332dc…`.
+
+A plain restart of the Mac VM no longer moves the offline pins. This is one
+restart of one VM.
+
+Still open:
+
+- **Windows.** The offline pins need one new `pin-offline`, and a restart hasn't
+  been checked there.
+- **Recreated VM.** Still not checked with `podman machine rm` and `init`.
+
+Production remains disabled.
