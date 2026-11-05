@@ -69,7 +69,7 @@ finally:
 `;
 
 const guest = String.raw`
-import os,json,subprocess,hashlib,base64,fcntl,pathlib,uuid,time,io,tarfile,stat,socket
+import os,json,subprocess,hashlib,base64,fcntl,pathlib,uuid,time,io,tarfile,stat,socket,re
 def fail():
  if 'diagnostic' in globals(): diagnostic['failed']=True
  raise RuntimeError('Native offline observation unavailable')
@@ -223,7 +223,9 @@ def snapshot():
  cached=obj('image','inspect',R['template'])[0]
  if R['template'] not in cached.get('RepoDigests',[]) or cached.get('Architecture')!=R['guestArch']: fail()
  if cached['Config'].get('Env')!=['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']: fail()
- return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+command(['sudo','-n','cat','/sys/class/dmi/id/product_uuid']).decode().strip()).encode()),template=R['template'],workerVersion='1.1.0',policyVersion='offline-native-v3-'+h((R['authority']+R['worker']+R['managementVersion']+R['hostCanaryVersion']).encode()))
+ machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
+ if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
+ return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+machine_id).encode()),template=R['template'],workerVersion='1.1.0',policyVersion='offline-native-v3-'+h((R['authority']+R['worker']+R['managementVersion']+R['hostCanaryVersion']).encode()))
 root=os.path.expanduser('~/.local/state/aios-offline-v1')
 os.makedirs(root,mode=0o700,exist_ok=True)
 private(root,True)

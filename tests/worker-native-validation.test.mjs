@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { readdirSync, statSync } from "node:fs";
 import { NativePodmanValidationTransport } from "../dist/podman-validation.js";
 import {
+  assertHostChangesMoveBinding,
   posixGuest,
   realReadFileSync,
 } from "./helpers/native-coding-fixture.mjs";
@@ -93,6 +94,12 @@ test(
       first.bindingSha256,
     );
     delete g.machineConfig.Resources;
+    // So does upgrading Podman or the host's operating system.
+    await assertHostChangesMoveBinding(
+      () => g.transport.inspect(),
+      first.bindingSha256,
+    );
+    assert.deepEqual(await g.transport.inspect(), first);
     // A recreated VM gets a new machine ID, so it needs a new record.
     g.write({ machineId: "f".repeat(32) });
     const recreated = await g.transport.inspect();

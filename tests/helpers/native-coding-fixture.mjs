@@ -225,6 +225,23 @@ function startGuestServer() {
 
 /** Runs a guest simulator on `program` and returns its JSON answer, or a
  * process failure when it exits unsuccessfully. */
+/** With `nativeHost` mocked, a new Podman client or host OS release must move
+ * the admission binding; each host fact is put back afterwards. */
+export async function assertHostChangesMoveBinding(inspect, binding) {
+  const client = childProcess.spawnSync;
+  const original = client.mock.calls.at(-1).result.stdout;
+  client.mock.mockImplementation(() => ({
+    status: 0,
+    stdout: JSON.stringify({ Client: { Version: "6.1.4" } }),
+  }));
+  assert.notEqual((await inspect()).bindingSha256, binding);
+  client.mock.mockImplementation(() => ({ status: 0, stdout: original }));
+  const release = os.release();
+  os.release.mock.mockImplementation(() => "27.3.0");
+  assert.notEqual((await inspect()).bindingSha256, binding);
+  os.release.mock.mockImplementation(() => release);
+}
+
 export function runGuest(guest, args, program) {
   guestServer ??= startGuestServer();
   const result = guestServer(guest, args, program);

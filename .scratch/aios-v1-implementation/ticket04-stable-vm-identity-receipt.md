@@ -16,6 +16,7 @@ management programs, coding and validation, bound a digest of it as the VM's
 `hostId`. So every VM restart on the Mac voided both owner admission records.
 
 Evidence, under `macos/`:
+
 - `ticket04-admission-acceptance-20261023-074926-blocked.json`: refused at the
   record after the VM was started.
 - `ticket04-admission-acceptance-20261023-075513.json`: the owner's updated
@@ -55,6 +56,7 @@ re-approval, written by the owner.
 
   Before the fix, both tests failed at the restart step with a moved binding,
   which matches what the Mac showed.
+
 - Mutation: accepting any machine ID made both tests fail.
 - Checks on Node 24.22.1:
   - formatting and typecheck pass;
@@ -93,6 +95,7 @@ Branch `codex/issue04-binding-ignores-last-up`.
 
 After PR #95 merged at `9516b10`, the owner re-approved the Mac owner
 coding admission:
+
 - `macos/ticket04-admission-acceptance-20261023-090638-blocked.json`: refused,
   with the expected new policy `0e5c9a9e…` and binding `bc61d760…`.
 - `macos/ticket04-admission-acceptance-20261023-091229.json`: passed under the
@@ -105,6 +108,7 @@ with a new binding, `5eab1bca…`
 **Measured, not guessed.** The owner copied the machine's Podman
 configuration, `~/.config/containers/podman/machine/applehv/aios-macos-noshare.json`,
 and the guest's `/etc/machine-id`, once before and once after another restart.
+
 - The machine ID was unchanged.
 - Of the configuration's 33 fields, only `LastUp` changed: `09:14:51` became
   `09:26:15`.
@@ -120,6 +124,7 @@ qualification path in `src/podman-host.ts` reads only named configuration
 fields, so it is unaffected.
 
 **Evidence.**
+
 - The two restart tests now also change `LastUp` across the restart. They
   also check that a changed resource setting still moves the binding.
 - Before the fix, both tests failed at the restart step, matching the Mac.
@@ -140,6 +145,7 @@ fields, so it is unaffected.
   - Left as is: the two tests still mirror each other.
 
 Still open:
+
 - **Real-host proof.** A real host has not yet shown that a restart keeps the
   binding. That needs the owner to update the record and then restart.
 - **Other possible changes on restart.** The Spec review raised fields that
@@ -155,6 +161,7 @@ clean `main`, then proved the restart on the real VM. All reports are under
 `macos/`.
 
 **Owner coding admission:**
+
 - `ticket04-admission-acceptance-20261023-100836-blocked.json`: refused, as
   expected. The policy was unchanged at `0e5c9a9e…`, and only the binding
   moved, to `aac1b6b5…`.
@@ -168,6 +175,7 @@ clean `main`, then proved the restart on the real VM. All reports are under
 
 **Owner validation admission**, re-approved for the new guest program, with
 the same image `171e6526…`:
+
 - `ticket04-validation-acceptance-20261023-102811-blocked.json`: refused, as
   expected, with the new policy `c213f918…` and binding `ac8967ce…`.
 - `ticket04-validation-acceptance-20261023-103209-blocked.json`: refused at the
@@ -180,6 +188,7 @@ the same image `171e6526…`:
 A plain restart of the Mac VM no longer voids the owner's records.
 
 Still open:
+
 - the Windows records, both of which need re-approval for the new guest
   programs;
 - a restart check on Windows;
@@ -207,6 +216,7 @@ for the fix. After a rebuild in PowerShell, the owner confirmed both fixes
 were present in `dist/`.
 
 **Owner coding admission:**
+
 - `issue04-admission-acceptance-20261023-114724.json` (summary seen, file not
   kept): refused, as expected. The policy was `0e5c9a9e…`, the same as on the
   Mac, and the new Windows binding was `f6dbbfd8…`.
@@ -219,6 +229,7 @@ were present in `dist/`.
   `false`.
 
 **Owner validation admission**, the first on Windows:
+
 - The owner wrote a new record in the same private admission folder, using
   the fresh pins from a run with no record.
 - `ticket04-validation-acceptance-20261023-120635.json`: passed on the first
@@ -236,6 +247,7 @@ Both owner records are now re-approved on both hosts, and a plain VM restart
 keeps them valid on both.
 
 Still open:
+
 - **Stale builds.** The acceptance runners record the source revision but do
   not check that the build they run was built from it, so a stale build can
   pass under a clean revision. The pins caught it here, but only because they
@@ -243,5 +255,61 @@ Still open:
 - Checking that a recreated VM gets a new machine ID.
 - The unmeasured fields listed above.
 - The previous Windows `sourceDirty` question. It did not recur today.
+
+Production remains disabled.
+
+## Follow-up: what moved on 3 and 4 November 2026
+
+Branch `codex/offline-hostid-machine-id`.
+
+After the first routed turn, every restart of the Mac VM seemed to force a
+re-pin and an admission rewrite. A restart was not what moved the admission
+records.
+
+**Recomputed, not guessed.** From the Mac's own files, with no VM command, the
+formula in `managementBindingSha256` reproduces both current admission values
+exactly: coding `cf72bc38…` and validation `f52ba76f…`. The inputs were macOS
+27.3.0, Podman client 6.1.4, the digest of `/opt/podman/bin/podman`, hostname
+`AaronsMcBookNeo`, the machine configuration without `LastUp`, and the machine
+ID the owner saved on 23 October. So the machine ID hasn't changed since then.
+Compared with that day's saved copies, only `LastUp` differs in the
+configuration.
+
+**Timeline**, from `/Library/Receipts/InstallHistory.plist` and
+`/var/log/install.log`:
+
+| When (CST)   | What happened                      | Coding binding |
+| ------------ | ---------------------------------- | -------------- |
+| 23–31 Oct    | Restarts, Podman 6.1.1, macOS 27.2 | `aac1b6b5…`    |
+| 3 Nov, 19:43 | macOS 27.3 installed, Mac rebooted |                |
+| 3 Nov, 21:24 | Owner rewrote the records          | `16804792…`    |
+| 4 Nov, 10:01 | Podman 6.1.4 replaced 6.1.1        |                |
+| 4 Nov, 10:03 | VM started (`LastUp`)              |                |
+| 4 Nov, 10:33 | Owner rewrote the records          | `cf72bc38…`    |
+
+Both moves are the binding working as designed. Its hostname and osVersion
+inputs didn't change between the last two rewrites. The hostname in the install
+log only differs for about a minute during a Mac reboot. The earlier values
+can't be recomputed, because the old Podman binary has gone, so the cause of
+each move is inferred from the only input that changed. The Podman version isn't
+shown in any pin, which is why it looked unchanged. Who started the 10:01
+installation isn't recorded beyond `Installer`.
+
+**The real restart defect.** `src/vm-management.ts` was the "older qualification
+path" this receipt left open: the offline `hostId` still hashed the hardware
+UUID, which changes every boot (measured on 23 October). So `pin-offline` pins
+did move on a restart. The 4 November pin diff can't show that alone, since
+Podman also changed between those two files.
+
+**Fix.** The offline `hostId` now hashes the same host facts with
+`/etc/machine-id` in place of the UUID, with the same format check as the coding
+and validation programs. A restart keeps the offline pins; a recreated VM,
+Podman upgrade or hostname change still moves them.
+
+Still open:
+
+- **Real-host proof.** The offline restart proof needs the owner: re-pin, stop
+  and start the VM, and pin again into a new file.
+- **Recreated VM.** Still not checked with `podman machine rm` and `init`.
 
 Production remains disabled.
