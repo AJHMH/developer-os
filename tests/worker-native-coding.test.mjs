@@ -25,6 +25,7 @@ import {
   guestFixture,
   posixGuest,
   sessionGateway,
+  assertHostChangesMoveBinding,
 } from "./helpers/native-coding-fixture.mjs";
 
 test("native coding transport stays outside controlled production admission", async () => {
@@ -115,6 +116,12 @@ test(
       first.bindingSha256,
     );
     delete machineConfig.Resources;
+    // So does upgrading Podman or the host's operating system.
+    await assertHostChangesMoveBinding(
+      () => transport.inspect(session),
+      first.bindingSha256,
+    );
+    assert.deepEqual(await transport.inspect(session), first);
     // A recreated VM gets a new machine ID, so it needs a new record.
     write({ ...read(), machineId: "f".repeat(32) });
     const recreated = await transport.inspect(session);

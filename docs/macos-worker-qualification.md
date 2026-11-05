@@ -114,6 +114,37 @@ The Windows AMD64 digest remains separate. Management policy is now
 re-enrolled before using the changed driver. This Mac run does not requalify
 Windows after the driver change.
 
+## What moves the pins
+
+Offline pins and both owner admission records name the VM by its
+`/etc/machine-id`. The hardware UUID isn't used, because Apple's hypervisor
+changes it on every boot.
+
+| Change                                  | Offline pins                  | Admission `bindingSha256` |
+| --------------------------------------- | ----------------------------- | ------------------------- |
+| VM restart, including Podman's `LastUp` | Unchanged                     | Unchanged                 |
+| Podman upgrade or reinstall             | `hostId`                      | Moves                     |
+| macOS update                            | `osVersion`                   | Moves                     |
+| Mac hostname                            | `hostId`                      | Moves                     |
+| Recreated VM (new machine ID)           | `hostId`                      | Moves                     |
+| Other machine configuration (e.g. CPUs) | Not pinned; unsafe is refused | Moves                     |
+
+Each of these except the restart is a real change, so it still refuses until
+the owner re-pins. The Podman version isn't printed in the pins, so a Podman
+upgrade looks like an unexplained `hostId` move. If a move follows a restart,
+check first whether anything was installed:
+
+```sh
+pkgutil --pkg-info com.redhat.podman
+hostname
+uname -r
+```
+
+Podman Desktop can offer a Podman update. On 4 November 2026 Podman 6.1.4
+replaced 6.1.1 two minutes before the VM started, and it was first taken for a
+restart effect. The VM's restart proof is in the
+[stable VM identity receipt](../.scratch/aios-v1-implementation/ticket04-stable-vm-identity-receipt.md).
+
 ## Reproduce the explicit synthetic acceptance
 
 Provisioning is a separate owner-controlled step. Use empty machine volumes,
@@ -145,8 +176,10 @@ where in `offlineAdmission.refusal`: `observation`, `configuration`, `policy`,
 `binding`, `unsupported-binding` or `effective-controls`. For `binding`,
 `offlineAdmission.mismatchedKeys` names the pinned keys that no longer match
 (names only, never values). A `hostId`-only mismatch means the host identity
-moved (it hashes the hostname, the Podman client and the VM's UUID): enroll
-new pins into a new file and compare them with the old file before using them.
+moved: it hashes the hostname, the Podman executable and client version, and
+the VM's `/etc/machine-id`. See [what moves the pins](#what-moves-the-pins).
+Enroll new pins into a new file and compare them with the old file before
+using them.
 A refused adversarial probe names its stage in `adversarialBlocker`. When that
 stage is `isolation-probe`, `adversarialDiagnostic` says which step failed
 (`policy`, `canary`, `isolate`, `codex-stream`, `codex-evidence`,
