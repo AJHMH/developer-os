@@ -56,6 +56,35 @@ an incomplete body read before a one-time management signal shortens its
 synthetic nongateway lease to 1.5 seconds. It cannot extend, revive or arm a
 gateway grant. Longer fixture scheduling does not admit a failed control.
 
+## Close Podman Desktop before native runs
+
+Quit Podman Desktop before a qualify or a routed run on this VM. While it's open
+it keeps listing every container, and the 2-CPU VM can't keep up. A qualify then
+slows down and can stop at any stage.
+
+These three runs on 4 November 2026 had six qualifies each, in this order, on the
+same VM boot, build, pins and delivery:
+
+| Podman Desktop | Passed | Seconds per qualify | Container list requests |
+| -------------- | ------ | ------------------- | ----------------------- |
+| Closed         | 6 of 6 | 58–89               | 0                       |
+| Open           | 2 of 6 | 68–134              | 554                     |
+| Closed         | 6 of 6 | 48–67               | 0                       |
+
+Each request returned about 1.1 MB, with about 800 containers in the VM. The open
+run stopped at `codex-relay-cross-namespace`, `isolation-probe` (twice) and
+`observation`, and an earlier `prepare` with the app open stopped at
+`codex-binding` on its 30-second command timeout. If stops vary like this, check
+the app first. The VM had been up longest in the last run, which was the fastest,
+so these runs show no slowdown from uptime up to about 1.7 hours. Longer uptimes
+weren't compared.
+
+The app can also change the VM's state. Opening it while the VM was running left
+that boot alone, and quitting it left the VM running that day, but an earlier quit
+stopped the VM. After quitting, run `podman machine list`. If the VM stopped, start
+it with `podman machine start aios-macos-noshare`. If `qualify` then refuses at
+`observation`, enroll new pins.
+
 ## Scope and outcome
 
 Ticket 25 is complete for the independently observed fixed synthetic Mac worker slice, including all nine checks in the completion receipt above. The dated offline observations below are historical subsets. Production `ready`/`liveReady` remain false; parent ticket 04, native generalized delivery integrations and full-controller ticket 16 remain separate open gates. Windows results are not inherited by this Mac's report.

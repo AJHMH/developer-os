@@ -97,7 +97,7 @@ A validated candidate still needs a routed live turn, which stays under the owne
 3. **`route`**: endorses that usage account once you've checked it's yours, re-qualifies until the decision qualifies, and prints the routed run ID for the turns you name (1 or 2).
 4. **`code`**: spends your approval of the routed run on a routed `code-feature` turn, which sends live model requests. It validates an admitted candidate, stops anything left open by its exact identity, and writes `report.json` in the session folder. The outcome is `observed-routed-validated-candidate`, `observed-routed-turn-without-candidate`, `blocked` or `uncertain`.
 
-Production stays disabled: a validated candidate still ends at `DELIVERY_NOT_ENABLED`, and nothing is published. Start from a fresh build of clean `main` with the VM running.
+Production stays disabled: a validated candidate still ends at `DELIVERY_NOT_ENABLED`, and nothing is published. Start from a fresh build of clean `main` with the VM running. On macOS, quit Podman Desktop first: with it open, qualifies slow down and stop at varying stages (`docs/macos-worker-qualification.md`). Quitting can stop the VM, so check that it's still running.
 
 macOS (Terminal). Set `WORKER_POLICY` to the fixed worker's pins, `AUTH_DIR` and `AUTH_ACCOUNT` to your authorized account, then `SESSION`, `DECISION_RUN`, `USAGE_ACCOUNT` and `ROUTED_RUN` from each step's output:
 
@@ -117,3 +117,29 @@ if (-not ($session -and $decisionRun)) { throw 'Set $session and $decisionRun' }
 if (-not ($session -and $usageAccount)) { throw 'Set $session and $usageAccount' }; node scripts/run-native-routed-delivery.mjs route --session $session --expect-usage-account $usageAccount --turns 1
 if (-not ($session -and $routedRun)) { throw 'Set $session and $routedRun' }; node scripts/run-native-routed-delivery.mjs code --session $session --approve-run $routedRun --approve-turns 1
 ```
+
+### If the repository is held
+
+Every routed run uses the same synthetic repository, and a delivery keeps holding it until it's released, even after a successful run. While it's held, the next `prepare` queues its new delivery and stops at `plan-feature` with `Resolve controls before planning this feature.` A refused `prepare` leaves its delivery holding the repository too, and so does an interrupted baseline. An interrupted baseline also leaves its validation attempt open, and `release` refuses until that attempt has stopped.
+
+On macOS, this lists the deliveries that hold a repository or are queued for one. Routed runs show the key `github:ajhmh/acceptance-page`:
+
+```sh
+STATE_DIR="$HOME/.developer-os/ticket4-macos/state"
+node dist/cli.js status --state-dir "$STATE_DIR" | node -e 'for (const d of JSON.parse(require("fs").readFileSync(0)).deliveries) if (d.ownership.held || d.phase === "queued") console.log(d.id, d.phase, d.ownership.key)'
+```
+
+Set `DELIVERY_ID` to the holder. If its baseline was interrupted, first stop that exact attempt:
+
+```sh
+H="$HOME/.developer-os"
+node dist/cli.js cancel --id "${DELIVERY_ID:?}" --state-dir "$STATE_DIR" --podman-machine aios-macos-noshare --validation-admission "$H/admission/validation-admission.json" --coding-admission "$H/admission/coding-admission.json"
+```
+
+Then release it:
+
+```sh
+node dist/cli.js release --id "${DELIVERY_ID:?}" --state-dir "$STATE_DIR"
+```
+
+Releasing hands the repository to the oldest queued delivery, which a refused `prepare` may have left behind. List again and release that one too, until no routed delivery holds the repository or is queued. On Windows, use the same commands with the values in `docs/owner-hosts.md`.
