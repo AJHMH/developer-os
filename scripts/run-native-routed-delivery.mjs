@@ -19,7 +19,7 @@
 //
 // Production stays disabled: an admitted candidate still ends at
 // DELIVERY_NOT_ENABLED, and nothing is published.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -95,10 +95,42 @@ const endorsement = (s) => [
   s.host.codex,
 ];
 
+export const podmanDesktopWarning =
+  "Warning: Podman Desktop is running. While it's open, a qualify can slow down and stop at any stage (docs/macos-worker-qualification.md). Continuing.";
+
+/** Whether Podman Desktop is running on this macOS host. Off macOS, or when
+ * the check itself fails, the answer is no: this only decides a warning. */
+export function podmanDesktopRunning({
+  platform = process.platform,
+  probe = spawnSync,
+} = {}) {
+  if (platform !== "darwin") return false;
+  try {
+    return (
+      probe("/usr/bin/pgrep", ["-f", "Podman Desktop.app"], {
+        stdio: "ignore",
+        timeout: 5_000,
+      }).status === 0
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Start, plan and baseline a delivery in the host's authority state,
  * qualify it on the fixed worker and plan its decision inference. `run` is
- * one CLI process; `script` one owner script process. */
-export async function prepareRouted({ run, script, host, root, environment }) {
+ * one CLI process; `script` one owner script process. A running Podman Desktop
+ * is warned about on stderr, and changes nothing else. */
+export async function prepareRouted({
+  run,
+  script,
+  host,
+  root,
+  environment,
+  podmanDesktop = podmanDesktopRunning,
+  warn = console.error,
+}) {
+  if (podmanDesktop()) warn(podmanDesktopWarning);
   const inputs = ownerInputs(root, environment);
   const session = {
     schema: 1,

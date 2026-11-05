@@ -54,6 +54,7 @@ function simulated(changes = {}) {
     routedRun,
     log,
     delivery,
+    podmanDesktop: () => false,
     async run(args) {
       log.push(["cli", ...args]);
       const [command] = args;
