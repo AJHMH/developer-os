@@ -97,7 +97,7 @@ A validated candidate still needs a routed live turn, which stays under the owne
 3. **`route`**: endorses that usage account once you've checked it's yours, re-qualifies until the decision qualifies, and prints the routed run ID for the turns you name (1 or 2).
 4. **`code`**: spends your approval of the routed run on a routed `code-feature` turn, which sends live model requests. It validates an admitted candidate, stops anything left open by its exact identity, and writes `report.json` in the session folder. The outcome is `observed-routed-validated-candidate`, `observed-routed-turn-without-candidate`, `blocked` or `uncertain`.
 
-Production stays disabled: a validated candidate still ends at `DELIVERY_NOT_ENABLED`, and nothing is published. Start from a fresh build of clean `main` with the VM running. On macOS, quit Podman Desktop first: with it open, qualifies slow down and stop at varying stages (`docs/macos-worker-qualification.md`). Quitting can stop the VM, so check that it's still running.
+Production stays disabled: a validated candidate still ends at `DELIVERY_NOT_ENABLED`, and nothing is published. Start from a fresh build of clean `main` with the VM running. On macOS, quit Podman Desktop first: with it open, qualifies slow down and stop at varying stages (`docs/macos-worker-qualification.md`). Quitting can stop the VM, so check that it's still running. `prepare` also prints a warning if it finds the app running, then carries on.
 
 macOS (Terminal). Set `WORKER_POLICY` to the fixed worker's pins, `AUTH_DIR` and `AUTH_ACCOUNT` to your authorized account, then `SESSION`, `DECISION_RUN`, `USAGE_ACCOUNT` and `ROUTED_RUN` from each step's output:
 
