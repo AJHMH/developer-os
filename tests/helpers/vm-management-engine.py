@@ -3,8 +3,10 @@ No VM, provider, image or owner credential is involved. The real generated
 program runs against a fake engine held in engine.json. `faults` scripts it:
   {name prefix: {verb: 'exit' | 'timeout'}}
 A 'timeout' on create leaves the container behind, as a killed client can.
+On rm, 'stall' never answers and 'slow' answers after SLOW_REMOVAL seconds.
+Both cost simulated time, so no test waits for them.
 """
-import sys, os, json, pathlib, subprocess, re, socket, hashlib, urllib.request, io
+import sys, os, json, pathlib, subprocess, re, socket, hashlib, urllib.request, io, time
 
 root = pathlib.Path(sys.argv[1])
 os.environ['HOME'] = str(root)
@@ -18,6 +20,9 @@ real_popen = subprocess.Popen
 real_read = pathlib.Path.read_text
 real_exists = pathlib.Path.exists
 real_rglob = pathlib.Path.rglob
+real_monotonic = time.monotonic
+clock = {'offset': 0}
+SLOW_REMOVAL = 12
 source = sys.stdin.read()
 namespace = {}
 exec(source.split('\n', 2)[0] + '\n' + source.split('\n', 2)[1], namespace)
@@ -127,8 +132,22 @@ def respond(args, kwargs):
     return 127, b''
 
 
+def spend_removal_time(name, timeout):
+    action = fault(name, 'rm')
+    if action not in ['stall', 'slow']: return
+    needed = float('inf') if action == 'stall' else SLOW_REMOVAL
+    spent = min(needed, timeout)
+    clock['offset'] += spent
+    state['removalSeconds'] = state.get('removalSeconds', 0) + spent
+    if needed > timeout:
+        save_state()
+        raise subprocess.TimeoutExpired(['podman', 'rm', name], timeout)
+
+
 def fake_run(args, **kwargs):
     state['commands'].append([str(a) for a in args])
+    if [str(a) for a in args[:2]] == ['podman', 'rm']:
+        spend_removal_time(str(args[-1]), kwargs['timeout'])
     if kwargs.get('input') is not None and args[:2] == ['podman', 'exec']:
         FRAME['bytes'] = kwargs['input']
     code, stdout = respond([str(a) for a in args], kwargs)
@@ -185,6 +204,7 @@ def urlopen(req, timeout=None):
     return io.BytesIO(json.dumps({'canary': request['challenge']['id'], 'result': {'tools': []}}).encode())
 
 
+time.monotonic = lambda: real_monotonic() + clock['offset']
 subprocess.run = fake_run
 subprocess.Popen = fake_popen
 pathlib.Path.read_text = read_text

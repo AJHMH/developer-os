@@ -234,8 +234,9 @@ what no later evidence reads:
   pass or fail. Each has a record written before its container is created, so a
   create that timed out or a run that died is cleaned up by the next `enroll`,
   `observe`, `execute` or `isolate`. A removal that fails doesn't refuse the
-  action; the record stays and a later action retries. One action removes at
-  most eight old workers, so a backlog drains without using up its deadline.
+  action; the record stays and a later action retries it, never the same one.
+  One action removes at most eight old workers and spends at most a third of its
+  deadline on removals, so a backlog or a stalled engine can't use up the rest.
 - **Offline sessions** (`aios-offline-`) stay after `stop`, because `collect` and
   `task-collect` read them. They go at a later `execute` once that repository's
   fence has passed them, when every action on them refuses. Their records stay,
