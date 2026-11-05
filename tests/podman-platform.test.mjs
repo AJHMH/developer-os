@@ -1374,8 +1374,9 @@ test("native stop cannot mistake a timed-out engine query for an absent containe
       String.raw`
 import ast,sys,subprocess
 program=ast.parse(sys.stdin.read());branch=next(n for n in ast.walk(program) if isinstance(n,ast.If) and ast.unparse(n.test)=="R['action'] == 'stop'")
-nodes=[n for n in branch.body if (isinstance(n,ast.Assign) and any(isinstance(x,ast.Name) and x.id in ['existence','exists'] for x in n.targets)) or (isinstance(n,ast.If) and ast.unparse(n.test).startswith('existence.returncode'))]
-code=compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-stop-existence','exec');name='fixture'
+assert any(isinstance(n,ast.If) and ast.unparse(n.test)=='exists(name)' for n in branch.body),'stop must ask the engine'
+nodes=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name=='exists']
+exec(compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-exists','exec'));name='fixture'
 def fail():raise RuntimeError('refused')
 for platform,budget in [('darwin',30),('win32',15)]:
  R={'hostBinding':{'platform':platform},'target':{'guestCommandSeconds':budget}}
@@ -1386,7 +1387,7 @@ for platform,budget in [('darwin',30),('win32',15)]:
    if result=='timeout':raise subprocess.TimeoutExpired(args,budget)
    return subprocess.CompletedProcess(args,result)
   subprocess.run=run
-  try:exec(code);assert result in [0,1] and exists==(result==0)
+  try:observed=exists(name);assert result in [0,1] and observed==(result==0)
   except (RuntimeError,subprocess.TimeoutExpired):assert result in [125,'timeout']
 print('only explicit absence is absent; failures refuse')
 `,

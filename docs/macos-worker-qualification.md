@@ -224,6 +224,29 @@ recovery. The isolation runner verifies six synthetic denial controls with
 reachable positive controls before/after denial plus four bounded escape
 attempts. These are explicit host acceptance scripts, not automatic tests.
 
+## What stays in the VM
+
+Stopped containers slow every container listing, so each guest action removes
+what no later evidence reads:
+
+- **Probe workers** (`aios-qualification-`, `aios-isolation-`, `aios-model-frame-`,
+  `aios-codex-protocol-`, `aios-relay-peer-`) go as soon as they are stopped,
+  pass or fail. Each has a record written before its container is created, so a
+  create that timed out or a run that died is cleaned up by the next `enroll`,
+  `observe`, `execute` or `isolate`. A removal that fails doesn't refuse the
+  action; the record stays and a later action retries. One action removes at
+  most eight old workers, so a backlog drains without using up its deadline.
+- **Offline sessions** (`aios-offline-`) stay after `stop`, because `collect` and
+  `task-collect` read them. They go at a later `execute` once that repository's
+  fence has passed them, when every action on them refuses. Their records stay,
+  and those refuse a replay.
+- **Validation workers** go when their check finishes or the attempt stops.
+- **Coding sessions** stay, because resume and recovery inspect them by exact
+  identity, until `cleanupRetiredLineage` or `cleanupSupersededLineage` removes
+  them.
+
+Removal never uses `--force`, and only names a container its own record names.
+
 ## General coding session acceptance (Issue 04)
 
 `scripts/run-native-coding-acceptance.mjs` drives the general coding transport

@@ -191,11 +191,59 @@ def stop(name,record):
  if record['cgroup']:
   if not gone(record): fail()
  elif after.get('Status') not in ['created','configured']: fail()
+def exists(name):
+ # Absence is an independently observed result, never a swallowed error.
+ result=subprocess.run(['podman','container','exists',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=R['target']['guestCommandSeconds'])
+ if result.returncode not in [0,1]: fail()
+ return result.returncode==0
+def removed(name):
+ # Shutdown is already proven, so a removal that fails costs no evidence: the
+ # record stays and a later sweep retries. Never --force: a running worker stays.
+ try: return subprocess.run(['podman','rm',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=R['target']['guestCommandSeconds']).returncode==0
+ except subprocess.TimeoutExpired: return False
 def discard_stopped_fixture(name,record,path):
  if name is None or not record.get('stopped') or record.get('removed'): return
- c=inspect(name)
- if c['State'].get('Running') or c['State'].get('Pid')!=0 or c['Config'].get('Labels',{}).get('aios.authority')!=R['authority']: fail()
- pod('rm',name);record['removed']=True;save(path,record)
+ if exists(name):
+  c=inspect(name)
+  if c['State'].get('Running') or c['State'].get('Pid')!=0 or c['Config'].get('Labels',{}).get('aios.authority')!=R['authority']: fail()
+  if not removed(name): return
+ record['removed']=True
+ if path is not None and os.path.exists(path): os.unlink(path)
+def retire(name,record,path):
+ # Stop and remove one disposable probe worker. Its record is written before
+ # create, so a create that timed out or a run that died is still found here.
+ if name is None or record.get('removed'): return
+ if not record.get('stopped'):
+  if exists(name):
+   if inspect(name)['Config'].get('Labels',{}).get('aios.authority')!=R['authority']: fail()
+   stop(name,record)
+  record['stopped']=True
+  if path is not None and os.path.exists(path): save(path,record)
+ discard_stopped_fixture(name,record,path)
+def retire_all(fixtures):
+ # One worker that refuses must not keep another.
+ failure=None
+ for fixture in fixtures:
+  try: retire(*fixture)
+  except Exception as error: failure=failure or error
+ if failure: raise failure
+def discard_superseded_sessions():
+ # Every action on a session refuses once its repository's fence has passed
+ # it, so nothing can read that worker again. Its record stays: it refuses a
+ # replay. A worker that is running or not exactly the record's is left alone.
+ budget=sweepLimit
+ for path in pathlib.Path(root).glob('*.json'):
+  if budget<=0: return
+  if path.stem in ['authority','worker-seccomp'] or path.stem.startswith(('probe-','task-')): continue
+  saved=read(str(path));s=saved['session']
+  if saved.get('containerRemoved') or not saved.get('stopped') or s['fence']>=authority['fences'].get(h(s['repositoryKey'].encode()),0): continue
+  budget-=1
+  name='aios-offline-'+s['sandboxId']
+  if exists(name):
+   c=inspect(name);labels=c['Config'].get('Labels',{})
+   if c['State'].get('Running') or c['State'].get('Pid')!=0 or labels.get('aios.authority')!=R['authority'] or labels.get('aios.session')!=s['workerSessionId']: continue
+   if not removed(name): continue
+  saved['containerRemoved']=True;save(str(path),saved)
 def snapshot():
  mounts=json.loads(command(['findmnt','--json','-o','FSTYPE,TARGET']))
  def check(entries):
@@ -227,6 +275,8 @@ def snapshot():
  if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
  return dict(vmImageSha256=image[7:],engineVersion=info['version']['Version'],hostId=h((R['host']+machine_id).encode()),template=R['template'],workerVersion='1.1.0',policyVersion='offline-native-v3-'+h((R['authority']+R['worker']+R['managementVersion']+R['hostCanaryVersion']).encode()))
 root=os.path.expanduser('~/.local/state/aios-offline-v1')
+# Removals per sweep, so a backlog drains without using up the action's deadline.
+sweepLimit=8
 os.makedirs(root,mode=0o700,exist_ok=True)
 private(root,True)
 fd=os.open(root+'/lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
@@ -241,13 +291,15 @@ with os.fdopen(fd,'w') as lock:
   authority=dict(id=R['authority'],fences={}); save(registry,authority)
  else: fail()
  if R['action'] in ['enroll','observe','execute','isolate']:
+  budget=sweepLimit
   for probe in pathlib.Path(root).glob('probe-*.json'):
    saved=read(str(probe))
-   if not saved.get('stopped'):
-    c=inspect(saved['name'])
-    if c['Config'].get('Labels',{}).get('aios.authority')!=R['authority']: fail()
-    stop(saved['name'],saved)
-    saved['stopped']=True; save(str(probe),saved)
+   if saved.get('removed'): os.unlink(str(probe));continue
+   # A worker that may still run is always stopped; removal waits its turn.
+   if saved.get('stopped'):
+    if budget<=0: continue
+    budget-=1
+   retire(saved['name'],saved,str(probe))
  if R['action'] in ['enroll','observe']:
   binding={**R['hostBinding'],**snapshot()}
   if R['action']=='enroll': print(json.dumps(dict(binding=binding,effective={})))
@@ -256,19 +308,19 @@ with os.fdopen(fd,'w') as lock:
    name='aios-qualification-'+str(uuid.uuid4())
    record=dict(name=name,cgroup='',pids={},stopped=False)
    probePath=root+'/probe-'+str(uuid.uuid4())+'.json'
+   save(probePath,record)
    try:
     create(name,'sleep 600',{'aios.authority':R['authority']})
-    save(probePath,record)
     pod('start',name)
     pid=inspect(name)['State']['Pid']; cg=cgroup(pid)
     record.update(cgroup=cg,pids=census(cg)); save(probePath,record)
     e=effective(name)
     stop(name,record)
     record['stopped']=True; save(probePath,record)
+    retire(name,record,probePath)
     print(json.dumps(dict(binding=binding,effective=e)))
    finally:
-    if os.path.exists(probePath) and not record.get('stopped'):
-     stop(name,record); record['stopped']=True; save(probePath,record)
+    retire(name,record,probePath)
  elif R['action']=='isolate':
   import urllib.request,socket,shutil,ipaddress
   stage='binding'
@@ -307,9 +359,10 @@ with os.fdopen(fd,'w') as lock:
   files()
   name='aios-isolation-'+nonce; record=dict(name=name,cgroup='',pids={},stopped=False)
   probePath=root+'/probe-'+nonce+'.json'
+  save(probePath,record)
   try:
    create(name,'sleep 600',{'aios.authority':R['authority']})
-   save(probePath,record);pod('start',name)
+   pod('start',name)
    cg=cgroup(inspect(name)['State']['Pid']);record.update(cgroup=cg,pids=census(cg));save(probePath,record)
    effective(name)
    for tool in ['cat','wget','unshare']:
@@ -346,6 +399,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    stage='post-guest-file-positive'
    files()
    record['pids'].update(census(cg));stop(name,record);record['stopped']=True;save(probePath,record)
+   retire(name,record,probePath)
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
    names=['host-files','controller-ledger','cross-delivery','network-bypass','skills-mcp-hooks','host-docker','owner-credentials']
    proof=h(json.dumps(dict(challenge=nonce,observed=observed,binding=binding,stopped=record['stopped']),sort_keys=True).encode())
@@ -354,9 +408,8 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    freeze_failure(error)
    raise
   finally:
-   if os.path.exists(probePath) and not record.get('stopped'):
-    stop(name,record);record['stopped']=True;save(probePath,record)
-   shutil.rmtree(directory)
+   try: retire(name,record,probePath)
+   finally: shutil.rmtree(directory)
  elif R['action']=='codex-protocol':
   stage='codex-binding'
   import selectors
@@ -376,8 +429,8 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
   endpointSource=base64.b64decode('${Buffer.from(codexEndpointFixture).toString("base64")}').decode()
   try:
    stage='codex-create'
-   create(name,'sleep 600 & wait',{'aios.authority':R['authority']},'512m')
    save(probePath,record)
+   create(name,'sleep 600 & wait',{'aios.authority':R['authority']},'512m')
    archive=io.BytesIO()
    with tarfile.open(fileobj=archive,mode='w') as tar:
     entry=tarfile.TarInfo('codex');entry.size=len(data);entry.mode=0o555;entry.uid=0;entry.gid=0
@@ -417,8 +470,8 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    proxy,relayEvent=relay(name,18081,delivery,cap,2,relayTtl)
    peer='aios-relay-peer-'+str(uuid.uuid4());peerRecord=dict(name=peer,cgroup='',pids={},stopped=False)
    peerPath=root+'/probe-'+str(uuid.uuid4())+'.json'
-   create(peer,'sleep 600',{'aios.authority':R['authority']})
    save(peerPath,peerRecord)
+   create(peer,'sleep 600',{'aios.authority':R['authority']})
    pod('start',peer);peerRecord['cgroup']=cgroup(inspect(peer)['State']['Pid']);peerRecord['pids']=census(peerRecord['cgroup']);save(peerPath,peerRecord)
    peerId=str(uuid.uuid4());peerCap=uuid.uuid4().hex+uuid.uuid4().hex
    peerProxy,peerEvent=relay(peer,18082,peerId,peerCap,3,relayTtl)
@@ -668,8 +721,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    stop(name,record);record['stopped']=True;save(probePath,record)
    stop(peer,peerRecord);peerRecord['stopped']=True;save(peerPath,peerRecord)
    # Discard stopped public-binary fixtures so repeated qualification does not fill the Mac disk.
-   for target,saved,path in [(name,record,probePath),(peer,peerRecord,peerPath)]:
-    discard_stopped_fixture(target,saved,path)
+   retire_all([(name,record,probePath),(peer,peerRecord,peerPath)])
    for p in proxies:
     p.stdin.close();p.wait(timeout=5)
    # Management relay processes also stop; worker cgroups do not contain them.
@@ -692,20 +744,16 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    raise
 
   finally:
-   if os.path.exists(probePath) and not record.get('stopped'):
-    stop(name,record);record['stopped']=True;save(probePath,record)
-   for p in proxies:
-    if p.poll() is None:
-     if not p.stdin.closed: p.stdin.close()
-     p.wait(timeout=5)
-   if peer is not None and not peerRecord.get('stopped'):
-    stop(peer,peerRecord);peerRecord['stopped']=True
-    if peerPath is not None: save(peerPath,peerRecord)
-   for target,saved,path in [(name,record,probePath),(peer,peerRecord if peer else {},peerPath)]:
-    discard_stopped_fixture(target,saved,path)
-   if slow is not None and slow.poll() is None: slow.kill();slow.wait(timeout=5)
-   if child is not None and child.poll() is None: child.kill();child.wait(timeout=5)
-   if os.path.exists(private): os.unlink(private)
+   try:
+    retire_all([(name,record,probePath),(peer,peerRecord if peer else {},peerPath)])
+    for p in proxies:
+     if p.poll() is None:
+      if not p.stdin.closed: p.stdin.close()
+      p.wait(timeout=5)
+    if slow is not None and slow.poll() is None: slow.kill();slow.wait(timeout=5)
+    if child is not None and child.poll() is None: child.kill();child.wait(timeout=5)
+   finally:
+    if os.path.exists(private): os.unlink(private)
  elif R['action']=='boundary-probe':
   r=R;s=r['session'];j=session_record(r)
   name='aios-offline-'+s['sandboxId']
@@ -807,19 +855,20 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
   name='aios-model-frame-'+str(uuid.uuid4())
   record=dict(name=name,cgroup='',pids={},stopped=False)
   probePath=root+'/probe-'+str(uuid.uuid4())+'.json'
+  save(probePath,record)
   try:
    create(name,'sleep 600',{'aios.authority':R['authority']})
-   save(probePath,record);pod('start',name)
+   pod('start',name)
    cg=cgroup(inspect(name)['State']['Pid']);record.update(cgroup=cg,pids=census(cg));save(probePath,record)
    e=effective(name)
    result=subprocess.run(['podman','exec','-i',name,'cat'],input=data,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
    if result.returncode or result.stdout!=data: fail()
    record['pids'].update(census(cg));stop(name,record);record['stopped']=True;save(probePath,record)
+   retire(name,record,probePath)
    if {**R['hostBinding'],**snapshot()}!=binding: fail()
    print(json.dumps(dict(binding=binding,effective=e,frame=base64.b64encode(result.stdout).decode(),shutdown=dict(remainingProcesses=0,observedProcesses=len(record['pids'])))))
   finally:
-   if os.path.exists(probePath) and not record.get('stopped'):
-    stop(name,record);record['stopped']=True;save(probePath,record)
+   retire(name,record,probePath)
  elif R['action'] in ['execute','stop','collect']:
   s=R['session']; pins=R['pins']; name='aios-offline-'+s['sandboxId']
   path=root+'/'+s['sandboxId']+'.json'
@@ -836,6 +885,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    authority['fences'][key]=s['fence']; save(registry,authority)
    record=dict(session=s,pins=pins,revoked=False,cgroup='',pids={})
    save(path,record)
+   discard_superseded_sessions()
    try:
     create(name,R['worker'],{'aios.authority':R['authority'],'aios.session':s['workerSessionId']})
     data=base64.b64decode(R['input'],validate=True)
@@ -866,10 +916,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
    authority['fences'][key]=s['fence']; save(registry,authority)
    if not record: record=dict(session=s,pins=pins,cgroup='',pids={})
    record.update(session=s,revoked=True); save(path,record)
-   existence=subprocess.run(['podman','container','exists',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=R['target']['guestCommandSeconds'])
-   if existence.returncode not in [0,1]: fail()
-   exists=existence.returncode==0
-   if exists:
+   if exists(name):
     c=inspect(name)
     if c['Config'].get('Labels',{}).get('aios.session')!=s['workerSessionId']: fail()
     if c['State'].get('Running'):
