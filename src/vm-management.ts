@@ -196,13 +196,24 @@ def exists(name):
  result=subprocess.run(['podman','container','exists',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=R['target']['guestCommandSeconds'])
  if result.returncode not in [0,1]: fail()
  return result.returncode==0
+# Removal is optional, so one action's removals share a budget well inside its
+# deadline, and one that failed waits for a later action.
+removalSeconds=R['target']['removalSeconds']
+failedRemovals=set()
+def may_remove(name): return removalSeconds>0 and name not in failedRemovals
 def removed(name):
  # Shutdown is already proven, so a removal that fails costs no evidence: the
- # record stays and a later sweep retries. Never --force: a running worker stays.
- try: return subprocess.run(['podman','rm',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=R['target']['guestCommandSeconds']).returncode==0
- except subprocess.TimeoutExpired: return False
+ # record stays and a later action retries. Never --force: a running worker stays.
+ global removalSeconds
+ started=time.monotonic()
+ try: done=subprocess.run(['podman','rm',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=min(removalSeconds,R['target']['guestCommandSeconds'])).returncode==0
+ except subprocess.TimeoutExpired: done=False
+ removalSeconds-=time.monotonic()-started
+ if not done: failedRemovals.add(name)
+ return done
 def discard_stopped_fixture(name,record,path):
  if name is None or not record.get('stopped') or record.get('removed'): return
+ if not may_remove(name): return
  if exists(name):
   c=inspect(name)
   if c['State'].get('Running') or c['State'].get('Pid')!=0 or c['Config'].get('Labels',{}).get('aios.authority')!=R['authority']: fail()
@@ -239,6 +250,7 @@ def discard_superseded_sessions():
   if saved.get('containerRemoved') or not saved.get('stopped') or s['fence']>=authority['fences'].get(h(s['repositoryKey'].encode()),0): continue
   budget-=1
   name='aios-offline-'+s['sandboxId']
+  if not may_remove(name): continue
   if exists(name):
    c=inspect(name);labels=c['Config'].get('Labels',{})
    if c['State'].get('Running') or c['State'].get('Pid')!=0 or labels.get('aios.authority')!=R['authority'] or labels.get('aios.session')!=s['workerSessionId']: continue
@@ -1080,6 +1092,7 @@ export class VMManagementChannel {
       inferenceContract: inferenceFixtureContract(),
       target: {
         guestCommandSeconds: host.guestCommandSeconds,
+        removalSeconds: host.managementMs / 3000,
         codexWorkerSha256: host.codexWorkerSha256,
       },
     };

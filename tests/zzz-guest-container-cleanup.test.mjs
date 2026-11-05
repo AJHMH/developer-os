@@ -14,6 +14,7 @@ import {
   realTemporaryDirectory,
   realWriteFileSync,
 } from "./helpers/native-coding-fixture.mjs";
+import { hostTargets } from "../dist/host-target.js";
 import { VMManagementChannel } from "../dist/vm-management.js";
 
 const simulator = new URL("./helpers/vm-management-engine.py", import.meta.url)
@@ -246,6 +247,102 @@ test(
     assert.equal(second.ok, true, second.stderr);
     assert.deepEqual(f.names(), []);
     assert.deepEqual(f.probeRecords(), []);
+  },
+);
+
+test(
+  "a failed removal is not tried again in the same action",
+  { skip },
+  (t) => {
+    const f = guest(t);
+    for (const { action, prefix, payload } of probes(f)) {
+      f.fault({ [prefix]: { rm: "exit" } });
+      const result = f.run(action, payload());
+      assert.equal(result.ok, true, `${action}: ${result.stderr}`);
+      assert.equal(JSON.parse(result.output).blockedStage, undefined, action);
+      assert.equal(
+        f.removals().filter((name) => name.startsWith(prefix)).length,
+        1,
+        action,
+      );
+      f.fault({});
+    }
+  },
+);
+
+const leftovers = (f, count) => {
+  const seeded = {};
+  for (let index = 0; index < count; index++) {
+    const name = `aios-qualification-old-${index}`;
+    seeded[name] = { ...container(f.authority()), Name: name };
+    f.writeRecord(`probe-old-${index}.json`, {
+      name,
+      cgroup: "",
+      pids: {},
+      stopped: true,
+    });
+  }
+  f.seed(seeded);
+};
+// A third of macOS's 90-second action deadline.
+const removalBudget = hostTargets.darwin.managementMs / 3000;
+
+test(
+  "a stalled removal costs one budget and leaves the action its evidence",
+  { skip },
+  (t) => {
+    const f = guest(t);
+    leftovers(f, 12);
+    f.fault({ "aios-qualification-": { rm: "stall" } });
+    const result = f.run("observe", { expected: f.expected });
+    assert.equal(result.ok, true, result.stderr);
+    assert.ok(JSON.parse(result.output).effective, "evidence stands");
+    assert.equal(f.removals().length, 1, "the budget went on the first");
+    assert.equal(f.state().removalSeconds, removalBudget);
+    assert.equal(f.probeRecords().length, 13, "every record stays for later");
+    f.fault({});
+    for (let round = 0; round < 2; round++)
+      assert.equal(f.run("observe", { expected: f.expected }).ok, true);
+    assert.deepEqual(f.names(), []);
+    assert.deepEqual(f.probeRecords(), []);
+  },
+);
+
+test("slow removals stop when the budget is spent", { skip }, (t) => {
+  const f = guest(t);
+  leftovers(f, 8);
+  f.fault({ "aios-qualification-": { rm: "slow" } });
+  const result = f.run("observe", { expected: f.expected });
+  assert.equal(result.ok, true, result.stderr);
+  // 12 seconds each: two finish and the third is cut off at the budget.
+  assert.equal(f.removals().length, 3);
+  assert.ok(f.state().removalSeconds <= removalBudget);
+  assert.equal(f.names().length, 7);
+});
+
+test(
+  "each host's removal budget fits inside its action deadline",
+  { skip },
+  (t) => {
+    for (const platform of ["darwin", "win32"]) {
+      const host = hostTargets[platform];
+      nativeHost(t, () => ({}), platform);
+      const ordinaryFile = fs.lstatSync("/authority");
+      t.mock.method(fs, "lstatSync", () => ({
+        ...ordinaryFile,
+        isDirectory: () => true,
+      }));
+      syncBuiltinESMExports();
+      const { input } = new VMManagementChannel(
+        "aios-test",
+        "/authority",
+      ).prepare("observe", {});
+      const { target } = JSON.parse(
+        Buffer.from(input.match(/b64decode\('([^']+)'\)/)[1], "base64"),
+      );
+      assert.equal(target.removalSeconds, host.managementMs / 3000, platform);
+      t.mock.restoreAll();
+    }
   },
 );
 
@@ -483,5 +580,37 @@ test(
     );
     assert.ok(f.names().includes(name));
     assert.ok(f.names().includes(`aios-offline-${running.sandboxId}`));
+  },
+);
+
+test(
+  "a stalled superseded session spends the budget and stays collectable later",
+  { skip },
+  (t) => {
+    const f = guest(t);
+    // Failed removals leave two superseded sessions behind.
+    f.fault({ "aios-offline-": { rm: "exit" } });
+    const first = runSession(f, session("repository-a", 1));
+    const second = runSession(f, session("repository-a", 2));
+    runSession(f, session("repository-a", 3));
+    assert.equal(f.names().length, 3);
+    f.fault({ "aios-offline-": { rm: "stall" } });
+    const before = f.removals().length;
+    const fourth = session("repository-a", 4);
+    const started = f.run("execute", {
+      expected: f.expected,
+      session: fourth,
+      pins,
+      input: canary,
+    });
+    assert.equal(started.ok, true, started.stderr);
+    assert.equal(f.removals().length - before, 1);
+    assert.equal(f.state().removalSeconds, removalBudget);
+    for (const { sandboxId } of [first, second])
+      assert.notEqual(
+        f.readRecord(`${sandboxId}.json`).containerRemoved,
+        true,
+        "a later action retries it",
+      );
   },
 );
