@@ -7,6 +7,7 @@ import {
   matchesInferenceRequest,
   syntheticGatewayResponse,
 } from "../dist/inference-contract.js";
+import { testPython } from "./helpers/python.mjs";
 test("host predicate and full Python endpoint agree on the fixed inference contract", () => {
   const contract = inferenceFixtureContract();
   const good = contract.request;
@@ -46,7 +47,7 @@ test("host predicate and full Python endpoint agree on the fixed inference contr
   ].map(JSON.stringify);
   cases.push("invalid json", "x".repeat(65537));
   const result = spawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`

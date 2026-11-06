@@ -3,10 +3,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { codexEndpointFixture } from "../dist/codex-endpoint.js";
+import { testPython } from "./helpers/python.mjs";
 
 test("synthetic expiry arms after slow client setup and interrupts a confirmed body read", (t) => {
   const result = spawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
@@ -95,7 +96,7 @@ print('pending read interrupted without extending grant')
 
 test("expiry arming cannot extend a lease or alter a gateway grant", () => {
   const result = spawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
