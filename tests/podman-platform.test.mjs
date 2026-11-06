@@ -1535,7 +1535,7 @@ test(
       executable,
       `#!/bin/sh
 if [ "$1" = "--connection" ]; then echo '{"Client":{"Version":"6.1.1"}}'; exit 0; fi
-exec ${process.env.AIOS_TEST_PYTHON || "python3"} -I -c 'import sys,json,hashlib,os
+exec ${testPython} -I -c 'import sys,json,hashlib,os
 d=sys.stdin.buffer.read()
 print(json.dumps(dict(sha256=hashlib.sha256(d).hexdigest(),bytes=len(d))))
 sys.exit(1 if os.environ.get("FAIL") else 0)'

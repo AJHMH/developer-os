@@ -27,6 +27,7 @@ import {
   sessionGateway,
   assertHostChangesMoveBinding,
 } from "./helpers/native-coding-fixture.mjs";
+import { testPython } from "./helpers/python.mjs";
 
 test("native coding transport stays outside controlled production admission", async () => {
   const transport = new NativePodmanCodingTransport(
@@ -954,7 +955,7 @@ test(
     await guest.transport.inspect(session);
     const program = guest.program();
     const result = realSpawnSync(
-      process.env.AIOS_TEST_PYTHON || "python3",
+      testPython,
       [
         "-I",
         "-c",

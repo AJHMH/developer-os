@@ -9,6 +9,7 @@ import { EventEmitter } from "node:events";
 import { Writable } from "node:stream";
 import { resolve } from "node:path";
 import { NativePodmanCodingTransport } from "../../dist/podman-coding.js";
+import { testPython } from "./python.mjs";
 
 export const realTemporaryDirectory = fs.realpathSync(os.tmpdir());
 export const realSpawnSync = childProcess.spawnSync;
@@ -163,7 +164,7 @@ function startGuestServer() {
   const made = realSpawnSync("mkfifo", ["-m", "600", requests, responses]);
   if (made.status !== 0) throw Error("Unable to create guest server pipes");
   const server = realSpawn(
-    process.env.AIOS_TEST_PYTHON || "python3",
+    testPython,
     ["-I", "-S", forkServer.pathname, requests, responses],
     { stdio: "ignore" },
   );
@@ -342,7 +343,7 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
   // The channel runs the same simulator, kept open for the relay's frames.
   const channel = (options) => {
     const child = realSpawn(
-      process.env.AIOS_TEST_PYTHON || "python3",
+      testPython,
       ["-I", "-S", guestHarness.pathname, root, "--channel"],
       { stdio: ["pipe", "pipe", "pipe"], env: options.env },
     );

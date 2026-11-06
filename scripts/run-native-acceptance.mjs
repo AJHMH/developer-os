@@ -1,6 +1,12 @@
 // Explicit host acceptance: never called by automatic tests or CI.
 import { spawn } from "node:child_process";
-import { mkdirSync, realpathSync, rmdirSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const [state, ...rest] = process.argv.slice(2);
@@ -14,15 +20,41 @@ if (!state || separator < 1) {
 const scripts = rest.slice(0, separator);
 const args = rest.slice(separator + 1);
 const lock = join(realpathSync(state), ".native-acceptance.lock");
+const owner = join(lock, "owner.json");
+function lockOwner() {
+  let holder;
+  try {
+    holder = JSON.parse(readFileSync(owner, "utf8"));
+  } catch {
+    return "It names no owner.";
+  }
+  let running = true;
+  try {
+    process.kill(holder.pid, 0);
+  } catch (error) {
+    running = error.code !== "ESRCH";
+  }
+  return `Started ${holder.startedAt} by process ${holder.pid} (${running ? "a process with that ID is running" : "no process with that ID is running"}), for ${holder.scripts.join(", ")}.`;
+}
 try {
   mkdirSync(lock, { mode: 0o700 });
 } catch (error) {
   if (error.code !== "EEXIST") throw error;
   console.error(
-    `Native acceptance lock exists: ${lock}. Verify prior runners and workers have stopped before removing it.`,
+    `Native acceptance lock exists: ${lock}. ${lockOwner()} Verify prior runners and workers have stopped before removing it with rm -r.`,
   );
   process.exit(1);
 }
+// Refusals name the holder, so a stale lock can be judged by looking it up.
+writeFileSync(
+  owner,
+  JSON.stringify({
+    pid: process.pid,
+    scripts,
+    startedAt: new Date().toISOString(),
+  }),
+  { mode: 0o600 },
+);
 let activeChild;
 let interrupted = false;
 const interrupt = (signal) => {
@@ -73,9 +105,9 @@ try {
   if (interrupted) {
     process.exitCode = 1;
     console.error(
-      `Acceptance interrupted; lock retained at ${lock}. Verify runners and workers have stopped before removing it.`,
+      `Acceptance interrupted; lock retained at ${lock}. Verify runners and workers have stopped before removing it with rm -r.`,
     );
   } else {
-    rmdirSync(lock);
+    rmSync(lock, { recursive: true });
   }
 }

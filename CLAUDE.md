@@ -12,7 +12,8 @@ checks, or new evidence invalidate the passing results.
 
 When `main` moves from a worktree, `~/Repos/developer-os` keeps `main` checked
 out and goes stale: if its files still equal the old `main` and it has nothing
-untracked, reset it to the new `main`.
+untracked, reset it to the new `main`. A session brief that says to leave that
+checkout wins: report it as behind instead.
 
 ### Issue tracker
 
@@ -33,3 +34,7 @@ For investigation accounting or App-authored publication, see `docs/operator-too
 ### Owner hosts
 
 For commands the owner runs natively, or a guest program change, see `docs/owner-hosts.md`.
+
+### Coding standards
+
+For review judgement calls, see `CODING_STANDARDS.md`.
