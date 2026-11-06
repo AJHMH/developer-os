@@ -30,3 +30,7 @@ Each owner admission record pins its guest program's digest as
 table. That change needs the owner to rewrite the matching record on both
 hosts before the next native run. Say so in the PR's "Pin impact", and update
 this table once the owner has re-pinned.
+
+Before changing a guest program to deal with what is in a VM, ask the owner for
+the [coding container census](worker-qualification.md#coding-container-census),
+so the change is sized against the real counts.
