@@ -261,6 +261,29 @@ Windows (PowerShell, not elevated):
 podman machine ssh aios-podman-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
 ```
 
+## Coding container census
+
+This read-only command counts a VM's `aios-coding-*` containers by what their
+guest records say: `head with thread`, `reserved predecessor`, `recovered`,
+`resume without thread`, `start without thread`, `reconciled:*`, `cleaned`,
+`no admission` or `no record`. Each row also shows the phase and the first 8
+characters of the record's `policy` and `binding` pins. A resume must carry its
+predecessor's pins, so a `policy` other than the coding digest in
+[owner hosts](owner-hosts.md) can't resume under the current guest. It prints no
+session identities or content.
+
+From the checkout, on macOS:
+
+```sh
+/opt/podman/bin/podman machine ssh aios-macos-noshare /usr/bin/python3 -I - < scripts/coding-container-census.py
+```
+
+On Windows (PowerShell, not elevated):
+
+```powershell
+Get-Content -Raw scripts/coding-container-census.py | podman machine ssh aios-podman-noshare /usr/bin/python3 -I -
+```
+
 ## Abandoned coding sessions
 
 Every coding session leaves a stopped container and folder in the VM, and each
