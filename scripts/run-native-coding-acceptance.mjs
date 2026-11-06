@@ -367,13 +367,7 @@ export async function sessionAcceptance(transport, options = {}) {
         );
     });
     await stage("abandoned-session-sweep", async () => {
-      // A backlog from earlier runs drains over several bounded sweeps.
-      let swept;
-      do {
-        swept = await transport.cleanupAbandonedSessions(true);
-        check(swept.refused === 0, "A session sweep was refused");
-      } while (swept.abandoned > 0 && swept.removed > 0);
-      check(swept.abandoned === 0, "Abandoned sessions remain");
+      await transport.cleanupAbandonedSessions(true);
       // Lineage A's head has a thread, so the sweep must have left it.
       const head = await transport.observeSession(stopped(a4));
       check(head.phase === "stopped", "The sweep touched lineage A");

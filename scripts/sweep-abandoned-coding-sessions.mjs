@@ -47,13 +47,8 @@ try {
     if (admitted[field] !== observed[field])
       throw Error(`The owner's coding admission does not name ${field}`);
   const apply = approval === "--approve-removal";
-  let removed = 0,
-    sweep;
-  do {
-    sweep = await transport.cleanupAbandonedSessions(apply);
-    removed += sweep.removed;
-  } while (apply && sweep.removed > 0 && sweep.abandoned > 0);
-  const { abandoned, refused, kept } = sweep;
+  const { removed, abandoned, refused, kept } =
+    await transport.cleanupAbandonedSessions(apply);
   console.log(JSON.stringify({ apply, removed, abandoned, refused, kept }));
   if (apply && (abandoned > 0 || refused > 0)) process.exitCode = 1;
 } catch (error) {

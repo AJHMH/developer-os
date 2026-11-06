@@ -597,8 +597,12 @@ else:
    # guest's own records, since no caller keeps these identities. The snapshot
    # refuses while any container runs. A session is only ever removed under its
    # record's exact name and labels; one that fails stays for a later sweep.
-   # Attempts are bounded, so a backlog drains inside the action's deadline.
+   # Attempts are bounded, so a backlog drains inside the action's deadline, and
+   # the host names the sessions already refused, so a later batch moves past them.
    binding=snapshot()
+   skip=R.get('skip',[])
+   if not isinstance(skip,list) or not all(isinstance(x,str) for x in skip): fail()
+   refusedSessions=[]
    kept=dict(cleaned=0,unprepared=0,unstopped=0,lineage=0)
    removed=attempted=refused=abandoned=0
    for name in sorted(e.name[:-5] for e in os.scandir(root) if re.fullmatch(r'aios-coding-[a-f0-9]{32}\.json',e.name)):
@@ -609,6 +613,9 @@ else:
      continue
     if kind!='abandoned':
      kept[kind]+=1
+     continue
+    if name in skip:
+     refused+=1;abandoned+=1
      continue
     if R['apply'] is not True or attempted>=8:
      abandoned+=1
@@ -626,8 +633,8 @@ else:
      entry['cleaned']=True;save(path,entry)
      removed+=1
     except Exception:
-     refused+=1;abandoned+=1
-   result=dict(removed=removed,abandoned=abandoned,refused=refused,kept=kept)
+     refused+=1;abandoned+=1;refusedSessions.append(name)
+   result=dict(removed=removed,abandoned=abandoned,refused=refused,refusedSessions=refusedSessions,kept=kept)
   else:
    if not record: fail()
    binding=snapshot()
@@ -1521,7 +1528,9 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
   /** The owner's sweep of sessions nothing can ever need again: a start that
    * recorded no thread, and a resume whose recovery returned its home. The
    * guest chooses them from its own records, because no caller keeps their
-   * identities. Without `apply` it only counts. Every other session stays. */
+   * identities. Without `apply` it only counts. With it, batches continue until
+   * every abandoned session was tried, moving past any the guest refuses; those
+   * stay for a later sweep. Every other session stays. */
   async cleanupAbandonedSessions(apply: boolean): Promise<{
     removed: number;
     abandoned: number;
@@ -1531,44 +1540,67 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
   }> {
     if (typeof apply !== "boolean")
       throw Error("Unsupported native session sweep");
-    // The action names no session; this identity only binds its receipt.
-    const { result, pins } = await this.invoke(
-      "cleanup-abandoned",
-      {
-        operationId: randomUUID(),
-        fence: 1,
-        state: "stopped",
-        intent: "start",
-      },
-      { apply },
-    );
     const count = (value: unknown): value is number =>
       Number.isSafeInteger(value) && (value as number) >= 0;
-    const { removed, abandoned, refused, kept } = result;
-    if (
-      !count(removed) ||
-      !count(abandoned) ||
-      !count(refused) ||
-      !record(kept) ||
-      !count(kept.cleaned) ||
-      !count(kept.unprepared) ||
-      !count(kept.unstopped) ||
-      !count(kept.lineage) ||
-      (!apply && removed !== 0)
-    )
-      throw Error("Native session sweep is uncertain");
-    return {
-      removed,
-      abandoned,
-      refused,
-      kept: {
-        cleaned: kept.cleaned,
-        unprepared: kept.unprepared,
-        unstopped: kept.unstopped,
-        lineage: kept.lineage,
-      },
-      pins,
-    };
+    const uncertain = () => Error("Native session sweep is uncertain");
+    // Sessions refused in this sweep; later batches move past them, and a
+    // later sweep tries them again.
+    const skip: string[] = [];
+    let total = 0,
+      first: CodingPins | undefined;
+    for (;;) {
+      // The action names no session; this identity only binds its receipt.
+      const { result, pins } = await this.invoke(
+        "cleanup-abandoned",
+        {
+          operationId: randomUUID(),
+          fence: 1,
+          state: "stopped",
+          intent: "start",
+        },
+        { apply, skip },
+      );
+      const { removed, abandoned, refused, refusedSessions, kept } = result;
+      if (
+        !count(removed) ||
+        !count(abandoned) ||
+        !count(refused) ||
+        !record(kept) ||
+        !count(kept.cleaned) ||
+        !count(kept.unprepared) ||
+        !count(kept.unstopped) ||
+        !count(kept.lineage) ||
+        !Array.isArray(refusedSessions) ||
+        refusedSessions.length > 8 ||
+        refusedSessions.some(
+          (name) =>
+            typeof name !== "string" ||
+            !/^aios-coding-[a-f0-9]{32}$/.test(name) ||
+            skip.includes(name),
+        ) ||
+        (!apply && (removed !== 0 || refusedSessions.length !== 0)) ||
+        (first !== undefined && JSON.stringify(pins) !== JSON.stringify(first))
+      )
+        throw uncertain();
+      first = pins;
+      total += removed;
+      skip.push(...(refusedSessions as string[]));
+      if (!apply || abandoned <= skip.length)
+        return {
+          removed: total,
+          abandoned,
+          refused,
+          kept: {
+            cleaned: kept.cleaned,
+            unprepared: kept.unprepared,
+            unstopped: kept.unstopped,
+            lineage: kept.lineage,
+          },
+          pins,
+        };
+      // Sessions remain untried, so this batch must have tried some.
+      if (removed === 0 && refusedSessions.length === 0) throw uncertain();
+    }
   }
   /** Validate an explicit successor/predecessor pair before guest effects. */
   private resumePair(
