@@ -160,16 +160,24 @@ Some results are weaker than they look:
 
 ## Outcomes
 
-- **`observed-offline-worker-qualification`:** every probe passed and every
-  lifecycle control held.
-- **`failed`:** every stage ran, but at least one probe failed. They are listed
+- **`observed-offline-worker-qualification`:** every probe passed, every
+  lifecycle control held, and the coding session was removed.
+- **`failed`:** every check ran, but at least one probe failed. They are listed
   in `failedProbes` as `worker:probe`, and the full report is kept as
-  evidence.
+  evidence. The coding session stays in the VM for diagnosis.
 - **`blocked`:** a record, a pin or a lifecycle control refused, at the stage
   named in the report. Later stages are listed as `not-run`. Any coding session
   that was started is stopped.
 - **`uncertain`:** the coding session could not be confirmed stopped. Recover
   it before any other run.
+
+A passing run removes its coding session last, after its evidence is written.
+The turn ends as soon as it is probed, so the guest may or may not have recorded
+a thread. With one, `cleanupSupersededLineage` removes the session by its exact
+identity. Without one, it refuses and the abandoned-session sweep below removes
+it, along with any other abandoned session. `coding.cleanup` in the report says
+which (`lineage` or `sweep`). If the session is still there, the run is `blocked`
+at `coding-session-cleanup`, and the other stages' results still stand.
 
 The report also records:
 - the source revision and the build's digests;
@@ -256,9 +264,10 @@ podman machine ssh aios-podman-noshare 'for r in ~/.local/state/aios-coding-v1/a
 ## Abandoned coding sessions
 
 Every coding session leaves a stopped container and folder in the VM, and each
-one adds to every container listing. Lineage cleanup only reaches a retired or
-superseded lineage named by its head. Two kinds of session have no such route,
-and nothing can ever need them again:
+one adds to every container listing. A passing owner-run acceptance removes its
+own sessions, but a blocked or failed run, or a delivery, leaves them. Lineage
+cleanup only reaches a retired or superseded lineage named by its head. Two kinds
+of session have no such route, and nothing can ever need them again:
 
 - A start that recorded no thread, whether its `create` failed, it was stopped
   before launch (the engine shows these as `created`), or it launched and
@@ -310,9 +319,10 @@ npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "
 
 Outcomes:
 - **`observed-offline-routed-acceptance`:** every stage passed and every
-  probe passed.
-- **`failed`:** every stage ran, but a probe failed. The failed probes are
-  listed in `failedProbes`.
+  probe passed. The last stage removes the lineage from the VM by its head, so
+  a passing run leaves no session.
+- **`failed`:** every check ran, but a probe failed. The failed probes are
+  listed in `failedProbes`, and the lineage stays in the VM for diagnosis.
 - **`blocked`:** at the stage named in the report. Later stages are listed as
   `not-run`.
 - **`uncertain`:** a session could not be confirmed stopped.
@@ -354,8 +364,11 @@ One lineage, in order:
   turn starts a new thread under the new decision, supersedes the old
   lineage, runs the work script through the route and completes.
 
-Every turn must stop exactly. At the end, every session is stopped again by
-its exact identity.
+Every turn must stop exactly. A passing run then removes both lineages: the
+superseded one through the controller's `cleanupSupersededLineage(id,
+operationId)`, which records `cleanedAt`, and the new one by its exact identity
+on the transport, because the controller keeps no route to a lineage it hasn't
+superseded. At the end, every session is stopped again by its exact identity.
 
 macOS (zsh), from a clean, built checkout with the VM running:
 
@@ -370,7 +383,8 @@ npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "
 ```
 
 Outcomes:
-- **`observed-offline-usage-canary`:** every stage passed.
+- **`observed-offline-usage-canary`:** every stage passed, and the run left no
+  session.
 - **`blocked`:** at the stage named in the report. Later stages are listed as
   `not-run`.
 - **`uncertain`:** a session could not be confirmed stopped.
@@ -412,6 +426,9 @@ In order:
 - **Restart:** restarting the lapsed thread under the spent approval is
   refused before any effect, though usage is healthy; only a fresh approval
   allows more. Usage is observed again at the end.
+- **Cleanup:** a passing run removes the lineage from the VM by its head, once
+  its evidence is written. A rerun starts its own lineage, so nothing resumes
+  this one. A failed or blocked run keeps it for diagnosis.
 
 The report keeps the pinned model, usage before and after, every request
 count, refusal and provider status, and never the token, the usage windows or
@@ -438,5 +455,7 @@ The approval is spent before any credential is read, so a rerun needs a
 fresh `prepare`. Outcomes: `observed-credentialed-qualification`; `failed`
 when a boundary probe failed; `blocked` at the named stage, with later
 stages `not-run`; `uncertain` when a session could not be confirmed stopped.
+`blocked` at `lineage-cleanup` means only the removal failed: every earlier
+stage's evidence stands, and it doesn't call for spending another run.
 A provider refusal is recorded by status: per the plan's header risk, a
 fixed gateway-side header would be a separately reviewed change.

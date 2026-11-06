@@ -19,6 +19,8 @@ import {
   request,
   stageNames,
 } from "../scripts/run-native-cli-delivery-acceptance.mjs";
+import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
+import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const imageSha256 = "a".repeat(64);
 const codingPins = {
@@ -51,6 +53,7 @@ const host = {
   validationAdmission: "/owner/validation-admission.json",
   codex: "/owner/codex",
   imageSha256,
+  cleanupCodingSession: async () => ({ cleaned: 1 }),
 };
 const option = (args, name) => args[args.indexOf(name) + 1];
 
@@ -208,6 +211,9 @@ function simulatedCli(faults = {}) {
         outcome: "failed",
         branch,
         session: {
+          operationId: randomUUID(),
+          fence: 1,
+          intent: "start",
           state: "stopped",
           threadStarted: true,
           threadId: randomUUID(),
@@ -366,3 +372,44 @@ test("a record that does not name the VM's fresh pins stops the run before any C
     });
   }
 });
+
+test("a refused session cleanup blocks the CLI acceptance at its own stage", async () => {
+  const { cli } = simulatedCli();
+  const report = await cliDeliveryAcceptance({
+    cli,
+    ...host,
+    cleanupCodingSession: async () => {
+      throw Error("Native coding cleanup-superseded observation");
+    },
+  });
+  assert.equal(report.outcome, "blocked");
+  assert.equal(report.stages.at(-1).name, "coding-session-cleanup");
+  assert.equal(report.stages.at(-1).outcome, "blocked");
+});
+
+test(
+  "a passing CLI acceptance leaves no coding session in the guest",
+  posixGuest,
+  async (t) => {
+    const guest = guestBackedSessions(t);
+    const simulated = simulatedCli();
+    const report = await cliDeliveryAcceptance({
+      // Each code-feature process leaves its session in the VM.
+      cli: async (args) => {
+        const result = await simulated.cli(args);
+        if (args[0] === "code-feature") {
+          const { operationId, fence, intent, threadId } = JSON.parse(
+            result.stdout,
+          ).feature.session;
+          await guest.mirror({ operationId, fence, intent }, threadId);
+        }
+        return result;
+      },
+      ...host,
+      cleanupCodingSession: (session) => guest.clean(session),
+    });
+    assert.equal(report.outcome, passingOutcome, report.error);
+    assert.equal(guest.launched(), 1);
+    assert.deepEqual(guest.left(), { containers: [], folders: [] });
+  },
+);

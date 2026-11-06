@@ -8,7 +8,9 @@
 // here, private and outside every repository. The coding turn is offline: with
 // no model access it never completes, so it proves the delivery mechanics (an
 // exact launch and stop) and admits no candidate; `validate-candidate` must
-// refuse. It never provisions or starts the VM, loads images, opens
+// refuse. A passing run then removes its coding session, because no CLI step
+// can reach a finished turn's session; a blocked run keeps it for diagnosis.
+// It never provisions or starts the VM, loads images, opens
 // credentials or authorizes inference, and it never enables production or
 // claims qualification. It reads usage through the owner's codex executable,
 // as every coding turn does. Run it through scripts/run-native-acceptance.mjs.
@@ -49,6 +51,7 @@ export const stageNames = Object.freeze([
   "cli-code-feature",
   "cli-candidate-refused",
   "host-checkout-unchanged",
+  "coding-session-cleanup",
 ]);
 
 const pinFields = {
@@ -215,8 +218,9 @@ export function cliRunner(state) {
  * `cliRunner`) on `machine`, with the owner's admission records, `codex` for
  * usage and the validation image `imageSha256`. `pins` holds, for coding and
  * validation, the record's `admitted` pins and `fresh()`, the VM's own; a
- * record that does not name them stops the run before any CLI step. `persist`
- * receives the report after every stage. */
+ * record that does not name them stops the run before any CLI step.
+ * `cleanupCodingSession` removes the stopped session it is given from the VM.
+ * `persist` receives the report after every stage. */
 export async function cliDeliveryAcceptance(
   {
     cli,
@@ -226,6 +230,7 @@ export async function cliDeliveryAcceptance(
     validationAdmission,
     codex,
     imageSha256,
+    cleanupCodingSession,
   },
   options = {},
 ) {
@@ -453,6 +458,10 @@ export async function cliDeliveryAcceptance(
         "The feature branch is not at the baseline revision",
       );
     });
+    await stage("coding-session-cleanup", async () => {
+      const receipt = await cleanupCodingSession(last.feature.session);
+      check(receipt.cleaned === 1, "Expected one cleaned session");
+    });
     report.outcome = passingOutcome;
   } catch (error) {
     report.error = bounded(error?.message);
@@ -572,15 +581,14 @@ async function main() {
   const { nativeValidationAuthority } = await import(
     "../dist/native-validation-runtime.js"
   );
+  const codingTransport = () =>
+    new NativePodmanCodingTransport(machine, nativeCodingAuthority(machine));
   // The VM's own pins, read without starting any session or check.
   const pins = {
     coding: {
       admitted: codingPins,
       fresh: () =>
-        new NativePodmanCodingTransport(
-          machine,
-          nativeCodingAuthority(machine),
-        ).inspect({
+        codingTransport().inspect({
           operationId: randomUUID(),
           fence: 1,
           state: "running",
@@ -620,6 +628,8 @@ async function main() {
       validationAdmission,
       codex,
       imageSha256,
+      cleanupCodingSession: (session) =>
+        codingTransport().cleanupSupersededLineage(session),
     },
     {
       interrupted: () => interrupted,

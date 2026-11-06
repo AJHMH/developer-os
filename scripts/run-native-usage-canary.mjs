@@ -13,6 +13,9 @@
 //   mid-resume ends it;
 // - after a new decision, an approved restart starts a new lineage that
 //   completes, superseding the old one.
+// A passing run then removes both lineages: the superseded one through the
+// controller's recorded route and the completed one, which has no recorded
+// route, by its exact identity. A blocked run keeps them for diagnosis.
 // It never provisions or starts the VM, opens credentials or authorizes
 // inference, and it never enables production or claims qualification. Run it
 // through scripts/run-native-acceptance.mjs.
@@ -61,6 +64,7 @@ export const stageNames = Object.freeze([
   "restart-refused-without-approval",
   "routed-resume-withdrawn-mid-turn",
   "new-decision-new-lineage",
+  "lineages-cleaned",
 ]);
 
 /** Run the canary against `transport` under the owner's coding `admission`,
@@ -400,7 +404,7 @@ export async function usageCanary({ transport, admission }, options = {}) {
       lapsed(ended, "withdrawn");
       return ended;
     });
-    await stage("new-decision-new-lineage", async () => {
+    const lineage = await stage("new-decision-new-lineage", async () => {
       mediation.write();
       controller.approveCodingRestart(deliveryId);
       const ended = await turn("lineage", { released: () => true });
@@ -449,6 +453,23 @@ export async function usageCanary({ transport, admission }, options = {}) {
           after.phase !== "completed",
         "The canary's delivery was not kept disabled",
       );
+      return ended;
+    });
+    await stage("lineages-cleaned", async () => {
+      const after = await controller.cleanupSupersededLineage(
+        deliveryId,
+        resume.session.operationId,
+      );
+      const superseded = after.feature.supersededLineages[0];
+      check(
+        superseded.cleaned === 2 && superseded.cleanedAt,
+        "Expected two cleaned sessions in the superseded lineage",
+      );
+      const current = await transport.cleanupSupersededLineage({
+        ...lineage.session,
+        state: "stopped",
+      });
+      check(current.cleaned === 1, "Expected one cleaned current session");
     });
     report.outcome = passingOutcome;
   } catch (error) {
