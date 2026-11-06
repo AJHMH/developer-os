@@ -287,8 +287,11 @@ node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-na
 ```
 
 `abandoned` is what a sweep would remove. `kept` counts the rest: `lineage`
-sessions, `unstopped` ones, `unprepared` ones (which have no container) and
-`cleaned` tombstones. Add `--approve-removal` to the same command to remove them.
+sessions, `unstopped` ones, `unprepared` ones and `cleaned` tombstones. An
+`unprepared` record names no admission. Usually that session never had a
+container, but a record from an older guest can, and the sweep leaves it. So
+these counts don't add up to the VM's container count. Add `--approve-removal`
+to the same command to remove the `abandoned` sessions.
 It works through 8 at a time until it has tried them all, and moves past any it
 can't remove. A refused session stays for a later sweep; `refused` says how many,
 and the command then exits non-zero.
