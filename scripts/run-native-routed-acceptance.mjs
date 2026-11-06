@@ -12,7 +12,8 @@
 // tools are shown working with no real model, network or credential. During
 // the launch, between model requests and before the turn's edit, the coding
 // boundary probe runs in the routed session: one relay listener that answers,
-// no other route, and only the admitted file in the workspace.
+// no other route, and only the admitted file in the workspace. A passing run
+// then removes the lineage; a failed or blocked one keeps it for diagnosis.
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
@@ -63,6 +64,7 @@ export const stageNames = Object.freeze([
   "routed-launch-output-collected",
   "routed-resume",
   "routed-resume-output-collected",
+  "routed-lineage-cleanup",
 ]);
 
 /** Only complete JSON lines count; a partial final line is not evidence. */
@@ -382,6 +384,11 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
     report.failedProbes = report.probes
       .filter((p) => p.outcome !== "passed")
       .map((p) => p.name);
+    if (!report.failedProbes.length)
+      await stage("routed-lineage-cleanup", async () => {
+        const receipt = await transport.cleanupSupersededLineage(stopped(a2));
+        check(receipt.cleaned === 2, "Expected two cleaned sessions");
+      });
     report.outcome = report.failedProbes.length ? "failed" : passingOutcome;
   } catch (error) {
     report.error = String(error?.message).slice(0, 300);

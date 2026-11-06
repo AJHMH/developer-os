@@ -19,6 +19,8 @@ import {
 } from "../dist/native-coding-runtime.js";
 import { createHash } from "node:crypto";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
+import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
+import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 import { planAndValidate } from "./helpers/validation-fixture.mjs";
 import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 
@@ -102,6 +104,15 @@ function liveTransport(f, hooks = {}) {
       };
     },
     collect: (request) => f.runtime.collect(request),
+    async cleanupSupersededLineage(request) {
+      effects.cleaned = request;
+      return {
+        operationId: request.operationId,
+        fence: request.fence,
+        cleaned: 1,
+        pins: { ...pins },
+      };
+    },
   };
   return transport;
 }
@@ -588,7 +599,31 @@ test("the admission acceptance drives one controller turn through the admitted t
   assert.equal(report.delivery.threadStarted, true);
   assert.equal(report.productionEnabled, false);
   assert.ok(persisted.length > 4);
+  assert.equal(transport.effects.cleaned.state, "stopped");
+  assert.equal(report.stages.at(-1).name, "session-cleanup");
 });
+
+test(
+  "a passing admission acceptance leaves no coding session in the guest",
+  posixGuest,
+  async (t) => {
+    const { admissionAcceptance } = await import(
+      "../scripts/run-native-coding-admission-acceptance.mjs"
+    );
+    const guest = guestBackedSessions(t);
+    const report = await admissionAcceptance(
+      guest.transport(liveTransport(codingFixture(t))),
+      ownerCodingAdmission(ownerRecord(t).path),
+    );
+    assert.equal(
+      report.outcome,
+      "observed-offline-admission-acceptance",
+      report.error,
+    );
+    assert.equal(guest.launched(), 1);
+    assert.deepEqual(guest.left(), { containers: [], folders: [] });
+  },
+);
 
 test("the admission acceptance stops before coding when the record names other pins", async (t) => {
   const { admissionAcceptance } = await import(

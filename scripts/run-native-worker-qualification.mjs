@@ -17,6 +17,8 @@
 //   killed at the guest deadline, a stop mid-check, a fenced late check and a
 //   changed tree never reported as the tested one.
 // Every attempt is retained in the report, failed ones included (criterion 6).
+// A passing run then removes its coding session; a failed or blocked one keeps
+// it stopped in the VM for diagnosis.
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
@@ -61,6 +63,7 @@ const treeSha256 = sha256("aios-native-worker-qualification:tree");
 export const validationPrivatePath =
   "/var/home/core/.local/state/aios-validation-v1";
 const runGateRefusal = /^Native coding run stopped by its gate/;
+const cleanedRefusal = /^Native coding observe-session observation/;
 /** Every stage, in order. */
 export const stageNames = Object.freeze([
   "coding-fresh-pins",
@@ -73,6 +76,7 @@ export const stageNames = Object.freeze([
   "validation-deadline-kills-descendants",
   "validation-stop-mid-check-and-fence",
   "validation-changed-tree-never-tested",
+  "coding-session-cleanup",
 ]);
 
 /** One validation check that passes only when probe `name` passed. */
@@ -429,6 +433,33 @@ export async function workerQualification(
       .filter((p) => p.outcome !== "passed")
       .map((p) => `${p.worker}:${p.name}`);
     const failed = report.failedProbes;
+    if (!failed.length)
+      await stage("coding-session-cleanup", async () => {
+        const stopped = { ...codingSession, state: "stopped" };
+        // This turn ends as soon as it is probed, so the guest may have
+        // recorded a thread or not, and the host can miss the poll that
+        // recorded one. Lineage cleanup refuses a session without a thread
+        // before removing anything; that session is abandoned, which is what
+        // the sweep removes.
+        try {
+          await coding.transport.cleanupSupersededLineage(stopped);
+          report.coding.cleanup = "lineage";
+        } catch {
+          await coding.transport.cleanupAbandonedSessions(true);
+          report.coding.cleanup = "sweep";
+        }
+        // The guest refuses to observe a session whose container is gone.
+        let refusal;
+        try {
+          await coding.transport.observeSession(stopped);
+        } catch (error) {
+          refusal = String(error?.message);
+        }
+        check(
+          cleanedRefusal.test(refusal),
+          "The coding session was not removed",
+        );
+      });
     report.outcome = failed.length ? "failed" : passingOutcome;
   } catch {
     report.outcome = interrupted() ? "interrupted" : "blocked";

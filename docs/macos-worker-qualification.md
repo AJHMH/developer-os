@@ -244,7 +244,10 @@ what no later evidence reads:
 - **Validation workers** go when their check finishes or the attempt stops.
 - **Coding sessions** stay, because resume and recovery inspect them by exact
   identity, until `cleanupRetiredLineage` or `cleanupSupersededLineage` removes
-  them.
+  them. A passing owner-run acceptance or qualification removes its own once its
+  evidence is written; a failed or blocked run keeps them for diagnosis. The
+  sessions of `scripts/run-native-routed-delivery.mjs` and of any other delivery
+  stay.
 
 Removal never uses `--force`, and only names a container its own record names.
 
@@ -327,7 +330,8 @@ Production delivery stays disabled either way.
 The offline acceptance drives one controller turn through the real transport
 under the record. Planning, validation, onboarding facts and usage are
 synthetic stand-ins, and the turn has a one-minute allowance because offline
-Codex never finishes. If the record is missing or names other pins, the run
+Codex never finishes. A passing run then removes the session from the VM by its
+exact identity. If the record is missing or names other pins, the run
 stops before any coding and prints the fresh pins so that you can check or
 write the record. Before anything else, it also refuses unless `dist/` is
 exactly what `src/` compiles to, which `npm run build` fixes:
