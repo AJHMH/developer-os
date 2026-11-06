@@ -278,8 +278,10 @@ node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state"
   --approve-offline-native-run
 ```
 
-Lineage A's stopped session folders and containers stay in the VM after a run,
-as earlier coding acceptance runs' do; lineage B's are cleaned up.
+A passing run leaves no session behind: it sweeps the stranded resume (see
+[abandoned coding sessions](worker-qualification.md#abandoned-coding-sessions))
+and cleans lineages A and B. A run that stops early leaves its sessions in the
+VM.
 The report is evidence only: `productionEnabled` and `qualified` stay false.
 On 20 October 2026 every stage passed on this Mac; see the
 [native session acceptance receipt](../.scratch/aios-v1-implementation/ticket04-native-session-acceptance-receipt.md).

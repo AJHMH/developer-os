@@ -12,6 +12,8 @@
 // - B: a resume stopped right after launch, never recovered, reconciled as
 //   unresolved, retired by the owner decision this run stands for, cleaned up,
 //   and never resumed again.
+// A passing run then sweeps the abandoned stranded resume and cleans lineage A,
+// so it leaves no session behind.
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -293,8 +295,9 @@ export async function sessionAcceptance(transport, options = {}) {
       );
       check(receipt.recovered === true, "The home was not recovered");
     });
+    const a4 = session("resume");
     await stage("lineage-a-resume-after-recovery", async () => {
-      const threads = await turn(session("resume"), {
+      const threads = await turn(a4, {
         revision: "moved",
         threadId,
         resumeFrom: stopped(a2),
@@ -362,6 +365,27 @@ export async function sessionAcceptance(transport, options = {}) {
           refusedBy.guest("prepare"),
           "A cleaned lineage was resumed",
         );
+    });
+    await stage("abandoned-session-sweep", async () => {
+      // A backlog from earlier runs drains over several bounded sweeps.
+      let swept;
+      do {
+        swept = await transport.cleanupAbandonedSessions(true);
+        check(swept.refused === 0, "A session sweep was refused");
+      } while (swept.abandoned > 0 && swept.removed > 0);
+      check(swept.abandoned === 0, "Abandoned sessions remain");
+      // Lineage A's head has a thread, so the sweep must have left it.
+      const head = await transport.observeSession(stopped(a4));
+      check(head.phase === "stopped", "The sweep touched lineage A");
+      await refuses(
+        transport.observeSession(stopped(a3)),
+        refusedBy.guest("observe-session"),
+        "The recovered resume was not swept",
+      );
+    });
+    await stage("lineage-a-cleanup", async () => {
+      const receipt = await transport.cleanupSupersededLineage(stopped(a4));
+      check(receipt.cleaned === 3, "Expected three cleaned sessions");
     });
     report.outcome = "observed-offline-session-acceptance";
   } catch (error) {

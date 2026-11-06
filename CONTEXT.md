@@ -217,6 +217,13 @@ lineage's, or a superseded lineage's, session folders and stopped containers
 inside the coding VM. Guest records stay as tombstones, a superseded head is
 marked never to be resumed, and the delivery records the cleanup once.
 
+**Abandoned coding session**: A stopped coding session no action can ever need
+again: a start that recorded no thread, so it can never be resumed, or a resume
+whose recovery returned its home. The owner's sweep removes its folder and
+container inside the coding VM, keeping its record as a tombstone. A session
+with a thread, a stranded or unresolved resume, and a retired or superseded
+lineage are never abandoned.
+
 **Session**: A dispatched worker or online operation whose matching receipt must
 prove descendant shutdown. Retained uncertain sessions prevent ownership release.
 
