@@ -34,8 +34,8 @@ is allowed. The current local receipt is
 `ticket25-macos-validation-20261013.md`; the older observations below remain
 historical.
 
-On this Mac, run the host suite with `AIOS_TEST_PYTHON=/usr/bin/python3 npm test`.
-The installed interpreter is Python 3; the `python` command is unavailable.
+On this Mac, run the host suite with `npm test`. It uses `python3`, because the
+`python` command is unavailable.
 
 The current Mac repair uses one-thread Codex runtime settings, the existing
 bounded observed task-headroom gate and exact process-handle crash helper. The

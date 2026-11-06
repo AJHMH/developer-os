@@ -17,7 +17,7 @@ npm run build
 npm run test:cli
 ```
 
-On this Mac, use `AIOS_TEST_PYTHON=/usr/bin/python3 npm test` for host fixtures. Tests need permission for temporary Git repositories and synthetic localhost services. The tests do not authorize live subscription inference. The latest retained ticket 12 local run records 497 tests: 495 passed and two platform skips; it is historical validation, not a fresh run or current hosted certification.
+Host fixtures use `python3`, or `python` on Windows; set `AIOS_TEST_PYTHON` to use another interpreter. Tests need permission for temporary Git repositories and synthetic localhost services. The tests do not authorize live subscription inference. The latest retained ticket 12 local run records 497 tests: 495 passed and two platform skips; it is historical validation, not a fresh run or current hosted certification.
 
 ## Submit and inspect a request
 

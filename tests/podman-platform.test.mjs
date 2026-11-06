@@ -21,6 +21,7 @@ import {
 import { NativePodmanDriver } from "../dist/podman-native.js";
 import { hostTargets } from "../dist/host-target.js";
 import { VMManagementChannel } from "../dist/vm-management.js";
+import { testPython } from "./helpers/python.mjs";
 const nativeSpawnSync = childProcess.spawnSync;
 
 // Piped `input` just over 64 KiB can leave the child blocked on stdin without
@@ -580,7 +581,7 @@ for (const hostPlatform of ["darwin", "win32"])
 
 test("generated native management freezes direct wait failures before successful or failed cleanup", (t) => {
   const runPython = childProcess.spawnSync;
-  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const python = testPython;
   const available = runPython(python, ["--version"], {
     encoding: "utf8",
     timeout: 5000,
@@ -631,7 +632,7 @@ print('preserved')
 
 test("Native Codex launch constrains thread pools and audits the exact environment", (t) => {
   const runPython = childProcess.spawnSync;
-  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const python = testPython;
   const available = runPython(python, ["--version"], {
     encoding: "utf8",
     timeout: 5000,
@@ -686,7 +687,7 @@ print('bounded')
 
 test("Native Codex task-headroom gate waits for idle workers and refuses exhausted budgets", (t) => {
   const runPython = childProcess.spawnSync;
-  const python = process.env.AIOS_TEST_PYTHON ?? "python";
+  const python = testPython;
   const f = hostFixture(t, "win32");
   f.setResult({ status: 0, stdout: "{}" });
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
@@ -891,7 +892,7 @@ test("guest command budgets keep Mac scheduling bounded and Windows unchanged", 
   );
   const started = performance.now();
   const r = harnessSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
@@ -1005,7 +1006,7 @@ test(
       "/candidate",
     );
     const r = harnessSpawnSync(
-      process.env.AIOS_TEST_PYTHON ?? "python",
+      testPython,
       [
         "-c",
         String.raw`
@@ -1042,7 +1043,7 @@ test("Mac relay permits observed exec scheduling delay while retaining the netwo
     "/candidate",
   );
   const r = harnessSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
@@ -1072,7 +1073,7 @@ test("Mac completed turn waits for headroom before opening persisted history", (
     "/candidate",
   );
   const r = harnessSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
@@ -1108,7 +1109,7 @@ test("Mac resume may finish after headroom waits without extending the Windows p
     "/candidate",
   );
   const r = harnessSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
@@ -1266,7 +1267,7 @@ test("effective isolation checks bound exec and refuse transport failures", (t) 
     "/candidate",
   );
   const r = harnessSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
@@ -1322,7 +1323,7 @@ test(
       "/candidate",
     );
     const r = harnessSpawnSync(
-      process.env.AIOS_TEST_PYTHON ?? "python",
+      testPython,
       [
         "-c",
         String.raw`
@@ -1368,7 +1369,7 @@ test("native stop cannot mistake a timed-out engine query for an absent containe
     "/candidate",
   );
   const r = harnessSpawnSync(
-    process.env.AIOS_TEST_PYTHON ?? "python",
+    testPython,
     [
       "-c",
       String.raw`
