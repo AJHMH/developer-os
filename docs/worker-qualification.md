@@ -253,6 +253,45 @@ Windows (PowerShell, not elevated):
 podman machine ssh aios-podman-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
 ```
 
+## Abandoned coding sessions
+
+Every coding session leaves a stopped container and folder in the VM, and each
+one adds to every container listing. Lineage cleanup only reaches a retired or
+superseded lineage named by its head. Two kinds of session have no such route,
+and nothing can ever need them again:
+
+- A start that recorded no thread, whether its `create` failed, it was stopped
+  before launch (the engine shows these as `created`), or it launched and
+  stopped before reporting a thread. Resume requires a recorded thread.
+- A resume whose recovery returned its home. It never launched, and recovery
+  runs once. Its predecessor keeps its own container and resumes as before.
+
+The sweep below removes those folders and containers, and keeps their records
+as tombstones. It finds them from the guest's own records, because no caller
+keeps their identities. It keeps every other session: one with a thread, a
+stranded or unresolved resume, a retired or superseded lineage awaiting its
+cleanup, and any session whose stop never finished. It refuses while any
+container runs, and it refuses a guest that the coding admission record doesn't
+name. Run it when no delivery is mid-turn, because a turn collects its workspace
+right after its stop. The shared runner keeps it from overlapping an acceptance
+run.
+
+Count first. This removes nothing and prints what a sweep would do:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json"
+```
+
+```powershell
+node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json"
+```
+
+`abandoned` is what a sweep would remove. `kept` counts the rest: `lineage`
+sessions, `unstopped` ones, `unprepared` ones (which have no container) and
+`cleaned` tombstones. Add `--approve-removal` to the same command to remove them.
+It works through 8 at a time until none remain, and exits non-zero if any are
+refused; a refused session stays for a later sweep, and `refused` says how many.
+
 macOS (zsh), from a clean, built checkout with the VM running:
 
 ```sh

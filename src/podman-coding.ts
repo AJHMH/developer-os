@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   lockedCodingArgv,
   modelRoutePort,
@@ -229,6 +229,19 @@ def stopped_container(name,sessionIdentity):
  c=obj('inspect',name)[0]
  if c['Config'].get('Labels',{})!={'aios.coding.authority':R['authority'],'aios.coding.session':sessionIdentity} or c['State'].get('Running') is not False or c['State'].get('Pid')!=0: fail()
  return True
+def disposition(name,entry):
+ # 'abandoned' when no action can ever need the session again; otherwise why it
+ # stays. Resume needs a recorded thread, so a start without one never resumes,
+ # and only a resume has recovery or reconciliation. A recovered resume returned
+ # its home and never launched, and recovery runs once.
+ admission=entry.get('admission')
+ if entry.get('cleaned'): return 'cleaned'
+ if not isinstance(admission,dict): return 'unprepared'
+ if entry.get('phase')!='stopped' or not gone(entry): return 'unstopped'
+ if entry.get('resumedBy') or entry.get('reconciled'): return 'lineage'
+ if entry.get('recovered') is True: return 'lineage' if os.path.lexists(root+'/'+name+'/home') else 'abandoned'
+ if 'threadId' in entry or 'threadId' in admission or 'resumeFrom' in admission: return 'lineage'
+ return 'abandoned'
 def remove_tree(path):
  # Never follows links; owned directories a worker made read-only are opened.
  # The whole tree is scanned within fixed bounds before anything is removed.
@@ -579,6 +592,42 @@ else:
    except OSError: pass
    binding=snapshot()
    if record['binding'] and record['binding']!=binding: fail()
+  elif R['action']=='cleanup-abandoned':
+   # The owner's sweep of sessions nothing can ever need again, chosen from the
+   # guest's own records, since no caller keeps these identities. The snapshot
+   # refuses while any container runs. A session is only ever removed under its
+   # record's exact name and labels; one that fails stays for a later sweep.
+   # Attempts are bounded, so a backlog drains inside the action's deadline.
+   binding=snapshot()
+   kept=dict(cleaned=0,unprepared=0,unstopped=0,lineage=0)
+   removed=attempted=refused=abandoned=0
+   for name in sorted(e.name[:-5] for e in os.scandir(root) if re.fullmatch(r'aios-coding-[a-f0-9]{32}\.json',e.name)):
+    path=root+'/'+name+'.json'
+    try: entry=read(path);kind=disposition(name,entry)
+    except Exception:
+     refused+=1
+     continue
+    if kind!='abandoned':
+     kept[kind]+=1
+     continue
+    if R['apply'] is not True or attempted>=8:
+     abandoned+=1
+     continue
+    attempted+=1
+    try:
+     units_quiet(name)
+     present=stopped_container(name,entry['identity'])
+     folder=root+'/'+name
+     if os.path.lexists(folder):
+      info=os.lstat(folder)
+      if not stat.S_ISDIR(info.st_mode) or info.st_uid!=os.getuid(): fail()
+     if present: pod('rm',name)
+     if os.path.lexists(folder): remove_tree(folder)
+     entry['cleaned']=True;save(path,entry)
+     removed+=1
+    except Exception:
+     refused+=1;abandoned+=1
+   result=dict(removed=removed,abandoned=abandoned,refused=refused,kept=kept)
   else:
    if not record: fail()
    binding=snapshot()
@@ -1466,6 +1515,58 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       operationId: bound.operationId,
       fence: bound.fence,
       cleaned: result.cleaned as number,
+      pins,
+    };
+  }
+  /** The owner's sweep of sessions nothing can ever need again: a start that
+   * recorded no thread, and a resume whose recovery returned its home. The
+   * guest chooses them from its own records, because no caller keeps their
+   * identities. Without `apply` it only counts. Every other session stays. */
+  async cleanupAbandonedSessions(apply: boolean): Promise<{
+    removed: number;
+    abandoned: number;
+    refused: number;
+    kept: Record<"cleaned" | "unprepared" | "unstopped" | "lineage", number>;
+    pins: CodingPins;
+  }> {
+    if (typeof apply !== "boolean")
+      throw Error("Unsupported native session sweep");
+    // The action names no session; this identity only binds its receipt.
+    const { result, pins } = await this.invoke(
+      "cleanup-abandoned",
+      {
+        operationId: randomUUID(),
+        fence: 1,
+        state: "stopped",
+        intent: "start",
+      },
+      { apply },
+    );
+    const count = (value: unknown): value is number =>
+      Number.isSafeInteger(value) && (value as number) >= 0;
+    const { removed, abandoned, refused, kept } = result;
+    if (
+      !count(removed) ||
+      !count(abandoned) ||
+      !count(refused) ||
+      !record(kept) ||
+      !count(kept.cleaned) ||
+      !count(kept.unprepared) ||
+      !count(kept.unstopped) ||
+      !count(kept.lineage) ||
+      (!apply && removed !== 0)
+    )
+      throw Error("Native session sweep is uncertain");
+    return {
+      removed,
+      abandoned,
+      refused,
+      kept: {
+        cleaned: kept.cleaned,
+        unprepared: kept.unprepared,
+        unstopped: kept.unstopped,
+        lineage: kept.lineage,
+      },
       pins,
     };
   }

@@ -1697,7 +1697,9 @@ test(
   "the owner-run native session acceptance passes against the guest fixture",
   posixGuest,
   async (t) => {
-    const { transport, root } = guestFixture(t, { threadId: resumeThread });
+    const { transport, root, read } = guestFixture(t, {
+      threadId: resumeThread,
+    });
     const persisted = [];
     const report = await sessionAcceptance(transport, {
       persist: (r) => persisted.push(r.stages.length),
@@ -1714,9 +1716,15 @@ test(
       JSON.stringify(report.stages.filter((s) => s.outcome !== "passed")),
     );
     assert.ok(persisted.length > report.stages.length, "persisted per stage");
-    assert.ok(
-      guestSessions(root).folders.length >= 4,
-      "lineage A's session folders remain",
+    assert.deepEqual(
+      guestSessions(root).folders,
+      [],
+      "a passing run leaves no session folder behind",
+    );
+    assert.deepEqual(
+      Object.keys(read().containers ?? {}),
+      [],
+      "a passing run leaves no container behind",
     );
   },
 );
