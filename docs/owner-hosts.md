@@ -22,7 +22,7 @@ Each owner admission record pins its guest program's digest as
 
 | Guest      | `policySha256`                                                     |
 | ---------- | ------------------------------------------------------------------ |
-| Coding     | `1760f1277f3335ae158fb2e8f358e0f07125aa5fd1668a51b9f9c5ac4e22f874` |
+| Coding     | `89f2db6033e05941ec94dbb11e0215a1161d469429b85af47ba8fff5442c6a1c` |
 | Validation | `585cd02cc6a9eff07e8e4f1f16d96719b3f24f40f0f7f57b349a7c0d1927448f` |
 
 `tests/zzz-docs-commands.test.mjs` fails when a guest program

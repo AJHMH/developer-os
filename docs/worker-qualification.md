@@ -289,8 +289,9 @@ node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-na
 `abandoned` is what a sweep would remove. `kept` counts the rest: `lineage`
 sessions, `unstopped` ones, `unprepared` ones (which have no container) and
 `cleaned` tombstones. Add `--approve-removal` to the same command to remove them.
-It works through 8 at a time until none remain, and exits non-zero if any are
-refused; a refused session stays for a later sweep, and `refused` says how many.
+It works through 8 at a time until it has tried them all, and moves past any it
+can't remove. A refused session stays for a later sweep; `refused` says how many,
+and the command then exits non-zero.
 
 macOS (zsh), from a clean, built checkout with the VM running:
 

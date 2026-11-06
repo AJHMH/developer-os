@@ -437,21 +437,90 @@ test(
 );
 
 test(
-  "one sweep removes a bounded batch, so a backlog drains over several",
+  "a sweep works through a backlog in bounded batches",
   posixGuest,
   async (t) => {
     const fixture = await preparedStart(t);
     for (let fence = 2; fence <= 10; fence++)
       await addPreparedStart(fixture, randomUUID(), fence);
-    const first = await fixture.transport.cleanupAbandonedSessions(true);
-    assert.equal(first.removed, 8);
-    assert.equal(first.abandoned, 2);
-    const second = await fixture.transport.cleanupAbandonedSessions(true);
-    assert.equal(second.removed, 2);
-    assert.equal(second.abandoned, 0);
+    const before = fixture.requests.length;
+    const swept = await fixture.transport.cleanupAbandonedSessions(true);
+    assert.equal(swept.removed, 10);
+    assert.equal(swept.abandoned, 0);
+    assert.equal(swept.refused, 0);
+    assert.deepEqual(containers(fixture), []);
+    assert.equal(fixture.requests.length - before, 2, "8, then the last 2");
+  },
+);
+
+test(
+  "a sweep moves past sessions that keep refusing and reports them",
+  posixGuest,
+  async (t) => {
+    const fixture = await preparedStart(t);
+    for (let fence = 2; fence <= 10; fence++)
+      await addPreparedStart(fixture, randomUUID(), fence);
+    const names = containers(fixture);
+    // The first full batch in the guest's order refuses every time.
+    const refused = names.slice(0, 8);
+    const state = fixture.read();
+    for (const name of refused)
+      engineContainers(state)[name].Config.Labels["aios.extra"] = "1";
+    fixture.write(state);
+    const swept = await fixture.transport.cleanupAbandonedSessions(true);
+    assert.equal(swept.removed, 2, "the sessions after them are reached");
+    assert.equal(swept.refused, 8);
+    assert.equal(swept.abandoned, 8, "they stay for a later sweep");
+    assert.deepEqual(containers(fixture), refused);
+    // A later sweep tries them again, so a fixed fault then clears them.
+    const clean = fixture.read();
+    for (const name of refused)
+      delete engineContainers(clean)[name].Config.Labels["aios.extra"];
+    fixture.write(clean);
+    const again = await fixture.transport.cleanupAbandonedSessions(true);
+    assert.equal(again.removed, 8);
+    assert.equal(again.refused, 0);
     assert.deepEqual(containers(fixture), []);
   },
 );
+
+test(
+  "a preview asks the guest once and refuses nothing",
+  posixGuest,
+  async (t) => {
+    const fixture = await preparedStart(t);
+    for (let fence = 2; fence <= 9; fence++)
+      await addPreparedStart(fixture, randomUUID(), fence);
+    const before = fixture.requests.length;
+    const preview = await fixture.transport.cleanupAbandonedSessions(false);
+    assert.equal(preview.abandoned, 9);
+    assert.equal(preview.refused, 0);
+    assert.equal(fixture.requests.length - before, 1);
+  },
+);
+
+test("a sweep treats a batch that makes no progress as uncertain", async (t) => {
+  let calls = 0;
+  nativeHost(t, (r) => {
+    calls += 1;
+    return {
+      session: r.session,
+      binding: observation,
+      cliSha256: r.cliSha256,
+      removed: 0,
+      abandoned: 3,
+      refused: 0,
+      refusedSessions: [],
+      kept: { cleaned: 0, unprepared: 0, unstopped: 0, lineage: 0 },
+    };
+  });
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  await assert.rejects(transport.cleanupAbandonedSessions(true), /uncertain/);
+  assert.equal(calls, 1);
+});
 
 test("the sweep treats an unrecognized guest receipt as uncertain", async (t) => {
   const fixture = nativeHost(t, (r) => ({
