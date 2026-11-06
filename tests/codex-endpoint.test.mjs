@@ -80,7 +80,8 @@ print('pending read interrupted without extending grant')
       timeout: 20000,
     },
   );
-  t.diagnostic(result.stderr);
+  // A launch that failed has no stderr, and t.diagnostic(null) stalls the runner.
+  if (result.stderr) t.diagnostic(result.stderr);
   assert.equal(
     result.status,
     0,

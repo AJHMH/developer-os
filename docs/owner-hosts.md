@@ -34,3 +34,15 @@ this table once the owner has re-pinned.
 Before changing a guest program to deal with what is in a VM, ask the owner for
 the [coding container census](worker-qualification.md#coding-container-census),
 so the change is sized against the real counts.
+
+## Next coding guest change
+
+Each coding guest change costs a re-pin on both hosts, so these wait for one
+that has to happen anyway, and land with it:
+
+- Add `operationId` and `fence` to the session record. Records hold only a hash
+  of the identity, so lineage cleanup can't be pointed at a session from the
+  guest's own records.
+- Bound the `cleanup-abandoned` batch by time as well as by count. A batch of
+  slow failures can pass the host's 45-second limit, and a re-run starts in the
+  same order.

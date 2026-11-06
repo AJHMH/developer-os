@@ -8,17 +8,18 @@ report is evidence for the owner to judge, not a qualification decision.
 
 ## What it checks
 
-| Issue 04 criterion | Coding worker | Validation worker |
-|---|---|---|
-| 1. Changed pins refuse | Each changed pin is refused by the pinned runtime | Same |
-| 2. Only admitted files enter | The boundary probe, run in a live session | The boundary probe, one check per probe |
-| 3. No host shares, sockets, management or network | Same probe | Same probe |
-| 5. Lifecycle controls | A detached descendant removed by the exact session stop | Descendants killed at the guest deadline; a stop mid-check; a late check fenced; a changed tree never reported as tested |
-| 6. Retained results | Every stage and probe, failed ones included | Same |
+| Issue 04 criterion                                | Coding worker                                           | Validation worker                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 1. Changed pins refuse                            | Each changed pin is refused by the pinned runtime       | Same                                                                                                                     |
+| 2. Only admitted files enter                      | The boundary probe, run in a live session               | The boundary probe, one check per probe                                                                                  |
+| 3. No host shares, sockets, management or network | Same probe                                              | Same probe                                                                                                               |
+| 5. Lifecycle controls                             | A detached descendant removed by the exact session stop | Descendants killed at the guest deadline; a stop mid-check; a late check fenced; a changed tree never reported as tested |
+| 6. Retained results                               | Every stage and probe, failed ones included             | Same                                                                                                                     |
 
 The **boundary probe** (`src/worker-probes.ts`) is one fixed line of shell. It
 uses only the busybox tools of the pinned Alpine images and first proves each
 tool exists, so a missing tool fails instead of passing. It checks:
+
 - **Positive control:** the admitted file is visible, and it is the
   workspace's only entry, so there is no `.git` or other content.
 - **Excluded content:**
@@ -46,6 +47,7 @@ The coding worker runs the **coding probe**: the shared probes, then five of
 its own. Its third argument is the session's mode, `routed` or `offline`,
 which the guest takes from the session's own record and the caller never
 chooses.
+
 - **`relay-listener`:** a routed worker has exactly one listening socket, the
   session relay on 127.0.0.1:18091. An offline worker has none. Neither has an
   IPv6 listener.
@@ -93,10 +95,10 @@ amendment). It comes from the same official package as the pinned CLI. The
 guest refuses to inspect, prepare or launch unless the file is in VM
 management storage, private to the guest user, and matches its pin:
 
-| Host | Package | `codex-code-mode-host` SHA-256 |
-|---|---|---|
-| macOS | `@openai/codex@0.161.0-linux-arm64` | `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0` |
-| Windows | `@openai/codex@0.161.0-linux-x64` | `e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b` |
+| Host    | Package                             | `codex-code-mode-host` SHA-256                                     |
+| ------- | ----------------------------------- | ------------------------------------------------------------------ |
+| macOS   | `@openai/codex@0.161.0-linux-arm64` | `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0` |
+| Windows | `@openai/codex@0.161.0-linux-x64`   | `e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b` |
 
 Run each block in one terminal, in order. The copy uses a relative path from
 the folder the first line moves into, so a drive letter is never read as a
@@ -145,12 +147,14 @@ npm ci --ignore-scripts; npm run build; $image = podman --connection aios-podman
 ## Limits
 
 These are not covered here:
+
 - recovery and safe import;
 - coding fencing, beyond what the session acceptance already showed;
 - the workers' full effective configuration, which is not kept in the report.
   The guests verify it at each effect.
 
 Some results are weaker than they look:
+
 - The validation private path cannot be confirmed by the validation guest.
 - `escape-unshare` would pass if busybox `unshare` rejected the `-r` option
   rather than the namespace. The `tools` probe proves the applet exists, not
@@ -180,6 +184,7 @@ which (`lineage` or `sweep`). If the session is still there, the run is `blocked
 at `coding-session-cleanup`, and the other stages' results still stand.
 
 The report also records:
+
 - the source revision and the build's digests;
 - the probe's own digest;
 - both workers' pins;
@@ -196,12 +201,14 @@ owner's coding admission record. The record must name the fresh pins, as for
 the qualification above.
 
 Each turn is routed, with the same route a credentialed turn will use:
+
 - Codex reaches the model only through the session relay on 127.0.0.1:18091.
 - The relay reaches only the real `GeneralSessionGateway` on the host.
 - The gateway reaches only a **fake provider** on the host. It sends no
   network request and never uses the token it is given, which is synthetic.
 
 The fake provider answers with fixed code-mode scripts, in this order:
+
 - **Keep-alive scripts:** a five-second `sleep`, until the launch has been
   probed (at most 24). A resume has none.
 - **Work script:** a script that adds `routed-<turn>.txt` through
@@ -211,12 +218,14 @@ The fake provider answers with fixed code-mode scripts, in this order:
 
 During the launch, between model requests and before the turn's edit, the
 coding boundary probe runs in the routed session:
+
 - The routed `relay-listener` and `relay-answers` controls show exactly one
   listener, the relay, and that it answers.
 - `only-admitted` still sees the workspace exactly as admitted. Codex's own
   edit comes after the probe, so it can't fail that control.
 
 Every turn must:
+
 - report one thread, the resume continuing the launch's;
 - exit 0;
 - show the marker, with no gateway refusal;
@@ -284,6 +293,26 @@ On Windows (PowerShell, not elevated):
 Get-Content -Raw scripts/coding-container-census.py | podman machine ssh aios-podman-noshare /usr/bin/python3 -I -
 ```
 
+A session's kind says what can still reach it. A container is never guaranteed:
+any of these can have lost theirs to a removal outside the guest, and a resume
+then refuses.
+
+| Kind                                    | Container, if any           | What can reach it                                                                  |
+| --------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------- |
+| `head with thread`                      | `exited`                    | Resume under the same pins; superseded lineage cleanup                             |
+| `reserved predecessor`                  | `exited`                    | Lineage cleanup of its head; recovery or reconciliation of the resume reserving it |
+| `resume without thread`, never launched | `created` or none           | Recovery, which makes it `recovered`                                               |
+| `resume without thread`, launched       | `exited`                    | Reconciliation, which adopts or retires it                                         |
+| `reconciled:retired`                    | `exited`                    | Retired lineage cleanup                                                            |
+| `reconciled:superseded`                 | `exited`                    | Re-running superseded lineage cleanup                                              |
+| `start without thread`                  | `created`, `exited` or none | The sweep below                                                                    |
+| `recovered`                             | `created` or none           | The sweep below                                                                    |
+| `no admission`                          | Usually none                | Nothing removes it; a record from an older guest can still have a container        |
+| `cleaned`                               | None                        | Nothing; the record is a tombstone                                                 |
+| `no record`                             | Any                         | Nothing in the guest                                                               |
+
+A session whose `phase` isn't `stopped` needs its exact-session stop first.
+
 ## Abandoned coding sessions
 
 Every coding session leaves a stopped container and folder in the VM, and each
@@ -341,6 +370,7 @@ npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "
 ```
 
 Outcomes:
+
 - **`observed-offline-routed-acceptance`:** every stage passed and every
   probe passed. The last stage removes the lineage from the VM by its head, so
   a passing run leaves no session.
@@ -353,6 +383,7 @@ Outcomes:
 A record that doesn't match prints `freshPins`.
 
 Limits:
+
 - No real provider is involved. A real reply's size, timing and events are
   for slice 5.
 - The fake provider's scripts assume code mode's `tools.apply_patch` and
@@ -372,6 +403,7 @@ observations are synthetic stand-ins, in a disposable folder; the report
 lists them under `synthetic`.
 
 One lineage, in order:
+
 - **Before any turn:** unknown usage is refused, even when approved. Low
   usage is refused until the owner approves it.
 - **Launch:** usage becomes exhausted once the turn has started. The next
@@ -406,6 +438,7 @@ npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "
 ```
 
 Outcomes:
+
 - **`observed-offline-usage-canary`:** every stage passed, and the run left no
   session.
 - **`blocked`:** at the stage named in the report. Later stages are listed as
@@ -429,6 +462,7 @@ request. The controller's mediation decision is not used; the usage canary
 covers it offline.
 
 In order:
+
 - **Before the approval is spent:** usage is fresh, measured and healthy.
   Low, unknown or exhausted usage refuses the run and leaves the approval
   unspent. Low usage is refused rather than approved mid-run, since no one

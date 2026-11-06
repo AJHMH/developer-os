@@ -16,6 +16,7 @@ import {
 } from "./helpers/native-coding-fixture.mjs";
 import { hostTargets } from "../dist/host-target.js";
 import { VMManagementChannel } from "../dist/vm-management.js";
+import { testPython } from "./helpers/python.mjs";
 
 const simulator = new URL("./helpers/vm-management-engine.py", import.meta.url)
   .pathname;
@@ -44,15 +45,11 @@ function guest(t, engine = {}) {
     const program = `${root}/program.py`;
     realWriteFileSync(program, input);
     const stdin = fs.openSync(program, "r");
-    const result = realSpawnSync(
-      process.env.AIOS_TEST_PYTHON || "python3",
-      ["-I", "-S", simulator, root],
-      {
-        stdio: [stdin, "pipe", "pipe"],
-        encoding: "utf8",
-        timeout: 60000,
-      },
-    );
+    const result = realSpawnSync(testPython, ["-I", "-S", simulator, root], {
+      stdio: [stdin, "pipe", "pipe"],
+      encoding: "utf8",
+      timeout: 60000,
+    });
     fs.closeSync(stdin);
     return {
       ok: result.status === 0,

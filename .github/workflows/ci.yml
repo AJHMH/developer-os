@@ -5,6 +5,23 @@ on:
 permissions:
   contents: read
 jobs:
+  pin-impact:
+    name: State the pin impact of a moved guest digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/check-pin-impact.mjs
   validate:
     name: Validate Developer OS CLI${{ matrix.os == 'macos-latest' && ' (macOS)' || '' }}
     strategy:

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -124,8 +130,26 @@ test("interruption retains the lock and refuses a later run", async () => {
     assert.notEqual(blocked.code, 0);
     assert.match(blocked.output, /acceptance.*lock/i);
     assert.doesNotMatch(blocked.output, /started/);
+    // The refusal names the holder, so a stale lock can be judged from it.
+    assert.match(blocked.output, /by process \d+ \(.*\), for .*held\.mjs/);
+    assert.match(blocked.output, /rm -r/);
   } finally {
     running?.child.kill("SIGTERM");
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a lock from before owners were recorded refuses and says it names none", async () => {
+  const root = mkdtempSync(join(tmpdir(), "acceptance-runner-"));
+  try {
+    mkdirSync(join(root, ".native-acceptance.lock"));
+    const script = join(root, "never.mjs");
+    writeFileSync(script, "console.log('started');");
+    const blocked = await invoke(root, [script]).done;
+    assert.notEqual(blocked.code, 0);
+    assert.match(blocked.output, /names no owner/);
+    assert.doesNotMatch(blocked.output, /started/);
+  } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });

@@ -10,6 +10,7 @@ import {
   openSessionRelay,
 } from "../dist/session-relay.js";
 import { gatewayModel } from "../dist/inference-contract.js";
+import { testPython } from "./helpers/python.mjs";
 
 const deliveryId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const capability = "c".repeat(64);
@@ -38,11 +39,9 @@ function frames(stream) {
 
 /** The relay process alone, outside any namespace, on an ephemeral port. */
 async function relay(t, config = {}) {
-  const child = spawn(
-    process.env.AIOS_TEST_PYTHON || "python3",
-    ["-I", "-u", "-c", sessionRelaySource],
-    { stdio: ["pipe", "pipe", "ignore"] },
-  );
+  const child = spawn(testPython, ["-I", "-u", "-c", sessionRelaySource], {
+    stdio: ["pipe", "pipe", "ignore"],
+  });
   t.after(() => child.kill("SIGKILL"));
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const next = frames(child.stdout);
