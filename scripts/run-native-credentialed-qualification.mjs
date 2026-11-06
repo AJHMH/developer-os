@@ -12,7 +12,9 @@
 // real `GeneralSessionGateway` with the real provider, the owner's vault
 // account and a real usage observation at every model request. The
 // controller's mediation decision is not involved; the usage canary covers
-// it offline.
+// it offline. A passing run then removes the lineage: it is never resumed,
+// because a restart needs a fresh approval and a fresh run starts its own. A
+// failed or blocked run keeps it for diagnosis.
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
@@ -80,6 +82,7 @@ export const stageNames = Object.freeze([
   "credential-not-visible",
   "restart-refused-without-fresh-approval",
   "usage-after",
+  "lineage-cleanup",
 ]);
 
 /** Only complete JSON lines count; a partial final line is not evidence. */
@@ -489,6 +492,11 @@ export async function credentialedQualification(
       (name) =>
         report.probes.find((p) => p.name === name)?.outcome !== "passed",
     );
+    if (!report.failedProbes.length)
+      await stage("lineage-cleanup", async () => {
+        const receipt = await transport.cleanupSupersededLineage(stopped(a2));
+        check(receipt.cleaned === 2, "Expected two cleaned sessions");
+      });
     report.outcome = report.failedProbes.length ? "failed" : passingOutcome;
   } catch (error) {
     report.error = bounded(error);

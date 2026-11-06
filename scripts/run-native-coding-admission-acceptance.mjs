@@ -3,7 +3,8 @@
 // VM. The delivery controller drives one coding turn through the real native
 // transport, admitted only by the owner's per-host record naming its fresh
 // pins. Planning, validation, onboarding facts and usage observations are
-// synthetic stand-ins. It never provisions or starts the VM, opens
+// synthetic stand-ins. A passing run then removes its session; a blocked one
+// keeps it for diagnosis. It never provisions or starts the VM, opens
 // credentials or authorizes inference, and it never enables production or
 // claims qualification. Run it through scripts/run-native-acceptance.mjs.
 import { spawnSync } from "node:child_process";
@@ -150,6 +151,10 @@ export async function admissionAcceptance(transport, admission, options = {}) {
         delivery.blocker.code !== "UNCERTAIN_SESSION",
         "Coding session is uncertain",
       );
+    });
+    await stage("session-cleanup", async () => {
+      const receipt = await transport.cleanupSupersededLineage(session);
+      check(receipt.cleaned === 1, "Expected one cleaned session");
     });
     report.outcome = "observed-offline-admission-acceptance";
   } catch (error) {

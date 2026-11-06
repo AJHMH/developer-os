@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
-import { boundaryProbe, boundaryProbeNames } from "../dist/worker-probes.js";
+import {
+  boundaryProbe,
+  boundaryProbeNames,
+  codingBoundaryProbeNames,
+} from "../dist/worker-probes.js";
+import { sessionsLeft } from "./helpers/guest-backed-sessions.mjs";
+import { guestFixture, posixGuest } from "./helpers/native-coding-fixture.mjs";
 import {
   passingOutcome,
   probeCheck,
@@ -53,8 +59,13 @@ function workers(faults = {}) {
         throw Error("Native coding run stopped by its gate");
       },
       async observeSession() {
-        // The guest refuses to observe a session it has not yet recorded.
-        if (codingState === "idle" || (faults.lateRecord && observations++ < 3))
+        // The guest refuses to observe a session it has not yet recorded, or
+        // one it has removed.
+        if (
+          codingState === "idle" ||
+          codingState === "removed" ||
+          (faults.lateRecord && observations++ < 3)
+        )
           throw Error("Native coding observe-session observation unavailable");
         return {
           phase: codingState === "running" ? "running" : "stopped",
@@ -79,6 +90,20 @@ function workers(faults = {}) {
         effects.push("coding-stop");
         codingState = "stopped";
         return { stopped: true, remainingProcesses: 0 };
+      },
+      async cleanupSupersededLineage(session) {
+        effects.push("coding-lineage-cleanup");
+        assert.equal(session.state, "stopped");
+        if (faults.noThread || faults.cleanupKept)
+          throw Error("Native coding cleanup-superseded observation");
+        codingState = "removed";
+        return { cleaned: 1 };
+      },
+      async cleanupAbandonedSessions(apply) {
+        effects.push("coding-sweep");
+        assert.equal(apply, true);
+        if (!faults.cleanupKept) codingState = "removed";
+        return { removed: faults.cleanupKept ? 0 : 1 };
       },
     },
     admission: { pins: () => faults.codingRecord ?? { ...codingPins } },
@@ -198,6 +223,25 @@ test("a qualification where every probe and control holds passes", async () => {
   assert.equal(report.validation.lateCheckFenced, true);
   assert.equal(report.validation.changedTree.reportedTested, false);
   assert.ok(effects.includes("coding-probe:index.html"));
+  assert.equal(report.coding.cleanup, "lineage");
+  assert.equal(effects.at(-1), "coding-lineage-cleanup");
+});
+
+test("a coding session with no recorded thread is swept instead", async () => {
+  const { report, effects } = await qualify({ noThread: true });
+  assert.equal(report.outcome, passingOutcome);
+  assert.equal(report.coding.cleanup, "sweep");
+  assert.deepEqual(effects.slice(-2), [
+    "coding-lineage-cleanup",
+    "coding-sweep",
+  ]);
+});
+
+test("a coding session that outlives its cleanup blocks the qualification", async () => {
+  const { report } = await qualify({ cleanupKept: true });
+  assert.equal(report.outcome, "blocked");
+  assert.equal(ran(report).at(-1).name, "coding-session-cleanup");
+  assert.match(ran(report).at(-1).error, /was not removed/);
 });
 
 for (const [faults, name] of [
@@ -208,8 +252,14 @@ for (const [faults, name] of [
     const { report } = await qualify(faults);
     assert.equal(report.outcome, "failed");
     assert.deepEqual(report.failedProbes, [name]);
-    // Every stage still ran, so the whole result is evidence.
-    assert.ok(report.stages.every((s) => s.outcome === "passed"));
+    // Every check still ran, so the whole result is evidence; the session
+    // stays in the VM for diagnosis.
+    assert.deepEqual(
+      report.stages.map((s) => s.outcome),
+      stageNames.map((stage) =>
+        stage === "coding-session-cleanup" ? "not-run" : "passed",
+      ),
+    );
   });
 
 for (const [name, faults, stage] of [
@@ -355,3 +405,56 @@ test("the qualification runs only with explicit, well-formed arguments", () => {
     assert.match(result.stderr, /owner-validation-admission\.json/);
   }
 });
+
+for (const [name, threadId, cleanup] of [
+  ["with a recorded thread", "12345678-1234-4234-8234-123456789abc", "lineage"],
+  ["without a recorded thread", undefined, "sweep"],
+])
+  test(
+    `a passing qualification leaves no coding session in the guest, ${name}`,
+    posixGuest,
+    async (t) => {
+      const fixture = guestFixture(t, {
+        keepRunning: true,
+        probeOutput:
+          codingBoundaryProbeNames.map((n) => `passed-${n}`).join("\n") + "\n",
+        ...(threadId ? { threadId } : {}),
+      });
+      const pins = await fixture.transport.inspect({
+        operationId: "12345678-1234-4234-8234-123456789abd",
+        fence: 1,
+        state: "running",
+        intent: "start",
+      });
+      const { validation } = workers();
+      const original = validation.transport.run;
+      validation.transport.run = (request) => {
+        request0Tree = request.treeSha256;
+        return original(request);
+      };
+      const report = await workerQualification(
+        {
+          coding: {
+            transport: fixture.transport,
+            admission: { pins: () => ({ ...pins }) },
+            Runtime: runtime(pins),
+          },
+          validation,
+          imageSha256: image,
+          probes: { script: boundaryProbe, names: boundaryProbeNames },
+        },
+        { pause: tick },
+      );
+      assert.equal(
+        report.outcome,
+        passingOutcome,
+        JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
+      );
+      assert.equal(report.coding.cleanup, cleanup);
+      assert.ok(
+        fixture.read().commands.some((args) => args[1] === "rm"),
+        "the session had a container to remove",
+      );
+      assert.deepEqual(sessionsLeft(fixture), { containers: [], folders: [] });
+    },
+  );

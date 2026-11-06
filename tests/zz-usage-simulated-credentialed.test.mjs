@@ -22,6 +22,8 @@ import {
   stageNames,
   usageAuthority,
 } from "../scripts/run-native-credentialed-qualification.mjs";
+import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
+import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const pins = {
   cliVersion: "0.161.0",
@@ -245,6 +247,12 @@ function vm(faults = {}) {
         files: [...s.files].map(([path, bytes]) => ({ path, bytes })),
       };
     },
+    async cleanupSupersededLineage() {
+      effects.push("cleanup");
+      if (faults.cleanupRefused)
+        throw Error("Native coding cleanup-superseded observation");
+      return { cleaned: 2 };
+    },
     async stop(session) {
       effects.push("stop");
       if (faults.survivor) return { stopped: false, remainingProcesses: 1 };
@@ -452,3 +460,35 @@ test("the one-shot approval names its plan's run and exactly two turns, and is s
     /current plan/,
   );
 });
+
+test("a refused lineage cleanup blocks only that stage, keeping the spent run's evidence", async () => {
+  const { report } = await qualify({ cleanupRefused: true });
+  assert.equal(report.outcome, "blocked");
+  assert.deepEqual(
+    report.stages.map((s) => s.outcome),
+    stageNames.map((name) =>
+      name === "lineage-cleanup" ? "blocked" : "passed",
+    ),
+  );
+});
+
+test(
+  "a passing credentialed qualification leaves no coding session in the guest",
+  posixGuest,
+  async (t) => {
+    const guest = guestBackedSessions(t);
+    const { provider } = model({});
+    const report = await credentialedQualification({
+      transport: guest.transport(vm().transport),
+      admission: { pins: () => ({ ...pins }) },
+      account: () => ownerAccount(),
+      accountId,
+      hostId,
+      observeUsage: async () => usageReport(),
+      provider,
+    });
+    assert.equal(report.outcome, passingOutcome, report.error);
+    assert.equal(guest.launched(), 2);
+    assert.deepEqual(guest.left(), { containers: [], folders: [] });
+  },
+);

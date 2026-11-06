@@ -14,6 +14,8 @@ import {
   stageNames,
   usageCanary,
 } from "../scripts/run-native-usage-canary.mjs";
+import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
+import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const pins = {
   cliVersion: "0.161.0",
@@ -104,7 +106,13 @@ function vm(faults = {}) {
         request.files.map((f) => [f.path, Buffer.from(f.bytes)]),
       );
       const before = new Map(request.files.map((f) => [f.path, f.bytes]));
-      const session = { phase: "running", files, before, processes: 2 };
+      const session = {
+        phase: "running",
+        files,
+        before,
+        processes: 2,
+        from: request.resumeFrom?.operationId,
+      };
       sessions.set(request.operationId, session);
       const thread = request.threadId ?? randomUUID();
       stdout(line({ type: "thread.started", thread_id: thread }));
@@ -203,6 +211,21 @@ function vm(faults = {}) {
         remainingProcesses: faults.survivor ? 1 : 0,
       };
     },
+    async cleanupSupersededLineage(session) {
+      effects.push("cleanup:" + session.intent);
+      let cleaned = 0;
+      for (
+        let id = session.operationId;
+        id;
+        id = sessions.get(id).from, cleaned++
+      );
+      return {
+        operationId: session.operationId,
+        fence: session.fence,
+        cleaned,
+        pins: { ...pins },
+      };
+    },
     async collect(session) {
       const s = sessions.get(session.operationId);
       if (s?.phase !== "stopped") throw Error("Native coding collect refused");
@@ -262,7 +285,31 @@ test("the usage canary passes when the controller enforces every usage control o
   assert.notEqual(lineage.route.decisionSha256, launch.route.decisionSha256);
   assert.deepEqual(resume.route, launch.route);
   assert.ok(report.finalStops.every((s) => s.stopped));
+  // Both lineages, by their heads: the superseded resume and the new start.
+  assert.deepEqual(
+    effects.filter((e) => e.startsWith("cleanup:")),
+    ["cleanup:resume", "cleanup:start"],
+  );
 });
+
+test(
+  "a passing canary leaves no coding session in the guest",
+  posixGuest,
+  async (t) => {
+    const guest = guestBackedSessions(t);
+    const report = await usageCanary({
+      transport: guest.transport(vm().transport),
+      admission: { pins: () => ({ ...pins }) },
+    });
+    assert.equal(
+      report.outcome,
+      passingOutcome,
+      JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
+    );
+    assert.equal(guest.launched(), 3);
+    assert.deepEqual(guest.left(), { containers: [], folders: [] });
+  },
+);
 
 test(
   "the canary keeps its state private when the temp folder lets others read it",

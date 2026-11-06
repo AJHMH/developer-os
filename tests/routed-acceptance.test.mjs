@@ -12,6 +12,8 @@ import {
   stageNames,
 } from "../scripts/run-native-routed-acceptance.mjs";
 import { fakeProvider, maxKeepalives } from "../scripts/routed-provider.mjs";
+import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
+import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const pins = {
   cliVersion: "0.161.0",
@@ -247,6 +249,12 @@ function vm(faults = {}) {
           .map(([path, bytes]) => ({ path, bytes })),
       };
     },
+    async cleanupSupersededLineage() {
+      effects.push("cleanup");
+      if (faults.cleanupRefused)
+        throw Error("Native coding cleanup-superseded observation");
+      return { cleaned: 2 };
+    },
     async stop(session) {
       effects.push("stop");
       if (faults.stopUncertain)
@@ -340,7 +348,12 @@ test("a failed probe fails the run, and the whole lineage is kept as evidence", 
   const { report } = await accept({ probeFails: "relay-answers" });
   assert.equal(report.outcome, "failed");
   assert.deepEqual(report.failedProbes, ["relay-answers"]);
-  assert.ok(report.stages.every((s) => s.outcome === "passed"));
+  assert.deepEqual(
+    report.stages.map((s) => s.outcome),
+    stageNames.map((name) =>
+      name === "routed-lineage-cleanup" ? "not-run" : "passed",
+    ),
+  );
 });
 
 for (const [name, faults, stage] of [
@@ -587,3 +600,34 @@ test("the routed acceptance runs only with explicit, well-formed arguments", () 
     assert.match(result.stderr, /owner-coding-admission\.json/);
   }
 });
+
+test("a failed probe keeps the routed lineage for diagnosis", async () => {
+  const { report, effects } = await accept({ probeFails: "network" });
+  assert.equal(report.outcome, "failed");
+  assert.ok(!effects.includes("cleanup"));
+  assert.equal(report.stages.at(-1).outcome, "not-run");
+});
+
+test("a refused lineage cleanup blocks the routed acceptance", async () => {
+  const { report } = await accept({ cleanupRefused: true });
+  assert.equal(report.outcome, "blocked");
+  assert.equal(ran(report).at(-1).name, "routed-lineage-cleanup");
+});
+
+test(
+  "a passing routed acceptance leaves no coding session in the guest",
+  posixGuest,
+  async (t) => {
+    const guest = guestBackedSessions(t);
+    const report = await routedAcceptance(
+      {
+        transport: guest.transport(vm().transport),
+        admission: { pins: () => ({ ...pins }) },
+      },
+      { pause: tick },
+    );
+    assert.equal(report.outcome, passingOutcome, report.error);
+    assert.equal(guest.launched(), 2);
+    assert.deepEqual(guest.left(), { containers: [], folders: [] });
+  },
+);
