@@ -118,6 +118,27 @@ if (-not ($session -and $usageAccount)) { throw 'Set $session and $usageAccount'
 if (-not ($session -and $routedRun)) { throw 'Set $session and $routedRun' }; node scripts/run-native-routed-delivery.mjs code --session $session --approve-run $routedRun --approve-turns 1
 ```
 
+### Routed repair evidence
+
+When `code`'s candidate fails validation (its report's `candidateValidation.outcome` isn't `passed`), two more commands record one routed repair turn on the same delivery. That's the native evidence for slice 1 of the Issue 04 plan:
+
+5. **`plan-repair`**: checks through `status` that `repair-feature` would accept the delivery: a routed candidate whose session stopped, whose own tree failed validation, with no repair or validation attempt still open. Then it plans a fresh routed run of exactly one turn and prints its run ID. It sends nothing live. It refuses a candidate that passed, or a delivery without one: then there's nothing to repair, and repair evidence needs a run whose candidate fails.
+6. **`repair`**: spends your approval of that run on one routed `repair-feature` turn, which sends live model requests and revalidates the candidate. It stops anything left open by its exact identity and writes `repair-report.json` beside `report.json`. The outcome is `observed-routed-repair-validated`, `observed-routed-repair-still-failing`, `blocked` or `uncertain`. A repair that still fails is evidence too: a new routed turn ran, and its result was revalidated. The report is `blocked` when no new repair turn was coded, the turn wasn't routed, or the repair ended without its own revalidation, for example `interrupted` or `exhausted`.
+
+macOS, with `REPAIR_RUN` from `plan-repair`'s output:
+
+```sh
+node scripts/run-native-routed-delivery.mjs plan-repair --session "${SESSION:?}"
+node scripts/run-native-routed-delivery.mjs repair --session "${SESSION:?}" --approve-run "${REPAIR_RUN:?}"
+```
+
+Windows, with `$repairRun` from `plan-repair`'s output:
+
+```powershell
+if (-not $session) { throw 'Set $session' }; node scripts/run-native-routed-delivery.mjs plan-repair --session $session
+if (-not ($session -and $repairRun)) { throw 'Set $session and $repairRun' }; node scripts/run-native-routed-delivery.mjs repair --session $session --approve-run $repairRun
+```
+
 ### If the repository is held
 
 Every routed run uses the same synthetic repository, and a delivery keeps holding it until it's released, even after a successful run. While it's held, the next `prepare` queues its new delivery and stops at `plan-feature` with `Resolve controls before planning this feature.` A refused `prepare` leaves its delivery holding the repository too, and so does an interrupted baseline. An interrupted baseline also leaves its validation attempt open, and `release` refuses until that attempt has stopped.

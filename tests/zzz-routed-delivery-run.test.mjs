@@ -13,7 +13,10 @@ import { privateRoot } from "../scripts/run-native-cli-delivery-acceptance.mjs";
 import {
   codeRouted,
   decideRouted,
+  planRepairRouted,
   prepareRouted,
+  repairOutcomes,
+  repairRouted,
   routeRouted,
   routedOutcomes,
 } from "../scripts/run-native-routed-delivery.mjs";
@@ -68,9 +71,14 @@ function simulated(changes = {}) {
         const stage =
           command === "validate-baseline" ? "baseline" : "candidate";
         delivery.validation.attempts.push({
+          operationId: randomUUID(),
           stage,
           state: "stopped",
           outcome: changes[`${stage}Outcome`] ?? "passed",
+          treeSha256:
+            stage === "candidate" && !changes.otherTree
+              ? delivery.feature.candidate.sha256
+              : "b".repeat(64),
           results: [],
         });
         return structuredClone(delivery);
@@ -100,13 +108,14 @@ function simulated(changes = {}) {
           ...delivery.feature,
           outcome: changes.codingOutcome ?? "completed",
           session: {
+            operationId: randomUUID(),
             state: changes.sessionState ?? "stopped",
             threadStarted: true,
             route: { deliveryId: id },
           },
           ...(changes.codingOutcome && changes.codingOutcome !== "completed"
             ? {}
-            : { candidate: { digest: "d".repeat(64) } }),
+            : { candidate: { sha256: "d".repeat(64) } }),
           branch: "aios/feature",
         };
         return {
@@ -114,7 +123,48 @@ function simulated(changes = {}) {
           blocker: { code: "DELIVERY_NOT_ENABLED" },
         };
       }
+      if (command === "repair-feature") {
+        // Like finishRepair: the attempt keeps whatever coding session the
+        // feature holds, which is the coding turn's when no repair turn ran.
+        const outcome = changes.repairOutcome ?? "passed",
+          coded = changes.repairCoded !== false,
+          revalidated = coded && ["passed", "failed"].includes(outcome);
+        if (coded)
+          delivery.feature.session = {
+            operationId: randomUUID(),
+            state: "stopped",
+            ...(changes.repairRouted === false
+              ? {}
+              : { route: { deliveryId: id } }),
+          };
+        const attempt = {
+          state: changes.repairState ?? "stopped",
+          outcome: coded ? outcome : "failed",
+          codingSession: structuredClone(delivery.feature.session),
+        };
+        if (revalidated) {
+          attempt.validationOperationId = randomUUID();
+          delivery.validation.attempts.push({
+            operationId: attempt.validationOperationId,
+            stage: "candidate",
+            state: "stopped",
+            outcome,
+            treeSha256: delivery.feature.candidate.sha256,
+            results: [],
+          });
+        }
+        delivery.repair = {
+          attempts: [...(delivery.repair?.attempts ?? []), attempt],
+        };
+        return {
+          ...structuredClone(delivery),
+          blocker: { code: "DELIVERY_NOT_ENABLED" },
+        };
+      }
       if (command === "cancel") {
+        if (delivery.repair)
+          for (const attempt of delivery.repair.attempts)
+            attempt.state = "stopped";
         delivery.feature.session.state = "stopped";
         return structuredClone(delivery);
       }
@@ -410,6 +460,19 @@ test("the owner's commands name every input, and each phase only its own approva
       "--approve-unknown-usage",
     ],
     ["publish", "--session", "/owner/session.json"],
+    ["plan-repair"],
+    ["plan-repair", "--session", "/owner/session.json", "--turns", "1"],
+    ["repair", "--session", "/owner/session.json"],
+    // A repair is one turn; its approval names the run only.
+    [
+      "repair",
+      "--session",
+      "/owner/session.json",
+      "--approve-run",
+      run,
+      "--approve-turns",
+      "1",
+    ],
   ]) {
     const result = spawnSync(process.execPath, [script, ...args], {
       encoding: "utf8",
@@ -417,4 +480,190 @@ test("the owner's commands name every input, and each phase only its own approva
     assert.equal(result.status, 1, args.join(" "));
     assert.match(JSON.parse(result.stderr).error, /^Usage/, args.join(" "));
   }
+});
+
+// The repair evidence (Issue 04 plan, slice 1): after a routed candidate fails
+// validation, one routed repair turn under a fresh, one-turn approval.
+async function failedCandidate(t, changes = {}) {
+  const { root, sim, session } = await prepared(t, {
+    candidateOutcome: "failed",
+    ...changes,
+  });
+  const decided = await decideRouted({
+    ...sim,
+    session,
+    approveRun: sim.decisionRun,
+  });
+  const routed = await routeRouted({
+    ...sim,
+    session: decided,
+    usageAccount,
+    turns: 1,
+  });
+  const coded = await codeRouted({
+    ...sim,
+    session: routed,
+    approveRun: sim.routedRun,
+    turns: 1,
+  });
+  assert.equal(coded.candidateValidation.outcome, "failed");
+  return { root, sim, session: routed };
+}
+
+// Plans the repair of a failed candidate, then spends its approval on it.
+async function repaired(t, changes) {
+  const { root, sim, session } = await failedCandidate(t, changes);
+  const planned = await planRepairRouted({ ...sim, session });
+  const report = await repairRouted({
+    ...sim,
+    session: planned,
+    approveRun: planned.repairRunId,
+  });
+  return { root, sim, planned, report };
+}
+
+test("plan-repair plans one fresh routed turn only after the candidate failed validation", async (t) => {
+  const { sim, session } = await failedCandidate(t);
+  const planned = await planRepairRouted({ ...sim, session });
+  assert.equal(planned.repairRunId, sim.routedRun);
+  const [plan] = commands(sim, "prepare-routed-turns").slice(-1);
+  assert.equal(option(plan, "--turns"), "1");
+  assert.equal(option(plan, "--id"), sim.id);
+  assert.equal(option(plan, "--coding-admission"), host.codingAdmission);
+  assert.equal(option(plan, "--auth-account"), host.authAccount);
+  // Planning sends nothing live.
+  assert.equal(commands(sim, "repair-feature").length, 0);
+});
+
+test("plan-repair refuses a candidate that passed, or a delivery without one", async (t) => {
+  const passed = await prepared(t);
+  const decided = await decideRouted({
+    ...passed.sim,
+    session: passed.session,
+    approveRun: passed.sim.decisionRun,
+  });
+  const routed = await routeRouted({
+    ...passed.sim,
+    session: decided,
+    usageAccount,
+    turns: 1,
+  });
+  await assert.rejects(
+    planRepairRouted({ ...passed.sim, session: routed }),
+    /candidate that failed validation/,
+  );
+  await codeRouted({
+    ...passed.sim,
+    session: routed,
+    approveRun: passed.sim.routedRun,
+    turns: 1,
+  });
+  await assert.rejects(
+    planRepairRouted({ ...passed.sim, session: routed }),
+    /candidate that failed validation/,
+  );
+  assert.equal(commands(passed.sim, "prepare-routed-turns").length, 1);
+});
+
+test("a routed repair turn spends the fresh approval and its revalidation is reported", async (t) => {
+  const { root, sim, session } = await failedCandidate(t);
+  const planned = await planRepairRouted({ ...sim, session });
+  await assert.rejects(
+    repairRouted({ ...sim, session: planned, approveRun: randomUUID() }),
+    /prepared repair run/,
+  );
+  const report = await repairRouted({
+    ...sim,
+    session: planned,
+    approveRun: planned.repairRunId,
+  });
+  assert.equal(report.outcome, repairOutcomes.validated);
+  assert.equal(report.repair.routed, true);
+  assert.equal(report.repair.outcome, "passed");
+  assert.equal(report.candidateValidation.outcome, "passed");
+  assert.equal(report.productionEnabled, false);
+  const [repair] = commands(sim, "repair-feature");
+  for (const [name, value] of [
+    ["--id", sim.id],
+    ["--approve-run", planned.repairRunId],
+    ["--approve-turns", "1"],
+    ["--worker-policy", host.workerPolicy],
+    ["--auth-directory", host.authDirectory],
+    ["--auth-account", host.authAccount],
+    ["--coding-admission", host.codingAdmission],
+    ["--validation-admission", host.validationAdmission],
+    ["--codex-executable", host.codex],
+  ])
+    assert.equal(option(repair, name), value, name);
+  assert.ok(repair.includes("--adversarial"));
+  assert.equal(repair.includes("--coding-minutes"), false);
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(root, "repair-report.json"), "utf8")),
+    report,
+  );
+  // The code phase's report is kept.
+  assert.equal(
+    JSON.parse(readFileSync(join(root, "report.json"), "utf8"))
+      .candidateValidation.outcome,
+    "failed",
+  );
+});
+
+test("a routed repair that still fails validation is reported as observed, not as a pass", async (t) => {
+  const { sim, report } = await repaired(t, {
+    repairOutcome: "failed",
+  });
+  assert.equal(report.outcome, repairOutcomes.stillFailing);
+  assert.equal(report.candidateValidation.outcome, "failed");
+});
+
+test("an unrouted or refused repair is blocked, and anything left open is stopped", async (t) => {
+  for (const [changes, error] of [
+    [{ repairRouted: false }, /repair turn was not routed/],
+    [{ fail: "repair-feature" }, /The CLI refused repair-feature/],
+  ]) {
+    const { sim, report } = await repaired(t, changes);
+    assert.equal(report.outcome, "blocked");
+    assert.match(report.error, error);
+  }
+  const { sim, report } = await repaired(t, { repairState: "running" });
+  assert.equal(report.finalStop, "stopped");
+  assert.equal(option(commands(sim, "cancel").at(-1), "--id"), sim.id);
+});
+
+test("a repair attempt without a new coded turn is blocked, never reported as still failing", async (t) => {
+  for (const [changes, error] of [
+    [{ repairCoded: false }, /No repair turn was coded/],
+    [{ repairOutcome: "interrupted" }, /repair did not revalidate/],
+    [{ repairOutcome: "exhausted" }, /repair did not revalidate/],
+  ]) {
+    const { sim, report } = await repaired(t, changes);
+    assert.equal(report.outcome, "blocked", JSON.stringify(changes));
+    assert.match(report.error, error);
+  }
+});
+
+test("plan-repair refuses a candidate repair-feature would refuse", async (t) => {
+  // The failed validation is of another tree than the candidate's.
+  const other = await failedCandidate(t, { otherTree: true });
+  await assert.rejects(
+    planRepairRouted({ ...other.sim, session: other.session }),
+    /candidate that failed validation/,
+  );
+  // The candidate's coding turn was not routed.
+  const unrouted = await failedCandidate(t);
+  delete unrouted.sim.delivery.feature.session.route;
+  await assert.rejects(
+    planRepairRouted({ ...unrouted.sim, session: unrouted.session }),
+    /candidate that failed validation/,
+  );
+  // An attempt is still open.
+  const open = await failedCandidate(t);
+  open.sim.delivery.validation.attempts.at(-1).state = "running";
+  await assert.rejects(
+    planRepairRouted({ ...open.sim, session: open.session }),
+    /candidate that failed validation/,
+  );
+  for (const { sim } of [other, unrouted, open])
+    assert.equal(commands(sim, "prepare-routed-turns").length, 1);
 });

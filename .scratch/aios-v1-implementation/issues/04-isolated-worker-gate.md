@@ -1256,3 +1256,15 @@ the narrow cases the plan names. All of this
 is shown on simulated transports only. Native evidence is one routed repair
 turn after a routed candidate fails validation, under a fresh approval. No
 guest or pin change. Nothing is checked off. Production remains disabled.
+
+## 7 November: the routed runner can record slice 1's repair evidence
+
+`scripts/run-native-routed-delivery.mjs` gains two owner commands after
+`code`. `plan-repair` checks that the routed candidate failed validation and
+plans a fresh one-turn routed run, sending nothing live. `repair` spends the
+owner's approval of that run on one routed `repair-feature` turn, stops
+anything left open and writes `repair-report.json`
+([how to run them](../../docs/feature-candidate.md#routed-repair-evidence)).
+Shown with every CLI call simulated. The live run needs a routed candidate that
+fails validation, and hasn't happened. No guest or pin change. Nothing is
+checked off. Production remains disabled.

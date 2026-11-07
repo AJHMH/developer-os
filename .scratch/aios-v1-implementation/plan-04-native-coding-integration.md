@@ -141,7 +141,9 @@ Still refused, each for a different reason:
 
    The owner's native evidence follows the routed live turn
    (`scripts/run-native-routed-delivery.mjs`): after a candidate is admitted
-   and fails validation, one routed repair turn under a fresh approval.
+   and fails validation, one routed repair turn under a fresh approval. The
+   runner's `plan-repair` and `repair` commands do this
+   (`docs/feature-candidate.md`); the owner's run is still to come.
 
 2. **`run()` and `start()`, per D1.** No guest or pin change. Before choosing
    how, measure what still depends on `delivery.execution`: `run()`, the
