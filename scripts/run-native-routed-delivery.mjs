@@ -17,6 +17,15 @@
 //     `code-feature` turn, validates an admitted candidate, stops anything
 //     left open by its exact identity and writes the report.
 //
+// When that candidate fails validation, two more commands give the repair
+// evidence (Issue 04 plan, slice 1):
+//
+//   plan-repair: confirms the candidate failed validation and plans a fresh
+//     one-turn routed run. Nothing live is sent.
+//   repair: spends the owner's approval of that run on one routed
+//     `repair-feature` turn, which revalidates the candidate, stops anything
+//     left open and writes `repair-report.json`.
+//
 // Production stays disabled: an admitted candidate still ends at
 // DELIVERY_NOT_ENABLED, and nothing is published.
 import { spawn, spawnSync } from "node:child_process";
@@ -38,6 +47,13 @@ export const routedOutcomes = Object.freeze({
   validated: "observed-routed-validated-candidate",
   withoutCandidate: "observed-routed-turn-without-candidate",
 });
+export const repairOutcomes = Object.freeze({
+  validated: "observed-routed-repair-validated",
+  stillFailing: "observed-routed-repair-still-failing",
+});
+/** The stopped candidate validation outcomes `repairCandidate` repairs from,
+ * short of a pass. `pending` hasn't stopped, and `stale` names an old tree. */
+const repairable = ["failed", "incomplete", "timeout", "flaky"];
 const check = (condition, message) => {
   if (!condition) throw Error(message);
 };
@@ -300,21 +316,7 @@ export async function routeRouted({
       decision.usageAccountId === usageAccount,
     "The endorsed decision does not qualify",
   );
-  const plan = await run([
-    "prepare-routed-turns",
-    "--id",
-    session.deliveryId,
-    "--podman-machine",
-    session.host.machine,
-    "--coding-admission",
-    session.host.codingAdmission,
-    "--auth-account",
-    session.host.authAccount,
-    "--turns",
-    String(turns),
-  ]);
-  check(uuid.test(plan.runId ?? ""), "No routed run was planned");
-  session.routedRunId = plan.runId;
+  session.routedRunId = await planRoutedRun(run, session, turns);
   session.routedTurns = turns;
   return save(session);
 }
@@ -337,36 +339,14 @@ export async function codeRouted({ run, session, approveRun, turns }) {
     synthetic: ["repository", "owner-policy", "attestation", "criteria"],
     outcome: "running",
   };
-  const persist = () =>
-    writeFileSync(
-      join(session.root, "report.json"),
-      JSON.stringify(report, null, 2),
-      { mode: 0o600 },
-    );
   try {
     const coded = await run([
       "code-feature",
       "--id",
       session.deliveryId,
-      ...owner(session),
-      ...validation(h),
-      "--coding-admission",
-      h.codingAdmission,
-      "--codex-executable",
-      h.codex,
+      ...routedTurn(session, approveRun, turns),
       "--coding-minutes",
       String(codingMinutes),
-      "--worker-policy",
-      h.workerPolicy,
-      "--adversarial",
-      "--auth-directory",
-      h.authDirectory,
-      "--auth-account",
-      h.authAccount,
-      "--approve-run",
-      approveRun,
-      "--approve-turns",
-      String(turns),
     ]);
     const feature = coded.feature,
       s = feature?.session;
@@ -407,30 +387,183 @@ export async function codeRouted({ run, session, approveRun, turns }) {
     report.error = bounded(error?.message);
     report.outcome = "blocked";
   } finally {
-    // An unsettled session or attempt is stopped by its exact identity.
-    try {
-      const open = (d) =>
-        (d.feature?.session && d.feature.session.state !== "stopped") ||
-        d.validation?.attempts.some((a) => a.state !== "stopped");
-      let current = await run(["status", "--id", session.deliveryId]);
-      if (open(current)) {
-        await run([
-          "cancel",
-          "--id",
-          session.deliveryId,
-          ...validation(h),
-          "--coding-admission",
-          h.codingAdmission,
-        ]);
-        current = await run(["status", "--id", session.deliveryId]);
-        check(!open(current), "Exact stop is uncertain");
-        report.finalStop = "stopped";
-      }
-    } catch {
-      report.finalStop = "uncertain";
-      report.outcome = "uncertain";
+    await stopOpen(run, session, report);
+    writeReport(session, "report.json", report);
+  }
+  return report;
+}
+
+/** Stop an unsettled coding session, repair or validation attempt by its
+ * exact identity, recording the stop on the report. */
+async function stopOpen(run, session, report) {
+  const h = session.host;
+  try {
+    const open = (d) =>
+      (d.feature?.session && d.feature.session.state !== "stopped") ||
+      d.repair?.attempts.some((a) => a.state !== "stopped") ||
+      d.validation?.attempts.some((a) => a.state !== "stopped");
+    let current = await run(["status", "--id", session.deliveryId]);
+    if (open(current)) {
+      await run([
+        "cancel",
+        "--id",
+        session.deliveryId,
+        ...validation(h),
+        "--coding-admission",
+        h.codingAdmission,
+      ]);
+      current = await run(["status", "--id", session.deliveryId]);
+      check(!open(current), "Exact stop is uncertain");
+      report.finalStop = "stopped";
     }
-    persist();
+  } catch {
+    report.finalStop = "uncertain";
+    report.outcome = "uncertain";
+  }
+}
+
+/** Plan a routed run of `turns` for the owner to approve; its run ID. */
+async function planRoutedRun(run, session, turns) {
+  const h = session.host;
+  const plan = await run([
+    "prepare-routed-turns",
+    "--id",
+    session.deliveryId,
+    "--podman-machine",
+    h.machine,
+    "--coding-admission",
+    h.codingAdmission,
+    "--auth-account",
+    h.authAccount,
+    "--turns",
+    String(turns),
+  ]);
+  check(uuid.test(plan.runId ?? ""), "No routed run was planned");
+  return plan.runId;
+}
+
+/** A report file in the session folder, private to the owner. */
+function writeReport(session, name, report) {
+  writeFileSync(join(session.root, name), JSON.stringify(report, null, 2), {
+    mode: 0o600,
+  });
+}
+
+/** The CLI options of a routed turn under the owner's approval of `runId`. */
+function routedTurn(session, runId, turns) {
+  const h = session.host;
+  return [
+    ...owner(session),
+    ...validation(h),
+    "--coding-admission",
+    h.codingAdmission,
+    "--codex-executable",
+    h.codex,
+    "--worker-policy",
+    h.workerPolicy,
+    "--adversarial",
+    "--auth-directory",
+    h.authDirectory,
+    "--auth-account",
+    h.authAccount,
+    "--approve-run",
+    runId,
+    "--approve-turns",
+    String(turns),
+  ];
+}
+
+/** After the routed candidate failed validation, plan a fresh one-turn routed
+ * run for its repair. Nothing live is sent. */
+export async function planRepairRouted({ run, session }) {
+  // What repairCandidate requires, checked before an approval is planned.
+  const delivery = await run(["status", "--id", session.deliveryId]),
+    feature = delivery.feature,
+    last = delivery.validation?.attempts.at(-1);
+  check(
+    feature?.candidate &&
+      feature.session?.state === "stopped" &&
+      feature.session.route &&
+      !delivery.publication &&
+      !delivery.repair?.attempts.some((a) => a.state !== "stopped") &&
+      !delivery.validation.attempts.some((a) => a.state !== "stopped") &&
+      last?.stage === "candidate" &&
+      last.treeSha256 === feature.candidate.sha256 &&
+      repairable.includes(last.outcome),
+    "Repair needs a routed candidate that failed validation",
+  );
+  session.repairRunId = await planRoutedRun(run, session, 1);
+  return save(session);
+}
+
+/** Spend the owner's approval of the repair run on one routed repair turn,
+ * which revalidates the candidate, and stop anything left open. Returns the
+ * report, also written as `repair-report.json`; a refusal is reported, never
+ * thrown. */
+export async function repairRouted({ run, session, approveRun }) {
+  check(
+    approveRun === session.repairRunId,
+    "The approval does not name the prepared repair run",
+  );
+  const report = {
+    scope: "native-routed-repair",
+    deliveryId: session.deliveryId,
+    repairRunId: approveRun,
+    productionEnabled: false,
+    synthetic: ["repository", "owner-policy", "attestation", "criteria"],
+    outcome: "running",
+  };
+  try {
+    // The coding turn's session; a repair turn starts a new one.
+    const coding = (await run(["status", "--id", session.deliveryId])).feature
+      ?.session?.operationId;
+    const repaired = await run([
+      "repair-feature",
+      "--id",
+      session.deliveryId,
+      ...routedTurn(session, approveRun, 1),
+    ]);
+    const attempt = repaired.repair?.attempts.at(-1);
+    check(attempt, "No repair attempt was recorded");
+    // An attempt keeps the coding turn's session when no repair turn ran.
+    const turn = attempt.codingSession;
+    report.repair = {
+      state: attempt.state ?? null,
+      outcome: attempt.outcome ?? null,
+      coded: Boolean(turn?.operationId && turn.operationId !== coding),
+      routed: Boolean(turn?.route),
+      blocker: repaired.blocker?.code ?? null,
+    };
+    check(report.repair.coded, "No repair turn was coded");
+    check(report.repair.routed, "The repair turn was not routed");
+    // The repair's own revalidation, never an earlier attempt.
+    const checked = attempt.validationOperationId
+      ? repaired.validation?.attempts.find(
+          (v) => v.operationId === attempt.validationOperationId,
+        )
+      : undefined;
+    report.candidateValidation = {
+      stage: checked?.stage ?? null,
+      state: checked?.state ?? null,
+      outcome: checked?.outcome ?? null,
+    };
+    check(
+      attempt.state === "stopped" &&
+        ["passed", "failed"].includes(attempt.outcome) &&
+        checked?.stage === "candidate" &&
+        checked.state === "stopped",
+      "The repair did not revalidate the candidate",
+    );
+    report.outcome =
+      attempt.outcome === "passed" && checked.outcome === "passed"
+        ? repairOutcomes.validated
+        : repairOutcomes.stillFailing;
+  } catch (error) {
+    report.error = bounded(error?.message);
+    report.outcome = "blocked";
+  } finally {
+    await stopOpen(run, session, report);
+    writeReport(session, "repair-report.json", report);
   }
   return report;
 }
@@ -494,7 +627,9 @@ const usage = `Usage (owner-run, on one host, from a fresh build of main):
   node scripts/run-native-routed-delivery.mjs prepare --state-dir STATE --podman-machine MACHINE --worker-policy PINS --coding-admission FILE --validation-admission FILE --codex-executable CODEX --auth-directory DIR --auth-account ACCOUNT
   node scripts/run-native-routed-delivery.mjs decide --session FILE --approve-run RUN --approve-unknown-usage
   node scripts/run-native-routed-delivery.mjs route --session FILE --expect-usage-account HASH --turns 1|2
-  node scripts/run-native-routed-delivery.mjs code --session FILE --approve-run RUN --approve-turns 1|2`;
+  node scripts/run-native-routed-delivery.mjs code --session FILE --approve-run RUN --approve-turns 1|2
+  node scripts/run-native-routed-delivery.mjs plan-repair --session FILE
+  node scripts/run-native-routed-delivery.mjs repair --session FILE --approve-run RUN`;
 
 async function main(argv) {
   const { values, positionals } = parseArgs({
@@ -535,6 +670,8 @@ async function main(argv) {
     decide: ["session", "approve-run"],
     route: ["session", "expect-usage-account", "turns"],
     code: ["session", "approve-run", "approve-turns"],
+    "plan-repair": ["session"],
+    repair: ["session", "approve-run"],
   }[phase];
   const turns = Number(values.turns ?? values["approve-turns"]);
   if (
@@ -614,6 +751,24 @@ async function main(argv) {
       turns: routed.routedTurns,
       next: "Approve the routed run and its turns: they send live model requests.",
     };
+  }
+  if (phase === "plan-repair") {
+    const planned = await planRepairRouted({ run, session });
+    return {
+      status: "repair-planned",
+      repairRunId: planned.repairRunId,
+      next: "Approve the repair run: its one turn sends live model requests.",
+    };
+  }
+  if (phase === "repair") {
+    const report = await repairRouted({
+      run,
+      session,
+      approveRun: values["approve-run"],
+    });
+    if (!Object.values(repairOutcomes).includes(report.outcome))
+      process.exitCode = 1;
+    return { ...report, report: join(session.root, "repair-report.json") };
   }
   const report = await codeRouted({
     run,
