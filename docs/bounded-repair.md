@@ -8,6 +8,10 @@ extend-repair --id ID --cycles N --minutes N. Omitted extension amounts default 
 zero; at least one must be positive. Only the explicit owner control can extend
 a stopped, exhausted allowance.
 
+A repair needs the controlled coding and validation runtimes. `repair-feature`
+doesn't install them yet, so from the CLI it refuses before recording anything,
+and no cycle is spent.
+
 A cycle starts with a stopped candidate validation attempt, an admitted artifact
 and a bounded batch of findings. Failed check identities are derived from retained
 validation evidence. Optional review findings are untrusted text, not authority

@@ -2356,6 +2356,18 @@ export class DeliveryController {
       throw new DeliveryError(
         "Repair requires stopped candidate validation; baseline or uncertain work cannot be repaired.",
       );
+    // Refuse before the attempt is recorded: a failed attempt spends a cycle
+    // and sets the candidate's validation back to not-run.
+    const coding = this.coordination.featureRuntime,
+      checks = this.coordination.validationRuntime;
+    if (
+      coding?.mode !== "controlled" ||
+      !validCodingPins(coding.pins) ||
+      checks?.mode !== "controlled"
+    )
+      throw new DeliveryError(
+        "Repair needs the controlled coding and validation runtimes; no repair was recorded.",
+      );
     const findings = repairFindings([
       ...(validation.outcome === "passed"
         ? []
