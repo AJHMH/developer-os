@@ -1230,3 +1230,15 @@ carried older pins, keeping every folder and record. The VM now has no
 coding containers. The coding acceptances haven't been rerun under the new
 pin. No inference and no usage. Production remains disabled. See the
 [Windows cleanup receipt](../ticket04-windows-container-cleanup-receipt.md).
+
+## 7 November: coding's own refusals no longer spend a repair cycle
+
+The first test of slice 1 of the
+[plan](../plan-04-native-coding-integration.md) is done. `repairCandidate`
+now runs coding's checks before it records an attempt, so a moved `main`,
+changed onboarding authority, or usage that is missing, unapproved or
+exhausted refuses without spending a cycle or resetting the candidate's
+validation. Only the usage observation is recorded. An exhausted repair
+allowance is still reported first. A base refresh still runs the checks inside
+the attempt, because it moves the feature's revision there. The rest of slice 1 waits on D2. No guest
+or pin change. Nothing is checked off. Production remains disabled.

@@ -12,6 +12,14 @@ A repair needs the controlled coding and validation runtimes. `repair-feature`
 doesn't install them yet, so from the CLI it refuses before recording anything,
 and no cycle is spent.
 
+Coding's own refusals also come before a cycle is recorded: a changed source
+or onboarding authority, a changed baseline environment, and usage that is
+missing, unapproved or exhausted. Each leaves the candidate's validation as it
+was; only the usage observation it made is recorded. An exhausted repair
+allowance is reported before these checks run. A base refresh is the
+exception: it moves the feature's revision inside the attempt, so its coding
+checks still run there and a refusal spends the cycle.
+
 A cycle starts with a stopped candidate validation attempt, an admitted artifact
 and a bounded batch of findings. Failed check identities are derived from retained
 validation evidence. Optional review findings are untrusted text, not authority

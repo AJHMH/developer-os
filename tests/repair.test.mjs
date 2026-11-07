@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import { DeliveryController } from "../dist/controller.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 
@@ -49,6 +50,13 @@ function reopen(f) {
     clock: () => f.now,
   });
 }
+// Once the refusal's cause is gone, the first repair still runs as cycle one.
+async function repairsOnce(f) {
+  const repaired = await reopen(f).repairFeature(f.delivery.id);
+  assert.equal(repaired.repair.attempts.length, 1);
+  assert.equal(repaired.repair.attempts[0].outcome, "passed");
+}
+
 test("a repair batch uses the admitted candidate, revalidates it and retains separate durable usage", async (t) => {
   const f = await repairFixture(t);
   const before = f.controller.status(f.delivery.id);
@@ -96,6 +104,12 @@ test("failed batches consume three cycles across restart and only an owner exten
   ]);
   assert.equal(exhausted.repair.attempts.length, 3);
   assert.match(exhausted.blocker.nextAction, /exhausted/);
+  // An exhausted allowance reports itself, even when coding would also refuse.
+  f.usedPercent = 100;
+  const still = await reopen(f).repairFeature(f.delivery.id);
+  assert.equal(still.repair.attempts.length, 3);
+  assert.match(still.blocker.nextAction, /Repair allowance exhausted/);
+  f.usedPercent = 10;
   await assert.rejects(
     f.controller.codeFeature(f.delivery.id),
     /repair|coding/i,
@@ -316,9 +330,82 @@ for (const missing of ["featureRuntime", "validationRuntime"]) {
       /Repair needs the controlled coding and validation runtimes/,
     );
     assert.deepEqual(controller.status(f.delivery.id), before);
-    const repaired = await reopen(f).repairFeature(f.delivery.id);
-    assert.equal(repaired.repair.attempts.length, 1);
-    assert.equal(repaired.repair.attempts[0].outcome, "passed");
+    await repairsOnce(f);
+  });
+}
+
+// executeFeature's own refusals run before repair records an attempt, so a
+// refused repair spends no cycle and leaves the candidate's validation as it was.
+const commit = (f, ...args) =>
+  f.git(
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "core.hooksPath=/nonexistent",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    ...args,
+  );
+for (const [name, change, restore, refusal] of [
+  [
+    "a moved main",
+    (f) => {
+      f.moved = f.git("rev-parse", "HEAD");
+      commit(f, "--allow-empty", "-m", "moved");
+    },
+    (f) => f.git("reset", "-q", "--hard", f.moved),
+    /Feature source is changed or unsafe/,
+  ],
+  [
+    "changed onboarding authority",
+    (f) => {
+      f.policy = readFileSync(f.options.policyPath, "utf8");
+      writeFileSync(
+        f.options.policyPath,
+        JSON.stringify({ ...JSON.parse(f.policy), approver: "someone-else" }),
+      );
+    },
+    (f) => writeFileSync(f.options.policyPath, f.policy),
+    /Feature onboarding authority is unavailable or changed/,
+  ],
+]) {
+  test(`repair refused by ${name} records nothing and spends no cycle`, async (t) => {
+    const f = await repairFixture(t);
+    const before = f.controller.status(f.delivery.id);
+    change(f);
+    await assert.rejects(f.controller.repairFeature(f.delivery.id), refusal);
+    assert.deepEqual(reopen(f).status(f.delivery.id), before);
+    restore(f);
+    await repairsOnce(f);
+  });
+}
+
+const freshUsage = /Fresh model-only subscription usage authority/;
+for (const [name, observe, refusal] of [
+  [
+    "no usage observation",
+    (f) => (f.subscription = async () => undefined),
+    /same known model-only account/,
+  ],
+  ["low, unapproved usage", (f) => (f.usedPercent = 95), freshUsage],
+  ["exhausted usage", (f) => (f.usedPercent = 100), freshUsage],
+]) {
+  test(`repair with ${name} records nothing and spends no cycle`, async (t) => {
+    const f = await repairFixture(t);
+    const { subscription, usedPercent } = f;
+    const before = f.controller.status(f.delivery.id);
+    observe(f);
+    await assert.rejects(f.controller.repairFeature(f.delivery.id), refusal);
+    // Only the usage observation itself is recorded.
+    const after = reopen(f).status(f.delivery.id);
+    assert.equal(after.repair, undefined);
+    assert.deepEqual(after.feature, before.feature);
+    assert.deepEqual(after.validation, before.validation);
+    Object.assign(f, { subscription, usedPercent });
+    await repairsOnce(f);
   });
 }
 

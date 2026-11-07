@@ -2,7 +2,8 @@
 
 Status: **proposed; it waits for the owner's decisions D1 to D4 below.**
 Date: 6 November 2026. Measured at `main` `03f2903`; the repair refusal in item
-3 and slice 1 was updated after PR 207 merged, at `884d71b`.
+3 and slice 1 was updated after PR 207 merged, at `884d71b`, and again on 7
+November when slice 1's first test was done.
 
 ## What it covers
 
@@ -50,11 +51,9 @@ Still refused, each for a different reason:
    it. Since PR 207, `repairCandidate` refuses without a controlled coding or
    validation runtime before it records an attempt, so from the CLI the command
    refuses, spends no cycle and leaves the candidate's validation unchanged.
-   `executeFeature`'s own refusals still come after the attempt is recorded,
-   such as changed onboarding authority or a moved `main`. Its `catch` passes
-   them to `finishRepair` as a failure, which uses up a cycle and sets the
-   validation back to `not-run`. The CLI can't reach them while it installs no
-   runtimes, but it will once slice 1 installs them.
+   Since slice 1's first test, `executeFeature`'s own refusals, such as
+   changed onboarding authority, a moved `main` or unapproved usage, also come
+   before the attempt, except during a base refresh.
 4. **Production mode, which includes production resume.** The controller
    admits only `runtime.mode === "controlled"` (`executeFeature` in
    `src/controller.ts`), and `PinnedCodingRuntime.mode` is fixed at
@@ -111,10 +110,11 @@ Still refused, each for a different reason:
 
 1. **CLI repair on the native runtimes.** No guest or pin change. Tests,
    written first:
-   - with the runtimes installed, a refusal from `executeFeature`'s own checks,
-     such as changed onboarding authority or a moved `main`, spends no cycle
-     and leaves the candidate's validation unchanged. PR 207 already covers a
-     missing runtime;
+   - done: with the runtimes installed, a refusal from `executeFeature`'s own
+     checks, such as changed onboarding authority, a moved `main` or
+     unapproved usage, spends no cycle and leaves the candidate's validation
+     unchanged. PR 207 covers a missing runtime. A base refresh still runs its
+     coding checks inside the attempt;
    - `repair-feature` takes `code-feature`'s options: the validation options,
      `--coding-admission`, `--codex-executable` and, if D2 allows, the routed
      options with their one-shot approval. The option rules match
