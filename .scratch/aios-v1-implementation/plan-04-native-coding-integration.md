@@ -1,9 +1,10 @@
 # Plan: Issue 04, integrating the general coding transport
 
-Status: **proposed; it waits for the owner's decisions D1 to D4 below.**
+Status: **slice 1 is done; slices 2 and 3 wait for the owner's decisions D1,
+D3 and D4 below. D2 is decided: routed from the start.**
 Date: 6 November 2026. Measured at `main` `03f2903`; the repair refusal in item
 3 and slice 1 was updated after PR 207 merged, at `884d71b`, and again on 7
-November when slice 1's first test was done.
+November for slice 1.
 
 ## What it covers
 
@@ -43,14 +44,17 @@ Still refused, each for a different reason:
    checks the refusal). Only `refreshMergeBase` produces one, through
    `repairCandidate`, after it has retired a publication. So it can't be
    reached until publication and merge run natively.
-3. **Repair from the CLI.** `repair-feature` is a bare `idAction` with no
-   options or runtimes (`src/cli-commands.ts`). `repairCandidate` needs an
+3. **Repair from the CLI.** Done in slice 1, below: `repair-feature` now
+   takes `code-feature`'s options and runtimes. Before that it was a bare
+   `idAction` with no options or runtimes (`src/cli-commands.ts`).
+   `repairCandidate` needs an
    admitted candidate whose candidate validation stopped, and no publication.
    An offline turn never admits a candidate, so natively this is reached only
    after a routed turn has admitted one and `validate-candidate` has run on
    it. Since PR 207, `repairCandidate` refuses without a controlled coding or
-   validation runtime before it records an attempt, so from the CLI the command
-   refuses, spends no cycle and leaves the candidate's validation unchanged.
+   validation runtime before it records an attempt, spending no cycle and
+   leaving the candidate's validation unchanged. Until slice 1, the CLI
+   installed no runtimes, so the command always refused.
    Since slice 1's first test, `executeFeature`'s own refusals, such as
    changed onboarding authority, a moved `main` or unapproved usage, also come
    before the attempt, except during a base refresh.
@@ -88,7 +92,8 @@ Still refused, each for a different reason:
     `code-feature`'s bindings first.
   - (c) Leave both as they are, and reword item 1 to say the refusal is
     deliberate.
-- **D2. Is a CLI repair turn routed from the start?** A repair needs an
+- **D2. Is a CLI repair turn routed from the start?** Decided on 7 November:
+  routed from the start. A repair needs an
   admitted candidate, and only a routed turn admits one, so native repair
   evidence needs a routed run either way. A routed repair turn spends the
   one-shot approval the way a routed `code-feature` turn does (ADR 0002). The
@@ -115,18 +120,24 @@ Still refused, each for a different reason:
      unapproved usage, spends no cycle and leaves the candidate's validation
      unchanged. PR 207 covers a missing runtime. A base refresh still runs its
      coding checks inside the attempt;
-   - `repair-feature` takes `code-feature`'s options: the validation options,
-     `--coding-admission`, `--codex-executable` and, if D2 allows, the routed
-     options with their one-shot approval. The option rules match
-     `code-feature`'s;
-   - a missing or invalid record refuses before any state or VM effect;
-   - on simulated transports, a candidate that failed `validate-candidate`,
-     then `repair-feature`, ends at a revalidated candidate and
-     `DELIVERY_NOT_ENABLED`;
-   - a repair turn gets the same files, mounts, route and endpoints as a
-     `code-feature` turn for the same delivery, and nothing more;
-   - if routed, a repair turn spends the approval once, and a second turn
-     without one refuses.
+   - done: `repair-feature` takes `code-feature`'s options: the validation
+     options, `--coding-admission`, `--codex-executable` and the routed
+     options with their one-shot approval, under the same option rules. It
+     takes no `--coding-minutes`, since its allowance is the repair's own;
+   - done: a missing or invalid record refuses before any state or VM effect;
+   - done: on simulated transports, a candidate that failed
+     `validate-candidate`, then `repair-feature`, ends at a revalidated
+     candidate and `DELIVERY_NOT_ENABLED`;
+   - done: a routed repair turn's request has the same keys, file paths,
+     command, pins, branch and route as the delivery's `code-feature` turn,
+     and starts a fresh session. Mounts and endpoints aren't in the request:
+     the same installed runtime and gateway factory supply them to both turns;
+   - done: a routed repair turn spends one approved turn. With none left, a
+     repair refuses before it reads usage, re-qualifies or records an
+     attempt, through a read-only check of the approval's remaining turns.
+     Opening the session still spends the turn, so a turn spent or a run
+     lapsing between the check and the session still fails the attempt, and
+     a base refresh, which skips the early checks, records its attempt first.
 
    The owner's native evidence follows the routed live turn
    (`scripts/run-native-routed-delivery.mjs`): after a candidate is admitted

@@ -97,6 +97,49 @@ test("an approval spends exactly the turns it names, once each, and never more",
     );
 });
 
+test("an approval reports whether a turn remains without spending one", (t) => {
+  const directory = state(t);
+  const plan = prepare(directory);
+  const approval = approve(directory, plan);
+  assert.equal(approval.remains(deliveryId), true);
+  assert.equal(approval.remains(deliveryId), true);
+  assert.equal(
+    readdirSync(directory).filter((name) => name.endsWith(".consumed")).length,
+    0,
+  );
+  approval.spend(deliveryId);
+  assert.equal(approval.remains(deliveryId), true);
+  approval.spend(deliveryId);
+  assert.equal(approval.remains(deliveryId), false);
+  // Another delivery, or a run past its window, has no turn left.
+  let at = now;
+  const later = approvedRoutedTurns(
+    directory,
+    {
+      deliveryId,
+      accountId,
+      machine,
+      pins,
+      runId: prepare(directory).runId,
+      turns: 2,
+    },
+    () => at,
+  );
+  assert.equal(later.remains("99999999-2222-4333-8444-555555555555"), false);
+  assert.equal(later.remains(deliveryId), true);
+  at = now + routedTurnPlanMs;
+  assert.equal(later.remains(deliveryId), false);
+});
+
+test("routed sessions report the approval's remaining turns", (t) => {
+  const directory = state(t);
+  const approval = approve(directory, prepare(directory, 1));
+  const sessions = approvedGeneralSessions(() => ({}), approval);
+  assert.equal(sessions.turnsRemain(deliveryId), true);
+  sessions({ deliveryId }, async () => "permitted");
+  assert.equal(sessions.turnsRemain(deliveryId), false);
+});
+
 test("an approval that does not match its current plan is refused before any turn", (t) => {
   const directory = state(t);
   const plan = prepare(directory);

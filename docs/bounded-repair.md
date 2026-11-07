@@ -8,9 +8,18 @@ extend-repair --id ID --cycles N --minutes N. Omitted extension amounts default 
 zero; at least one must be positive. Only the explicit owner control can extend
 a stopped, exhausted allowance.
 
-A repair needs the controlled coding and validation runtimes. `repair-feature`
-doesn't install them yet, so from the CLI it refuses before recording anything,
-and no cycle is spent.
+A repair needs the controlled coding and validation runtimes. Without them it
+refuses before recording anything, and no cycle is spent. From the CLI,
+`repair-feature` installs them from the same options as `code-feature`: the
+owner policy, `--podman-machine` with `--coding-admission` and
+`--validation-admission`, and `--codex-executable` for usage. It takes no
+`--coding-minutes`; the repair allowance applies. For a mediated delivery, the
+routed options route the repair turn through the host-only general session and
+spend one turn of the owner's one-shot approval from `prepare-routed-turns`.
+With no approved turn left, the repair refuses before it reads usage or records
+an attempt. Opening the session is what spends the turn, so a turn spent by
+another process, or a run lapsing, after that check still fails the attempt; a
+base refresh records its attempt before the check.
 
 Coding's own refusals also come before a cycle is recorded: a changed source
 or onboarding authority, a changed baseline environment, and usage that is

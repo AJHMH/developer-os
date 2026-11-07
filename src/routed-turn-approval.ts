@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GeneralSessionFactory } from "./controller.js";
 import { type CodingPins, codingPinFields } from "./feature-candidate.js";
@@ -67,6 +67,9 @@ export function prepareRoutedTurns(
 export interface RoutedTurnApproval {
   /** Spends one approved turn for `deliveryId`, or throws. */
   spend(deliveryId: string): void;
+  /** Whether a turn is left to spend for `deliveryId`, without spending one.
+   * Only `spend` is authoritative. */
+  remains(deliveryId: string): boolean;
 }
 
 /** The owner's approval, checked against its current plan before any turn.
@@ -99,18 +102,29 @@ export function approvedRoutedTurns(
     !current()
   )
     throw refused();
+  // Each approved turn's marker, in the order turns are spent.
+  const markers = () =>
+    Array.from({ length: plan.turns }, (_, i) =>
+      consumedPath(state, plan.runId, i + 1),
+    );
   return {
+    remains(deliveryId) {
+      return (
+        deliveryId === plan.deliveryId &&
+        current() &&
+        markers().some((marker) => !existsSync(marker))
+      );
+    },
     spend(deliveryId) {
       if (deliveryId !== plan.deliveryId)
         throw Error("The approval names another delivery");
       if (!current()) throw Error("The approved run has expired");
-      for (let turn = 1; turn <= plan.turns; turn++)
+      for (const marker of markers())
         try {
-          writeFileSync(
-            consumedPath(state, plan.runId, turn),
-            "one-shot approval consumed\n",
-            { flag: "wx", mode: 0o600 },
-          );
+          writeFileSync(marker, "one-shot approval consumed\n", {
+            flag: "wx",
+            mode: 0o600,
+          });
           return;
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
@@ -127,8 +141,10 @@ export function approvedGeneralSessions(
   sessions: GeneralSessionFactory,
   approval: RoutedTurnApproval,
 ): GeneralSessionFactory {
-  return (turn, authority) => {
+  const open: GeneralSessionFactory = (turn, authority) => {
     approval.spend(turn.deliveryId);
     return sessions(turn, authority);
   };
+  open.turnsRemain = (deliveryId) => approval.remains(deliveryId);
+  return open;
 }

@@ -58,6 +58,21 @@ const validationOptions = [
   "podman-machine",
   "validation-admission",
 ] as const;
+// A coding or repair turn: the owner policy and admissions, host usage and,
+// for a routed turn, the owner's registration and one-shot approval.
+const codingTurnOptions = [
+  ...validationOptions,
+  "coding-admission",
+  "codex-executable",
+  "auth-directory",
+  "auth-account",
+  "approve-run",
+  "approve-turns",
+  "worker-policy",
+  "adversarial",
+] as const;
+// A routed turn re-qualifies on the fixed worker before it dispatches.
+const codingTurnRuntimes = ["native", "subscription"] as const;
 function idAction(
   method: IdAction,
   optional: readonly CliOptionName[] = [],
@@ -194,20 +209,8 @@ const commands: Record<string, CliCommand> = {
   "code-feature": {
     kind: "delivery",
     required: ["id"],
-    optional: [
-      ...validationOptions,
-      "coding-admission",
-      "codex-executable",
-      "coding-minutes",
-      "auth-directory",
-      "auth-account",
-      "approve-run",
-      "approve-turns",
-      "worker-policy",
-      "adversarial",
-    ],
-    // A routed turn re-qualifies on the fixed worker before it dispatches.
-    runtimes: ["native", "subscription"],
+    optional: [...codingTurnOptions, "coding-minutes"],
+    runtimes: codingTurnRuntimes,
     invoke: (c, v) =>
       c.codeFeature(
         v.id!,
@@ -219,7 +222,14 @@ const commands: Record<string, CliCommand> = {
   // With an owner validation admission, these run on the native runtime.
   "validate-baseline": idAction("validateBaseline", validationOptions),
   "validate-candidate": idAction("validateCandidate", validationOptions),
-  "repair-feature": idAction("repairFeature"),
+  // A repair turn runs on the same runtimes and route as a coding turn, and
+  // a routed one spends a turn of the owner's approval (Issue 04 plan, D2).
+  // Its allowance is the repair's own, so it takes no coding minutes.
+  "repair-feature": idAction(
+    "repairFeature",
+    codingTurnOptions,
+    codingTurnRuntimes,
+  ),
   "publish-feature": idAction("publishFeature"),
   "reconcile-publication": idAction("reconcilePublication"),
   "monitor-pr-checks": idAction("monitorPRChecks"),
