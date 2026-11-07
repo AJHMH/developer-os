@@ -1198,3 +1198,14 @@ error, so its reason was lost; `validateCandidate` now refuses with a
 CLI's error line among Node's warnings. A validated candidate still needs a
 routed live turn, under the owner's one-shot approval.
 
+## 6 November: what the first remaining item already covers, and a plan for the rest
+
+The first item under "Remaining implementation" predates ADR 0004.
+`code-feature` already installs the owner-admitted native coding transport
+from the CLI, and the transport resumes a named predecessor, including onto a
+moved `main`. The [plan](../plan-04-native-coding-integration.md) lists what
+still refuses, the slices that follow and the four owner decisions they wait
+for. One finding needs fixing in its first slice: `repair-feature` from the
+CLI, which installs no coding runtime, records a failed repair attempt
+instead of refusing, so it spends a cycle. Nothing is checked off. Docs only.
+Production remains disabled.
