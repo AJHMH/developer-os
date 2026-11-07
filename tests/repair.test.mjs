@@ -299,6 +299,29 @@ test("findings are bounded untrusted text, never extension or control authority"
   assert.equal(f.controller.status(f.delivery.id).repair, undefined);
 });
 
+for (const missing of ["featureRuntime", "validationRuntime"]) {
+  test(`repair without a ${missing} refuses before it records anything`, async (t) => {
+    const f = await repairFixture(t);
+    const before = f.controller.status(f.delivery.id);
+    const controller = new DeliveryController(f.state, f.options, {
+      featurePlanner: f.criteria,
+      featureRuntime: f.runtime,
+      subscription: () => f.subscription(),
+      validationRuntime: f.validation,
+      clock: () => f.now,
+      [missing]: undefined,
+    });
+    await assert.rejects(
+      controller.repairFeature(f.delivery.id),
+      /Repair needs the controlled coding and validation runtimes/,
+    );
+    assert.deepEqual(controller.status(f.delivery.id), before);
+    const repaired = await reopen(f).repairFeature(f.delivery.id);
+    assert.equal(repaired.repair.attempts.length, 1);
+    assert.equal(repaired.repair.attempts[0].outcome, "passed");
+  });
+}
+
 test("CLI exposes repair and rejects invalid extension options without installing a native runtime", async (t) => {
   const f = await repairFixture(t);
   const { spawnSync } = await import("node:child_process");
@@ -310,11 +333,14 @@ test("CLI exposes repair and rejects invalid extension options without installin
     );
   const invalid = run(["extend-repair", "--cycles", "101"]);
   assert.notEqual(invalid.status, 0);
-  const valid = run(["repair-feature"]);
-  assert.equal(valid.status, 0, valid.stderr);
-  const status = JSON.parse(valid.stdout);
-  assert.equal(status.repair.attempts[0].outcome, "failed");
-  assert.equal(status.feature.candidate.validation, "not-run");
+  const before = f.controller.status(f.delivery.id);
+  const refused = run(["repair-feature"]);
+  assert.notEqual(refused.status, 0);
+  assert.match(
+    refused.stderr,
+    /Repair needs the controlled coding and validation runtimes/,
+  );
+  assert.deepEqual(reopen(f).status(f.delivery.id), before);
 });
 
 test("the remaining repair deadline stops a hung local check before its longer declared timeout", async (t) => {
