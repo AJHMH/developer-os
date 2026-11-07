@@ -1242,3 +1242,17 @@ validation. Only the usage observation is recorded. An exhausted repair
 allowance is still reported first. A base refresh still runs the checks inside
 the attempt, because it moves the feature's revision there. The rest of slice 1 waits on D2. No guest
 or pin change. Nothing is checked off. Production remains disabled.
+
+## 7 November: slice 1 done, CLI repair on the native runtimes
+
+The owner decided D2: a CLI repair turn is routed from the start. With that,
+the rest of slice 1 of the [plan](../plan-04-native-coding-integration.md) is
+done. `repair-feature` takes `code-feature`'s options, except
+`--coding-minutes`, and installs the same owner-admitted coding and validation
+runtimes. A routed repair turn gets the coding turn's files, command, pins,
+branch and route, and spends one turn of the owner's one-shot approval. With no
+approved turn left, a repair refuses before it records an attempt, except in
+the narrow cases the plan names. All of this
+is shown on simulated transports only. Native evidence is one routed repair
+turn after a routed candidate fails validation, under a fresh approval. No
+guest or pin change. Nothing is checked off. Production remains disabled.

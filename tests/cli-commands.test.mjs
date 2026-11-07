@@ -136,31 +136,96 @@ test("an owner coding admission is accepted only with a native machine on pause,
   }
 });
 
-test("a missing owner coding admission refuses before any delivery or VM effect", (t) => {
-  const state = mkdtempSync(join(tmpdir(), "aios-cli-coding-admission-"));
-  t.after(() => rmSync(state, { recursive: true, force: true }));
-  const result = spawnSync(
-    process.execPath,
+for (const command of ["pause", "repair-feature"])
+  test(`${command} with a missing owner coding admission refuses before any delivery or VM effect`, (t) => {
+    const state = mkdtempSync(join(tmpdir(), "aios-cli-coding-admission-"));
+    t.after(() => rmSync(state, { recursive: true, force: true }));
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+        command,
+        "--id",
+        "11111111-2222-4333-8444-555555555555",
+        "--state-dir",
+        state,
+        "--podman-machine",
+        "aios-test",
+        "--coding-admission",
+        join(state, "missing-coding-admission.json"),
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 1);
+    assert.match(
+      JSON.parse(result.stderr).error,
+      /owner coding admission record is missing or invalid/,
+    );
+    assert.deepEqual(readdirSync(state), []);
+  });
+
+test("repair-feature with an invalid coding or validation record refuses before any delivery or VM effect", (t) => {
+  const owner = mkdtempSync(join(tmpdir(), "aios-cli-repair-records-"));
+  t.after(() => rmSync(owner, { recursive: true, force: true }));
+  chmodSync(owner, 0o700);
+  const coding = join(owner, "coding-admission.json"),
+    invalid = join(owner, "invalid-admission.json");
+  writeFileSync(
+    coding,
+    JSON.stringify({
+      scope: "aios-native-coding-admission-v1",
+      approvedAt: "2026-10-21T12:00:00.000Z",
+      pins: {
+        cliSha256: "c".repeat(64),
+        codeModeHostSha256: "b".repeat(64),
+        cliVersion: "0.161.0",
+        policySha256: "d".repeat(64),
+        bindingSha256: "e".repeat(64),
+      },
+    }),
+    { mode: 0o600 },
+  );
+  writeFileSync(invalid, JSON.stringify({ scope: "unknown" }), { mode: 0o600 });
+  ownWindowsFixturePaths([owner, coding, invalid]);
+  const state = join(owner, "state");
+  for (const [records, refusal] of [
     [
-      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
-      "pause",
-      "--id",
-      "11111111-2222-4333-8444-555555555555",
-      "--state-dir",
-      state,
-      "--podman-machine",
-      "aios-test",
-      "--coding-admission",
-      join(state, "missing-coding-admission.json"),
+      ["--coding-admission", invalid],
+      /owner coding admission record is missing or invalid/,
     ],
-    { encoding: "utf8" },
-  );
-  assert.equal(result.status, 1);
-  assert.match(
-    JSON.parse(result.stderr).error,
-    /owner coding admission record is missing or invalid/,
-  );
-  assert.deepEqual(readdirSync(state), []);
+    [
+      ["--coding-admission", coding, "--validation-admission", invalid],
+      /owner validation admission record is missing or invalid/,
+    ],
+    [
+      [
+        "--coding-admission",
+        coding,
+        "--validation-admission",
+        join(owner, "missing.json"),
+      ],
+      /owner validation admission record is missing or invalid/,
+    ],
+  ]) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+        "repair-feature",
+        "--id",
+        "11111111-2222-4333-8444-555555555555",
+        "--state-dir",
+        state,
+        "--podman-machine",
+        "aios-test",
+        ...records,
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 1);
+    assert.match(JSON.parse(result.stderr).error, refusal);
+    assert.equal(readdirSync(owner).includes("state"), false);
+  }
 });
 
 test("an owner validation admission is accepted only with a native machine on validation, pause, cancel and recover", () => {
@@ -359,6 +424,68 @@ test("code-feature takes the owner's coding and validation inputs and its initia
   );
 });
 
+// Slice 1 of the Issue 04 plan, routed from the start (D2): repair-feature
+// takes code-feature's options under the same rules. Its allowance is the
+// repair's own, so it never takes initial coding minutes.
+test("repair-feature takes code-feature's native and routed options, except coding minutes", async () => {
+  const values = {
+    id: "d",
+    "owner-policy": "/owner/policy.json",
+    "onboarding-attestation": "/owner/onboarding-attestation.json",
+    "podman-machine": "aios-test",
+    "coding-admission": "/owner/coding-admission.json",
+    "validation-admission": "/owner/validation-admission.json",
+    "codex-executable": "/owner/codex",
+    "auth-directory": "/owner/auth",
+    "auth-account": "a".repeat(64),
+    "approve-run": "11111111-2222-4333-8444-555555555555",
+    "approve-turns": "2",
+    "worker-policy": "/owner/fixed-worker-pins.json",
+    adversarial: true,
+  };
+  const invocation = validateCliCommand(
+    ["repair-feature"],
+    values,
+    Object.keys(values),
+  );
+  assert.equal(invocation.name, "repair-feature");
+  assert.deepEqual(
+    [...invocation.command.optional].sort(),
+    cliCommands["code-feature"].optional
+      .filter((name) => name !== "coding-minutes")
+      .sort(),
+  );
+  assert.deepEqual(
+    invocation.command.runtimes,
+    cliCommands["code-feature"].runtimes,
+  );
+  const calls = [];
+  await invocation.command.invoke(
+    { repairFeature: (...args) => calls.push(args) },
+    values,
+  );
+  assert.deepEqual(calls, [["d"]]);
+  for (const refused of [
+    { ...values, "coding-minutes": "30" },
+    { id: "d", "coding-admission": "/owner/coding-admission.json" },
+    { id: "d", "auth-directory": "/owner/auth" },
+    { ...values, "approve-run": undefined, "approve-turns": undefined },
+    { ...values, "approve-turns": "3" },
+    { ...values, "coding-admission": undefined },
+    { ...values, "worker-policy": undefined },
+    { ...values, adversarial: undefined },
+  ].map((refused) =>
+    Object.fromEntries(
+      Object.entries(refused).filter(([, value]) => value !== undefined),
+    ),
+  ))
+    assert.equal(
+      validateCliCommand(["repair-feature"], refused, Object.keys(refused))
+        .error,
+      "arguments",
+    );
+});
+
 test("prepare-routed-turns names one delivery, account, VM, coding record and 1 or 2 turns", () => {
   const values = {
     id: "d",
@@ -406,212 +533,212 @@ test("prepare-routed-turns names one delivery, account, VM, coding record and 1 
   }
 });
 
-test("code-feature from the CLI installs the owner-admitted runtimes without any VM effect", (t) => {
-  const state = mkdtempSync(join(tmpdir(), "aios-cli-code-feature-"));
-  t.after(() => rmSync(state, { recursive: true, force: true }));
-  chmodSync(state, 0o700);
-  const coding = join(state, "coding-admission.json"),
-    validation = join(state, "validation-admission.json");
-  writeFileSync(
-    coding,
-    JSON.stringify({
-      scope: "aios-native-coding-admission-v1",
-      approvedAt: "2026-10-21T12:00:00.000Z",
-      pins: {
-        cliSha256: "c".repeat(64),
-        codeModeHostSha256: "b".repeat(64),
-        cliVersion: "0.161.0",
-        policySha256: "d".repeat(64),
-        bindingSha256: "e".repeat(64),
-      },
-    }),
-    { mode: 0o600 },
-  );
-  writeFileSync(
-    validation,
-    JSON.stringify({
-      scope: "aios-native-validation-admission-v1",
-      approvedAt: "2026-10-22T12:00:00.000Z",
-      pins: {
-        imageSha256: "a".repeat(64),
-        policySha256: "b".repeat(64),
-        bindingSha256: "c".repeat(64),
-      },
-    }),
-    { mode: 0o600 },
-  );
-  ownWindowsFixturePaths([state, coding, validation]);
-  const cli = (...args) =>
-    spawnSync(
-      process.execPath,
-      [
-        fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
-        "code-feature",
-        "--id",
-        "11111111-2222-4333-8444-555555555555",
-        "--state-dir",
-        join(state, "state"),
-        "--podman-machine",
-        "aios-test",
-        ...args,
-      ],
-      { encoding: "utf8" },
+for (const command of ["code-feature", "repair-feature"])
+  test(`${command} from the CLI installs the owner-admitted runtimes without any VM effect`, (t) => {
+    const state = mkdtempSync(join(tmpdir(), "aios-cli-code-feature-"));
+    t.after(() => rmSync(state, { recursive: true, force: true }));
+    chmodSync(state, 0o700);
+    const coding = join(state, "coding-admission.json"),
+      validation = join(state, "validation-admission.json");
+    writeFileSync(
+      coding,
+      JSON.stringify({
+        scope: "aios-native-coding-admission-v1",
+        approvedAt: "2026-10-21T12:00:00.000Z",
+        pins: {
+          cliSha256: "c".repeat(64),
+          codeModeHostSha256: "b".repeat(64),
+          cliVersion: "0.161.0",
+          policySha256: "d".repeat(64),
+          bindingSha256: "e".repeat(64),
+        },
+      }),
+      { mode: 0o600 },
     );
-  const installed = cli(
-    "--coding-admission",
-    coding,
-    "--validation-admission",
-    validation,
-    "--coding-minutes",
-    "30",
-  );
-  assert.equal(installed.status, 1);
-  // Both runtimes were installed; only the unknown delivery refuses.
-  assert.equal(JSON.parse(installed.stderr).error, "Delivery not found.");
-  const missing = cli(
-    "--coding-admission",
-    join(state, "missing.json"),
-    "--validation-admission",
-    validation,
-  );
-  assert.equal(missing.status, 1);
-  assert.match(
-    JSON.parse(missing.stderr).error,
-    /owner coding admission record is missing or invalid/,
-  );
-  // Routed coding: the general sessions open on the prepared host
-  // registration, and no credential is read before a model request.
-  const owned = realpathSync(state),
-    repo = join(owned, "repo"),
-    auth = join(owned, "auth");
-  mkdirSync(repo);
-  const prepared = spawnSync(
-    process.execPath,
-    [
-      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
-      "prepare-auth",
-      "--repo",
-      repo,
-      "--state-dir",
-      join(owned, "state"),
-      "--auth-directory",
-      auth,
-    ],
-    { encoding: "utf8" },
-  );
-  assert.equal(prepared.status, 0, prepared.stderr);
-  const routed = (directory, ...approval) =>
-    cli(
+    writeFileSync(
+      validation,
+      JSON.stringify({
+        scope: "aios-native-validation-admission-v1",
+        approvedAt: "2026-10-22T12:00:00.000Z",
+        pins: {
+          imageSha256: "a".repeat(64),
+          policySha256: "b".repeat(64),
+          bindingSha256: "c".repeat(64),
+        },
+      }),
+      { mode: 0o600 },
+    );
+    ownWindowsFixturePaths([state, coding, validation]);
+    const cli = (...args) =>
+      spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+          command,
+          "--id",
+          "11111111-2222-4333-8444-555555555555",
+          "--state-dir",
+          join(state, "state"),
+          "--podman-machine",
+          "aios-test",
+          ...args,
+        ],
+        { encoding: "utf8" },
+      );
+    const installed = cli(
       "--coding-admission",
       coding,
       "--validation-admission",
       validation,
-      "--auth-directory",
-      directory,
-      "--auth-account",
-      "a".repeat(64),
-      "--approve-run",
-      "99999999-2222-4333-8444-555555555555",
-      "--approve-turns",
-      "2",
-      "--worker-policy",
-      join(owned, "fixed-worker-pins.json"),
-      "--adversarial",
-      ...approval,
+      ...(command === "code-feature" ? ["--coding-minutes", "30"] : []),
     );
-  const unapproved = routed(auth);
-  assert.equal(unapproved.status, 1);
-  assert.match(
-    JSON.parse(unapproved.stderr).error,
-    /routed-turn approval does not match a current plan/,
-  );
-  const unregistered = routed(repo);
-  assert.equal(unregistered.status, 1);
-  assert.match(
-    JSON.parse(unregistered.stderr).error,
-    /owner's host registration is missing or invalid/,
-  );
-  // The owner prepares a plan for an existing delivery; its run ID is what
-  // the one-shot approval names.
-  const run = (...args) =>
-    spawnSync(
+    assert.equal(installed.status, 1);
+    // Both runtimes were installed; only the unknown delivery refuses.
+    assert.equal(JSON.parse(installed.stderr).error, "Delivery not found.");
+    const missing = cli(
+      "--coding-admission",
+      join(state, "missing.json"),
+      "--validation-admission",
+      validation,
+    );
+    assert.equal(missing.status, 1);
+    assert.match(
+      JSON.parse(missing.stderr).error,
+      /owner coding admission record is missing or invalid/,
+    );
+    // Routed coding: the general sessions open on the prepared host
+    // registration, and no credential is read before a model request.
+    const owned = realpathSync(state),
+      repo = join(owned, "repo"),
+      auth = join(owned, "auth");
+    mkdirSync(repo);
+    const prepared = spawnSync(
       process.execPath,
       [
         fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
-        ...args,
+        "prepare-auth",
+        "--repo",
+        repo,
         "--state-dir",
         join(owned, "state"),
+        "--auth-directory",
+        auth,
       ],
       { encoding: "utf8" },
     );
-  const started = run("start", "--repo", repo, "--request", "Add a hint.");
-  assert.equal(started.status, 0, started.stderr);
-  const { id } = JSON.parse(started.stdout);
-  const prepare = (delivery, record = coding) =>
-    run(
-      "prepare-routed-turns",
-      "--id",
-      delivery,
-      "--podman-machine",
-      "aios-test",
-      "--coding-admission",
-      record,
-      "--auth-account",
-      "a".repeat(64),
-      "--turns",
-      "2",
+    assert.equal(prepared.status, 0, prepared.stderr);
+    const routed = (directory, ...approval) =>
+      cli(
+        "--coding-admission",
+        coding,
+        "--validation-admission",
+        validation,
+        "--auth-directory",
+        directory,
+        "--auth-account",
+        "a".repeat(64),
+        "--approve-run",
+        "99999999-2222-4333-8444-555555555555",
+        "--approve-turns",
+        "2",
+        "--worker-policy",
+        join(owned, "fixed-worker-pins.json"),
+        "--adversarial",
+        ...approval,
+      );
+    const unapproved = routed(auth);
+    assert.equal(unapproved.status, 1);
+    assert.match(
+      JSON.parse(unapproved.stderr).error,
+      /routed-turn approval does not match a current plan/,
     );
-  const unknown = prepare("99999999-2222-4333-8444-555555555555");
-  assert.equal(unknown.status, 1);
-  assert.equal(JSON.parse(unknown.stderr).error, "Delivery not found.");
-  assert.match(
-    JSON.parse(prepare(id, join(owned, "missing.json")).stderr).error,
-    /owner coding admission record is missing or invalid/,
-  );
-  const planned = prepare(id);
-  assert.equal(planned.status, 0, planned.stderr);
-  const plan = JSON.parse(planned.stdout);
-  assert.equal(plan.deliveryId, id);
-  assert.equal(plan.turns, 2);
-  const code = (turns) =>
-    run(
-      "code-feature",
-      "--id",
-      id,
-      "--podman-machine",
-      "aios-test",
-      "--coding-admission",
-      coding,
-      "--validation-admission",
-      validation,
-      "--auth-directory",
-      auth,
-      "--auth-account",
-      "a".repeat(64),
-      "--approve-run",
-      plan.runId,
-      "--approve-turns",
-      turns,
-      "--worker-policy",
-      join(owned, "fixed-worker-pins.json"),
-      "--adversarial",
+    const unregistered = routed(repo);
+    assert.equal(unregistered.status, 1);
+    assert.match(
+      JSON.parse(unregistered.stderr).error,
+      /owner's host registration is missing or invalid/,
     );
-  assert.match(
-    JSON.parse(code("1").stderr).error,
-    /routed-turn approval does not match a current plan/,
-  );
-  // The matching approval is accepted; the unplanned delivery then refuses
-  // coding, so no turn is spent.
-  const approved = code("2");
-  assert.equal(approved.status, 1);
-  assert.doesNotMatch(JSON.parse(approved.stderr).error, /approval/);
-  assert.equal(
-    readdirSync(join(owned, "state")).filter((name) =>
-      name.endsWith(".consumed"),
-    ).length,
-    0,
-  );
-});
+    // The owner prepares a plan for an existing delivery; its run ID is what
+    // the one-shot approval names.
+    const run = (...args) =>
+      spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+          ...args,
+          "--state-dir",
+          join(owned, "state"),
+        ],
+        { encoding: "utf8" },
+      );
+    const started = run("start", "--repo", repo, "--request", "Add a hint.");
+    assert.equal(started.status, 0, started.stderr);
+    const { id } = JSON.parse(started.stdout);
+    const prepare = (delivery, record = coding) =>
+      run(
+        "prepare-routed-turns",
+        "--id",
+        delivery,
+        "--podman-machine",
+        "aios-test",
+        "--coding-admission",
+        record,
+        "--auth-account",
+        "a".repeat(64),
+        "--turns",
+        "2",
+      );
+    const unknown = prepare("99999999-2222-4333-8444-555555555555");
+    assert.equal(unknown.status, 1);
+    assert.equal(JSON.parse(unknown.stderr).error, "Delivery not found.");
+    assert.match(
+      JSON.parse(prepare(id, join(owned, "missing.json")).stderr).error,
+      /owner coding admission record is missing or invalid/,
+    );
+    const planned = prepare(id);
+    assert.equal(planned.status, 0, planned.stderr);
+    const plan = JSON.parse(planned.stdout);
+    assert.equal(plan.deliveryId, id);
+    assert.equal(plan.turns, 2);
+    const code = (turns) =>
+      run(
+        command,
+        "--id",
+        id,
+        "--podman-machine",
+        "aios-test",
+        "--coding-admission",
+        coding,
+        "--validation-admission",
+        validation,
+        "--auth-directory",
+        auth,
+        "--auth-account",
+        "a".repeat(64),
+        "--approve-run",
+        plan.runId,
+        "--approve-turns",
+        turns,
+        "--worker-policy",
+        join(owned, "fixed-worker-pins.json"),
+        "--adversarial",
+      );
+    assert.match(
+      JSON.parse(code("1").stderr).error,
+      /routed-turn approval does not match a current plan/,
+    );
+    // The matching approval is accepted; the unplanned delivery then refuses
+    // coding or repair, so no turn is spent.
+    const approved = code("2");
+    assert.equal(approved.status, 1);
+    assert.doesNotMatch(JSON.parse(approved.stderr).error, /approval/);
+    assert.equal(
+      readdirSync(join(owned, "state")).filter((name) =>
+        name.endsWith(".consumed"),
+      ).length,
+      0,
+    );
+  });
 
 test("owner criteria are named only on plan-feature and clarify-feature, never empty", () => {
   for (const [name, values] of [

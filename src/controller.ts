@@ -234,10 +234,14 @@ export interface GeneralSessionTurn {
  * model request: usage observed now, the decision re-qualified. The real,
  * credential-backed factory is `credentialedGeneralSessions`; without one,
  * coding stays offline. */
-export type GeneralSessionFactory = (
+export type GeneralSessionFactory = ((
   turn: GeneralSessionTurn,
   authority: () => Promise<GeneralSessionAuthority>,
-) => SessionGateway;
+) => SessionGateway) & {
+  /** Whether the owner's approval has a turn left for the delivery; checked
+   * without spending one. Opening the session stays authoritative. */
+  turnsRemain?: (deliveryId: string) => boolean;
+};
 
 export interface CoordinationOptions {
   branchCleanupRuntime?: BranchCleanupRuntime;
@@ -336,6 +340,8 @@ export interface Delivery {
   }[];
 }
 
+const approvedTurnsSpent =
+  "The owner's approved turns are spent; prepare and approve a new routed run before repairing. Production remains disabled.";
 const usageAuthorityRequired =
   "Fresh model-only subscription usage authority is required before coding; exhaustion cannot be overridden.";
 const restartRequired =
@@ -2723,6 +2729,20 @@ export class DeliveryController {
     // Fresh usage alone never restarts coding after a usage interruption.
     if (unrestartedInterruption(feature) && !pendingRestart(feature))
       throw new DeliveryError(restartRequired);
+    const mediated = Boolean(
+      snapshot.qualification?.subscriptionMediation?.mechanismDecision ||
+        feature.mediationUsageAccountId,
+    );
+    // A mediated repair is routed when general sessions are installed, and
+    // needs a turn of the owner's approval left. It refuses here, before usage
+    // is read or the delivery re-qualified on the VM, and before the attempt
+    // is recorded; opening the session still spends the turn.
+    if (
+      repairId &&
+      mediated &&
+      this.coordination.generalSessions?.turnsRemain?.(id) === false
+    )
+      throw new DeliveryError(approvedTurnsSpent);
     const usage = (await this.checkUsage(id)).usage!,
       account = usage.accountId;
     // An unknown account is never model-only authority, and a feature's
@@ -2740,11 +2760,9 @@ export class DeliveryController {
     // A qualified mediation decision names the only account coding may use,
     // and a feature once linked to it never codes without that decision.
     // Like every dispatch path, a mediated delivery re-qualifies first.
-    const mediation =
-      snapshot.qualification?.subscriptionMediation?.mechanismDecision ||
-      feature.mediationUsageAccountId
-        ? qualifiedDecision(await this.qualify(id))
-        : undefined;
+    const mediation = mediated
+      ? qualifiedDecision(await this.qualify(id))
+      : undefined;
     if (
       (mediation || feature.mediationUsageAccountId) &&
       mediation?.usageAccountId !== account

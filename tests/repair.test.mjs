@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { DeliveryController } from "../dist/controller.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
+import { routedCoding } from "./helpers/routed-coding.mjs";
+import { firstThread } from "./helpers/coding-turns.mjs";
+import {
+  approvedGeneralSessions,
+  approvedRoutedTurns,
+  prepareRoutedTurns,
+} from "../dist/routed-turn-approval.js";
 
 async function repairFixture(t) {
   const f = codingFixture(t);
@@ -534,4 +541,127 @@ test("interrupted final inspection cannot strand validation or attach old eviden
     f.controller.status(f.delivery.id).repair.attempts[1].validationOperationId,
     secondId,
   );
+});
+
+// Slice 1, routed from the start (D2): a repair turn runs on the same runtimes
+// and route as the delivery's coding turn, and spends one turn of the owner's
+// one-shot approval.
+const succeededTurn = async (request) => {
+  request.checkpoint();
+  return {
+    operationId: request.operationId,
+    fence: request.fence,
+    exitCode: 0,
+    events: [
+      { type: "thread.started", thread_id: firstThread },
+      { type: "turn.started" },
+      { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
+    ],
+  };
+};
+async function routedRepairFixture(t) {
+  let open;
+  const routed = await routedCoding(t, succeededTurn, {
+    // The approval is prepared once the delivery exists; this forwards to it.
+    generalSessions: Object.assign((turn, authority) => open(turn, authority), {
+      turnsRemain: (id) => open.turnsRemain(id),
+    }),
+  });
+  const { f } = routed,
+    scope = {
+      deliveryId: f.delivery.id,
+      accountId: "a".repeat(64),
+      machine: "aios-test",
+      pins: f.runtime.pins,
+    },
+    plan = prepareRoutedTurns(f.state, { ...scope, turns: 2 });
+  open = approvedGeneralSessions(
+    routed.factory,
+    approvedRoutedTurns(f.state, { ...scope, runId: plan.runId, turns: 2 }),
+  );
+  // The coding turn writes a first hint, which fails acceptance; the repair
+  // turn writes the fixed one.
+  let content = "<h1>Contact</h1><p>First hint</p>\n";
+  f.runtime.collect = async (r) => {
+    const bytes = Buffer.from(content);
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    return {
+      operationId: r.operationId,
+      fence: r.fence,
+      complete: true,
+      files: [
+        {
+          path: "index.html",
+          bytes,
+          ordinary: true,
+          links: 1,
+          beforeSha256: hash,
+          afterSha256: hash,
+        },
+      ],
+    };
+  };
+  const coded = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(coded.feature.outcome, "admitted");
+  const execute = f.validation.execute.bind(f.validation);
+  f.validation.execute = async (r) => ({
+    ...(await execute(r)),
+    status: r.check.id === "acceptance" ? "failure" : "success",
+  });
+  const failed = await f.controller.validateCandidate(f.delivery.id);
+  assert.equal(failed.validation.attempts.at(-1).outcome, "failed");
+  f.validation.execute = execute;
+  content = "<h1>Contact</h1><p>Fixed hint</p>\n";
+  return { ...routed, plan };
+}
+const spentTurns = (f, plan) =>
+  readdirSync(f.state).filter(
+    (name) =>
+      name.startsWith(`routed-turns-${plan.runId}-`) &&
+      name.endsWith(".consumed"),
+  ).length;
+
+test("a routed repair turn gets the coding turn's files, route and pins, and nothing more", async (t) => {
+  const { f, launches, sessions, plan } = await routedRepairFixture(t);
+  assert.equal(spentTurns(f, plan), 1);
+  const repaired = await f.controller.repairFeature(f.delivery.id);
+  assert.equal(repaired.repair.attempts.length, 1);
+  assert.equal(repaired.repair.attempts[0].outcome, "passed");
+  assert.equal(repaired.feature.candidate.validation, "passed");
+  assert.equal(repaired.blocker.code, "DELIVERY_NOT_ENABLED");
+  assert.equal(launches.length, 2);
+  const [coding, repair] = launches.map((l) => l.request);
+  assert.deepEqual(Object.keys(repair).sort(), Object.keys(coding).sort());
+  assert.deepEqual(repair.argv.slice(0, -1), coding.argv.slice(0, -1));
+  assert.deepEqual(
+    repair.files.map((file) => file.path),
+    coding.files.map((file) => file.path),
+  );
+  assert.deepEqual(repair.pins, coding.pins);
+  assert.equal(repair.branch, coding.branch);
+  assert.deepEqual(repair.route, coding.route);
+  assert.ok(repair.route);
+  // A repair starts a fresh session; it never resumes the coding thread.
+  assert.equal(repair.intent, "start");
+  assert.equal(sessions.length, 2);
+  assert.deepEqual(
+    sessions[1].turn.decisionSha256,
+    sessions[0].turn.decisionSha256,
+  );
+  assert.equal(spentTurns(f, plan), 2);
+});
+
+test("a routed repair without an approved turn left refuses before it records anything", async (t) => {
+  const { f, launches, plan } = await routedRepairFixture(t);
+  await f.controller.repairFeature(f.delivery.id);
+  assert.equal(spentTurns(f, plan), 2);
+  const before = f.controller.status(f.delivery.id);
+  await assert.rejects(
+    f.controller.repairFeature(f.delivery.id, ["Another finding"]),
+    /approved turns are spent/,
+  );
+  // Usage is not read, and the delivery is not re-qualified on the VM.
+  assert.deepEqual(f.controller.status(f.delivery.id), before);
+  assert.equal(launches.length, 2);
+  assert.equal(spentTurns(f, plan), 2);
 });
