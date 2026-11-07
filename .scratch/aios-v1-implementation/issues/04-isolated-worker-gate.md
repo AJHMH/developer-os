@@ -1218,3 +1218,15 @@ named as a finding. From the CLI it now always refuses, until slice 1 of the
 [plan](../plan-04-native-coding-integration.md) installs the runtimes. That
 slice must also stop `executeFeature`'s own refusals spending a cycle. Nothing
 is checked off. Production remains disabled.
+
+## 6 November: Windows coding re-pin and container cleanup
+
+On Windows, from `main` at `03f2903`, the owner re-pinned the coding
+admission record from `5345ab2b…` to `89f2db60…`; the validation record was
+already current. The census found 12 stopped coding containers, none with a
+pending recovery route. The sweep removed 4 abandoned sessions, and a
+one-off, owner-run script removed the 10 exited containers whose records
+carried older pins, keeping every folder and record. The VM now has no
+coding containers. The coding acceptances haven't been rerun under the new
+pin. No inference and no usage. Production remains disabled. See the
+[Windows cleanup receipt](../ticket04-windows-container-cleanup-receipt.md).
