@@ -336,6 +336,8 @@ export interface Delivery {
   }[];
 }
 
+const usageAuthorityRequired =
+  "Fresh model-only subscription usage authority is required before coding; exhaustion cannot be overridden.";
 const restartRequired =
   "Coding was interrupted by usage; record the owner's restart approval before re-dispatch.";
 
@@ -366,6 +368,11 @@ function recordInterruption(
 
 /** Before any candidate or repair exists, coding may follow a moved main;
  * an admitted candidate refreshes its base through repair instead. */
+/** What coding's checks established, for the turn that follows them. */
+type CodingPreflight = Awaited<
+  ReturnType<DeliveryController["codingPreflight"]>
+>;
+
 function mayMoveBase(delivery: Delivery, repairId?: string): boolean {
   return !delivery.feature?.candidate && !delivery.repair && !repairId;
 }
@@ -2383,6 +2390,19 @@ export class DeliveryController {
     ]);
     const input = validationCandidate(feature, this.stateDirectory);
     const attemptId = randomUUID();
+    // Coding's own refusals come before the attempt too. A base refresh
+    // changes the feature's revision inside the attempt, so its coding checks
+    // still run there.
+    const budget = snapshot.repair,
+      exhausted =
+        budget &&
+        (budget.activeMs >= budget.allowanceMs ||
+          budget.attempts.length >= budget.allowanceCycles);
+    // An exhausted allowance is reported below without coding's checks.
+    const preflight =
+      baseRefresh || exhausted
+        ? undefined
+        : await this.codingPreflight(id, {}, attemptId);
     const prepared = this.change(id, (d) => {
       if (
         d.phase !== snapshot.phase ||
@@ -2453,7 +2473,7 @@ export class DeliveryController {
             throw Error("Advanced baseline failed");
         }
       }
-      const coded = await this.executeFeature(id, {}, attemptId);
+      const coded = await this.executeFeature(id, {}, attemptId, preflight);
       if (
         coded.feature?.outcome === "admitted" &&
         coded.feature.session?.state === "stopped" &&
@@ -2559,11 +2579,14 @@ export class DeliveryController {
     return this.executeFeature(id, options);
   }
 
-  private async executeFeature(
+  /** Coding's checks before it records a session. They record only a usage
+   * observation and, for a mediated delivery, a re-qualification. A repair
+   * runs them before it records an attempt, so a refusal spends no cycle. */
+  private async codingPreflight(
     id: string,
-    options: { codingMinutes?: number } = {},
+    options: { codingMinutes?: number },
     repairId?: string,
-  ): Promise<Delivery> {
+  ) {
     const runtime = this.coordination.featureRuntime,
       agent = runtime?.agent ?? codexAgent,
       snapshot = this.status(id),
@@ -2731,11 +2754,56 @@ export class DeliveryController {
       );
     // A mediated turn is routed when a general session can be opened for it
     // (decision E); the host records the route each session runs under.
+    // A repair refuses unusable usage here, before its attempt is recorded;
+    // the binding below refuses the same way. Coding itself first records an
+    // exhausted allowance, so it is left to the binding.
+    if (repairId && !this.usageGate.permits(usage))
+      throw new DeliveryError(usageAuthorityRequired);
     const decisionSha256 = mediation && sha256(JSON.stringify(mediation));
     const route: SessionRoute | undefined =
       decisionSha256 && this.coordination.generalSessions
         ? { deliveryId: id, decisionSha256 }
         : undefined;
+    return {
+      runtime,
+      agent,
+      snapshot,
+      feature,
+      source,
+      mayMove,
+      input,
+      minutes,
+      validationRuntime,
+      usage,
+      account,
+      mediation,
+      decisionSha256,
+      route,
+    };
+  }
+
+  private async executeFeature(
+    id: string,
+    options: { codingMinutes?: number } = {},
+    repairId?: string,
+    preflight?: CodingPreflight,
+  ): Promise<Delivery> {
+    const {
+      runtime,
+      agent,
+      snapshot,
+      feature,
+      source,
+      mayMove,
+      input,
+      minutes,
+      validationRuntime,
+      usage,
+      account,
+      mediation,
+      decisionSha256,
+      route,
+    } = preflight ?? (await this.codingPreflight(id, options, repairId));
     const prepared = this.change(id, (delivery) => {
       if (
         delivery.ownership.fence !== snapshot.ownership.fence ||
@@ -2835,10 +2903,7 @@ export class DeliveryController {
       const bound =
         delivery.usage?.checkId === usage.checkId &&
         this.usageGate.bind(delivery.usage, f.session.operationId);
-      if (!bound)
-        throw new DeliveryError(
-          "Fresh model-only subscription usage authority is required before coding; exhaustion cannot be overridden.",
-        );
+      if (!bound) throw new DeliveryError(usageAuthorityRequired);
       delivery.usage = bound;
       // Bind the owner's restart approval to this re-dispatch; reaching
       // dispatch spends it, so a refusal before then leaves it usable.
@@ -2862,6 +2927,9 @@ export class DeliveryController {
       delivery.phase = "implementing";
     });
     if (prepared.feature!.outcome === "exhausted") return prepared;
+    // The running repair attempt, read after it was checked as active: a
+    // repair's preflight ran before the attempt was recorded.
+    const attempt = repairId ? prepared.repair!.attempts.at(-1)! : undefined;
     const session = structuredClone(prepared.feature!.session!),
       pins = JSON.stringify(runtime.pins),
       clock = this.coordination.clock ?? Date.now;
@@ -2935,9 +3003,7 @@ export class DeliveryController {
       clarifications: feature.clarifications ?? [],
       // A resumed conversation is told its workspace now starts from a new main.
       ...(session.baseMove ? { baseMove: session.baseMove } : {}),
-      ...(repairId
-        ? { repairFindings: snapshot.repair!.attempts.at(-1)!.findings }
-        : {}),
+      ...(repairId ? { repairFindings: attempt!.findings } : {}),
     });
     let gateway: SessionGateway | undefined,
       revoked = false;
@@ -3100,15 +3166,14 @@ export class DeliveryController {
             },
             argv,
             files: input.files,
-            ...(repairId && snapshot.repair?.attempts.at(-1)?.baseRefresh
+            ...(attempt?.baseRefresh
               ? {
                   baseRefresh: {
                     from: {
-                      revision:
-                        snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
+                      revision: attempt.baseRefresh.from,
                       files: candidateRevisionFiles(
                         snapshot.repository,
-                        snapshot.repair.attempts.at(-1)!.baseRefresh!.from,
+                        attempt.baseRefresh.from,
                       ),
                     },
                     to: { revision: source.revision, files: source.files },
