@@ -1209,3 +1209,12 @@ for. One finding needs fixing in its first slice: `repair-feature` from the
 CLI, which installs no coding runtime, records a failed repair attempt
 instead of refusing, so it spends a cycle. Nothing is checked off. Docs only.
 Production remains disabled.
+
+## 6 November: `repair-feature` no longer spends a cycle without a runtime
+
+PR 207 makes `repair-feature` refuse before it records an attempt when the
+controlled coding or validation runtime is missing, which the previous comment
+named as a finding. From the CLI it now always refuses, until slice 1 of the
+[plan](../plan-04-native-coding-integration.md) installs the runtimes. That
+slice must also stop `executeFeature`'s own refusals spending a cycle. Nothing
+is checked off. Production remains disabled.

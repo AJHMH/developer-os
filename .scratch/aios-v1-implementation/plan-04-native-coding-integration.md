@@ -1,7 +1,8 @@
 # Plan: Issue 04, integrating the general coding transport
 
 Status: **proposed; it waits for the owner's decisions D1 to D4 below.**
-Date: 6 November 2026. Measured at `main` `03f2903`.
+Date: 6 November 2026. Measured at `main` `03f2903`; the repair refusal in item
+3 and slice 1 was updated after PR 207 merged, at `884d71b`.
 
 ## What it covers
 
@@ -46,11 +47,14 @@ Still refused, each for a different reason:
    admitted candidate whose candidate validation stopped, and no publication.
    An offline turn never admits a candidate, so natively this is reached only
    after a routed turn has admitted one and `validate-candidate` has run on
-   it. Today that path doesn't refuse cleanly: `repairCandidate` records the
-   repair attempt first, then calls `executeFeature`, which throws for the
-   missing runtime. Its `catch` passes the throw to `finishRepair` as a
-   failure. That uses up a repair cycle, and it sets the candidate's
-   validation back to `not-run`.
+   it. Since PR 207, `repairCandidate` refuses without a controlled coding or
+   validation runtime before it records an attempt, so from the CLI the command
+   refuses, spends no cycle and leaves the candidate's validation unchanged.
+   `executeFeature`'s own refusals still come after the attempt is recorded,
+   such as changed onboarding authority or a moved `main`. Its `catch` passes
+   them to `finishRepair` as a failure, which uses up a cycle and sets the
+   validation back to `not-run`. The CLI can't reach them while it installs no
+   runtimes, but it will once slice 1 installs them.
 4. **Production mode, which includes production resume.** The controller
    admits only `runtime.mode === "controlled"` (`executeFeature` in
    `src/controller.ts`), and `PinnedCodingRuntime.mode` is fixed at
@@ -107,9 +111,10 @@ Still refused, each for a different reason:
 
 1. **CLI repair on the native runtimes.** No guest or pin change. Tests,
    written first:
-   - without a coding runtime, `repair-feature` refuses before it records a
-     repair attempt, so no cycle is spent and the candidate's validation is
-     unchanged. This fixes the stranding described above whatever D2 decides;
+   - with the runtimes installed, a refusal from `executeFeature`'s own checks,
+     such as changed onboarding authority or a moved `main`, spends no cycle
+     and leaves the candidate's validation unchanged. PR 207 already covers a
+     missing runtime;
    - `repair-feature` takes `code-feature`'s options: the validation options,
      `--coding-admission`, `--codex-executable` and, if D2 allows, the routed
      options with their one-shot approval. The option rules match
