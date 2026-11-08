@@ -815,6 +815,7 @@ function codingLaunchBinding(request: CodingRequest): string {
 export class PinnedCodingRuntime implements FeatureRuntime {
   readonly mode = "controlled" as const;
   readonly pins: CodingPins;
+  private readonly pinFields: readonly (keyof CodingPins)[];
   constructor(
     pins: CodingPins,
     private readonly transport: IsolatedCodingTransport,
@@ -822,7 +823,15 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     readonly agent: CodingAgent = codexAgent,
   ) {
     this.pins = Object.freeze(structuredClone(pins));
-    if (!validCodingPins(pins) || !this.admitted())
+    // Claude Code's pins have no code-mode host (ADR 0008); Codex's must.
+    const claude = agent.provider === "claude";
+    this.pinFields = claude ? claudeCodingPinFields : codingPinFields;
+    if (
+      !(claude
+        ? validClaudeCodingPins(pins) && !("codeModeHostSha256" in pins)
+        : validCodingPins(pins)) ||
+      !this.admitted()
+    )
       throw Error("Unqualified coding transport");
   }
   /** The transport is controlled, or the owner record still names these pins. */
@@ -831,7 +840,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     if (this.transport.mode !== "live" || !this.admission) return false;
     try {
       const admitted = this.admission.pins(maxAgeMs);
-      return codingPinFields.every(
+      return this.pinFields.every(
         (field) => admitted[field] === this.pins[field],
       );
     } catch {

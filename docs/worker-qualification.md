@@ -193,6 +193,53 @@ From a clean, built checkout with the VM running:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
+### Qualifying the Claude Code worker
+
+The coding record's `scope` chooses the coding worker. A record with scope
+`aios-claude-coding-admission-v1` qualifies the Claude Code guest, and any
+other record qualifies Codex. The report's `codingAgent` says which ran.
+
+The Claude Code worker's live session is routed, because Claude Code reaches a
+model only through the session relay:
+
+- The relay leads to a real `MessagesGateway` on the host, under a fresh
+  delivery, relay capability and synthetic key for each run.
+- The gateway's provider is a stand-in. It sends no network request. It holds
+  each request until the probe is done, then answers with nothing.
+- Its budget is a counter, never the owner's spend budget. The report keeps
+  only the counts, in `coding.routedRequests`.
+- The probe therefore checks the routed controls: exactly the relay listening,
+  the relay's empty 403, and `ANTHROPIC_AUTH_TOKEN` present.
+
+Pin changes are checked over the Claude Code pins: `cliVersion`, `cliSha256`,
+`policySha256` and `bindingSha256`.
+
+For a first run, provision the CLI as in
+[Provisioning the Claude Code CLI](#provisioning-the-claude-code-cli). Then
+write a Claude Code record whose pins don't match yet:
+
+```json
+{
+  "scope": "aios-claude-coding-admission-v1",
+  "approvedAt": "2026-11-08T00:00:00.000Z",
+  "pins": {
+    "cliVersion": "0.0.0",
+    "cliSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "policySha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bindingSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}
+```
+
+Save it as `~/.developer-os/admission/claude-coding-admission.json`, private
+to you. A run with it blocks at `owner-records-name-fresh-pins` and prints
+`freshPins.coding`. Once you've judged those pins, copy them into the record,
+then run again:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+```
+
 ## Limits
 
 These are not covered here:
