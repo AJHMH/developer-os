@@ -17,6 +17,22 @@ unless noted.
 The pinned `codex` hash is `nativeCodexSha256` in `src/host-target.ts`. A
 usage read through any other `codex`, such as the Codex app's, is refused.
 
+## Anthropic API key
+
+Metered model access (ADR 0006) reads the owner's Anthropic API key from the
+macOS Keychain, never from a file or the environment. Prepare the host
+registration first (`prepare-auth`), then paste the key at the hidden prompt:
+
+```bash
+node dist/cli.js store-anthropic-key --auth-directory "${AUTH_DIR:?}"
+```
+
+One free request (listing a single model) verifies the key and names its
+organization before anything is stored. Only the account record
+`anthropic-account.json` (organization, key fingerprint, host) is written to
+the auth directory. Add `--replace` to store a new key. Replacing a key leaves
+the old one in the Keychain, unused. Revoke it in the Anthropic Console.
+
 ## Admitted guest programs
 
 Each owner admission record pins its guest program's digest as
