@@ -16,6 +16,7 @@ import {
 } from "./branch-cleanup.js";
 import {
   admitRequest,
+  chargeReservation,
   chargeResponse,
   dollarsToPicodollars,
   extendBudget,
@@ -3539,6 +3540,16 @@ export class DeliveryController {
       charged = chargeResponse(this.ledgerOf(d), operationId, usage);
     });
     return charged!;
+  }
+
+  /** Charges an admitted request's whole reservation when its usage could
+   * not be verified. */
+  chargeModelReservation(id: string, operationId: string): { cost: number } {
+    let cost = 0;
+    this.change(id, (d) => {
+      cost = chargeReservation(this.ledgerOf(d), operationId).cost;
+    });
+    return { cost };
   }
 
   /** Releases an admitted request that never reached the provider. */
