@@ -224,7 +224,13 @@ test("a routed Claude Code session runs Claude's own boundary probe, in routed m
   const m = messagesGateway();
   const request = await routed(transport);
   const running = transport.run(request, () => {}, m.gateway);
-  for (let i = 0; i < 400 && !read().container?.State.Running; i++)
+  // Probe only once the launch has run, as the Codex guest's routed probe
+  // does, so the launch's own simulator state never overwrites the probe's.
+  for (
+    let i = 0;
+    i < 400 && !read().commands?.some((a) => a.at(-1) === "/tmp/launch");
+    i++
+  )
     await new Promise((resolve) => setTimeout(resolve, 5));
   const probed = await transport.probeBoundary(session, "index.html");
   assert.deepEqual(
@@ -256,7 +262,13 @@ test("Codex's probe verdicts are never a Claude Code result", async (t) => {
   const m = messagesGateway();
   const request = await routed(transport);
   const running = transport.run(request, () => {}, m.gateway);
-  for (let i = 0; i < 400 && !read().container?.State.Running; i++)
+  // Probe only once the launch has run, as the Codex guest's routed probe
+  // does, so the launch's own simulator state never overwrites the probe's.
+  for (
+    let i = 0;
+    i < 400 && !read().commands?.some((a) => a.at(-1) === "/tmp/launch");
+    i++
+  )
     await new Promise((resolve) => setTimeout(resolve, 5));
   await assert.rejects(transport.probeBoundary(session, "index.html"));
   realWriteFileSync(`${root}/codex-exit`, "");
