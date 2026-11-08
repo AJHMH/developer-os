@@ -115,7 +115,8 @@ _Avoid_: Repair budget
 ## Runtime evidence terms
 
 **Vault credential account**: The identity of the Anthropic API key the
-delivery controller holds (organization, workspace and key). Gateways and
+delivery controller holds (its organization, the key's fingerprint and the
+owner host). Gateways and
 evidence name it; the key itself never leaves the host.
 
 **Budget interruption**: A coding turn stopped because its delivery's spend

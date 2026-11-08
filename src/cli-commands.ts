@@ -4,6 +4,7 @@ export const cliOptions = {
   "owner-policy": { type: "string" },
   "codex-executable": { type: "string" },
   adversarial: { type: "boolean" },
+  replace: { type: "boolean" },
   "auth-directory": { type: "string" },
   "auth-account": { type: "string" },
   "approve-run": { type: "string" },
@@ -29,8 +30,10 @@ export const cliOptions = {
 } as const;
 export type CliOptionName = keyof typeof cliOptions;
 export type CliValues = {
-  [Name in Exclude<CliOptionName, "adversarial">]?: string | undefined;
-} & { adversarial?: boolean | undefined };
+  [Name in Exclude<CliOptionName, "adversarial" | "replace">]?:
+    | string
+    | undefined;
+} & { adversarial?: boolean | undefined; replace?: boolean | undefined };
 type Runtime = "native" | "synthetic" | "controls" | "subscription";
 export interface CliCommand {
   kind: "delivery" | "auth" | "pin" | "approval";
@@ -41,7 +44,7 @@ export interface CliCommand {
     controller: DeliveryController,
     values: CliValues,
   ) => unknown | Promise<unknown>;
-  authAction?: "prepare" | "authorize" | "status";
+  authAction?: "prepare" | "authorize" | "status" | "store-anthropic-key";
 }
 type IdAction = {
   [Key in keyof DeliveryController]: DeliveryController[Key] extends (
@@ -132,6 +135,15 @@ const commands: Record<string, CliCommand> = {
     authAction: "authorize",
     required: ["repo", "auth-directory"],
     optional: ["auth-account"],
+    runtimes: [],
+  },
+  // ADR 0006: the owner pastes the key at a hidden prompt; one free request
+  // verifies it before it reaches the Keychain.
+  "store-anthropic-key": {
+    kind: "auth",
+    authAction: "store-anthropic-key",
+    required: ["auth-directory"],
+    optional: ["replace"],
     runtimes: [],
   },
   "auth-status": {
