@@ -167,7 +167,7 @@ for (const [name, arrange] of [
 ])
   test(`a feature branch that ${name} is never moved and nothing is dispatched`, async (t) => {
     const { f, next, requests } = await resumable(t);
-    const branch = "refs/heads/codex/feature-" + f.delivery.id;
+    const branch = "refs/heads/aios/feature-" + f.delivery.id;
     await arrange(f, branch, next);
     const before = f.git("rev-parse", branch),
       dispatched = requests.length,

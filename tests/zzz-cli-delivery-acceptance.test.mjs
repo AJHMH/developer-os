@@ -161,7 +161,7 @@ function simulatedCli(faults = {}) {
       return ok(delivery);
     },
     "code-feature"() {
-      const branch = `codex/feature-${delivery.id}`;
+      const branch = `aios/feature-${delivery.id}`;
       spawnSync("git", ["-C", repository, "branch", branch, "main"]);
       Object.assign(delivery.feature, {
         outcome: "failed",
@@ -214,7 +214,7 @@ test("the CLI acceptance passes on an offline turn that stops exactly, with each
     threadStarted: true,
     routed: false,
     candidate: false,
-    branch: `codex/feature-${report.deliveryId}`,
+    branch: `aios/feature-${report.deliveryId}`,
     blocker: "DELIVERY_NOT_ENABLED",
   });
   assert.match(report.candidateRefusal, /admitted candidate/);

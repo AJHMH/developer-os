@@ -252,8 +252,11 @@ export interface ModelRoute {
   decisionSha256: string;
 }
 export {
+  claudeAgent,
   codexAgent,
   codingTurn,
+  featureBranchName,
+  featureBranchPattern,
   lockedCodingArgv,
   modelRoutePort,
   modelRouteVariable,

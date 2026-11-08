@@ -42,6 +42,8 @@ import {
   candidateSource,
   codingBinding,
   codexAgent,
+  featureBranchName,
+  featureBranchPattern,
   advanceFeatureBranch,
   featureBranchAdvance,
   featureBranch,
@@ -1662,7 +1664,7 @@ export class DeliveryController {
       source.revision !== v.sourceRevision ||
       source.revision !== f.sourceRevision ||
       !f.branch ||
-      !/^codex\/feature-[a-f0-9-]+$/.test(f.branch) ||
+      !featureBranchPattern.test(f.branch) ||
       validationDigest(
         validationContract(
           this.onboardingOptions.policyPath,
@@ -2719,7 +2721,7 @@ export class DeliveryController {
       try {
         featureBranchAdvance(
           snapshot.repository,
-          `codex/feature-${id}`,
+          feature.branch ?? featureBranchName(id),
           source.revision,
         );
       } catch {
@@ -2878,7 +2880,7 @@ export class DeliveryController {
         return;
       }
       f.sourceRevision = source.revision;
-      f.branch = `codex/feature-${id}`;
+      f.branch ??= featureBranchName(id);
       f.pins = structuredClone(runtime.pins);
       const prior = f.session;
       // A recovered resume returned the home, so its predecessor resumes again.
