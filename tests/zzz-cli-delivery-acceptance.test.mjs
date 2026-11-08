@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 // ADR 0004 slice 6: the owner-run CLI delivery acceptance, with its VM steps
 // simulated. The name sorts after every other test file, so no other file
 // changes shard.
