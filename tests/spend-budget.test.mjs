@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { DeliveryController } from "../dist/controller.js";
 import {
   admitRequest,
+  chargeReservation,
   chargeResponse,
   dollarsToPicodollars,
   extendBudget,
@@ -337,4 +338,23 @@ test("the CLI starts a delivery with the owner's budget", (t) => {
   );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).initialSpendBudget, 2.5 * dollar);
+});
+
+test("an unverified request is charged its whole reservation", (t) => {
+  const ledger = newSpendLedger(dollar);
+  assert.throws(() => chargeReservation(ledger, "op-1"), /No such admitted/);
+  admitRequest(ledger, "op-1", dollar / 4);
+  assert.deepEqual(chargeReservation(ledger, "op-1"), {
+    cost: dollar / 4,
+    overrun: false,
+  });
+  assert.equal(ledger.spent, dollar / 4);
+  assert.equal(ledger.charges, 1);
+  assert.equal(ledger.reserved, undefined);
+  const f = codingFixture(t);
+  f.controller.admitModelRequest(f.delivery.id, "op-1", dollar);
+  assert.deepEqual(f.controller.chargeModelReservation(f.delivery.id, "op-1"), {
+    cost: dollar,
+  });
+  assert.equal(f.controller.status(f.delivery.id).spend.spent, dollar);
 });

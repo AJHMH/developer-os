@@ -170,6 +170,22 @@ export function chargeResponse(
   return { cost, overrun };
 }
 
+/** Charges the admitted request's whole reservation: the provider may have
+ * billed a request whose usage was never verified, and an unverified request
+ * is never free. */
+export function chargeReservation(
+  ledger: SpendLedger,
+  operationId: string,
+): { cost: number; overrun: false } {
+  if (ledger.reserved?.operationId !== operationId)
+    throw Error("No such admitted model request");
+  const cost = ledger.reserved.amount;
+  ledger.spent += cost;
+  ledger.charges += 1;
+  delete ledger.reserved;
+  return { cost, overrun: false };
+}
+
 /** Releases an admitted request that never reached the provider. */
 export function releaseRequest(ledger: SpendLedger, operationId: string): void {
   if (ledger.reserved?.operationId !== operationId)
