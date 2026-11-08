@@ -33,6 +33,22 @@ organization before anything is stored. Only the account record
 the auth directory. Add `--replace` to store a new key. Replacing a key leaves
 the old one in the Keychain, unused. Revoke it in the Anthropic Console.
 
+## Spend budget
+
+Each delivery's metered model access is bounded by its spend budget (ADR 0008):
+$10 unless `start` names `--budget-dollars` (whole cents up to $1000). Before
+each model request the gateway reserves that request's worst case at the
+pinned model's prices (`claude-opus-5-5`: $4 input, $20 output, $5 or $8
+cache writes, $0.20 cache reads per million tokens). A request that doesn't
+fit is a budget interruption, and the work is kept. Add to the budget to
+continue:
+
+```bash
+node dist/cli.js extend-budget --id "${DELIVERY_ID:?}" --dollars 5
+```
+
+`status` shows the ledger under `spend` (amounts in picodollars).
+
 ## Admitted guest programs
 
 Each owner admission record pins its guest program's digest as

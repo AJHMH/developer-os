@@ -23,6 +23,8 @@ export const cliOptions = {
   request: { type: "string" },
   issue: { type: "string" },
   "coding-minutes": { type: "string" },
+  "budget-dollars": { type: "string" },
+  dollars: { type: "string" },
   minutes: { type: "string" },
   cycles: { type: "string" },
   clarification: { type: "string" },
@@ -96,6 +98,7 @@ const commands: Record<string, CliCommand> = {
     optional: [
       "issue",
       "coding-minutes",
+      "budget-dollars",
       "owner-policy",
       "onboarding-attestation",
     ],
@@ -108,6 +111,9 @@ const commands: Record<string, CliCommand> = {
         ...(v["coding-minutes"] === undefined
           ? {}
           : { codingMinutes: Number(v["coding-minutes"]) }),
+        ...(v["budget-dollars"] === undefined
+          ? {}
+          : { budgetDollars: Number(v["budget-dollars"]) }),
       }),
   },
   status: {
@@ -286,6 +292,14 @@ const commands: Record<string, CliCommand> = {
     runtimes: [],
     invoke: (c, v) => c.extendCoding(v.id!, Number(v.minutes)),
   },
+  // ADR 0008: the owner's budget extension after a budget interruption.
+  "extend-budget": {
+    kind: "delivery",
+    required: ["id", "dollars"],
+    optional: [],
+    runtimes: [],
+    invoke: (c, v) => c.extendBudget(v.id!, Number(v.dollars)),
+  },
   "extend-repair": {
     kind: "delivery",
     required: ["id"],
@@ -403,6 +417,12 @@ export function validateCliCommand(
     (!values["validation-admission"] || !values["podman-machine"])
   )
     return { error: "arguments" };
+  for (const option of ["budget-dollars", "dollars"] as const)
+    if (
+      values[option] !== undefined &&
+      !/^[0-9]{1,4}(\.[0-9]{1,2})?$/.test(values[option]!)
+    )
+      return { error: "arguments" };
   if (
     values["coding-minutes"] !== undefined &&
     (!/^[1-9][0-9]{0,3}$/.test(values["coding-minutes"]) ||
