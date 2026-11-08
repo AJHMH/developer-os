@@ -45,6 +45,8 @@ const allowedFields = new Set([
   "thinking",
   "max_tokens",
   "stream",
+  // Only its effort level (generally available): no output format.
+  "output_config",
   // Admitted only to be removed: it never reaches the provider.
   "metadata",
 ]);
@@ -68,6 +70,7 @@ const messageBlocks = new Set([
   "redacted_thinking",
 ]);
 const toolResultBlocks = new Set(["text", "image"]);
+const systemMessageBlocks = new Set(["text"]);
 
 export interface MessagesGrant {
   readonly deliveryId: string;
@@ -492,6 +495,17 @@ export class MessagesGateway {
       )
         this.refuse("value");
     }
+    if (body.output_config !== undefined) {
+      const output = body.output_config;
+      if (
+        !object(output) ||
+        Object.keys(output).some((k) => k !== "effort") ||
+        !["low", "medium", "high", "xhigh", "max"].includes(
+          String(output.effort),
+        )
+      )
+        this.refuse("value");
+    }
     let longCacheWrites = false;
     const cacheControl = (value: unknown) => {
       if (value === undefined) return;
@@ -583,14 +597,19 @@ export class MessagesGateway {
     for (const message of messages) {
       if (
         !object(message) ||
-        !["user", "assistant"].includes(String(message.role)) ||
+        !["user", "assistant", "system"].includes(String(message.role)) ||
         Object.keys(message).some((k) => !["role", "content"].includes(k))
       )
         this.refuse("request-shape");
       if (text(message.content)) continue;
       if (!Array.isArray(message.content)) this.refuse("request-shape");
+      // Claude Code sends its environment as a system message: text only.
       for (const block of message.content)
-        this.inspectBlock(block, messageBlocks, cache);
+        this.inspectBlock(
+          block,
+          message.role === "system" ? systemMessageBlocks : messageBlocks,
+          cache,
+        );
     }
   }
 
@@ -691,6 +710,9 @@ export function claudeCodeRelayEnvironment(
     ANTHROPIC_CUSTOM_HEADERS: `X-AIOS-Delivery: ${deliveryId}`,
     ANTHROPIC_MODEL: pinnedModelPrices.model,
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+    // Beta-only request fields (context management, thinking display,
+    // deferred tools) need beta headers the gateway never sends.
+    CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: "1",
   };
 }
 

@@ -127,6 +127,24 @@ test("a home or host holding Claude Code settings, memory or extensions fails th
     claude(t, "offline", { managed: true })["claude-config"],
     "failed",
   );
+  // Claude Code's own built-in plugin state is the only thing its plugins
+  // folder may hold.
+  assert.equal(
+    claude(t, "offline", { home: { "plugins/store/builtin.json": "{}" } })[
+      "claude-config"
+    ],
+    "passed",
+  );
+  for (const home of [
+    { plugins: null },
+    { "plugins/store": null, "plugins/cache": null },
+    { "plugins/installed_plugins.json": "{}" },
+  ])
+    assert.equal(
+      claude(t, "offline", { home })["claude-config"],
+      "failed",
+      JSON.stringify(home),
+    );
 });
 
 test("a routed worker holds only the relay capability, and an offline one no Anthropic credential", (t) => {

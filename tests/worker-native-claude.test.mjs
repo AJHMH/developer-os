@@ -202,6 +202,11 @@ test("a resume carries the conversation over and drops what Claude Code regenera
   realWriteFileSync(`${original}/.claude.json`, "{}");
   realMkdirSync(`${original}/shell-snapshots`, { recursive: true });
   realWriteFileSync(`${original}/shell-snapshots/snapshot-bash.sh`, "planted");
+  // Claude Code's own built-in plugin state (plugins/store on the real CLI),
+  // and anything a turn added beside it, never reach the next turn.
+  realMkdirSync(`${original}/plugins/store`, { recursive: true });
+  realWriteFileSync(`${original}/plugins/store/builtin.json`, "{}");
+  realMkdirSync(`${original}/plugins/cache/planted`, { recursive: true });
   const output = [];
   await transport.run(await resume(transport), (bytes) => output.push(bytes));
   assert.equal(events(output)[0].session_id, sessionId);
@@ -217,6 +222,9 @@ test("a resume carries the conversation over and drops what Claude Code regenera
   assert.equal(realReadFileSync(`${resumed}/.claude.json`, "utf8"), "{}");
   assert.throws(() =>
     realReadFileSync(`${resumed}/shell-snapshots/snapshot-bash.sh`),
+  );
+  assert.throws(() =>
+    realReadFileSync(`${resumed}/plugins/store/builtin.json`),
   );
   assert.deepEqual(read().container.Config.Cmd.slice(4), [
     ...claudeCodeArgv(sessionId),

@@ -204,7 +204,15 @@ export function claudeCodeArgv(sessionId: string | undefined): string[] {
 
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
-const claudeSystemSubtypes = new Set(["init", "api_retry", "compact_boundary"]);
+// Claude Code 2.1.311 also reports each tool task's start and end (seen on the
+// real CLI); anything else is refused until it has been seen.
+const claudeSystemSubtypes = new Set([
+  "init",
+  "api_retry",
+  "compact_boundary",
+  "task_started",
+  "task_notification",
+]);
 const claudeResultSubtypes = new Set([
   "success",
   "error_max_turns",

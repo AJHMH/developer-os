@@ -941,9 +941,11 @@ const claudeGuestParts: GuestParts = {
  if not stat.S_ISDIR(s.st_mode): fail()
  directory(path)
  # Claude Code recreates these on every start; a prior turn's copies never
- # carry over. Its shell snapshots are sourced by the next turn's shell.
+ # carry over. Its shell snapshots are sourced by the next turn's shell, and
+ # 'plugins' (its built-in plugins' own state, seen as plugins/store on the
+ # real CLI) could otherwise carry installed plugins into the next turn.
  # Everything else is checked before anything is removed.
- regenerated=['shell-snapshots','tmp','.tmp']
+ regenerated=['shell-snapshots','plugins','tmp','.tmp']
  # Claude Code loads these from CLAUDE_CONFIG_DIR; a prior turn must not
  # configure the next.
  with os.scandir(path) as entries:
@@ -977,14 +979,14 @@ def locked(thread,route):
 def route_env(route):
  return {'ANTHROPIC_BASE_URL':'http://127.0.0.1:${modelRoutePort}','ANTHROPIC_AUTH_TOKEN':route['capability'],'ANTHROPIC_CUSTOM_HEADERS':'X-AIOS-Delivery: '+route['deliveryId'],'ANTHROPIC_MODEL':'${pinnedModelPrices.model}'}
 `,
-  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','HOSTNAME':'aios-coding'}`,
+  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS':'1','HOSTNAME':'aios-coding'}`,
   mounts: String.raw` wanted={'/workspace':(work,True),'/session':(home,True),'/claude':(binary,False)}
  if len(mounts)!=3: fail()`,
   paths: String.raw`binary=operation+'/claude'`,
   // Deliveries begun under Codex keep their codex/feature-<id> branches.
   branch: String.raw`(?:aios|codex)/`,
   hostCopy: "",
-  createEnv: String.raw`'--env','CLAUDE_CONFIG_DIR=/session','--env','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1'`,
+  createEnv: String.raw`'--env','CLAUDE_CONFIG_DIR=/session','--env','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1','--env','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1'`,
   createMounts: String.raw`'--volume',binary+':/claude:ro,Z,rprivate'`,
   copies: "[binary]",
   launchHost: "",

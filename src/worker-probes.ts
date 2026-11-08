@@ -138,7 +138,10 @@ export const codingBoundaryProbe = script([...probes, ...codingProbes]);
 
 /** Claude Code's settings, memory, extensions and tools, as a retained
  * session home (`CLAUDE_CONFIG_DIR`) would carry them, and its managed-settings
- * folder. The Claude guest refuses a resume whose home holds any of these. */
+ * folder. The Claude guest refuses a resume whose home holds any of these.
+ * `plugins` is Claude Code's own: a live session may hold it with `store`, its
+ * built-in plugins' state, as its only entry, and the guest removes it before
+ * every resume. */
 const claudeConfig = [
   "settings.json",
   "settings.local.json",
@@ -149,7 +152,6 @@ const claudeConfig = [
   "commands",
   "skills",
   "hooks",
-  "plugins",
   "output-styles",
   "rules",
   ".mcp.json",
@@ -167,7 +169,7 @@ const claudeProbes = [
   ),
   [
     "claude-config",
-    `for p in ${claudeConfig.join(" ")}; do ! test -e "$HOME/$p" || exit 1; done; ! test -e /etc/claude-code`,
+    `for p in ${claudeConfig.join(" ")}; do ! test -e "$HOME/$p" || exit 1; done; ! test -e /etc/claude-code && { test ! -e "$HOME/plugins" || test "$(ls -A "$HOME/plugins")" = store; }`,
   ],
 ].map(([name, body]) =>
   name === "credential-env"

@@ -289,3 +289,35 @@ test("new feature branches are aios/feature-<id>; Codex-era branches stay valid"
   ])
     assert.equal(featureBranchPattern.test(bad), false, bad);
 });
+
+test("a turn admits each tool task's start and end, as the real CLI reports them", () => {
+  const session = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  const turn = (extra) =>
+    claudeCodeTurn(
+      {
+        exitCode: 0,
+        events: [
+          { type: "system", subtype: "init", session_id: session },
+          ...extra.map((subtype) => ({
+            type: "system",
+            subtype,
+            session_id: session,
+          })),
+          {
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            session_id: session,
+          },
+        ],
+      },
+      session,
+    );
+  assert.deepEqual(turn(["task_started", "task_notification"]), {
+    threadId: session,
+    completed: true,
+  });
+  // Anything not yet seen on the real CLI is still refused.
+  for (const subtype of ["task_progress", "status", "hook_started"])
+    assert.throws(() => turn([subtype]), /Unsupported coding event/, subtype);
+});
