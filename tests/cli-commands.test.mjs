@@ -26,6 +26,8 @@ const sample = (key) =>
     minutes: "1",
     cycles: "1",
     "coding-minutes": "1",
+    dollars: "5",
+    "budget-dollars": "5",
     turns: "1",
     adversarial: true,
   })[key] ?? "fixture";

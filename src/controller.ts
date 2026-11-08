@@ -15,6 +15,17 @@ import {
   type BranchCleanupRuntime,
 } from "./branch-cleanup.js";
 import {
+  admitRequest,
+  chargeResponse,
+  dollarsToPicodollars,
+  extendBudget,
+  newSpendLedger,
+  picodollarsToDollars,
+  releaseRequest,
+  type ModelUsage,
+  type SpendLedger,
+} from "./spend-budget.js";
+import {
   MergeCoordinator,
   mergePending,
   mergeSealed,
@@ -211,6 +222,8 @@ function contains(parent: string, child: string): boolean {
 
 export interface FeatureRequest {
   codingMinutes?: number;
+  /** The delivery's spend budget in dollars (ADR 0008); default $10. */
+  budgetDollars?: number;
   repository: string;
   request: string;
   issue?: string;
@@ -279,6 +292,10 @@ export interface Delivery {
   publication?: PublicationEvidence;
   validation?: ValidationEvidence;
   initialCodingAllowanceMs?: number;
+  /** The owner's spend budget at start, in picodollars, when not the default. */
+  initialSpendBudget?: number;
+  /** Metered model access charged to this delivery (ADR 0008). */
+  spend?: SpendLedger;
   feature?: FeatureEvidence;
   repair?: RepairEvidence;
   id: string;
@@ -490,6 +507,15 @@ export class DeliveryController {
         input.codingMinutes > 1440)
     )
       throw new DeliveryError("Declare 1 to 1440 initial coding minutes.");
+    let initialSpendBudget: number | undefined;
+    if (input.budgetDollars !== undefined)
+      try {
+        initialSpendBudget = dollarsToPicodollars(input.budgetDollars);
+      } catch {
+        throw new DeliveryError(
+          "Declare a spend budget in whole cents from $0.01 to $1000.",
+        );
+      }
     if (
       typeof input.repository !== "string" ||
       !isAbsolute(input.repository) ||
@@ -544,6 +570,7 @@ export class DeliveryController {
       ...(input.codingMinutes !== undefined
         ? { initialCodingAllowanceMs: input.codingMinutes * 60000 }
         : {}),
+      ...(initialSpendBudget !== undefined ? { initialSpendBudget } : {}),
       createdAt: new Date().toISOString(),
       onboarding,
       authorityPolicySha256: onboarding.policy?.sha256 ?? null,
@@ -3466,6 +3493,81 @@ export class DeliveryController {
         };
       else if (needsResumeRecovery(delivery.feature.session!))
         delivery.blocker = this.resumeRecoveryBlocker();
+    });
+  }
+
+  /** The delivery's spend ledger, created at its first use. */
+  private ledgerOf(delivery: Delivery): SpendLedger {
+    return (delivery.spend ??= newSpendLedger(delivery.initialSpendBudget));
+  }
+
+  /** ADR 0008: admits one metered model request whose worst-case `reserve`
+   * (picodollars) fits the remaining budget. A refusal is a budget
+   * interruption and blocks coding until the owner extends the budget. */
+  admitModelRequest(
+    id: string,
+    operationId: string,
+    reserve: number,
+  ): { admitted: boolean; delivery: Delivery } {
+    let admitted = false;
+    const delivery = this.change(id, (d) => {
+      if (!d.ownership.held)
+        throw new DeliveryError(
+          "Only the repository owner delivery may spend its budget.",
+        );
+      const result = admitRequest(this.ledgerOf(d), operationId, reserve);
+      admitted = result.admitted;
+      if (!result.admitted)
+        d.blocker = {
+          code: "DELIVERY_NOT_ENABLED",
+          message: `Budget interruption: the next model request could cost up to ${picodollarsToDollars(result.needed)}, and ${picodollarsToDollars(Math.max(0, result.remaining))} of the spend budget remains. Work is preserved.`,
+          nextAction:
+            "Extend this delivery's spend budget with extend-budget --id ID --dollars N before coding continues.",
+        };
+    });
+    return { admitted, delivery };
+  }
+
+  /** Charges an admitted request's actual cost from the provider's usage. */
+  chargeModelResponse(
+    id: string,
+    operationId: string,
+    usage: ModelUsage,
+  ): { cost: number; overrun: boolean } {
+    let charged: { cost: number; overrun: boolean } | undefined;
+    this.change(id, (d) => {
+      charged = chargeResponse(this.ledgerOf(d), operationId, usage);
+    });
+    return charged!;
+  }
+
+  /** Releases an admitted request that never reached the provider. */
+  releaseModelRequest(id: string, operationId: string): Delivery {
+    return this.change(id, (d) => {
+      releaseRequest(this.ledgerOf(d), operationId);
+    });
+  }
+
+  /** The owner's budget extension: adds whole cents and clears a budget
+   * interruption. */
+  extendBudget(id: string, dollars: number): Delivery {
+    let added: number;
+    try {
+      added = dollarsToPicodollars(dollars);
+    } catch {
+      throw new DeliveryError(
+        "Extend the spend budget by whole cents from $0.01 to $1000.",
+      );
+    }
+    return this.change(id, (d) => {
+      if (!d.ownership.held)
+        throw new DeliveryError(
+          "Only the repository owner delivery may receive a budget extension.",
+        );
+      const ledger = this.ledgerOf(d),
+        interrupted = ledger.interruption !== undefined;
+      extendBudget(ledger, added);
+      if (interrupted) d.blocker = this.disabledBlocker();
     });
   }
 
