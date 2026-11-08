@@ -14,8 +14,14 @@ import {
 } from "../dist/messages-gateway.js";
 import { pinnedModelPrices } from "../dist/spend-budget.js";
 import {
+  claudeCodingBoundaryProbe,
+  claudeCodingBoundaryProbeNames,
+  codingBoundaryProbeNames,
+} from "../dist/worker-probes.js";
+import {
   guestFixture,
   launchRequest,
+  session,
   realReadFileSync,
   realWriteFileSync,
 } from "./helpers/native-coding-fixture.mjs";
@@ -200,6 +206,61 @@ test("a routed Claude Code turn reaches the MessagesGateway through the relay, c
     ...claudeCodeArgv(undefined),
     "Change the title",
   ]);
+});
+
+test("a routed Claude Code session runs Claude's own boundary probe, in routed mode", async (t) => {
+  const passed = (names) =>
+    names.map((name) => `passed-${name}`).join("\n") + "\n";
+  const { transport, read, root } = guestFixture(
+    t,
+    {
+      threadId: sessionId,
+      keepRunning: true,
+      probeOutput: passed(claudeCodingBoundaryProbeNames),
+    },
+    undefined,
+    claudeGuest,
+  );
+  const m = messagesGateway();
+  const request = await routed(transport);
+  const running = transport.run(request, () => {}, m.gateway);
+  for (let i = 0; i < 400 && !read().container?.State.Running; i++)
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  const probed = await transport.probeBoundary(session, "index.html");
+  assert.deepEqual(
+    probed.probes.map((p) => [p.name, p.outcome]),
+    claudeCodingBoundaryProbeNames.map((name) => [name, "passed"]),
+  );
+  const exec = read().commands.find(
+    (args) => args[1] === "exec" && args[3] === "/bin/sh",
+  );
+  assert.equal(exec[5], claudeCodingBoundaryProbe);
+  assert.equal(read().probes[0][2], "routed");
+  realWriteFileSync(`${root}/codex-exit`, "");
+  await running;
+});
+
+test("Codex's probe verdicts are never a Claude Code result", async (t) => {
+  const { transport, read, root } = guestFixture(
+    t,
+    {
+      threadId: sessionId,
+      keepRunning: true,
+      probeOutput:
+        codingBoundaryProbeNames.map((name) => `passed-${name}`).join("\n") +
+        "\n",
+    },
+    undefined,
+    claudeGuest,
+  );
+  const m = messagesGateway();
+  const request = await routed(transport);
+  const running = transport.run(request, () => {}, m.gateway);
+  for (let i = 0; i < 400 && !read().container?.State.Running; i++)
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  await assert.rejects(transport.probeBoundary(session, "index.html"));
+  realWriteFileSync(`${root}/codex-exit`, "");
+  await running;
 });
 
 for (const variable of [

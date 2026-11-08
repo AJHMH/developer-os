@@ -32,6 +32,8 @@ import { claudeCodeArgv, type CodingProvider } from "./coding-agent.js";
 import { gatewayModel } from "./inference-contract.js";
 import {
   boundaryProbeOutcomes,
+  claudeCodingBoundaryProbe,
+  claudeCodingBoundaryProbeNames,
   codingBoundaryProbe,
   codingBoundaryProbeNames,
 } from "./worker-probes.js";
@@ -63,6 +65,7 @@ const digest = (value: string | Buffer) =>
 
 /** The parts of the coding guest program that differ by coding agent. */
 interface GuestParts {
+  probe: string;
   createRouteEnv: string;
   routeEnvCheck: string;
   relaySource: string;
@@ -87,6 +90,7 @@ interface GuestParts {
 /** The coding guest program's Codex parts: its text before Claude Code
  * (ADR 0008), so its digest, and every admission that pins it, is unchanged. */
 const codexGuestParts: GuestParts = {
+  probe: JSON.stringify(codingBoundaryProbe),
   createRouteEnv: String.raw`*(['--env','${modelRouteVariable}='+route['capability']] if route else [])`,
   routeEnvCheck: String.raw`  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
   env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}`,
@@ -182,7 +186,7 @@ import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time,sys,threadi
 
 def fail(): raise RuntimeError('Native coding observation unavailable')
 # The fixed coding boundary probe (src/worker-probes.ts), part of this program's pin.
-PROBE=${JSON.stringify(codingBoundaryProbe)}
+PROBE=${g.probe}
 def h(b): return hashlib.sha256(b).hexdigest()
 def command(args):
  args=[args[0] if args[0].startswith('/') else '/usr/bin/'+args[0],*args[1:]]
@@ -916,6 +920,7 @@ const claudeCli = hostTargets.darwin.claudeCode;
  * paths, to the host's MessagesGateway. Only a summary of its stream leaves
  * the guest. */
 const claudeGuestParts: GuestParts = {
+  probe: JSON.stringify(claudeCodingBoundaryProbe),
   // The route reaches Claude Code only through its environment
   // (claudeCodeRelayEnvironment in src/messages-gateway.ts).
   createRouteEnv: String.raw`*([x for k,v in route_env(route).items() for x in ['--env',k+'='+v]] if route else [])`,
@@ -1046,6 +1051,8 @@ export interface NativeCodingGuest {
   /** The locked argv before the prompt. */
   argv(threadId: string | undefined, route: ModelRoute | undefined): string[];
   readonly branch: RegExp;
+  /** The boundary probe's names, in output order. */
+  readonly probeNames: readonly string[];
 }
 export const codexGuest: NativeCodingGuest = Object.freeze({
   provider: "codex",
@@ -1058,6 +1065,7 @@ export const codexGuest: NativeCodingGuest = Object.freeze({
   }),
   argv: lockedCodingArgv,
   branch: /^codex\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
+  probeNames: codingBoundaryProbeNames,
 });
 /** Claude Code's guest (ADR 0008). A routed turn reaches the host's
  * MessagesGateway through the session relay. */
@@ -1072,6 +1080,7 @@ export const claudeGuest: NativeCodingGuest = Object.freeze({
   // A route reaches Claude Code through its environment, not its argv.
   argv: (threadId: string | undefined) => claudeCodeArgv(threadId),
   branch: /^(?:aios|codex)\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
+  probeNames: claudeCodingBoundaryProbeNames,
 });
 
 /** Native resume names its exact stopped predecessor through
@@ -1572,7 +1581,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     )
       throw Error("Native boundary probe unavailable");
     return {
-      probes: boundaryProbeOutcomes(result.probe, codingBoundaryProbeNames),
+      probes: boundaryProbeOutcomes(result.probe, this.guest.probeNames),
       processes: result.processes as number,
       pins,
     };

@@ -136,6 +136,63 @@ export const codingBoundaryProbeNames: readonly string[] = Object.freeze([
 ]);
 export const codingBoundaryProbe = script([...probes, ...codingProbes]);
 
+/** Claude Code's settings, memory, extensions and tools, as a retained
+ * session home (`CLAUDE_CONFIG_DIR`) would carry them, and its managed-settings
+ * folder. The Claude guest refuses a resume whose home holds any of these. */
+const claudeConfig = [
+  "settings.json",
+  "settings.local.json",
+  "managed-settings.json",
+  "CLAUDE.md",
+  "CLAUDE.local.md",
+  "agents",
+  "commands",
+  "skills",
+  "hooks",
+  "plugins",
+  "output-styles",
+  "rules",
+  ".mcp.json",
+  ".claude",
+  ".env",
+];
+/** Claude Code's probe (ADR 0008): the coding probe with Claude's home, its
+ * credentials and its binary in place of Codex's. A routed worker carries the
+ * relay capability as `ANTHROPIC_AUTH_TOKEN`, and an offline worker has none;
+ * neither ever has an API key or OAuth token. */
+const claudeProbes = [
+  ...probes.filter(
+    ([name]) =>
+      !["codex-skills", "mcp-config", "hooks-rules-agents"].includes(name),
+  ),
+  [
+    "claude-config",
+    `for p in ${claudeConfig.join(" ")}; do ! test -e "$HOME/$p" || exit 1; done; ! test -e /etc/claude-code`,
+  ],
+].map(([name, body]) =>
+  name === "credential-env"
+    ? [
+        name,
+        'test -z "${SSH_AUTH_SOCK+x}${GPG_AGENT_INFO+x}${GITHUB_TOKEN+x}${GH_TOKEN+x}${OPENAI_API_KEY+x}${CODEX_API_KEY+x}${ANTHROPIC_API_KEY+x}${CLAUDE_CODE_OAUTH_TOKEN+x}${AWS_BEARER_TOKEN_BEDROCK+x}" && if test "$mode" = routed; then test -n "${ANTHROPIC_AUTH_TOKEN-}"; else test -z "${ANTHROPIC_AUTH_TOKEN+x}"; fi',
+      ]
+    : [name, body],
+) as readonly (readonly [string, string])[];
+const claudeCodingProbes = codingProbes.map(([name, body]) =>
+  name === "read-only-binaries"
+    ? [
+        name,
+        'for p in /claude; do test -f $p && grep -Eq "^[0-9]+ [0-9]+ [0-9:]+ [^ ]+ $p ro[, ]" /proc/self/mountinfo && ! ( : >> $p ) || exit 1; done',
+      ]
+    : [name, body],
+) as readonly (readonly [string, string])[];
+export const claudeCodingBoundaryProbeNames: readonly string[] = Object.freeze(
+  [...claudeProbes, ...claudeCodingProbes].map(([name]) => name),
+);
+export const claudeCodingBoundaryProbe = script([
+  ...claudeProbes,
+  ...claudeCodingProbes,
+]);
+
 /** Per-probe outcomes from the probe's output, refusing anything else. */
 export function boundaryProbeOutcomes(
   output: string,

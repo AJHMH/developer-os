@@ -121,8 +121,8 @@ guest, which is musl Linux on arm64. The binary links only musl's libc, which
 the Alpine offline template provides. The pin is `claudeCode` in
 `src/host-target.ts`:
 
-| Package                                              | Registry integrity                                                                                  | `claude` SHA-256                                                   |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Package                                              | Registry integrity                                                                                | `claude` SHA-256                                                   |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `@anthropic-ai/claude-code-linux-arm64-musl@2.1.311` | `sha512-ymSGc6vv0QCcVQZCC2JG03P/upLraox+iXAG1DfnUU1OZBCIR9QncxINBEp6QgnKbqywwR2/ic3GD8hAz0Tiow==` | `172150e3f9ea07e8e2e2e29862d7d9a25f5c234d8e909e4063df237665bf09b9` |
 
 The Claude Code guest program (`claudeGuest` in `src/podman-coding.ts`)
@@ -163,6 +163,19 @@ The Claude Code guest differs from the Codex guest in these ways:
   capability and delivery header. The worker gets exactly the route's
   environment (`claudeCodeRelayEnvironment`), which holds no API key; its
   capability is checked by digest. Codex's relay keeps its Responses route.
+- **Boundary probe:** it runs `claudeCodingBoundaryProbe`, which is the coding
+  probe with Claude Code's checks in place of Codex's:
+  - **`claude-config`** replaces `codex-skills`, `mcp-config` and
+    `hooks-rules-agents`. The home must hold none of the names a resume
+    refuses, and `/etc/claude-code`, Claude Code's managed-settings folder,
+    must not exist.
+  - **`credential-env`** also refuses `ANTHROPIC_API_KEY`,
+    `CLAUDE_CODE_OAUTH_TOKEN` and `AWS_BEARER_TOKEN_BEDROCK`.
+    `ANTHROPIC_AUTH_TOKEN`, the relay capability, must be set in a routed
+    worker and absent in an offline one.
+  - **`read-only-binaries`** checks only `/claude`.
+
+  A Codex probe result is never accepted as a Claude Code one.
 
 The Codex guest program is unchanged, so its `policySha256` and the Codex
 admission record that pins it still match.
