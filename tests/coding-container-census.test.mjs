@@ -5,9 +5,6 @@ import os from "node:os";
 import { test } from "node:test";
 import { testPython } from "./helpers/python.mjs";
 
-const posix = {
-  skip: process.platform === "win32" ? "Needs a POSIX fake podman" : false,
-};
 const pins = { policySha256: "a".repeat(64), bindingSha256: "b".repeat(64) };
 
 // The census against a fake engine and guest state, fed on stdin as the owner runs it.
@@ -41,7 +38,7 @@ function census(t, containers, records) {
 const exited = (...names) =>
   names.map((name) => ({ Names: [`aios-coding-${name}`], State: "exited" }));
 
-test("the census counts each kind of session", posix, (t) => {
+test("the census counts each kind of session", (t) => {
   const stopped = { phase: "stopped", admission: {}, pins };
   const resume = { ...stopped, admission: { resumeFrom: {} } };
   const { lines, calls } = census(
@@ -92,6 +89,6 @@ test("the census counts each kind of session", posix, (t) => {
   assert.deepEqual(calls, ["ps -a --filter name=aios-coding- --format json"]);
 });
 
-test("the census reports an empty VM", posix, (t) => {
+test("the census reports an empty VM", (t) => {
   assert.deepEqual(census(t, [], {}).lines.slice(0, 1), ["containers 0"]);
 });

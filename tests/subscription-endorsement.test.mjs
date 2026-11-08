@@ -14,7 +14,6 @@ import {
 import { endorseUsageAccount } from "../dist/subscription-endorsement.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 
 const usageAccount = createHash("sha256")
   .update("owner@example.test")
@@ -46,7 +45,6 @@ async function awaitingEndorsement(t) {
       ...overrides,
     });
   const decision = async () => {
-    ownWindowsFixturePaths([recordPath]);
     return (await f.controller.qualify(f.delivery.id)).qualification
       .subscriptionMediation.mechanismDecision;
   };
@@ -88,21 +86,6 @@ test("a confirmed endorsement binds the observed usage account so the decision q
     { usageAccountId: usageAccount, written: false, alreadyEndorsed: true },
     "re-endorsing the same account changes nothing",
   );
-});
-
-test("on Windows the endorsement rewrites the record in place to keep its owner", async (t) => {
-  const { recordPath, endorse, decision } = await awaitingEndorsement(t);
-  const before = statSync(recordPath).ino;
-  // Linux runs the Windows write path too; the hosted Windows shard runs it
-  // natively.
-  const result = await endorse({
-    confirm: true,
-    expectedUsageAccountId: usageAccount,
-    platform: "win32",
-  });
-  assert.equal(result.written, true);
-  assert.equal(statSync(recordPath).ino, before, "the same file was rewritten");
-  assert.equal((await decision()).usageAccountId, usageAccount);
 });
 
 for (const [name, reason, arrange] of [
@@ -223,24 +206,16 @@ for (const [name, reason, arrange] of [
     );
   });
 
-test(
-  "endorsement refuses a decision record readable by others",
-  {
-    skip:
-      process.platform === "win32" &&
-      "POSIX permission bits; Windows uses owner ACLs",
-  },
-  async (t) => {
-    const e = await awaitingEndorsement(t);
-    chmodSync(e.recordPath, 0o644);
-    const before = readFileSync(e.recordPath);
-    await assert.rejects(
-      e.endorse({ confirm: true, expectedUsageAccountId: usageAccount }),
-      { name: "EndorsementRefusal" },
-    );
-    assert.deepEqual(readFileSync(e.recordPath), before);
-  },
-);
+test("endorsement refuses a decision record readable by others", async (t) => {
+  const e = await awaitingEndorsement(t);
+  chmodSync(e.recordPath, 0o644);
+  const before = readFileSync(e.recordPath);
+  await assert.rejects(
+    e.endorse({ confirm: true, expectedUsageAccountId: usageAccount }),
+    { name: "EndorsementRefusal" },
+  );
+  assert.deepEqual(readFileSync(e.recordPath), before);
+});
 
 test("the endorsement command needs explicit inputs and the previewed account to write", () => {
   const run = (...args) =>

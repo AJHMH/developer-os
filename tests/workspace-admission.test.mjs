@@ -44,15 +44,13 @@ test("admission retains the bounded, digest-pinned ordinary file boundary", (t) 
       repo,
     ),
   );
-  if (process.platform !== "win32") {
-    symlinkSync(join(repo, "file.txt"), join(repo, "symlink"));
-    assert.throws(() =>
-      admitFiles(
-        { files: [{ path: "symlink", sha256: digest("changed") }] },
-        repo,
-      ),
-    );
-    symlinkSync(repo, join(root, "linked-directory"));
-    assert.throws(() => admitFiles(policy, join(root, "linked-directory")));
-  }
+  symlinkSync(join(repo, "file.txt"), join(repo, "symlink"));
+  assert.throws(() =>
+    admitFiles(
+      { files: [{ path: "symlink", sha256: digest("changed") }] },
+      repo,
+    ),
+  );
+  symlinkSync(repo, join(root, "linked-directory"));
+  assert.throws(() => admitFiles(policy, join(root, "linked-directory")));
 });

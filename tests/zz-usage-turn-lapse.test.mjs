@@ -1,7 +1,6 @@
 // Slice 4b lapse revocation of routed turns. Split from
-// zz-usage-coding-session.test.mjs to keep Windows shard 7 under its time
-// limit; the name sorts after every other test file, so no other file
-// changes shard.
+// zz-usage-coding-session.test.mjs; the name sorts after every other test
+// file.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync, statSync, unlinkSync } from "node:fs";
@@ -110,9 +109,7 @@ test("an interrupted turn's workspace is kept as evidence, never as a candidate"
     stopped.evidence.filter((e) => e.kind === "interrupted-turn"),
     [{ kind: "interrupted-turn", path }],
   );
-  // Windows reports no POSIX permission bits (any writable file is 0o666).
-  if (process.platform !== "win32")
-    assert.equal(statSync(path).mode & 0o777, 0o600);
+  assert.equal(statSync(path).mode & 0o777, 0o600);
   assert.deepEqual(
     JSON.parse(readFileSync(path, "utf8")).map((file) => file.path),
     ["index.html"],

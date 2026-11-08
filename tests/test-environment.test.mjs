@@ -5,24 +5,16 @@ import { test } from "node:test";
 import { pinImpactProblems } from "../scripts/check-pin-impact.mjs";
 import { runWatched } from "../scripts/run-tests.mjs";
 
-const posix = {
-  skip: process.platform === "win32" ? "Signals differ on Windows" : false,
-};
-
-test(
-  "the test watchdog stops a silent run that ignores SIGTERM, and fails it",
-  posix,
-  async () => {
-    const started = performance.now();
-    const code = await runWatched(
-      process.execPath,
-      ["-e", 'process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'],
-      300,
-    );
-    assert.equal(code, 1);
-    assert.ok(performance.now() - started < 10000);
-  },
-);
+test("the test watchdog stops a silent run that ignores SIGTERM, and fails it", async () => {
+  const started = performance.now();
+  const code = await runWatched(
+    process.execPath,
+    ["-e", 'process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'],
+    300,
+  );
+  assert.equal(code, 1);
+  assert.ok(performance.now() - started < 10000);
+});
 
 test("the test watchdog leaves a run alone while it has output", async () => {
   const code = await runWatched(

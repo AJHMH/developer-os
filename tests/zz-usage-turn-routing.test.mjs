@@ -1,7 +1,6 @@
 // The mediation account link and routed general sessions (slice 4a). Split
-// from zz-usage-coding-session.test.mjs to keep Windows shard 7 under its
-// time limit; the name sorts after every other test file, so no other file
-// changes shard.
+// from zz-usage-coding-session.test.mjs; the name sorts after every other
+// test file.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { unlinkSync } from "node:fs";

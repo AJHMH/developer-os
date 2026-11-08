@@ -20,7 +20,6 @@ import {
   stageNames,
 } from "../scripts/run-native-cli-delivery-acceptance.mjs";
 import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
-import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const imageSha256 = "a".repeat(64);
 const codingPins = {
@@ -105,50 +104,6 @@ test("the synthetic owner inputs start and plan a delivery through the real CLI"
   assert.equal(refused.status, 1);
 });
 
-test(
-  "a Windows temp folder that grants others access by inheritance is made private before the owner records are written",
-  { skip: process.platform !== "win32" && "Windows ACL inheritance" },
-  async (t) => {
-    // A parent like the owner's TEMP: another account may modify anything
-    // created inside it, by inheritance.
-    const parent = realpathSync(
-      mkdtempSync(join(tmpdir(), "aios-cli-shared-")),
-    );
-    t.after(() => rmSync(parent, { recursive: true, force: true }));
-    const grant = spawnSync(
-      join(process.env.SystemRoot, "System32", "icacls.exe"),
-      [parent, "/grant", "*S-1-5-32-545:(OI)(CI)(M)"],
-      { encoding: "utf8", windowsHide: true },
-    );
-    assert.equal(grant.status, 0, grant.stderr);
-    const ready = async (root) => {
-      const inputs = ownerInputs(
-        root,
-        offlineValidationEnvironment(imageSha256),
-      );
-      const result = await cliRunner(join(root, "state"))([
-        "start",
-        "--repo",
-        inputs.repository,
-        "--request",
-        request,
-        "--owner-policy",
-        inputs.policyPath,
-        "--onboarding-attestation",
-        inputs.attestationPath,
-      ]);
-      // A refused record either fails `start` or leaves onboarding unready.
-      return result.status === 0 && JSON.parse(result.stdout).onboarding.ready;
-    };
-    // Without the lockdown the CLI refuses the records, as on the owner's host.
-    assert.equal(
-      await ready(realpathSync(mkdtempSync(join(parent, "inherited-")))),
-      false,
-    );
-    assert.equal(await ready(await privateRoot("private-", parent)), true);
-  },
-);
-
 /** A CLI whose VM steps are simulated; `faults` changes what they report. */
 function simulatedCli(faults = {}) {
   const calls = [];
@@ -158,7 +113,7 @@ function simulatedCli(faults = {}) {
     stdout: JSON.stringify(value),
     stderr: "",
   });
-  // As on Windows, Node warns on stderr before and after the CLI's refusal.
+  // Node may warn on stderr before and after the CLI's refusal.
   const refuse = (error) => ({
     status: 1,
     stdout: "",
@@ -387,29 +342,25 @@ test("a refused session cleanup blocks the CLI acceptance at its own stage", asy
   assert.equal(report.stages.at(-1).outcome, "blocked");
 });
 
-test(
-  "a passing CLI acceptance leaves no coding session in the guest",
-  posixGuest,
-  async (t) => {
-    const guest = guestBackedSessions(t);
-    const simulated = simulatedCli();
-    const report = await cliDeliveryAcceptance({
-      // Each code-feature process leaves its session in the VM.
-      cli: async (args) => {
-        const result = await simulated.cli(args);
-        if (args[0] === "code-feature") {
-          const { operationId, fence, intent, threadId } = JSON.parse(
-            result.stdout,
-          ).feature.session;
-          await guest.mirror({ operationId, fence, intent }, threadId);
-        }
-        return result;
-      },
-      ...host,
-      cleanupCodingSession: (session) => guest.clean(session),
-    });
-    assert.equal(report.outcome, passingOutcome, report.error);
-    assert.equal(guest.launched(), 1);
-    assert.deepEqual(guest.left(), { containers: [], folders: [] });
-  },
-);
+test("a passing CLI acceptance leaves no coding session in the guest", async (t) => {
+  const guest = guestBackedSessions(t);
+  const simulated = simulatedCli();
+  const report = await cliDeliveryAcceptance({
+    // Each code-feature process leaves its session in the VM.
+    cli: async (args) => {
+      const result = await simulated.cli(args);
+      if (args[0] === "code-feature") {
+        const { operationId, fence, intent, threadId } = JSON.parse(
+          result.stdout,
+        ).feature.session;
+        await guest.mirror({ operationId, fence, intent }, threadId);
+      }
+      return result;
+    },
+    ...host,
+    cleanupCodingSession: (session) => guest.clean(session),
+  });
+  assert.equal(report.outcome, passingOutcome, report.error);
+  assert.equal(guest.launched(), 1);
+  assert.deepEqual(guest.left(), { containers: [], folders: [] });
+});

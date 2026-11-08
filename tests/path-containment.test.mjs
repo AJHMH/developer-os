@@ -10,13 +10,3 @@ test("containment is inclusive, absolute, and rejects siblings and traversal", (
   assert.equal(pathContains(root, root + sep + ".." + sep + "escape"), false);
   assert.equal(pathContains("relative", "relative/child"), false);
 });
-test("Windows containment follows drive, separator and case semantics", () => {
-  assert.equal(pathContains("C:\\Repo", "c:\\repo\\child", "win32"), true);
-  assert.equal(pathContains("C:\\Repo", "D:\\Repo\\child", "win32"), false);
-  assert.equal(pathContains("C:\\Repo", "C:\\Repo2", "win32"), false);
-  assert.equal(
-    pathContains("C:\\Repo", "C:\\Repo\\..\\escape", "win32"),
-    false,
-  );
-  assert.equal(pathContains("C:\\", "C:\\Repo", "win32"), true);
-});

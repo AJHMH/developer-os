@@ -13,7 +13,6 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import {
   cliCommands,
   cliOptions,
@@ -186,7 +185,6 @@ test("repair-feature with an invalid coding or validation record refuses before 
     { mode: 0o600 },
   );
   writeFileSync(invalid, JSON.stringify({ scope: "unknown" }), { mode: 0o600 });
-  ownWindowsFixturePaths([owner, coding, invalid]);
   const state = join(owner, "state");
   for (const [records, refusal] of [
     [
@@ -323,7 +321,6 @@ test("a valid owner validation admission installs the native runtime without any
     }),
     { mode: 0o600 },
   );
-  ownWindowsFixturePaths([state, record]);
   const result = spawnSync(
     process.execPath,
     [
@@ -568,7 +565,6 @@ for (const command of ["code-feature", "repair-feature"])
       }),
       { mode: 0o600 },
     );
-    ownWindowsFixturePaths([state, coding, validation]);
     const cli = (...args) =>
       spawnSync(
         process.execPath,

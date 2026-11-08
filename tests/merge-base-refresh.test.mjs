@@ -23,7 +23,7 @@ async function advanced(t) {
     "main advances",
   );
   const next = f.git("rev-parse", "HEAD");
-  // Exercise Windows-style Git defaults on every host.
+  // Exercise CRLF-converting Git defaults on every host.
   f.git("config", "core.autocrlf", "true");
   // Restore local main so the remote change is detected at the merge boundary.
   // Keep checkout bytes identical to the LF bytes admitted by the fixture.

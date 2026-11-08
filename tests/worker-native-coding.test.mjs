@@ -23,7 +23,6 @@ import {
   observation,
   launchRequest,
   guestFixture,
-  posixGuest,
   sessionGateway,
   assertHostChangesMoveBinding,
 } from "./helpers/native-coding-fixture.mjs";
@@ -67,78 +66,64 @@ import { EventEmitter } from "node:events";
 import { Writable } from "node:stream";
 import { resolve } from "node:path";
 
-test("native inspection independently binds each supported host and the guest executable", async (t) => {
-  for (const platform of ["darwin", "win32"])
-    await t.test(platform, async (t) => {
-      const fixture = nativeHost(
-        t,
-        (request) => ({
-          session: request.session,
-          binding: observation,
-          cliSha256: request.cliSha256,
-        }),
-        platform,
-      );
-      const transport = new NativePodmanCodingTransport(
-        "aios-test",
-        "a".repeat(64),
-      );
-      const first = await transport.inspect(session);
-      assert.equal(first.cliVersion, "0.161.0");
-      assert.match(first.cliSha256, /^[a-f0-9]{64}$/);
-      assert.equal(
-        first.codeModeHostSha256,
-        hostTargets[platform].codeModeHostSha256,
-      );
-      assert.match(first.policySha256, /^[a-f0-9]{64}$/);
-      assert.match(first.bindingSha256, /^[a-f0-9]{64}$/);
-      assert.equal(fixture.requests[0].action, "inspect");
-      const second = await transport.inspect(session);
-      assert.deepEqual(first, second);
-    });
+test("native inspection binds the Mac host and the guest executable", async (t) => {
+  const fixture = nativeHost(t, (request) => ({
+    session: request.session,
+    binding: observation,
+    cliSha256: request.cliSha256,
+  }));
+  const transport = new NativePodmanCodingTransport(
+    "aios-test",
+    "a".repeat(64),
+  );
+  const first = await transport.inspect(session);
+  assert.equal(first.cliVersion, "0.161.0");
+  assert.match(first.cliSha256, /^[a-f0-9]{64}$/);
+  assert.equal(first.codeModeHostSha256, hostTargets.darwin.codeModeHostSha256);
+  assert.match(first.policySha256, /^[a-f0-9]{64}$/);
+  assert.match(first.bindingSha256, /^[a-f0-9]{64}$/);
+  assert.equal(fixture.requests[0].action, "inspect");
+  const second = await transport.inspect(session);
+  assert.deepEqual(first, second);
 });
 
-test(
-  "the native coding binding names the VM by its machine ID and survives a restart",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write, machineConfig } = guestFixture(t);
-    machineConfig.LastUp = "2026-10-23T09:14:51.505287-05:00";
-    const first = await transport.inspect(session);
-    // Apple's hypervisor gives the VM a new hardware UUID on every boot, and
-    // Podman stamps each start in the machine's configuration.
-    write({ ...read(), productUuid: "restarted-vm-uuid" });
-    machineConfig.LastUp = "2026-10-23T09:26:15.056198-05:00";
-    assert.deepEqual(await transport.inspect(session), first);
-    // Any other configuration change still needs a new record.
-    machineConfig.Resources = { USBs: [], CPUs: 4 };
-    assert.notEqual(
-      (await transport.inspect(session)).bindingSha256,
-      first.bindingSha256,
-    );
-    delete machineConfig.Resources;
-    // So does upgrading Podman or the host's operating system.
-    await assertHostChangesMoveBinding(
-      () => transport.inspect(session),
-      first.bindingSha256,
-    );
-    assert.deepEqual(await transport.inspect(session), first);
-    // A recreated VM gets a new machine ID, so it needs a new record.
-    write({ ...read(), machineId: "f".repeat(32) });
-    const recreated = await transport.inspect(session);
-    assert.notEqual(recreated.bindingSha256, first.bindingSha256);
-    assert.equal(recreated.policySha256, first.policySha256);
-    for (const machineId of [
-      "",
-      "F".repeat(32),
-      "0".repeat(31),
-      "0".repeat(33),
-    ]) {
-      write({ ...read(), machineId });
-      await assert.rejects(transport.inspect(session));
-    }
-  },
-);
+test("the native coding binding names the VM by its machine ID and survives a restart", async (t) => {
+  const { transport, read, write, machineConfig } = guestFixture(t);
+  machineConfig.LastUp = "2026-10-23T09:14:51.505287-05:00";
+  const first = await transport.inspect(session);
+  // Apple's hypervisor gives the VM a new hardware UUID on every boot, and
+  // Podman stamps each start in the machine's configuration.
+  write({ ...read(), productUuid: "restarted-vm-uuid" });
+  machineConfig.LastUp = "2026-10-23T09:26:15.056198-05:00";
+  assert.deepEqual(await transport.inspect(session), first);
+  // Any other configuration change still needs a new record.
+  machineConfig.Resources = { USBs: [], CPUs: 4 };
+  assert.notEqual(
+    (await transport.inspect(session)).bindingSha256,
+    first.bindingSha256,
+  );
+  delete machineConfig.Resources;
+  // So does upgrading Podman or the host's operating system.
+  await assertHostChangesMoveBinding(
+    () => transport.inspect(session),
+    first.bindingSha256,
+  );
+  assert.deepEqual(await transport.inspect(session), first);
+  // A recreated VM gets a new machine ID, so it needs a new record.
+  write({ ...read(), machineId: "f".repeat(32) });
+  const recreated = await transport.inspect(session);
+  assert.notEqual(recreated.bindingSha256, first.bindingSha256);
+  assert.equal(recreated.policySha256, first.policySha256);
+  for (const machineId of [
+    "",
+    "F".repeat(32),
+    "0".repeat(31),
+    "0".repeat(33),
+  ]) {
+    write({ ...read(), machineId });
+    await assert.rejects(transport.inspect(session));
+  }
+});
 
 test("native launch transfers only data, streams bounded output and stops before collection", async (t) => {
   const fixture = nativeHost(t, (r) => ({
@@ -194,50 +179,41 @@ test("native launch transfers only data, streams bounded output and stops before
   assert.equal(collection.files[0].ordinary, true);
 });
 
-test(
-  "transported management executes launch, revocation and stable collection against external Linux fixtures",
-  {
-    skip:
-      process.platform === "win32"
-        ? "Linux guest simulator requires a POSIX filesystem"
-        : false,
-  },
-  async (t) => {
-    const { transport, read, root, requests } = guestFixture(t);
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    const result = await transport.run(request, () => {});
-    assert.equal(result.exitCode, 1);
-    const collected = await transport.collect({
-      ...session,
-      state: "uncertain",
-    });
-    assert.equal(collected.files[0].bytes.toString(), "after\n");
-    const state = JSON.parse(realReadFileSync(`${root}/engine.json`, "utf8"));
-    assert.ok(state.sharedManagementLocks.length > 0);
-    assert.ok(
-      state.sharedManagementLocks.every(Boolean),
-      "all effects share the existing fixed-worker management lock",
-    );
-    const create = state.commands.find((args) => args[1] === "create");
-    assert.ok(create.includes("--network=none"));
-    assert.ok(create.includes("--read-only"));
-    assert.ok(create.includes("--cap-drop=ALL"));
-    assert.ok(create.includes("--userns=keep-id:uid=65534,gid=65534"));
-    const seccomp = JSON.parse(
-      realReadFileSync(
-        `${root}/.local/state/aios-coding-v1/seccomp.json`,
-        "utf8",
-      ),
-    );
-    assert.deepEqual(seccomp.syscalls[0].names, ["read"]);
-    await assert.rejects(transport.run(request, () => {}));
-    assert.equal(
-      requests.filter((r) => r.action === "launch").length,
-      1,
-      "revoked session cannot relaunch",
-    );
-  },
-);
+test("transported management executes launch, revocation and stable collection against external Linux fixtures", async (t) => {
+  const { transport, read, root, requests } = guestFixture(t);
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  const result = await transport.run(request, () => {});
+  assert.equal(result.exitCode, 1);
+  const collected = await transport.collect({
+    ...session,
+    state: "uncertain",
+  });
+  assert.equal(collected.files[0].bytes.toString(), "after\n");
+  const state = JSON.parse(realReadFileSync(`${root}/engine.json`, "utf8"));
+  assert.ok(state.sharedManagementLocks.length > 0);
+  assert.ok(
+    state.sharedManagementLocks.every(Boolean),
+    "all effects share the existing fixed-worker management lock",
+  );
+  const create = state.commands.find((args) => args[1] === "create");
+  assert.ok(create.includes("--network=none"));
+  assert.ok(create.includes("--read-only"));
+  assert.ok(create.includes("--cap-drop=ALL"));
+  assert.ok(create.includes("--userns=keep-id:uid=65534,gid=65534"));
+  const seccomp = JSON.parse(
+    realReadFileSync(
+      `${root}/.local/state/aios-coding-v1/seccomp.json`,
+      "utf8",
+    ),
+  );
+  assert.deepEqual(seccomp.syscalls[0].names, ["read"]);
+  await assert.rejects(transport.run(request, () => {}));
+  assert.equal(
+    requests.filter((r) => r.action === "launch").length,
+    1,
+    "revoked session cannot relaunch",
+  );
+});
 
 test("unsafe native inputs and unsupported authority paths refuse before VM effects", async (t) => {
   const fixture = nativeHost(t, (r) => ({
@@ -335,56 +311,48 @@ test("revocation during preparation stops the exact session without releasing Co
   assert.deepEqual(stopped.session, session);
 });
 
-test(
-  "the guest observes a session stopped before it was prepared as stopped",
-  posixGuest,
-  async (t) => {
-    const { transport } = guestFixture(t);
-    // Nothing was recorded for the session, so observation refuses.
-    await assert.rejects(transport.observeSession(session));
-    const stopped = await transport.stop(session);
-    assert.equal(stopped.stopped, true);
-    const observed = await transport.observeSession(session);
-    assert.deepEqual(
-      {
-        phase: observed.phase,
-        running: observed.running,
-        remainingProcesses: observed.remainingProcesses,
-        processesGone: observed.processesGone,
-      },
-      {
-        phase: "stopped",
-        running: false,
-        remainingProcesses: 0,
-        processesGone: true,
-      },
-    );
-    assert.equal(observed.operationId, session.operationId);
-    assert.equal(observed.fence, session.fence);
-  },
-);
+test("the guest observes a session stopped before it was prepared as stopped", async (t) => {
+  const { transport } = guestFixture(t);
+  // Nothing was recorded for the session, so observation refuses.
+  await assert.rejects(transport.observeSession(session));
+  const stopped = await transport.stop(session);
+  assert.equal(stopped.stopped, true);
+  const observed = await transport.observeSession(session);
+  assert.deepEqual(
+    {
+      phase: observed.phase,
+      running: observed.running,
+      remainingProcesses: observed.remainingProcesses,
+      processesGone: observed.processesGone,
+    },
+    {
+      phase: "stopped",
+      running: false,
+      remainingProcesses: 0,
+      processesGone: true,
+    },
+  );
+  assert.equal(observed.operationId, session.operationId);
+  assert.equal(observed.fence, session.fence);
+});
 
-test(
-  "concurrent stops of one session are serialized by the guest's management lock",
-  posixGuest,
-  async (t) => {
-    const { transport } = guestFixture(t);
-    const stops = await Promise.all([
-      transport.stop(session),
-      transport.stop(session),
-    ]);
-    assert.deepEqual(
-      stops.map((s) => [s.stopped, s.remainingProcesses]),
-      [
-        [true, 0],
-        [true, 0],
-      ],
-    );
-    const observed = await transport.observeSession(session);
-    assert.equal(observed.phase, "stopped");
-    assert.equal(observed.processesGone, true);
-  },
-);
+test("concurrent stops of one session are serialized by the guest's management lock", async (t) => {
+  const { transport } = guestFixture(t);
+  const stops = await Promise.all([
+    transport.stop(session),
+    transport.stop(session),
+  ]);
+  assert.deepEqual(
+    stops.map((s) => [s.stopped, s.remainingProcesses]),
+    [
+      [true, 0],
+      [true, 0],
+    ],
+  );
+  const observed = await transport.observeSession(session);
+  assert.equal(observed.phase, "stopped");
+  assert.equal(observed.processesGone, true);
+});
 
 test("retained launch mutations and malformed streams cannot bypass native shutdown", async (t) => {
   for (const failure of ["mutation", "stream", "checkpoint", "pins"])
@@ -625,225 +593,185 @@ test("offline fixed-deadline procedure distinguishes the deadline from the lease
 
 for (const timer of ["deadline", "lease"])
   for (const state of ["missing", "inactive", "failed"])
-    test(
-      `native timer loss after launch stops before output: ${timer} ${state}`,
-      posixGuest,
-      async (t) => {
-        const { transport, read } = guestFixture(t, {
-          keepRunning: true,
-          stopAfterPolls: 3,
-          loseTimerAfterLaunch: timer,
-          advanceAfterLaunch: 11,
-          ...(state === "missing" ? {} : { timerLossState: state }),
-        });
-        const request = await launchRequest(transport, { allowanceMs: 60000 });
-        const output = [];
-        await assert.rejects(
-          transport.run(request, (bytes) => output.push(bytes)),
-        );
-        assert.deepEqual(output, []);
-        assert.equal(read().alive, false);
-        assert.equal(
-          read().commands.some(
-            (args) => args[0] === "systemctl" && args[2] === "restart",
-          ),
-          false,
-        );
-        assert.equal((await transport.stop(session)).remainingProcesses, 0);
-        assert.equal((await transport.collect(session)).complete, true);
-      },
-    );
+    test(`native timer loss after launch stops before output: ${timer} ${state}`, async (t) => {
+      const { transport, read } = guestFixture(t, {
+        keepRunning: true,
+        stopAfterPolls: 3,
+        loseTimerAfterLaunch: timer,
+        advanceAfterLaunch: 11,
+        ...(state === "missing" ? {} : { timerLossState: state }),
+      });
+      const request = await launchRequest(transport, { allowanceMs: 60000 });
+      const output = [];
+      await assert.rejects(
+        transport.run(request, (bytes) => output.push(bytes)),
+      );
+      assert.deepEqual(output, []);
+      assert.equal(read().alive, false);
+      assert.equal(
+        read().commands.some(
+          (args) => args[0] === "systemctl" && args[2] === "restart",
+        ),
+        false,
+      );
+      assert.equal((await transport.stop(session)).remainingProcesses, 0);
+      assert.equal((await transport.collect(session)).complete, true);
+    });
 
-test(
-  "native management persists a revocation before a delayed first dispatch",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t);
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    const stopped = await transport.stop({ ...session, state: "uncertain" });
-    assert.equal(stopped.stopped, true);
-    await assert.rejects(transport.run(request, () => {}));
+test("native management persists a revocation before a delayed first dispatch", async (t) => {
+  const { transport, read } = guestFixture(t);
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  const stopped = await transport.stop({ ...session, state: "uncertain" });
+  assert.equal(stopped.stopped, true);
+  await assert.rejects(transport.run(request, () => {}));
+  assert.equal(
+    read().commands.some((args) => args[1] === "create"),
+    false,
+  );
+});
+
+test("unsafe effective native networking is refused before worker start", async (t) => {
+  const { transport, read } = guestFixture(t, { unsafeNetwork: true });
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  await assert.rejects(transport.run(request, () => {}));
+  assert.equal(
+    read().commands.some((args) => args[1] === "start"),
+    false,
+  );
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+});
+
+test("a worker that fills the shared disk cannot block its own native shutdown", async (t) => {
+  const { transport, read, write, root } = guestFixture(t, {
+    keepRunning: true,
+  });
+  let checkpoints = 0;
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    checkpoint: () => {
+      if (++checkpoints === 1) write({ ...read(), diskFull: true });
+      return checkpoints < 3;
+    },
+  });
+  await transport.run(request, () => {}).catch(() => {});
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+  assert.equal(read().container.State.Running, false);
+  const reserve = `${root}/.local/state/aios-coding-v1/reserve`;
+  assert.equal(realReadFileSync(reserve).length, 8 * 1024 * 1024);
+});
+
+test("a disk filled after the worker exits cannot block its native shutdown", async (t) => {
+  const { transport, read, write, root } = guestFixture(t, {
+    keepRunning: true,
+    stopAfterPolls: 1,
+  });
+  let checkpoints = 0;
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    checkpoint: () => {
+      if (++checkpoints === 2) write({ ...read(), diskFull: true });
+      return true;
+    },
+  });
+  assert.equal((await transport.run(request, () => {})).exitCode, 1);
+  assert.equal(read().container.State.Running, false);
+  const reserve = `${root}/.local/state/aios-coding-v1/reserve`;
+  assert.equal(realReadFileSync(reserve).length, 8 * 1024 * 1024);
+});
+
+test("native orphan evidence blocks collection until independent exact-session recovery", async (t) => {
+  const { transport, read, write } = guestFixture(t, {
+    keepRunning: true,
+    orphan: true,
+  });
+  let checkpoints = 0;
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    checkpoint: () => ++checkpoints < 3,
+  });
+  await assert.rejects(transport.run(request, () => {}));
+  await assert.rejects(transport.collect(session));
+  const retained = read();
+  assert.equal(retained.alive, true);
+  assert.equal(retained.container.State.Running, false);
+  // An independent process observation now confirms the retained process is gone.
+  write({ ...retained, alive: false, orphan: false });
+  assert.equal(
+    (await transport.stop({ ...session, state: "uncertain" }))
+      .remainingProcesses,
+    0,
+  );
+  assert.equal(
+    (await transport.collect(session)).files[0].bytes.toString(),
+    "after\n",
+  );
+});
+
+test("the pinned code-mode host is copied into the session and mounted read-only beside Codex", async (t) => {
+  const { transport, read } = guestFixture(t);
+  // Read while the worker runs: a stopped session's copies are removed.
+  let copied;
+  await transport.run(
+    await launchRequest(transport, {
+      allowanceMs: 60000,
+      checkpoint: () => {
+        const host = read().container?.Mounts?.find(
+          (m) => m.Destination === "/codex-code-mode-host",
+        );
+        if (host && copied === undefined)
+          copied = realReadFileSync(host.Source, "utf8");
+        return true;
+      },
+    }),
+    () => {},
+  );
+  const mounts = read().container.Mounts;
+  const host = mounts.find((m) => m.Destination === "/codex-code-mode-host");
+  assert.equal(host.RW, false);
+  const codex = mounts.find((m) => m.Destination === "/codex");
+  assert.equal(
+    host.Source.replace(/\/[^/]*$/, ""),
+    codex.Source.replace(/\/[^/]*$/, ""),
+  );
+  assert.equal(copied, "synthetic-code-mode-host");
+  assert.equal(mounts.length, 4);
+});
+
+for (const hostArtifact of ["missing", "foreign", "group-readable"])
+  test(`a ${hostArtifact} code-mode host refuses at inspection, before any worker exists`, async (t) => {
+    const { transport, read } = guestFixture(t, { hostArtifact });
+    await assert.rejects(transport.inspect(session));
+    await assert.rejects(async () =>
+      transport.run(
+        await launchRequest(transport, { allowanceMs: 60000 }),
+        () => {},
+      ),
+    );
     assert.equal(
       read().commands.some((args) => args[1] === "create"),
       false,
     );
-  },
-);
+  });
 
-test(
-  "unsafe effective native networking is refused before worker start",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, { unsafeNetwork: true });
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    await assert.rejects(transport.run(request, () => {}));
-    assert.equal(
-      read().commands.some((args) => args[1] === "start"),
-      false,
-    );
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-  },
-);
-
-test(
-  "a worker that fills the shared disk cannot block its own native shutdown",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write, root } = guestFixture(t, {
-      keepRunning: true,
-    });
-    let checkpoints = 0;
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      checkpoint: () => {
-        if (++checkpoints === 1) write({ ...read(), diskFull: true });
-        return checkpoints < 3;
-      },
-    });
-    await transport.run(request, () => {}).catch(() => {});
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-    assert.equal(read().container.State.Running, false);
-    const reserve = `${root}/.local/state/aios-coding-v1/reserve`;
-    assert.equal(realReadFileSync(reserve).length, 8 * 1024 * 1024);
-  },
-);
-
-test(
-  "a disk filled after the worker exits cannot block its native shutdown",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write, root } = guestFixture(t, {
-      keepRunning: true,
-      stopAfterPolls: 1,
-    });
-    let checkpoints = 0;
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      checkpoint: () => {
-        if (++checkpoints === 2) write({ ...read(), diskFull: true });
-        return true;
-      },
-    });
-    assert.equal((await transport.run(request, () => {})).exitCode, 1);
-    assert.equal(read().container.State.Running, false);
-    const reserve = `${root}/.local/state/aios-coding-v1/reserve`;
-    assert.equal(realReadFileSync(reserve).length, 8 * 1024 * 1024);
-  },
-);
-
-test(
-  "native orphan evidence blocks collection until independent exact-session recovery",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write } = guestFixture(t, {
-      keepRunning: true,
-      orphan: true,
-    });
-    let checkpoints = 0;
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      checkpoint: () => ++checkpoints < 3,
-    });
-    await assert.rejects(transport.run(request, () => {}));
-    await assert.rejects(transport.collect(session));
-    const retained = read();
-    assert.equal(retained.alive, true);
-    assert.equal(retained.container.State.Running, false);
-    // An independent process observation now confirms the retained process is gone.
-    write({ ...retained, alive: false, orphan: false });
-    assert.equal(
-      (await transport.stop({ ...session, state: "uncertain" }))
-        .remainingProcesses,
-      0,
-    );
-    assert.equal(
-      (await transport.collect(session)).files[0].bytes.toString(),
-      "after\n",
-    );
-  },
-);
-
-test(
-  "the pinned code-mode host is copied into the session and mounted read-only beside Codex",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t);
-    // Read while the worker runs: a stopped session's copies are removed.
-    let copied;
-    await transport.run(
-      await launchRequest(transport, {
-        allowanceMs: 60000,
-        checkpoint: () => {
-          const host = read().container?.Mounts?.find(
-            (m) => m.Destination === "/codex-code-mode-host",
-          );
-          if (host && copied === undefined)
-            copied = realReadFileSync(host.Source, "utf8");
-          return true;
-        },
-      }),
-      () => {},
-    );
-    const mounts = read().container.Mounts;
-    const host = mounts.find((m) => m.Destination === "/codex-code-mode-host");
-    assert.equal(host.RW, false);
-    const codex = mounts.find((m) => m.Destination === "/codex");
-    assert.equal(
-      host.Source.replace(/\/[^/]*$/, ""),
-      codex.Source.replace(/\/[^/]*$/, ""),
-    );
-    assert.equal(copied, "synthetic-code-mode-host");
-    assert.equal(mounts.length, 4);
-  },
-);
-
-for (const hostArtifact of ["missing", "foreign", "group-readable"])
-  test(
-    `a ${hostArtifact} code-mode host refuses at inspection, before any worker exists`,
-    posixGuest,
-    async (t) => {
-      const { transport, read } = guestFixture(t, { hostArtifact });
-      await assert.rejects(transport.inspect(session));
-      await assert.rejects(async () =>
-        transport.run(
-          await launchRequest(transport, { allowanceMs: 60000 }),
-          () => {},
-        ),
-      );
-      assert.equal(
-        read().commands.some((args) => args[1] === "create"),
-        false,
-      );
-    },
+test("a session copy of the code-mode host changed before launch is refused before start", async (t) => {
+  const { transport, read } = guestFixture(t, { tamperHostCopy: true });
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  await assert.rejects(transport.run(request, () => {}));
+  assert.equal(
+    read().commands.some((args) => args[1] === "start"),
+    false,
   );
+});
 
-test(
-  "a session copy of the code-mode host changed before launch is refused before start",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, { tamperHostCopy: true });
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    await assert.rejects(transport.run(request, () => {}));
-    assert.equal(
-      read().commands.some((args) => args[1] === "start"),
-      false,
-    );
-  },
-);
-
-test(
-  "a worker created without the code-mode host mount is refused before start",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, { dropHostMount: true });
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    await assert.rejects(transport.run(request, () => {}));
-    assert.equal(
-      read().commands.some((args) => args[1] === "start"),
-      false,
-    );
-  },
-);
+test("a worker created without the code-mode host mount is refused before start", async (t) => {
+  const { transport, read } = guestFixture(t, { dropHostMount: true });
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  await assert.rejects(transport.run(request, () => {}));
+  assert.equal(
+    read().commands.some((args) => args[1] === "start"),
+    false,
+  );
+});
 
 const modelRoute = Object.freeze({
   deliveryId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
@@ -852,30 +780,26 @@ const modelRoute = Object.freeze({
 });
 const routedArgv = [...lockedCodingArgv(undefined, modelRoute), "Change it"];
 
-test(
-  "a model route launches with the relay overrides and only the route variable added",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t);
-    await transport.run(
-      await launchRequest(transport, {
-        allowanceMs: 60000,
-        argv: routedArgv,
-        modelRoute,
-      }),
-      () => {},
-      sessionGateway(),
-    );
-    const { Config } = read().container;
-    assert.deepEqual(Config.Cmd.slice(4), routedArgv);
-    assert.deepEqual(
-      Config.Env.filter((e) => e.startsWith("AIOS_")),
-      [`AIOS_MODEL_ROUTE=${modelRoute.capability}`],
-    );
-  },
-);
+test("a model route launches with the relay overrides and only the route variable added", async (t) => {
+  const { transport, read } = guestFixture(t);
+  await transport.run(
+    await launchRequest(transport, {
+      allowanceMs: 60000,
+      argv: routedArgv,
+      modelRoute,
+    }),
+    () => {},
+    sessionGateway(),
+  );
+  const { Config } = read().container;
+  assert.deepEqual(Config.Cmd.slice(4), routedArgv);
+  assert.deepEqual(
+    Config.Env.filter((e) => e.startsWith("AIOS_")),
+    [`AIOS_MODEL_ROUTE=${modelRoute.capability}`],
+  );
+});
 
-test("an offline launch carries no route variable", posixGuest, async (t) => {
+test("an offline launch carries no route variable", async (t) => {
   const { transport, read } = guestFixture(t);
   await transport.run(
     await launchRequest(transport, { allowanceMs: 60000 }),
@@ -908,7 +832,7 @@ for (const [name, changes] of [
     },
   ],
 ])
-  test(`${name} is refused before any worker exists`, posixGuest, async (t) => {
+  test(`${name} is refused before any worker exists`, async (t) => {
     const { transport, read } = guestFixture(t);
     const request = await launchRequest(transport, {
       allowanceMs: 60000,
@@ -928,38 +852,31 @@ for (const [name, changes] of [
   });
 
 for (const drift of ["routeDropped", "promptOption"])
-  test(
-    `the guest refuses ${drift === "routeDropped" ? "routed argv whose route was removed" : "an option in the prompt slot"} even past the host`,
-    posixGuest,
-    async (t) => {
-      const { transport, read } = guestFixture(t, { [drift]: true });
-      const request = await launchRequest(transport, {
-        allowanceMs: 60000,
-        argv: routedArgv,
-        modelRoute,
-      });
-      await assert.rejects(transport.run(request, () => {}, sessionGateway()));
-      assert.equal(
-        read().commands.some((args) => args[1] === "create"),
-        false,
-      );
-    },
-  );
+  test(`the guest refuses ${drift === "routeDropped" ? "routed argv whose route was removed" : "an option in the prompt slot"} even past the host`, async (t) => {
+    const { transport, read } = guestFixture(t, { [drift]: true });
+    const request = await launchRequest(transport, {
+      allowanceMs: 60000,
+      argv: routedArgv,
+      modelRoute,
+    });
+    await assert.rejects(transport.run(request, () => {}, sessionGateway()));
+    assert.equal(
+      read().commands.some((args) => args[1] === "create"),
+      false,
+    );
+  });
 
-test(
-  "the guest's own locked argv matches the shared one, offline and routed, launch and resume",
-  posixGuest,
-  async (t) => {
-    const thread = "11111111-2222-4333-8444-555555555555";
-    const guest = guestFixture(t);
-    await guest.transport.inspect(session);
-    const program = guest.program();
-    const result = realSpawnSync(
-      testPython,
-      [
-        "-I",
-        "-c",
-        String.raw`
+test("the guest's own locked argv matches the shared one, offline and routed, launch and resume", async (t) => {
+  const thread = "11111111-2222-4333-8444-555555555555";
+  const guest = guestFixture(t);
+  await guest.transport.inspect(session);
+  const program = guest.program();
+  const result = realSpawnSync(
+    testPython,
+    [
+      "-I",
+      "-c",
+      String.raw`
 import ast,json,sys
 source=sys.stdin.read().split(chr(10),2)[2]
 tree=ast.parse(source)
@@ -969,111 +886,87 @@ exec(compile(ast.Module(body=[fn],type_ignores=[]),'locked','exec'),scope)
 route=json.loads(sys.argv[1]);thread=sys.argv[2]
 print(json.dumps([scope['locked'](None,None),scope['locked'](thread,None),scope['locked'](None,route),scope['locked'](thread,route)]))
 `,
-        JSON.stringify(modelRoute),
-        thread,
-      ],
-      { input: program, encoding: "utf8" },
-    );
-    assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), [
-      lockedCodingArgv(undefined),
-      lockedCodingArgv(thread),
-      lockedCodingArgv(undefined, modelRoute),
-      lockedCodingArgv(thread, modelRoute),
-    ]);
-  },
-);
+      JSON.stringify(modelRoute),
+      thread,
+    ],
+    { input: program, encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), [
+    lockedCodingArgv(undefined),
+    lockedCodingArgv(thread),
+    lockedCodingArgv(undefined, modelRoute),
+    lockedCodingArgv(thread, modelRoute),
+  ]);
+});
 
-test(
-  "the guest refuses a malformed route even if one reaches it",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, { routeDrift: true });
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      argv: routedArgv,
-      modelRoute,
-    });
-    await assert.rejects(transport.run(request, () => {}, sessionGateway()));
-    assert.equal(
-      read().commands.some((args) => args[1] === "create"),
-      false,
-    );
-  },
-);
+test("the guest refuses a malformed route even if one reaches it", async (t) => {
+  const { transport, read } = guestFixture(t, { routeDrift: true });
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    argv: routedArgv,
+    modelRoute,
+  });
+  await assert.rejects(transport.run(request, () => {}, sessionGateway()));
+  assert.equal(
+    read().commands.some((args) => args[1] === "create"),
+    false,
+  );
+});
 
-test(
-  "a route variable that differs from the admitted route is refused before start",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, { routeEnvDrift: true });
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      argv: routedArgv,
-      modelRoute,
-    });
-    await assert.rejects(transport.run(request, () => {}, sessionGateway()));
-    assert.equal(
-      read().commands.some((args) => args[1] === "start"),
-      false,
-    );
-  },
-);
+test("a route variable that differs from the admitted route is refused before start", async (t) => {
+  const { transport, read } = guestFixture(t, { routeEnvDrift: true });
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    argv: routedArgv,
+    modelRoute,
+  });
+  await assert.rejects(transport.run(request, () => {}, sessionGateway()));
+  assert.equal(
+    read().commands.some((args) => args[1] === "start"),
+    false,
+  );
+});
 
-test(
-  "a code-mode host replaced after inspection refuses before the worker is created",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write } = guestFixture(t);
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    write({ ...read(), hostArtifact: "foreign" });
-    await assert.rejects(transport.run(request, () => {}));
-    assert.equal(
-      read().commands.some((args) => args[1] === "create"),
-      false,
-    );
-  },
-);
+test("a code-mode host replaced after inspection refuses before the worker is created", async (t) => {
+  const { transport, read, write } = guestFixture(t);
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  write({ ...read(), hostArtifact: "foreign" });
+  await assert.rejects(transport.run(request, () => {}));
+  assert.equal(
+    read().commands.some((args) => args[1] === "create"),
+    false,
+  );
+});
 
-test(
-  "stopped native collection refuses linked output and preserves the workspace",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t);
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    await transport.run(request, () => {});
-    const workspace = read().container.Mounts.find(
-      (m) => m.Destination === "/workspace",
-    ).Source;
-    fs.linkSync(`${workspace}/index.html`, `${workspace}/linked.html`);
-    await assert.rejects(transport.collect(session));
-    assert.equal(
-      realReadFileSync(`${workspace}/index.html`, "utf8"),
-      "after\n",
-    );
-  },
-);
+test("stopped native collection refuses linked output and preserves the workspace", async (t) => {
+  const { transport, read } = guestFixture(t);
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  await transport.run(request, () => {});
+  const workspace = read().container.Mounts.find(
+    (m) => m.Destination === "/workspace",
+  ).Source;
+  fs.linkSync(`${workspace}/index.html`, `${workspace}/linked.html`);
+  await assert.rejects(transport.collect(session));
+  assert.equal(realReadFileSync(`${workspace}/index.html`, "utf8"), "after\n");
+});
 
-test(
-  "missing independent native lease refuses Codex release and still stops the worker",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, { leaseUnavailable: true });
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    await assert.rejects(transport.run(request, () => {}));
-    const state = read();
-    assert.equal(
-      state.commands.some((args) => args[0] === "systemd-run"),
-      true,
-    );
-    assert.equal(
-      state.commands.some((args) => args[1] === "exec"),
-      false,
-    );
-    assert.equal(state.alive, false);
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-  },
-);
+test("missing independent native lease refuses Codex release and still stops the worker", async (t) => {
+  const { transport, read } = guestFixture(t, { leaseUnavailable: true });
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  await assert.rejects(transport.run(request, () => {}));
+  const state = read();
+  assert.equal(
+    state.commands.some((args) => args[0] === "systemd-run"),
+    true,
+  );
+  assert.equal(
+    state.commands.some((args) => args[1] === "exec"),
+    false,
+  );
+  assert.equal(state.alive, false);
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+});
 
 test("native polling emits only newly observed bytes across running and unchanged polls", async (t) => {
   let polls = 0;
@@ -1279,81 +1172,61 @@ test("revocation during host preparation refuses the guest management effect", a
   );
 });
 
-test(
-  "native observations do not cap the engine private database at the stream byte limit",
-  posixGuest,
-  async (t) => {
-    const { transport } = guestFixture(t, { largeDatabase: true });
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    const result = await transport.run(request, () => {});
-    assert.equal(result.exitCode, 1);
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-    assert.equal(
-      (await transport.collect(session)).files[0].bytes.toString(),
-      "after\n",
-    );
-  },
-);
+test("native observations do not cap the engine private database at the stream byte limit", async (t) => {
+  const { transport } = guestFixture(t, { largeDatabase: true });
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  const result = await transport.run(request, () => {});
+  assert.equal(result.exitCode, 1);
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+  assert.equal(
+    (await transport.collect(session)).files[0].bytes.toString(),
+    "after\n",
+  );
+});
 
 for (const stream of ["stdout", "stderr"])
-  test(
-    `native management refuses oversized ${stream} while preserving the observation limit`,
-    posixGuest,
-    async (t) => {
-      const { transport } = guestFixture(t, { oversizedObservation: stream });
-      await assert.rejects(transport.inspect(session));
-    },
-  );
+  test(`native management refuses oversized ${stream} while preserving the observation limit`, async (t) => {
+    const { transport } = guestFixture(t, { oversizedObservation: stream });
+    await assert.rejects(transport.inspect(session));
+  });
 
-test(
-  "native management kills and reaps a stalled command when its unchanged deadline expires",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, { hungObservation: true });
-    let pid;
-    try {
-      await assert.rejects(transport.inspect(session));
-      pid = read().managementPid;
-      assert.ok(Number.isSafeInteger(pid) && pid > 1);
-      assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
-    } finally {
-      // Failure of the regression must not leave its owned synthetic child alive.
-      if (pid)
-        try {
-          process.kill(pid, "SIGKILL");
-        } catch (error) {
-          assert.equal(error.code, "ESRCH");
-        }
-    }
-  },
-);
+test("native management kills and reaps a stalled command when its unchanged deadline expires", async (t) => {
+  const { transport, read } = guestFixture(t, { hungObservation: true });
+  let pid;
+  try {
+    await assert.rejects(transport.inspect(session));
+    pid = read().managementPid;
+    assert.ok(Number.isSafeInteger(pid) && pid > 1);
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+  } finally {
+    // Failure of the regression must not leave its owned synthetic child alive.
+    if (pid)
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch (error) {
+        assert.equal(error.code, "ESRCH");
+      }
+  }
+});
 
-test(
-  "native exact-session recovery tolerates independently observed collected timer units",
-  posixGuest,
-  async (t) => {
-    const { transport } = guestFixture(t, { strictTimers: true });
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    await transport.run(request, () => {});
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-    assert.equal((await transport.collect(session)).complete, true);
-  },
-);
+test("native exact-session recovery tolerates independently observed collected timer units", async (t) => {
+  const { transport } = guestFixture(t, { strictTimers: true });
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  await transport.run(request, () => {});
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+  assert.equal((await transport.collect(session)).complete, true);
+});
 
-test(
-  "native polling does not exhaust the manager timer start-rate allowance",
-  posixGuest,
-  async (t) => {
-    const { transport } = guestFixture(t, {
-      keepRunning: true,
-      stopAfterPolls: 8,
-      enforceTimerRate: true,
-    });
-    const request = await launchRequest(transport, { allowanceMs: 60000 });
-    assert.equal((await transport.run(request, () => {})).exitCode, 1);
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-  },
-);
+test("native polling does not exhaust the manager timer start-rate allowance", async (t) => {
+  const { transport } = guestFixture(t, {
+    keepRunning: true,
+    stopAfterPolls: 8,
+    enforceTimerRate: true,
+  });
+  const request = await launchRequest(transport, { allowanceMs: 60000 });
+  assert.equal((await transport.run(request, () => {})).exitCode, 1);
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+});
 
 for (const mode of [
   "unavailable",
@@ -1361,121 +1234,105 @@ for (const mode of [
   "pending-job",
   "stop-unavailable",
 ])
-  test(
-    `unverified native timer cleanup blocks collection: ${mode}`,
-    posixGuest,
-    async (t) => {
-      const { transport } = guestFixture(
-        t,
-        mode === "stop-unavailable"
-          ? { timerStopUnavailable: true }
-          : { timerObservation: mode },
-      );
-      const request = await launchRequest(transport, { allowanceMs: 60000 });
-      await assert.rejects(transport.run(request, () => {}));
-      await assert.rejects(transport.collect(session));
+  test(`unverified native timer cleanup blocks collection: ${mode}`, async (t) => {
+    const { transport } = guestFixture(
+      t,
+      mode === "stop-unavailable"
+        ? { timerStopUnavailable: true }
+        : { timerObservation: mode },
+    );
+    const request = await launchRequest(transport, { allowanceMs: 60000 });
+    await assert.rejects(transport.run(request, () => {}));
+    await assert.rejects(transport.collect(session));
+  });
+
+test("checkpoint refusal after native polling reports a gated stop and preserves recovery", async (t) => {
+  const { transport } = guestFixture(t, { keepRunning: true });
+  let checkpoints = 0;
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    checkpoint: () => ++checkpoints < 2,
+  });
+  await assert.rejects(
+    transport.run(request, () => {}),
+    {
+      message: "Native coding run stopped by its gate",
     },
   );
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+  assert.equal((await transport.collect(session)).complete, true);
+});
 
-test(
-  "checkpoint refusal after native polling reports a gated stop and preserves recovery",
-  posixGuest,
-  async (t) => {
-    const { transport } = guestFixture(t, { keepRunning: true });
-    let checkpoints = 0;
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      checkpoint: () => ++checkpoints < 2,
-    });
-    await assert.rejects(
-      transport.run(request, () => {}),
-      {
-        message: "Native coding run stopped by its gate",
-      },
-    );
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-    assert.equal((await transport.collect(session)).complete, true);
-  },
-);
+test("native session observation reports stopped process and timer evidence without mutating lifecycle", async (t) => {
+  const { transport, read } = guestFixture(t);
+  const request = await launchRequest(transport);
+  await transport.run(request, () => {});
+  const before = read();
+  await assert.rejects(
+    transport.observeSession({ ...session, fence: session.fence + 1 }),
+  );
+  const observed = await transport.observeSession({
+    ...session,
+    state: "uncertain",
+  });
+  assert.equal(observed.operationId, session.operationId);
+  assert.equal(observed.fence, session.fence);
+  assert.equal(observed.phase, "stopped");
+  assert.equal(observed.running, false);
+  assert.equal(observed.remainingProcesses, 0);
+  assert.equal(observed.processesGone, true);
+  assert.deepEqual(observed.timers, {
+    lease: { loadState: "not-found", activeState: "inactive" },
+    deadline: { loadState: "not-found", activeState: "inactive" },
+  });
+  assert.deepEqual(observed.pins, request.pins);
+  const commands = read().commands.slice(before.commands.length);
+  assert.equal(
+    commands.some(
+      (args) =>
+        args[0] === "systemd-run" ||
+        (args[0] === "systemctl" && args[2] !== "show") ||
+        (args[0] === "podman" &&
+          ["start", "stop", "exec", "create", "logs"].includes(args[1])),
+    ),
+    false,
+  );
+  assert.equal(read().alive, false);
+});
 
-test(
-  "native session observation reports stopped process and timer evidence without mutating lifecycle",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t);
-    const request = await launchRequest(transport);
-    await transport.run(request, () => {});
-    const before = read();
-    await assert.rejects(
-      transport.observeSession({ ...session, fence: session.fence + 1 }),
-    );
-    const observed = await transport.observeSession({
-      ...session,
-      state: "uncertain",
-    });
-    assert.equal(observed.operationId, session.operationId);
-    assert.equal(observed.fence, session.fence);
-    assert.equal(observed.phase, "stopped");
-    assert.equal(observed.running, false);
-    assert.equal(observed.remainingProcesses, 0);
-    assert.equal(observed.processesGone, true);
-    assert.deepEqual(observed.timers, {
-      lease: { loadState: "not-found", activeState: "inactive" },
-      deadline: { loadState: "not-found", activeState: "inactive" },
-    });
-    assert.deepEqual(observed.pins, request.pins);
-    const commands = read().commands.slice(before.commands.length);
-    assert.equal(
-      commands.some(
+test("native timer execution observation identifies the bound kill command without lifecycle effects", async (t) => {
+  const { transport, read, write } = guestFixture(t);
+  await transport.run(await launchRequest(transport), () => {});
+  write({ ...read(), executionEvidence: true });
+  const before = read();
+  await assert.rejects(
+    transport.observeTimerExecution(
+      { ...session, fence: session.fence + 1 },
+      "lease",
+    ),
+  );
+  const result = await transport.observeTimerExecution(session, "lease");
+  assert.equal(result.timer, "lease");
+  assert.equal(result.lastTriggerUs, 100);
+  assert.equal(result.startedUs, 101);
+  assert.equal(result.finishedUs, 102);
+  assert.equal(result.code, 1);
+  assert.equal(result.status, 0);
+  assert.equal(result.operationId, session.operationId);
+  assert.equal(result.fence, session.fence);
+  assert.equal(
+    read()
+      .commands.slice(before.commands.length)
+      .some(
         (args) =>
           args[0] === "systemd-run" ||
           (args[0] === "systemctl" && args[2] !== "show") ||
           (args[0] === "podman" &&
-            ["start", "stop", "exec", "create", "logs"].includes(args[1])),
+            ["stop", "start", "exec", "logs"].includes(args[1])),
       ),
-      false,
-    );
-    assert.equal(read().alive, false);
-  },
-);
-
-test(
-  "native timer execution observation identifies the bound kill command without lifecycle effects",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write } = guestFixture(t);
-    await transport.run(await launchRequest(transport), () => {});
-    write({ ...read(), executionEvidence: true });
-    const before = read();
-    await assert.rejects(
-      transport.observeTimerExecution(
-        { ...session, fence: session.fence + 1 },
-        "lease",
-      ),
-    );
-    const result = await transport.observeTimerExecution(session, "lease");
-    assert.equal(result.timer, "lease");
-    assert.equal(result.lastTriggerUs, 100);
-    assert.equal(result.startedUs, 101);
-    assert.equal(result.finishedUs, 102);
-    assert.equal(result.code, 1);
-    assert.equal(result.status, 0);
-    assert.equal(result.operationId, session.operationId);
-    assert.equal(result.fence, session.fence);
-    assert.equal(
-      read()
-        .commands.slice(before.commands.length)
-        .some(
-          (args) =>
-            args[0] === "systemd-run" ||
-            (args[0] === "systemctl" && args[2] !== "show") ||
-            (args[0] === "podman" &&
-              ["stop", "start", "exec", "logs"].includes(args[1])),
-        ),
-      false,
-    );
-  },
-);
+    false,
+  );
+});
 
 for (const mode of [
   "unavailable",
@@ -1484,21 +1341,17 @@ for (const mode of [
   "malformed",
   "wrapped-data",
 ])
-  test(
-    `native timer execution refuses unverified manager data: ${mode}`,
-    posixGuest,
-    async (t) => {
-      const { transport, read, write } = guestFixture(t);
-      await transport.run(await launchRequest(transport), () => {});
-      write({
-        ...read(),
-        executionEvidence: mode !== "unavailable",
-        executionMode: mode,
-      });
-      await assert.rejects(transport.observeTimerExecution(session, "lease"));
-      assert.equal(read().alive, false);
-    },
-  );
+  test(`native timer execution refuses unverified manager data: ${mode}`, async (t) => {
+    const { transport, read, write } = guestFixture(t);
+    await transport.run(await launchRequest(transport), () => {});
+    write({
+      ...read(),
+      executionEvidence: mode !== "unavailable",
+      executionMode: mode,
+    });
+    await assert.rejects(transport.observeTimerExecution(session, "lease"));
+    assert.equal(read().alive, false);
+  });
 
 test("offline native acceptance CLI refuses missing approval and direct child entry before effects", (t) => {
   const root = realMkdtempSync(`${realTemporaryDirectory}/aios-loss-cli-`);
@@ -1529,7 +1382,7 @@ test("offline native acceptance CLI refuses missing approval and direct child en
     { encoding: "utf8", timeout: 5000 },
   );
   assert.notEqual(direct.status, 0);
-  assert.match(direct.stderr, /function|darwin|win32/);
+  assert.match(direct.stderr, /function|darwin/);
   assert.equal(fs.existsSync(path), false);
 });
 
@@ -1565,102 +1418,94 @@ for (const invalid of [
     );
   });
 
-test(
-  "native session observation proves expiry before recovery without renewing timers or authorizing collection",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write } = guestFixture(t, { keepRunning: true });
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-    let allowed = true,
-      ready;
-    const started = new Promise((resolve) => {
-      ready = resolve;
+test("native session observation proves expiry before recovery without renewing timers or authorizing collection", async (t) => {
+  const { transport, read, write } = guestFixture(t, { keepRunning: true });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let allowed = true,
+    ready;
+  const started = new Promise((resolve) => {
+    ready = resolve;
+  });
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    checkpoint: () => allowed,
+  });
+  const pending = transport.run(request, () => ready());
+  const stopped = assert.rejects(pending, /stopped by its gate/);
+  try {
+    await Promise.race([started, pending]);
+    const before = read();
+    const live = await transport.observeSession(session);
+    assert.equal(live.phase, "running");
+    assert.equal(live.running, true);
+    assert.equal(live.remainingProcesses, 1);
+    assert.equal(live.processesGone, false);
+    assert.deepEqual(live.timers, {
+      lease: { loadState: "loaded", activeState: "active" },
+      deadline: { loadState: "loaded", activeState: "active" },
     });
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      checkpoint: () => allowed,
-    });
-    const pending = transport.run(request, () => ready());
-    const stopped = assert.rejects(pending, /stopped by its gate/);
-    try {
-      await Promise.race([started, pending]);
-      const before = read();
-      const live = await transport.observeSession(session);
-      assert.equal(live.phase, "running");
-      assert.equal(live.running, true);
-      assert.equal(live.remainingProcesses, 1);
-      assert.equal(live.processesGone, false);
-      assert.deepEqual(live.timers, {
-        lease: { loadState: "loaded", activeState: "active" },
-        deadline: { loadState: "loaded", activeState: "active" },
-      });
-      assert.deepEqual(read().timers, before.timers);
-      const expired = read();
-      const lease = Object.keys(expired.timers).find((name) =>
-        name.endsWith("-lease.timer"),
-      );
-      expired.timers[lease].active = "inactive";
-      expired.alive = false;
-      expired.container.State = {
-        ...expired.container.State,
-        Running: false,
-        Pid: 0,
-        Status: "exited",
-      };
-      write(expired);
-      const afterExpiry = await transport.observeSession({
-        ...session,
-        state: "uncertain",
-      });
-      assert.equal(
-        afterExpiry.phase,
-        "running",
-        "observation cannot reconcile the protected lifecycle record",
-      );
-      assert.equal(afterExpiry.running, false);
-      assert.equal(afterExpiry.remainingProcesses, 0);
-      assert.equal(afterExpiry.processesGone, true);
-      assert.equal(afterExpiry.timers.lease.activeState, "inactive");
-      assert.deepEqual(
-        read().timers,
-        expired.timers,
-        "expired timers cannot be revived by observation",
-      );
-      const commands = read().commands.slice(before.commands.length);
-      assert.equal(
-        commands.some(
-          (args) =>
-            args[0] === "systemd-run" ||
-            (args[0] === "systemctl" && args[2] !== "show") ||
-            (args[0] === "podman" &&
-              ["start", "stop", "exec", "create", "logs"].includes(args[1])),
-        ),
-        false,
-      );
-      await assert.rejects(transport.collect({ ...session, state: "stopped" }));
-    } finally {
-      allowed = false;
-      t.mock.timers.tick(100);
-      await stopped;
-    }
-    assert.equal(
-      (await transport.collect({ ...session, state: "stopped" })).complete,
-      true,
+    assert.deepEqual(read().timers, before.timers);
+    const expired = read();
+    const lease = Object.keys(expired.timers).find((name) =>
+      name.endsWith("-lease.timer"),
     );
-  },
-);
+    expired.timers[lease].active = "inactive";
+    expired.alive = false;
+    expired.container.State = {
+      ...expired.container.State,
+      Running: false,
+      Pid: 0,
+      Status: "exited",
+    };
+    write(expired);
+    const afterExpiry = await transport.observeSession({
+      ...session,
+      state: "uncertain",
+    });
+    assert.equal(
+      afterExpiry.phase,
+      "running",
+      "observation cannot reconcile the protected lifecycle record",
+    );
+    assert.equal(afterExpiry.running, false);
+    assert.equal(afterExpiry.remainingProcesses, 0);
+    assert.equal(afterExpiry.processesGone, true);
+    assert.equal(afterExpiry.timers.lease.activeState, "inactive");
+    assert.deepEqual(
+      read().timers,
+      expired.timers,
+      "expired timers cannot be revived by observation",
+    );
+    const commands = read().commands.slice(before.commands.length);
+    assert.equal(
+      commands.some(
+        (args) =>
+          args[0] === "systemd-run" ||
+          (args[0] === "systemctl" && args[2] !== "show") ||
+          (args[0] === "podman" &&
+            ["start", "stop", "exec", "create", "logs"].includes(args[1])),
+      ),
+      false,
+    );
+    await assert.rejects(transport.collect({ ...session, state: "stopped" }));
+  } finally {
+    allowed = false;
+    t.mock.timers.tick(100);
+    await stopped;
+  }
+  assert.equal(
+    (await transport.collect({ ...session, state: "stopped" })).complete,
+    true,
+  );
+});
 
 for (const mode of ["unavailable", "malformed", "pending-job"])
-  test(
-    `native session observation refuses ${mode} timer evidence`,
-    posixGuest,
-    async (t) => {
-      const { transport, read, write } = guestFixture(t);
-      await transport.run(await launchRequest(transport), () => {});
-      write({ ...read(), timerObservation: mode });
-      await assert.rejects(transport.observeSession(session));
-    },
-  );
+  test(`native session observation refuses ${mode} timer evidence`, async (t) => {
+    const { transport, read, write } = guestFixture(t);
+    await transport.run(await launchRequest(transport), () => {});
+    write({ ...read(), timerObservation: mode });
+    await assert.rejects(transport.observeSession(session));
+  });
 
 for (const invalid of [
   { phase: ["running"] },
@@ -1707,39 +1552,35 @@ for (const invalid of [
     );
   });
 
-test(
-  "retained elapsed timer refuses live worker continuity before renewal",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write } = guestFixture(t, { keepRunning: true });
-    let checkpoints = 0;
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      checkpoint: () => {
-        if (++checkpoints === 2) {
-          const state = read();
-          const unit = Object.keys(state.timers).find((name) =>
-            name.endsWith("-lease.timer"),
-          );
-          state.timers[unit].sub = "elapsed";
-          write(state);
-        }
-        return checkpoints < 4;
-      },
-    });
-    await assert.rejects(
-      transport.run(request, () => {}),
-      /Native coding poll observation unavailable/,
-    );
-    assert.equal(
-      read().commands.some(
-        (args) => args[0] === "systemctl" && args[2] === "restart",
-      ),
-      false,
-    );
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-  },
-);
+test("retained elapsed timer refuses live worker continuity before renewal", async (t) => {
+  const { transport, read, write } = guestFixture(t, { keepRunning: true });
+  let checkpoints = 0;
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    checkpoint: () => {
+      if (++checkpoints === 2) {
+        const state = read();
+        const unit = Object.keys(state.timers).find((name) =>
+          name.endsWith("-lease.timer"),
+        );
+        state.timers[unit].sub = "elapsed";
+        write(state);
+      }
+      return checkpoints < 4;
+    },
+  });
+  await assert.rejects(
+    transport.run(request, () => {}),
+    /Native coding poll observation unavailable/,
+  );
+  assert.equal(
+    read().commands.some(
+      (args) => args[0] === "systemctl" && args[2] === "restart",
+    ),
+    false,
+  );
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+});
 
 test("offline deadline procedure refuses a timer execution during the preloss wait", async () => {
   const { observeNativeControllerLoss } = await import(
@@ -1757,144 +1598,118 @@ test("offline deadline procedure refuses a timer execution during the preloss wa
   assert.equal(effects.includes("collect"), false);
 });
 
-test(
-  "native timer execution accepts the untriggered scalar property and direct command array",
-  posixGuest,
-  async (t) => {
-    const { transport, read, write } = guestFixture(t);
-    await transport.run(await launchRequest(transport), () => {});
-    write({
-      ...read(),
-      executionEvidence: true,
-      executionMode: "never-triggered",
-    });
-    const value = await transport.observeTimerExecution(session, "lease");
-    assert.equal(value.lastTriggerUs, 0);
-    assert.equal(value.startedUs, 0);
-    assert.equal(value.finishedUs, 0);
-    assert.equal(value.code, 0);
-    assert.equal(value.status, 0);
-  },
-);
+test("native timer execution accepts the untriggered scalar property and direct command array", async (t) => {
+  const { transport, read, write } = guestFixture(t);
+  await transport.run(await launchRequest(transport), () => {});
+  write({
+    ...read(),
+    executionEvidence: true,
+    executionMode: "never-triggered",
+  });
+  const value = await transport.observeTimerExecution(session, "lease");
+  assert.equal(value.lastTriggerUs, 0);
+  assert.equal(value.startedUs, 0);
+  assert.equal(value.finishedUs, 0);
+  assert.equal(value.code, 0);
+  assert.equal(value.status, 0);
+});
 
-test(
-  "native launch refuses a digest that does not describe its admitted file bytes before effects",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t);
-    const request = await launchRequest(transport, {
-      inputSha256: "0".repeat(64),
-    });
-    const before = read().commands.length;
+test("native launch refuses a digest that does not describe its admitted file bytes before effects", async (t) => {
+  const { transport, read } = guestFixture(t);
+  const request = await launchRequest(transport, {
+    inputSha256: "0".repeat(64),
+  });
+  const before = read().commands.length;
+  await assert.rejects(
+    transport.run(request, () => {}),
+    /Native coding input digest mismatch/,
+  );
+  assert.equal(read().commands.length, before);
+});
+
+test("native guest refuses transferred file bytes that no longer match the admitted digest before container creation", async (t) => {
+  const { transport, read } = guestFixture(t, {
+    transferredInputDrift: true,
+  });
+  await assert.rejects(
+    transport.run(await launchRequest(transport), () => {}),
+    /Native coding prepare observation unavailable/,
+  );
+  assert.equal(
+    read().commands.some(
+      (args) => args[0] === "podman" && args[1] === "create",
+    ),
+    false,
+  );
+});
+
+test("native guest refuses changed launch provenance before starting the prepared worker", async (t) => {
+  const { transport, read } = guestFixture(t, {
+    launchProvenanceDrift: true,
+  });
+  await assert.rejects(
+    transport.run(await launchRequest(transport), () => {}),
+    /Native coding launch observation unavailable/,
+  );
+  assert.equal(
+    read().commands.some((args) => args[0] === "podman" && args[1] === "start"),
+    false,
+  );
+});
+
+test("native launch refuses unresolved or unsafe provenance before host observations", async (t) => {
+  const { transport, read } = guestFixture(t);
+  const request = await launchRequest(transport);
+  const before = read().commands.length;
+  for (const override of [
+    { sourceRevision: "main" },
+    { sourceRevision: "b".repeat(40) + "\n" },
+    { sourceRevision: undefined },
+    { branch: undefined },
+    { branch: "codex/task\n" },
+    { branch: "main" },
+    { branch: "codex/" + "a".repeat(240) },
+    { branch: "codex/task//nested" },
+    { branch: "codex/task/.private" },
+    { branch: "codex/task." },
+    { branch: "codex/../other" },
+    { branch: "codex/task.lock" },
+    { branch: "codex/task\nother" },
+    { inputSha256: undefined },
+    { inputSha256: "c".repeat(64) + "\n" },
+    { inputSha256: "unknown" },
+    { intent: "unexpected" },
+  ])
     await assert.rejects(
-      transport.run(request, () => {}),
-      /Native coding input digest mismatch/,
+      transport.run({ ...request, ...override }, () => {}),
+      /Unsupported native coding launch/,
     );
-    assert.equal(read().commands.length, before);
-  },
-);
+  assert.equal(read().commands.length, before);
+});
 
-test(
-  "native guest refuses transferred file bytes that no longer match the admitted digest before container creation",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, {
-      transferredInputDrift: true,
-    });
-    await assert.rejects(
-      transport.run(await launchRequest(transport), () => {}),
-      /Native coding prepare observation unavailable/,
-    );
-    assert.equal(
-      read().commands.some(
-        (args) => args[0] === "podman" && args[1] === "create",
-      ),
-      false,
-    );
-  },
-);
-
-test(
-  "native guest refuses changed launch provenance before starting the prepared worker",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t, {
-      launchProvenanceDrift: true,
-    });
-    await assert.rejects(
-      transport.run(await launchRequest(transport), () => {}),
-      /Native coding launch observation unavailable/,
-    );
-    assert.equal(
-      read().commands.some(
-        (args) => args[0] === "podman" && args[1] === "start",
-      ),
-      false,
-    );
-  },
-);
-
-test(
-  "native launch refuses unresolved or unsafe provenance before host observations",
-  posixGuest,
-  async (t) => {
-    const { transport, read } = guestFixture(t);
-    const request = await launchRequest(transport);
-    const before = read().commands.length;
-    for (const override of [
-      { sourceRevision: "main" },
-      { sourceRevision: "b".repeat(40) + "\n" },
-      { sourceRevision: undefined },
-      { branch: undefined },
-      { branch: "codex/task\n" },
-      { branch: "main" },
-      { branch: "codex/" + "a".repeat(240) },
-      { branch: "codex/task//nested" },
-      { branch: "codex/task/.private" },
-      { branch: "codex/task." },
-      { branch: "codex/../other" },
-      { branch: "codex/task.lock" },
-      { branch: "codex/task\nother" },
-      { inputSha256: undefined },
-      { inputSha256: "c".repeat(64) + "\n" },
-      { inputSha256: "unknown" },
-      { intent: "unexpected" },
-    ])
-      await assert.rejects(
-        transport.run({ ...request, ...override }, () => {}),
-        /Unsupported native coding launch/,
-      );
-    assert.equal(read().commands.length, before);
-  },
-);
-
-test(
-  "native admitted manifest preserves UTF-8 paths and executable flags through stopped collection",
-  posixGuest,
-  async (t) => {
-    const { transport } = guestFixture(t);
-    const request = await launchRequest(transport, {
-      files: [
-        {
-          path: "café.txt",
-          bytes: Buffer.from("bounded unicode\n"),
-          executable: true,
-        },
-      ],
-      inputSha256:
-        "c7a1966631a6b1f0c269599fe83a297bdf5bc69edd66981b46a0f057a580dfa8",
-    });
-    await transport.run(request, () => {});
-    const collected = await transport.collect(session);
-    assert.equal(collected.complete, true);
-    const file = collected.files.find((entry) => entry.path === "café.txt");
-    assert.ok(file);
-    assert.deepEqual(file.bytes, Buffer.from("bounded unicode\n"));
-    assert.equal(file.executable, true);
-    assert.equal(file.ordinary, true);
-    assert.equal(file.links, 1);
-  },
-);
+test("native admitted manifest preserves UTF-8 paths and executable flags through stopped collection", async (t) => {
+  const { transport } = guestFixture(t);
+  const request = await launchRequest(transport, {
+    files: [
+      {
+        path: "café.txt",
+        bytes: Buffer.from("bounded unicode\n"),
+        executable: true,
+      },
+    ],
+    inputSha256:
+      "c7a1966631a6b1f0c269599fe83a297bdf5bc69edd66981b46a0f057a580dfa8",
+  });
+  await transport.run(request, () => {});
+  const collected = await transport.collect(session);
+  assert.equal(collected.complete, true);
+  const file = collected.files.find((entry) => entry.path === "café.txt");
+  assert.ok(file);
+  assert.deepEqual(file.bytes, Buffer.from("bounded unicode\n"));
+  assert.equal(file.executable, true);
+  assert.equal(file.ordinary, true);
+  assert.equal(file.links, 1);
+});
 
 test("native coding refuses malformed file lists and timer names before host effects", async (t) => {
   const fixture = nativeHost(t, (r) => ({
@@ -1941,114 +1756,98 @@ async function liveSession(t, engine = {}) {
   return { ...fixture, request, running };
 }
 
-test(
-  "the boundary probe runs the fixed script in the exact live session and plants a descendant only an exact stop removes",
-  posixGuest,
-  async (t) => {
-    const { transport, read, request, running } = await liveSession(t);
-    const probed = await transport.probeBoundary(session, "index.html");
-    assert.deepEqual(
-      probed.probes.map((p) => [p.name, p.outcome]),
-      codingBoundaryProbeNames.map((name) => [name, "passed"]),
-    );
-    assert.deepEqual(probed.pins, request.pins);
-    // The fixed script, never caller text, with the admitted file and a
-    // guest-private management file as its only arguments.
-    const exec = read().commands.find(
-      (args) => args[1] === "exec" && args[3] === "/bin/sh",
-    );
-    assert.equal(exec[5], codingBoundaryProbe);
-    const [admitted, guestPrivate, mode] = read().probes[0];
-    assert.equal(admitted, "/workspace/index.html");
-    // The guest names the mode from its own record: this session is offline.
-    assert.equal(mode, "offline");
-    assert.match(guestPrivate, /\/aios-coding-[a-f0-9]{32}\.json$/);
-    assert.equal(read().container.FixtureExtraPids.length, 1);
-    assert.ok(probed.processes >= 2);
-    await running;
-    assert.equal((await transport.stop(session)).remainingProcesses, 0);
-    const observed = await transport.observeSession({
-      ...session,
-      state: "uncertain",
-    });
-    assert.equal(observed.remainingProcesses, 0);
-    assert.equal(observed.processesGone, true);
-  },
-);
+test("the boundary probe runs the fixed script in the exact live session and plants a descendant only an exact stop removes", async (t) => {
+  const { transport, read, request, running } = await liveSession(t);
+  const probed = await transport.probeBoundary(session, "index.html");
+  assert.deepEqual(
+    probed.probes.map((p) => [p.name, p.outcome]),
+    codingBoundaryProbeNames.map((name) => [name, "passed"]),
+  );
+  assert.deepEqual(probed.pins, request.pins);
+  // The fixed script, never caller text, with the admitted file and a
+  // guest-private management file as its only arguments.
+  const exec = read().commands.find(
+    (args) => args[1] === "exec" && args[3] === "/bin/sh",
+  );
+  assert.equal(exec[5], codingBoundaryProbe);
+  const [admitted, guestPrivate, mode] = read().probes[0];
+  assert.equal(admitted, "/workspace/index.html");
+  // The guest names the mode from its own record: this session is offline.
+  assert.equal(mode, "offline");
+  assert.match(guestPrivate, /\/aios-coding-[a-f0-9]{32}\.json$/);
+  assert.equal(read().container.FixtureExtraPids.length, 1);
+  assert.ok(probed.processes >= 2);
+  await running;
+  assert.equal((await transport.stop(session)).remainingProcesses, 0);
+  const observed = await transport.observeSession({
+    ...session,
+    state: "uncertain",
+  });
+  assert.equal(observed.remainingProcesses, 0);
+  assert.equal(observed.processesGone, true);
+});
 
-test(
-  "a routed session's probe runs with the routed controls, chosen by the guest",
-  posixGuest,
-  async (t) => {
-    const fixture = guestFixture(t, {
-      keepRunning: true,
-      stopAfterPolls: 6,
-      probeOutput: allProbesPassed,
-    });
-    const request = await launchRequest(fixture.transport, {
-      allowanceMs: 60000,
-      argv: routedArgv,
-      modelRoute,
-    });
-    const running = fixture.transport.run(request, () => {}, sessionGateway());
-    for (
-      let i = 0;
-      i < 400 &&
-      !fixture.read().commands?.some((a) => a.at(-1) === "/tmp/launch");
-      i++
-    )
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    const probed = await fixture.transport.probeBoundary(session, "index.html");
-    assert.ok(probed.probes.every((p) => p.outcome === "passed"));
-    assert.equal(fixture.read().probes[0][2], "routed");
-    await running;
-  },
-);
+test("a routed session's probe runs with the routed controls, chosen by the guest", async (t) => {
+  const fixture = guestFixture(t, {
+    keepRunning: true,
+    stopAfterPolls: 6,
+    probeOutput: allProbesPassed,
+  });
+  const request = await launchRequest(fixture.transport, {
+    allowanceMs: 60000,
+    argv: routedArgv,
+    modelRoute,
+  });
+  const running = fixture.transport.run(request, () => {}, sessionGateway());
+  for (
+    let i = 0;
+    i < 400 &&
+    !fixture.read().commands?.some((a) => a.at(-1) === "/tmp/launch");
+    i++
+  )
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  const probed = await fixture.transport.probeBoundary(session, "index.html");
+  assert.ok(probed.probes.every((p) => p.outcome === "passed"));
+  assert.equal(fixture.read().probes[0][2], "routed");
+  await running;
+});
 
-test(
-  "a failed probe is reported as failed, never as a pass",
-  posixGuest,
-  async (t) => {
-    const { transport, running } = await liveSession(t, {
-      probeOutput: allProbesPassed.replace("passed-network", "failed-network"),
-    });
-    const probed = await transport.probeBoundary(session, "index.html");
-    assert.equal(
-      probed.probes.find((p) => p.name === "network").outcome,
-      "failed",
-    );
-    await running;
-    await transport.stop(session);
-  },
-);
+test("a failed probe is reported as failed, never as a pass", async (t) => {
+  const { transport, running } = await liveSession(t, {
+    probeOutput: allProbesPassed.replace("passed-network", "failed-network"),
+  });
+  const probed = await transport.probeBoundary(session, "index.html");
+  assert.equal(
+    probed.probes.find((p) => p.name === "network").outcome,
+    "failed",
+  );
+  await running;
+  await transport.stop(session);
+});
 
-test(
-  "the boundary probe refuses anything but a live session and an admitted file",
-  posixGuest,
-  async (t) => {
-    const idle = guestFixture(t);
-    await assert.rejects(idle.transport.probeBoundary(session, "index.html"));
-    const { transport, read, running } = await liveSession(t);
-    for (const path of ["", ".git/config", "../index.html", "/etc/passwd"])
-      await assert.rejects(transport.probeBoundary(session, path), path);
-    await assert.rejects(transport.probeBoundary(session, "missing.html"));
-    await assert.rejects(
-      transport.probeBoundary(
-        { ...session, fence: session.fence + 1 },
-        "index.html",
-      ),
-    );
-    assert.equal(read().probes, undefined, "no probe ran");
-    await running;
-    await transport.stop(session);
-  },
-);
+test("the boundary probe refuses anything but a live session and an admitted file", async (t) => {
+  const idle = guestFixture(t);
+  await assert.rejects(idle.transport.probeBoundary(session, "index.html"));
+  const { transport, read, running } = await liveSession(t);
+  for (const path of ["", ".git/config", "../index.html", "/etc/passwd"])
+    await assert.rejects(transport.probeBoundary(session, path), path);
+  await assert.rejects(transport.probeBoundary(session, "missing.html"));
+  await assert.rejects(
+    transport.probeBoundary(
+      { ...session, fence: session.fence + 1 },
+      "index.html",
+    ),
+  );
+  assert.equal(read().probes, undefined, "no probe ran");
+  await running;
+  await transport.stop(session);
+});
 
 for (const [name, engine] of [
   ["malformed probe output", { probeOutput: "passed-tools\n" }],
   ["an unobserved descendant", { descendantInvisible: true }],
 ])
-  test(`the boundary probe refuses ${name}`, posixGuest, async (t) => {
+  test(`the boundary probe refuses ${name}`, async (t) => {
     const { transport, running } = await liveSession(t, engine);
     await assert.rejects(transport.probeBoundary(session, "index.html"));
     await running.catch(() => {});

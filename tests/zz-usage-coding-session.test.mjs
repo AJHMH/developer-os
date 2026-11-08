@@ -1,6 +1,5 @@
 // Coding usage authority, monitoring and restart approval. Split from
-// zz-feature-coding-session.test.mjs so these slower controller tests run on
-// another Windows test shard; the mediation link and routed sessions are in
+// zz-feature-coding-session.test.mjs; the mediation link and routed sessions are in
 // zz-usage-turn-routing.test.mjs, lapse revocation in
 // zz-usage-turn-lapse.test.mjs.
 import { planAndValidate } from "./helpers/validation-fixture.mjs";

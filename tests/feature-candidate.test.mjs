@@ -14,7 +14,6 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { DeliveryController, DeliveryError } from "../dist/controller.js";
 import { ownerCriteriaPlanner } from "../dist/feature-criteria.js";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import { chmodSync } from "node:fs";
 
 import { fixture, codingFixture } from "./helpers/feature-fixture.mjs";
@@ -528,30 +527,19 @@ test("source admission recognizes equivalent native and Git worktree root spelli
   );
 });
 
-test(
-  "source admission preserves a line break inside the canonical repository root",
-  {
-    skip:
-      process.platform === "win32"
-        ? "Windows forbids control characters in paths"
-        : false,
-  },
-  async (t) => {
-    const f = fixture(t);
-    const { renameSync } = await import("node:fs");
-    const { candidateSource } = await import("../dist/feature-candidate.js");
-    const revision = f.git("rev-parse", "HEAD");
-    const moved = f.repository + "\ncontinued";
-    renameSync(f.repository, moved);
-    const source = candidateSource(moved, revision);
-    assert.equal(source.revision, revision);
-    assert.equal(source.files[0].bytes.toString(), "<h1>Contact</h1>\n");
-    const { candidateMainSource } = await import(
-      "../dist/feature-candidate.js"
-    );
-    assert.deepEqual(candidateMainSource(moved, "main"), source);
-  },
-);
+test("source admission preserves a line break inside the canonical repository root", async (t) => {
+  const f = fixture(t);
+  const { renameSync } = await import("node:fs");
+  const { candidateSource } = await import("../dist/feature-candidate.js");
+  const revision = f.git("rev-parse", "HEAD");
+  const moved = f.repository + "\ncontinued";
+  renameSync(f.repository, moved);
+  const source = candidateSource(moved, revision);
+  assert.equal(source.revision, revision);
+  assert.equal(source.files[0].bytes.toString(), "<h1>Contact</h1>\n");
+  const { candidateMainSource } = await import("../dist/feature-candidate.js");
+  assert.deepEqual(candidateMainSource(moved, "main"), source);
+});
 
 test("ambient Git variables never redirect a source observation", async (t) => {
   const f = fixture(t);
@@ -1032,11 +1020,7 @@ test("source admission resolves root identity but still refuses a linked workspa
   const f = fixture(t);
   const { candidateSource } = await import("../dist/feature-candidate.js");
   const alias = join(f.root, "alias");
-  symlinkSync(
-    f.repository,
-    alias,
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  symlinkSync(f.repository, alias, "dir");
   assert.throws(() => candidateSource(alias), /ordinary/);
 });
 
@@ -1243,7 +1227,6 @@ function ownerCriteria(t, f, fields = {}) {
       }),
       { mode: 0o600 },
     );
-    ownWindowsFixturePaths([directory, path]);
   };
   write();
   f.controller = new DeliveryController(
@@ -1331,15 +1314,13 @@ test("owner criteria are read only from a private absolute file outside every re
       path,
     );
   }
-  if (process.platform !== "win32") {
-    const criteria = ownerCriteria(t, f);
-    chmodSync(criteria.path, 0o644);
-    await assert.rejects(
-      f.controller.planFeature(f.delivery.id),
-      /could not be established safely/,
-      "a file others can read",
-    );
-  }
+  const criteria = ownerCriteria(t, f);
+  chmodSync(criteria.path, 0o644);
+  await assert.rejects(
+    f.controller.planFeature(f.delivery.id),
+    /could not be established safely/,
+    "a file others can read",
+  );
 });
 
 test("the CLI's owner inputs carry one offline delivery from start to an admitted candidate", async (t) => {
@@ -1406,7 +1387,6 @@ test("the CLI's owner inputs carry one offline delivery from start to an admitte
     }),
     { mode: 0o600 },
   );
-  ownWindowsFixturePaths([owner, attestationPath, criteriaPath]);
   // What the CLI installs for plan-feature, validate-baseline and
   // code-feature, with simulated coding, validation and usage transports.
   const controller = new DeliveryController(

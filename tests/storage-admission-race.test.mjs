@@ -22,50 +22,46 @@ function fixture(t) {
   return { root, repository, state, controller, owner };
 }
 
-test(
-  "a removed SQLite WAL observed during admission does not reject a queued request",
-  { skip: process.platform === "win32" },
-  (t) => {
-    const f = fixture(t),
-      wal = join(f.state, "deliveries.sqlite-wal");
-    fs.writeFileSync(wal, "");
-    const original = fs.lstatSync;
-    let observed = false;
-    t.mock.method(fs, "lstatSync", function (path, ...args) {
-      if (path === wal && !observed) {
-        observed = true;
-        const fd = fs.openSync(wal, "r");
-        try {
-          fs.unlinkSync(wal);
-          const removed = fs.fstatSync(fd);
-          assert.equal(removed.nlink, 0);
-          return removed;
-        } finally {
-          fs.closeSync(fd);
-        }
+test("a removed SQLite WAL observed during admission does not reject a queued request", (t) => {
+  const f = fixture(t),
+    wal = join(f.state, "deliveries.sqlite-wal");
+  fs.writeFileSync(wal, "");
+  const original = fs.lstatSync;
+  let observed = false;
+  t.mock.method(fs, "lstatSync", function (path, ...args) {
+    if (path === wal && !observed) {
+      observed = true;
+      const fd = fs.openSync(wal, "r");
+      try {
+        fs.unlinkSync(wal);
+        const removed = fs.fstatSync(fd);
+        assert.equal(removed.nlink, 0);
+        return removed;
+      } finally {
+        fs.closeSync(fd);
       }
-      return Reflect.apply(original, this, [path, ...args]);
-    });
+    }
+    return Reflect.apply(original, this, [path, ...args]);
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
     syncBuiltinESMExports();
-    t.after(() => {
-      t.mock.restoreAll();
-      syncBuiltinESMExports();
-    });
-    const queued = f.controller.start({
-      repository: f.repository,
-      request: "Second synthetic feature",
-    });
-    assert.equal(observed, true);
-    assert.equal(queued.phase, "queued");
-    assert.equal(queued.ownership.held, false);
-    const deliveries = f.controller.list().deliveries;
-    assert.equal(deliveries.length, 2);
-    assert.deepEqual(
-      deliveries.filter((d) => d.ownership.held).map((d) => d.id),
-      [f.owner.id],
-    );
-  },
-);
+  });
+  const queued = f.controller.start({
+    repository: f.repository,
+    request: "Second synthetic feature",
+  });
+  assert.equal(observed, true);
+  assert.equal(queued.phase, "queued");
+  assert.equal(queued.ownership.held, false);
+  const deliveries = f.controller.list().deliveries;
+  assert.equal(deliveries.length, 2);
+  assert.deepEqual(
+    deliveries.filter((d) => d.ownership.held).map((d) => d.id),
+    [f.owner.id],
+  );
+});
 
 function removedInode(path) {
   fs.writeFileSync(path, "");
@@ -96,103 +92,85 @@ function observeRemoved(t, path, entry, replace, repeat = false) {
     syncBuiltinESMExports();
   });
 }
-const posixUnlink = {
-  skip:
-    process.platform === "win32"
-      ? "Requires a POSIX unlinked-open-inode observation"
-      : false,
-};
 for (const replacement of ["hard-link", "symbolic-link", "ambiguous-again"]) {
-  test(
-    `a removed sidecar replaced by ${replacement} still refuses admission`,
-    posixUnlink,
-    (t) => {
-      const f = fixture(t),
-        wal = join(f.state, "deliveries.sqlite-wal");
-      const entry = removedInode(wal),
-        outside = join(f.root, "outside.txt");
-      fs.writeFileSync(outside, "owner fixture");
-      observeRemoved(
-        t,
-        wal,
-        entry,
-        replacement === "hard-link"
-          ? () => fs.linkSync(outside, wal)
-          : replacement === "symbolic-link"
-            ? () => fs.symlinkSync(outside, wal)
-            : undefined,
-        replacement === "ambiguous-again",
-      );
-      assert.throws(
-        () =>
-          f.controller.start({
-            repository: f.repository,
-            request: "Refused synthetic feature",
-          }),
-        /ordinary files and directories/i,
-      );
-      t.mock.restoreAll();
-      syncBuiltinESMExports();
-      fs.rmSync(wal, { force: true });
-      assert.equal(fs.readFileSync(outside, "utf8"), "owner fixture");
-      assert.deepEqual(
-        f.controller.list().deliveries.map((d) => d.id),
-        [f.owner.id],
-      );
-    },
-  );
-}
-test(
-  "a reappearing ordinary SHM sidecar is revalidated before queueing",
-  posixUnlink,
-  (t) => {
+  test(`a removed sidecar replaced by ${replacement} still refuses admission`, (t) => {
     const f = fixture(t),
-      shm = join(f.state, "deliveries.sqlite-shm");
-    const entry = removedInode(shm);
-    observeRemoved(t, shm, entry, () => fs.writeFileSync(shm, ""));
-    const queued = f.controller.start({
-      repository: f.repository,
-      request: "Second synthetic feature",
-    });
-    assert.equal(queued.phase, "queued");
-    assert.equal(queued.ownership.held, false);
-    assert.equal(f.controller.status(f.owner.id).ownership.held, true);
-  },
-);
-test(
-  "an unlinked main ledger observation is never treated as a disposable sidecar",
-  posixUnlink,
-  (t) => {
-    const f = fixture(t),
-      ledger = join(f.state, "deliveries.sqlite"),
-      bytes = fs.readFileSync(ledger);
-    const fd = fs.openSync(ledger, "r");
-    let entry;
-    try {
-      fs.unlinkSync(ledger);
-      entry = fs.fstatSync(fd);
-      assert.equal(entry.nlink, 0);
-    } finally {
-      fs.closeSync(fd);
-    }
-    fs.writeFileSync(ledger, bytes);
-    observeRemoved(t, ledger, entry);
+      wal = join(f.state, "deliveries.sqlite-wal");
+    const entry = removedInode(wal),
+      outside = join(f.root, "outside.txt");
+    fs.writeFileSync(outside, "owner fixture");
+    observeRemoved(
+      t,
+      wal,
+      entry,
+      replacement === "hard-link"
+        ? () => fs.linkSync(outside, wal)
+        : replacement === "symbolic-link"
+          ? () => fs.symlinkSync(outside, wal)
+          : undefined,
+      replacement === "ambiguous-again",
+    );
     assert.throws(
       () =>
         f.controller.start({
           repository: f.repository,
-          request: "Refused replacement ledger",
+          request: "Refused synthetic feature",
         }),
       /ordinary files and directories/i,
     );
     t.mock.restoreAll();
     syncBuiltinESMExports();
+    fs.rmSync(wal, { force: true });
+    assert.equal(fs.readFileSync(outside, "utf8"), "owner fixture");
     assert.deepEqual(
       f.controller.list().deliveries.map((d) => d.id),
       [f.owner.id],
     );
-  },
-);
+  });
+}
+test("a reappearing ordinary SHM sidecar is revalidated before queueing", (t) => {
+  const f = fixture(t),
+    shm = join(f.state, "deliveries.sqlite-shm");
+  const entry = removedInode(shm);
+  observeRemoved(t, shm, entry, () => fs.writeFileSync(shm, ""));
+  const queued = f.controller.start({
+    repository: f.repository,
+    request: "Second synthetic feature",
+  });
+  assert.equal(queued.phase, "queued");
+  assert.equal(queued.ownership.held, false);
+  assert.equal(f.controller.status(f.owner.id).ownership.held, true);
+});
+test("an unlinked main ledger observation is never treated as a disposable sidecar", (t) => {
+  const f = fixture(t),
+    ledger = join(f.state, "deliveries.sqlite"),
+    bytes = fs.readFileSync(ledger);
+  const fd = fs.openSync(ledger, "r");
+  let entry;
+  try {
+    fs.unlinkSync(ledger);
+    entry = fs.fstatSync(fd);
+    assert.equal(entry.nlink, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.writeFileSync(ledger, bytes);
+  observeRemoved(t, ledger, entry);
+  assert.throws(
+    () =>
+      f.controller.start({
+        repository: f.repository,
+        request: "Refused replacement ledger",
+      }),
+    /ordinary files and directories/i,
+  );
+  t.mock.restoreAll();
+  syncBuiltinESMExports();
+  assert.deepEqual(
+    f.controller.list().deliveries.map((d) => d.id),
+    [f.owner.id],
+  );
+});
 test("a linked SQLite sidecar is refused on every platform", (t) => {
   const f = fixture(t),
     outside = join(f.root, "outside.txt"),
