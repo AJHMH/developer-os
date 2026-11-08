@@ -78,7 +78,7 @@ Controlled fixtures and real temporary signed Git objects establish controller
 behavior, not live GitHub authority. Native ports must independently qualify
 pagination/history completeness, workflow/App publisher provenance, timestamp and
 clock behavior, operation-ID rerun reconciliation, conditional branch updates,
-credential isolation and interruption on Windows and macOS. The owner Git signer
+credential isolation and interruption on macOS. The owner Git signer
 and App PR transport still require their earlier native qualification.
 [Review decisions and final-head approval](review-owner-approval.md), merge, main
 verification and completion remain separate gates. Production delivery remains disabled.

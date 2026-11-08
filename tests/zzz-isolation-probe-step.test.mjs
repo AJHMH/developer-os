@@ -38,10 +38,10 @@ const binding = {
 };
 const admitted = {
   ...binding,
-  platform: "win32",
-  arch: "x64",
-  osVersion: "10.0.26100",
-  provider: "hyperv",
+  platform: "darwin",
+  arch: "arm64",
+  osVersion: "27.2.0",
+  provider: "applehv",
 };
 const effective = {
   hypervisor: true,

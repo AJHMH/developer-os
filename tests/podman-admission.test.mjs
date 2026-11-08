@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -19,10 +20,10 @@ function fixture(t, hostBinding = {}) {
   const repository = join(root, "repo");
   mkdirSync(repository);
   const binding = {
-    platform: "win32",
-    arch: "x64",
-    osVersion: "10.0.26100",
-    provider: "hyperv",
+    platform: "darwin",
+    arch: "arm64",
+    osVersion: "27.2.0",
+    provider: "applehv",
     machine: "aios-test",
     hostId: "a".repeat(64),
     engineVersion: "6.0.2",
@@ -71,7 +72,7 @@ function fixture(t, hostBinding = {}) {
   };
 }
 
-test("a matching dedicated Windows VM admits only an offline probe and records durable bindings", async (t) => {
+test("a matching dedicated Mac VM admits only an offline probe and records durable bindings", async (t) => {
   const f = fixture(t);
   const result = await f.controller.qualify(f.delivery.id);
   assert.equal(result.qualification.offlineAdmission.allowed, true);
@@ -260,7 +261,7 @@ test("macOS admission refuses Intel, older Darwin, implicit providers and confli
     { arch: "x64" },
     { osVersion: "22.6.0" },
     { provider: "libkrun" },
-    { provider: "hyperv" },
+    { provider: "qemu" },
   ]) {
     const f = fixture(t, {
       platform: "darwin",
@@ -291,7 +292,7 @@ test("macOS admission refuses Intel, older Darwin, implicit providers and confli
   assert.equal(result.execution, undefined);
 });
 
-test("any changed macOS binding or incomplete effective control revokes admission and cannot inherit Windows proof", async (t) => {
+test("any changed macOS binding or incomplete effective control revokes admission", async (t) => {
   const f = fixture(t, {
     platform: "darwin",
     arch: "arm64",
@@ -345,10 +346,10 @@ test("public qualification records synthetic credential isolation, endpoint, del
   const policyPath = join(root, "pins.json");
   mkdirSync(repository);
   const binding = {
-    platform: "win32",
-    arch: "x64",
-    osVersion: "10.0.26100",
-    provider: "hyperv",
+    platform: "darwin",
+    arch: "arm64",
+    osVersion: "27.2.0",
+    provider: "applehv",
     machine: "aios-test",
     hostId: "a".repeat(64),
     engineVersion: "6.0.2",
@@ -422,7 +423,7 @@ test("public qualification records synthetic credential isolation, endpoint, del
                 observedCodexProcesses: 1,
                 credentialIsolation: "passed",
                 binarySha256:
-                  "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+                  "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
                 shutdown: { remainingProcesses: 0 },
                 endpointEnforcement: "passed",
                 deliveryCapabilities: "passed",

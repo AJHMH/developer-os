@@ -18,10 +18,10 @@ function evidence() {
       offlineAdmission: {
         allowed: true,
         binding: {
-          platform: "win32",
-          arch: "x64",
-          provider: "hyperv",
-          osVersion: "10.0.22000",
+          platform: "darwin",
+          arch: "arm64",
+          provider: "applehv",
+          osVersion: "23.0.0",
           machine: "aios-fixture",
           hostId: sha,
           vmImageSha256: sha,
@@ -86,16 +86,18 @@ function onlineEvidence() {
 test("named host and transfer rules refuse source-pin drift and unverified shutdown", () => {
   const d = evidence();
   assert.equal(
-    evaluateQualificationRules(d, false, now).checks.hostBinding.result,
+    evaluateQualificationRules(d, now).checks.hostBinding.result,
     "passed",
   );
+  d.qualification.offlineAdmission.binding.provider = "qemu";
   assert.equal(
-    evaluateQualificationRules(d, true, now).checks.hostBinding.result,
+    evaluateQualificationRules(d, now).checks.hostBinding.result,
     "failed",
   );
+  d.qualification.offlineAdmission.binding.provider = "applehv";
   d.qualification.runtimeVersions.worker = "b".repeat(64);
   assert.equal(
-    evaluateQualificationRules(d, false, now).checks.hostBinding.result,
+    evaluateQualificationRules(d, now).checks.hostBinding.result,
     "failed",
   );
   d.qualification.runtimeVersions = { ...qualificationRuntimeVersions };
@@ -109,12 +111,12 @@ test("named host and transfer rules refuse source-pin drift and unverified shutd
     shutdownProof: { remainingProcesses: 0 },
   };
   assert.equal(
-    evaluateQualificationRules(d, false, now).checks.offlineTransfer.result,
+    evaluateQualificationRules(d, now).checks.offlineTransfer.result,
     "passed",
   );
   d.offlineCanary.shutdownProof.remainingProcesses = 1;
   assert.equal(
-    evaluateQualificationRules(d, false, now).checks.offlineTransfer.result,
+    evaluateQualificationRules(d, now).checks.offlineTransfer.result,
     "failed",
   );
 });
@@ -122,8 +124,7 @@ test("named host and transfer rules refuse source-pin drift and unverified shutd
 test("historical usage uses the shared gate at its recorded authorization instant", () => {
   const d = onlineEvidence(),
     read = () =>
-      evaluateQualificationRules(d, false, now + 100000).checks.usageGate
-        .result;
+      evaluateQualificationRules(d, now + 100000).checks.usageGate.result;
   assert.equal(read(), "passed");
   const usage = d.onlineAccess.usageAuthorization.usage;
   usage.decision = "approval-required";
@@ -146,7 +147,7 @@ test("historical usage uses the shared gate at its recorded authorization instan
 test("failed isolation probes cannot be upgraded and retained active sessions block fencing", () => {
   const d = evidence();
   d.qualification.adversarial = {
-    scope: "synthetic-windows-controls",
+    scope: "synthetic-macos-controls",
     challengeId: "123e4567-e89b-42d3-a456-426614174000",
     probeVersion: sha,
     escapeAttempts: ["unshare", "chroot", "cgroup", "proc"].map(
@@ -167,18 +168,17 @@ test("failed isolation probes cannot be upgraded and retained active sessions bl
     outputSha256: sha,
     shutdownProof: { remainingProcesses: 0 },
   };
-  let checks = evaluateQualificationRules(d, false, now).checks;
+  let checks = evaluateQualificationRules(d, now).checks;
   assert.equal(checks.adversarialIsolation.result, "passed");
   assert.equal(checks.fencingRecovery.result, "passed");
   d.onlineRuns = [{ state: "uncertain" }];
   assert.equal(
-    evaluateQualificationRules(d, false, now).checks.fencingRecovery.result,
+    evaluateQualificationRules(d, now).checks.fencingRecovery.result,
     "not-run",
   );
   d.qualification.probes[0].outcome = "failed";
   assert.equal(
-    evaluateQualificationRules(d, false, now).checks.adversarialIsolation
-      .result,
+    evaluateQualificationRules(d, now).checks.adversarialIsolation.result,
     "failed",
   );
 });

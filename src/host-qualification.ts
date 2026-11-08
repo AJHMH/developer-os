@@ -12,9 +12,7 @@ export interface HostWorkerQualificationReport {
   schema: 1;
   /** Fixed worker evidence never qualifies the complete delivery controller. */
   scope: "fixed-worker";
-  target:
-    | { platform: "win32"; arch: "x64"; provider: "hyperv" }
-    | { platform: "darwin"; arch: "arm64"; provider: "applehv" };
+  target: { platform: "darwin"; arch: "arm64"; provider: "applehv" };
   deliveryId: string;
   outcome: "qualified" | "blocked";
   source: {
@@ -51,27 +49,14 @@ export interface HostWorkerQualificationReport {
 const sha256 = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 /** Builds a read-only snapshot. Controlled evidence remains visibly controlled
- * and cannot qualify Windows production; no report can enable delivery. */
-export function windowsWorkerQualificationReport(
+ * and cannot qualify Mac production; no report can enable delivery. */
+export function workerQualificationReport(
   delivery: Delivery,
-): HostWorkerQualificationReport {
-  return workerQualificationReport(delivery, false);
-}
-
-export function macosWorkerQualificationReport(
-  delivery: Delivery,
-): HostWorkerQualificationReport {
-  return workerQualificationReport(delivery, true);
-}
-
-function workerQualificationReport(
-  delivery: Delivery,
-  macos: boolean,
 ): HostWorkerQualificationReport {
   const q = delivery.qualification,
     binding = q?.offlineAdmission?.binding,
     evidenceMode = q?.mode ?? "unavailable";
-  const { checks, blockers } = evaluateQualificationRules(delivery, macos);
+  const { checks, blockers } = evaluateQualificationRules(delivery);
   const status =
     Object.values(checks).every((entry) => entry.result === "passed") &&
     Object.values(checks).every((entry) => entry.evidenceMode === "live")
@@ -80,9 +65,7 @@ function workerQualificationReport(
   return {
     schema: 1,
     scope: "fixed-worker",
-    target: macos
-      ? { platform: "darwin", arch: "arm64", provider: "applehv" }
-      : { platform: "win32", arch: "x64", provider: "hyperv" },
+    target: { platform: "darwin", arch: "arm64", provider: "applehv" },
     deliveryId: delivery.id,
     outcome: status,
     source: {
@@ -110,16 +93,7 @@ function workerQualificationReport(
         : {}),
     },
     checks,
-    blockers: macos
-      ? blockers.map((message) =>
-          message
-            .replaceAll("Windows Hyper-V", "macOS AppleHV")
-            .replaceAll("Windows", "macOS"),
-        )
-      : blockers,
+    blockers,
     productionEnabled: false,
   };
 }
-
-/** Compatibility name for persisted consumer integrations. */
-export type WindowsWorkerQualificationReport = HostWorkerQualificationReport;

@@ -51,10 +51,7 @@ export function autoRunPath(path: string): boolean {
 function ordinary(path: string, directory: boolean): void {
   const entry = lstatSync(path),
     canonical = realpathSync(path);
-  const same =
-    process.platform === "win32"
-      ? canonical.toLowerCase() === resolve(path).toLowerCase()
-      : canonical === resolve(path);
+  const same = canonical === resolve(path);
   if (
     entry.isSymbolicLink() ||
     !same ||

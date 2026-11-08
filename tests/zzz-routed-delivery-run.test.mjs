@@ -233,8 +233,7 @@ test("prepare starts, plans and baselines a delivery, qualifies the fixed worker
   // The session holds what later phases need, privately.
   const path = join(root, "session.json");
   assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), session);
-  if (process.platform !== "win32")
-    assert.equal(statSync(path).mode & 0o777, 0o600);
+  assert.equal(statSync(path).mode & 0o777, 0o600);
   // No live request or approval is spent while preparing.
   assert.equal(commands(sim, "record-mediation-decision").length, 1);
 });

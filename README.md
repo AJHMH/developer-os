@@ -1,6 +1,8 @@
 # Developer OS
 
-A local TypeScript controller for owner-approved feature delivery. It implements durable intake and controls, independently demonstrated fixed Podman workers on Windows and Apple-silicon macOS, and controlled delivery orchestration through synchronization, eligible branch cleanup and completion. **Production feature delivery remains disabled.** Native delivery integrations (including synchronization and cleanup) and full-platform/pilot qualification are unfinished.
+A local TypeScript controller for owner-approved feature delivery. It implements durable intake and controls, an independently demonstrated fixed Podman worker on Apple-silicon macOS, and controlled delivery orchestration through synchronization, eligible branch cleanup and completion. **Production feature delivery remains disabled.** Native delivery integrations (including synchronization and cleanup) and full-platform/pilot qualification are unfinished.
+
+The owner's Mac is the only owner host ([ADR 0007](docs/adr/0007-macos-only-owner-host.md)): the CLI refuses to start on any other operating system.
 
 See [implementation status](docs/implementation-status.md) for completed scope, evidence and remaining gates; [implementation tickets](.scratch/aios-v1-implementation/README.md) track acceptance separately from implemented code.
 
@@ -17,7 +19,7 @@ npm run build
 npm run test:cli
 ```
 
-Host fixtures use `python3`, or `python` on Windows; set `AIOS_TEST_PYTHON` to use another interpreter. Tests need permission for temporary Git repositories and synthetic localhost services. The tests do not authorize live subscription inference. The latest retained ticket 12 local run records 497 tests: 495 passed and two platform skips; it is historical validation, not a fresh run or current hosted certification.
+Host fixtures use `python3`; set `AIOS_TEST_PYTHON` to use another interpreter. Off macOS (for example on Linux CI), `npm test` sets `AIOS_TEST_HOST_PLATFORM=darwin` so the suite's CLI runs stand in for the Mac. Tests need permission for temporary Git repositories and synthetic localhost services. The tests do not authorize live subscription inference. The latest retained ticket 12 local run records 497 tests: 495 passed and two platform skips; it is historical validation, not a fresh run or current hosted certification.
 
 ## Submit and inspect a request
 
@@ -29,7 +31,7 @@ node dist/cli.js status --id "${DELIVERY_ID:?}" --state-dir "/absolute/controlle
 node dist/cli.js status --state-dir "/absolute/controller-state"
 ```
 
-Use quoted absolute native paths on Windows. State defaults to `.developer-os` under the user's home directory; keep state outside target repositories. A successful command emits JSON and exits zero. Accepted intake remains blocked by `DELIVERY_NOT_ENABLED`; exit zero does not mean delivery completed. Invalid commands and inaccessible state emit a fixed JSON error on stderr.
+Use quoted absolute paths. State defaults to `.developer-os` under the user's home directory; keep state outside target repositories. A successful command emits JSON and exits zero. Accepted intake remains blocked by `DELIVERY_NOT_ENABLED`; exit zero does not mean delivery completed. Invalid commands and inaccessible state emit a fixed JSON error on stderr.
 
 Requests, optional `--issue` references and request artifacts survive restart in SQLite WAL with full synchronization. Back up ledger and artifacts together. Redaction handles common credential formats but cannot detect arbitrary secrets; keep secrets out of requests, references and paths.
 
@@ -51,17 +53,16 @@ One configured authority directory coordinates ownership per canonical repositor
 
 ## Subscription and fixed worker qualification
 
-Host-only authentication uses macOS Keychain or Windows protected storage. Workers receive scoped revocable capabilities rather than reusable owner credentials. Low (20% or less remaining), unknown or stale usage requires a fresh run-bound allowance; exhaustion cannot be overridden. Other account activity can consume usage between observations, so this is not a hard financial cap. There is no paid-provider fallback.
+Host-only authentication uses macOS Keychain. Workers receive scoped revocable capabilities rather than reusable owner credentials. Low (20% or less remaining), unknown or stale usage requires a fresh run-bound allowance; exhaustion cannot be overridden. Other account activity can consume usage between observations, so this is not a hard financial cap. There is no paid-provider fallback.
 
 `check-usage`, `approve-usage` and `poll-usage` address an explicit delivery. An owner-selected absolute `--codex-executable` supplies app-server account/usage observations. `prepare-auth`, `authorize-auth` and `auth-status` manage separate external host authentication; sign-in is not approval for inference.
 
-`pin-offline`, `qualify`, `offline-canary`, `online-canary`, `qualify-windows-controls`, `qualify-macos-controls`, `synthetic-task` and `qualification-report` implement fixed synthetic admission/qualification paths. Enrollment requires an owner-selected `aios-` machine and external pins. Changed host/source/policy bindings require fresh qualification. Read the platform runbook before using operator fixtures:
+`pin-offline`, `qualify`, `offline-canary`, `online-canary`, `qualify-macos-controls`, `synthetic-task` and `qualification-report` implement fixed synthetic admission/qualification paths. Enrollment requires an owner-selected `aios-` machine and external pins. Changed host/source/policy bindings require fresh qualification. Read the runbook before using operator fixtures:
 
-- [Windows worker qualification](docs/windows-worker-qualification.md)
 - [macOS worker qualification](docs/macos-worker-qualification.md)
 - [Offline general-worker qualification](docs/worker-qualification.md)
 
-Both platforms have independent fixed-worker passing receipts. These are version-bound results; historical approvals authorize no new inference. `qualification-report` never enables production.
+The Mac has an independent fixed-worker passing receipt. These are version-bound results; historical approvals authorize no new inference. `qualification-report` never enables production.
 
 ## Controlled delivery stages
 

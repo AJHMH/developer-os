@@ -13,10 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inspectCodexMediation } from "../dist/codex-mediation.js";
 
-for (const [platform, arch] of [
-  ["darwin", "arm64"],
-  ["win32", "x64"],
-]) {
+for (const [platform, arch] of [["darwin", "arm64"]]) {
   test(`supported ${platform} host refuses unpinned, linked and candidate-owned executables`, async (t) => {
     const originalPlatform = Object.getOwnPropertyDescriptor(
       process,

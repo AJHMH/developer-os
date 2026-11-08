@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -98,7 +99,6 @@ test("authorization refuses a malformed selected account before preparing extern
 });
 
 test("authentication setup refuses existing shared storage without changing its permissions", (t) => {
-  if (process.platform === "win32") return;
   const f = fixture(t);
   mkdirSync(f.auth);
   chmodSync(f.auth, 0o777);
@@ -120,55 +120,6 @@ test("macOS authentication setup refuses extended ACL access without rewriting e
   assert.equal(acl.status, 0, acl.stderr);
   assert.equal(f.command(f.auth).status, 1);
   assert.deepEqual(readdirSync(f.auth), []);
-});
-
-test("Windows preparation refuses permissive retained registration without rewriting it", (t) => {
-  if (process.platform !== "win32") return t.skip("Windows ACL observation");
-  const f = fixture(t);
-  assert.equal(f.command(f.auth).status, 0);
-  const path = join(f.auth, "registration.json");
-  const original = readFileSync(path, "utf8");
-  const script = String.raw`
-$ErrorActionPreference='Stop'
-$PSModuleAutoLoadingPreference='None'
-foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')) {
- Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,($name+'.psd1'))) -ErrorAction Stop
-}
-$path=[Console]::In.ReadToEnd() | ConvertFrom-Json
-$file=New-Object IO.FileInfo($path)
-$acl=$file.GetAccessControl([Security.AccessControl.AccessControlSections]::Access)
-$sid=New-Object Security.Principal.SecurityIdentifier('S-1-1-0')
-$rule=New-Object Security.AccessControl.FileSystemAccessRule($sid,'Write','Allow')
-$acl.AddAccessRule($rule)
-$file.SetAccessControl($acl)
-`;
-  const changed = spawnSync(
-    join(
-      process.env.SystemRoot,
-      "System32",
-      "WindowsPowerShell",
-      "v1.0",
-      "powershell.exe",
-    ),
-    [
-      "-NoProfile",
-      "-NonInteractive",
-      "-EncodedCommand",
-      Buffer.from(script, "utf16le").toString("base64"),
-    ],
-    {
-      input: JSON.stringify(path),
-      encoding: "utf8",
-      timeout: 15000,
-      env: { SystemRoot: process.env.SystemRoot },
-      windowsHide: true,
-    },
-  );
-  assert.equal(changed.status, 0, changed.stderr);
-  const result = f.command(f.auth);
-  assert.equal(result.status, 1);
-  assert.equal(result.stdout, "");
-  assert.equal(readFileSync(path, "utf8"), original);
 });
 
 test("the credentialed run reads the host registration back from private storage, and nothing else passes for one", (t) => {

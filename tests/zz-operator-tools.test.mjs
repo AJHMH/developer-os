@@ -33,11 +33,7 @@ function operatorTest(name, options, fn) {
     fn = options;
     options = {};
   }
-  return test(
-    name,
-    { ...options, skip: process.platform === "win32" || options.skip },
-    fn,
-  );
+  return test(name, options, fn);
 }
 
 function fixture(t) {
@@ -293,13 +289,11 @@ operatorTest(
       () => stateDirectory(join(f.repo, "inside"), f.repo),
       /outside/,
     );
-    if (process.platform !== "win32") {
-      const link = join(f.root, "linked");
-      symlinkSync(f.directory, link);
-      assert.throws(() => stateDirectory(link, f.repo));
-      chmodSync(f.directory, 0o755);
-      assert.throws(() => stateDirectory(f.directory, f.repo), /Private/);
-    }
+    const link = join(f.root, "linked");
+    symlinkSync(f.directory, link);
+    assert.throws(() => stateDirectory(link, f.repo));
+    chmodSync(f.directory, 0o755);
+    assert.throws(() => stateDirectory(f.directory, f.repo), /Private/);
   },
 );
 operatorTest(
@@ -555,7 +549,7 @@ operatorTest(
     manifest.body = "changed after approval";
     writeFileSync(file, JSON.stringify(manifest));
     await assert.rejects(p.publish(), /identity changed/);
-    if (process.platform !== "win32") chmodSync(join(f.repo, "a.txt"), 0o755);
+    chmodSync(join(f.repo, "a.txt"), 0o755);
     f.g("update-index", "--chmod=+x", "a.txt");
     await assert.rejects(
       preparePublication(f.options, p.remote),
@@ -565,7 +559,6 @@ operatorTest(
 );
 operatorTest(
   "real App gateway validates minimal scope and revokes a rejected credential",
-  { skip: process.platform === "win32" },
   async (t) => {
     const f = fixture(t),
       keyPath = join(f.root, "app.pem");
@@ -731,21 +724,6 @@ operatorTest(
     assert.equal(remote.authenticated, 0);
   },
 );
-test(
-  "native Windows state refuses before creating files or credentials",
-  { skip: process.platform !== "win32" },
-  () => {
-    const root = mkdtempSync(join(tmpdir(), "operator-refusal-"));
-    try {
-      const state = join(root, "state");
-      assert.throws(() => stateDirectory(state, root), /Windows private state/);
-      assert.equal(existsSync(state), false);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  },
-);
-
 operatorTest(
   "local adoption imports verified objects through a private credential context",
   async (t) => {

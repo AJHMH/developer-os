@@ -127,7 +127,7 @@ export function inspectLocalRepository(
     ),
   );
   env.GIT_CONFIG_NOSYSTEM = "1";
-  env.GIT_CONFIG_GLOBAL = process.platform === "win32" ? "NUL" : "/dev/null";
+  env.GIT_CONFIG_GLOBAL = "/dev/null";
   env.GIT_OPTIONAL_LOCKS = "0";
   const read = (args: string[]) => {
     const result = spawnSync("git", ["-C", repository, ...args], {
@@ -136,7 +136,6 @@ export function inspectLocalRepository(
       encoding: "utf8",
       timeout: 5000,
       maxBuffer: 65536,
-      windowsHide: true,
     });
     return result.status === 0 ? result.stdout.trim() : undefined;
   };

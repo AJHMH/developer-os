@@ -80,8 +80,8 @@ function exchange(port, raw) {
     socket.end(raw);
   });
 }
-/** An exchange the relay cuts by exiting: Windows reports a reset where
- * POSIX reports a close, and either ends the connection. */
+/** An exchange the relay cuts by exiting: a reset or a close ends the
+ * connection. */
 const severed = (pending) =>
   pending.catch((error) => {
     if (error.code !== "ECONNRESET") throw error;

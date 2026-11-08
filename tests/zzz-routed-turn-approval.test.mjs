@@ -70,8 +70,7 @@ test("the owner's plan names one delivery, account, VM, coding pins and turn cou
     JSON.parse(readFileSync(join(directory, file))).deliveryId,
     deliveryId,
   );
-  if (process.platform !== "win32")
-    assert.equal(statSync(join(directory, file)).mode & 0o777, 0o600);
+  assert.equal(statSync(join(directory, file)).mode & 0o777, 0o600);
   // At most two live turns per run (ADR 0002).
   for (const turns of [0, 3, 1.5])
     assert.throws(() => prepare(directory, turns), /1 or 2 turns/);

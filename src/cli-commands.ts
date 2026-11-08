@@ -170,11 +170,6 @@ const commands: Record<string, CliCommand> = {
     [...nativeOptions, "adversarial"],
     ["native", "synthetic"],
   ),
-  "qualify-windows-controls": idAction(
-    "qualifyWindowsControls",
-    [...nativeOptions, "adversarial"],
-    ["native", "controls"],
-  ),
   "qualify-macos-controls": idAction(
     "qualifyMacosControls",
     [...nativeOptions, "adversarial"],

@@ -23,7 +23,7 @@ export function stampQualificationVersions(): QualificationRuntimeVersions {
           "qualification-rules",
           "host-target",
           "vm-management",
-          "windows-controls",
+          "host-controls",
           "host-controls-exercise",
           "session-lifecycle",
           "subscription",

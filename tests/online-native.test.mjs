@@ -64,9 +64,7 @@ test("native online access refuses a dispatched request when owner authorization
     bindingSha256: hash(JSON.stringify(keys.map((key) => [key, binding[key]]))),
   };
   const originalReadFile = fs.readFileSync;
-  let hostPlatform = "darwin";
-  let hostArch = "arm64";
-  let config = JSON.stringify({
+  const config = JSON.stringify({
     Name: "aios-test",
     Version: 1,
     Mounts: [],
@@ -77,11 +75,9 @@ test("native online access refuses a dispatched request when owner authorization
     Ansible: null,
     Resources: { USBs: [] },
   });
-  t.mock.method(os, "platform", () => hostPlatform);
-  t.mock.method(os, "arch", () => hostArch);
-  t.mock.method(os, "release", () =>
-    hostPlatform === "win32" ? "10.0.26100" : "27.2.0",
-  );
+  t.mock.method(os, "platform", () => "darwin");
+  t.mock.method(os, "arch", () => "arm64");
+  t.mock.method(os, "release", () => "27.2.0");
   t.mock.method(os, "homedir", () => "/virtual-home");
   t.mock.method(fs, "lstatSync", () => ({
     isFile: () => true,
@@ -214,21 +210,4 @@ test("native online access refuses a dispatched request when owner authorization
       scenario,
     );
   }
-
-  hostPlatform = "win32";
-  hostArch = "x64";
-  config = JSON.stringify({
-    Name: "aios-test",
-    Version: 1,
-    Mounts: [],
-    HostUser: { Rootful: false },
-    HyperVHypervisor: {},
-    Rosetta: false,
-    ImportNativeCA: false,
-    Ansible: null,
-    Resources: { USBs: [] },
-  });
-  childScenario = "accept";
-  const windowsProof = await access.execute(plan, async () => true);
-  assert.equal(windowsProof.model, "passed");
 });

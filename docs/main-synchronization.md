@@ -50,7 +50,7 @@ Tests exercise real temporary Git repositories and local bare remotes through a
 controlled trusted adapter. GitHub identity, checks and exclusive-authority
 observations remain fixtures. These tests establish the controller contract;
 they do not qualify credential-bearing transports or prove native cross-process
-locking on Windows/macOS. Both platforms still need independent evidence for
+locking on macOS. The Mac still needs independent evidence for
 transport/configuration isolation, fetch/ref/worktree races, bounded descendant
 shutdown, interrupted effects and the full integrated delivery path.
 

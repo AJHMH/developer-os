@@ -1,7 +1,7 @@
 // Owner-run: records a delivery's mediation decision from one fixed-worker
 // inference through the host-only subscription gateway (ADR 0002), so that a
-// routed `code-feature` turn can use it. Promoted from the retained macOS and
-// Windows acceptance flows in `.scratch/aios-v1-implementation/`.
+// routed `code-feature` turn can use it. Promoted from the retained macOS
+// acceptance flows in `.scratch/aios-v1-implementation/`.
 //
 //   prepare: qualify the delivery with the fixed worker, check its mediation
 //     evidence and write a plan naming it. No credential is read.
@@ -380,13 +380,8 @@ async function main(argv) {
         values["approve-unknown-usage"] === undefined)
   )
     throw Error(usage);
-  if (
-    !(
-      (process.platform === "darwin" && process.arch === "arm64") ||
-      (process.platform === "win32" && process.arch === "x64")
-    )
-  )
-    throw Error("Run this on the delivery's macOS arm64 or Windows x64 host.");
+  if (process.platform !== "darwin" || process.arch !== "arm64")
+    throw Error("Run this on the delivery's macOS arm64 host.");
   const { DeliveryController } = await import("../dist/controller.js");
   const { NativePodmanDriver } = await import("../dist/podman-native.js");
   const { PodmanHostAdapter } = await import("../dist/podman-host.js");
@@ -419,18 +414,12 @@ async function main(argv) {
       }),
     },
   );
-  let protect = () => {};
-  if (process.platform === "win32") {
-    const { windowsAuthStore } = await import("../dist/windows-auth-store.js");
-    protect = (paths) => windowsAuthStore(state, paths);
-  }
   const inputs = {
     controller,
     state,
     deliveryId: values.id,
     accountId: values["auth-account"],
     hostId,
-    protect,
   };
   if (action === "prepare") {
     const plan = await prepareMediationInference(inputs);

@@ -1,7 +1,7 @@
 # Offline general-worker qualification (Issue 04)
 
 `scripts/run-native-worker-qualification.mjs` is an owner-run, offline,
-adversarial check of both general workers on one host's dedicated VM. It runs
+adversarial check of both general workers on the Mac's dedicated VM. It runs
 under the owner's coding and validation admission records. It opens no
 credentials, authorizes no inference and never enables production. A passing
 report is evidence for the owner to judge, not a qualification decision.
@@ -40,8 +40,8 @@ tool exists, so a missing tool fails instead of passing. It checks:
 - **Escapes:** `unshare`, `chroot` and cgroup escapes are refused.
 
 Adding the probe changed the coding guest program, so its `policySha256`
-changed. Each host's owner coding admission therefore needs one re-approval
-before this runs.
+changed. The owner coding admission therefore needs one re-approval before
+this runs.
 
 The coding worker runs the **coding probe**: the shared probes, then five of
 its own. Its third argument is the session's mode, `routed` or `offline`,
@@ -95,17 +95,13 @@ amendment). It comes from the same official package as the pinned CLI. The
 guest refuses to inspect, prepare or launch unless the file is in VM
 management storage, private to the guest user, and matches its pin:
 
-| Host    | Package                             | `codex-code-mode-host` SHA-256                                     |
-| ------- | ----------------------------------- | ------------------------------------------------------------------ |
-| macOS   | `@openai/codex@0.161.0-linux-arm64` | `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0` |
-| Windows | `@openai/codex@0.161.0-linux-x64`   | `e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b` |
+| Package                             | `codex-code-mode-host` SHA-256                                     |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `@openai/codex@0.161.0-linux-arm64` | `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0` |
 
-Run each block in one terminal, in order. The copy uses a relative path from
-the folder the first line moves into, so a drive letter is never read as a
-machine name. The last command prints the guest's hash, which must match the
-table.
-
-macOS (zsh), with the VM running:
+Run the block in one terminal, in order, with the VM running. The copy uses a
+relative path from the folder the first line moves into. The last command
+prints the guest's hash, which must match the table.
 
 ```sh
 D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @openai/codex@0.161.0-linux-arm64 && tar -xzf openai-codex-0.161.0-linux-arm64.tgz && shasum -a 256 package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host
@@ -113,15 +109,7 @@ D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @openai/codex@0.161.0-lin
 /opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 && sha256sum ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0'
 ```
 
-Windows (PowerShell, not elevated):
-
-```powershell
-$d = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ("codex-host-" + [guid]::NewGuid())); Set-Location $d; npm pack --ignore-scripts "@openai/codex@0.161.0-linux-x64"; tar -xzf openai-codex-0.161.0-linux-x64.tgz; Get-FileHash -Algorithm SHA256 package/vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host
-podman machine cp package/vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host aios-podman-noshare:/var/home/core/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0
-podman machine ssh aios-podman-noshare 'chmod 600 ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 && sha256sum ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0'
-```
-
-Both owner coding admission records then need re-approval. The new pin
+The owner coding admission record then needs re-approval. The new pin
 `codeModeHostSha256` is part of the record, and the coding guest program,
 and with it `policySha256`, changed.
 
@@ -132,16 +120,10 @@ run stops before any worker starts and prints `freshPins` for both. Like every
 native runner, it first refuses unless `dist/` is exactly what `src/` compiles
 to. It takes a few minutes.
 
-macOS (zsh), from a clean, built checkout with the VM running:
+From a clean, built checkout with the VM running:
 
 ```sh
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
-```
-
-Windows (PowerShell, not elevated — Command Prompt never runs the `;` chain):
-
-```powershell
-npm ci --ignore-scripts; npm run build; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-worker-qualification.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-worker-qualification-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
 ```
 
 ## Limits
@@ -240,7 +222,7 @@ a new capability, or it is refused before any worker exists. The report keeps
 counts and fixed labels only, never request or response content.
 
 Adding that check changed the coding guest program, so its `policySha256`
-changed (to `77885706…`). Each host's owner coding admission needs one
+changed (to `77885706…`). The owner coding admission needs one
 re-approval before the next coding run; a record that doesn't match prints
 `freshPins`. A session stopped under the earlier guest can't be resumed after
 the upgrade, because a resume must carry its predecessor's pins; start a new
@@ -250,24 +232,15 @@ A stopped session keeps its workspace and home, but not its private program
 copies: once the worker is gone, stop removes the session's `codex` (about
 350 MB) and `codex-code-mode-host` copies. A stopped session never runs
 again, and a resume copies its own. This changed the coding guest program
-again, so `policySha256` is now `829e7e1e…` and each host's coding admission
+again, so `policySha256` is now `829e7e1e…` and the coding admission
 needs one more re-approval.
 
 Sessions stopped before that change still hold their copies. To remove them
 once, delete only those two files, and only from sessions whose record says
-`stopped`; a prepared session still needs its copies to launch. The command
-has no double quotes, so it reads the same in zsh and in PowerShell.
-
-macOS (zsh):
+`stopped`; a prepared session still needs its copies to launch:
 
 ```sh
 podman machine ssh aios-macos-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
-```
-
-Windows (PowerShell, not elevated):
-
-```powershell
-podman machine ssh aios-podman-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
 ```
 
 ## Coding container census
@@ -281,16 +254,10 @@ predecessor's pins, so a `policy` other than the coding digest in
 [owner hosts](owner-hosts.md) can't resume under the current guest. It prints no
 session identities or content.
 
-From the checkout, on macOS:
+From the checkout:
 
 ```sh
 /opt/podman/bin/podman machine ssh aios-macos-noshare /usr/bin/python3 -I - < scripts/coding-container-census.py
-```
-
-On Windows (PowerShell, not elevated):
-
-```powershell
-Get-Content -Raw scripts/coding-container-census.py | podman machine ssh aios-podman-noshare /usr/bin/python3 -I -
 ```
 
 A session's kind says what can still reach it. A container is never guaranteed:
@@ -343,10 +310,6 @@ Count first. This removes nothing and prints what a sweep would do:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json"
 ```
 
-```powershell
-node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json"
-```
-
 `abandoned` is what a sweep would remove. `kept` counts the rest: `lineage`
 sessions, `unstopped` ones, `unprepared` ones and `cleaned` tombstones. An
 `unprepared` record names no admission. Usually that session never had a
@@ -357,16 +320,10 @@ It works through 8 at a time until it has tried them all, and moves past any it
 can't remove. A refused session stays for a later sweep; `refused` says how many,
 and the command then exits non-zero.
 
-macOS (zsh), from a clean, built checkout with the VM running:
+From a clean, built checkout with the VM running:
 
 ```sh
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-routed-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/issue04-routed-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
-```
-
-Windows (PowerShell, not elevated):
-
-```powershell
-npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-routed-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/issue04-routed-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
 ```
 
 Outcomes:
@@ -425,16 +382,10 @@ operationId)`, which records `cleanedAt`, and the new one by its exact identity
 on the transport, because the controller keeps no route to a lineage it hasn't
 superseded. At the end, every session is stopped again by its exact identity.
 
-macOS (zsh), from a clean, built checkout with the VM running:
+From a clean, built checkout with the VM running:
 
 ```sh
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-usage-canary.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/issue04-usage-canary-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
-```
-
-Windows (PowerShell, not elevated):
-
-```powershell
-npm ci --ignore-scripts; npm run build; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-usage-canary.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/issue04-usage-canary-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
 ```
 
 Outcomes:
@@ -453,7 +404,7 @@ those are for slice 5.
 
 `scripts/run-native-credentialed-qualification.mjs` is the plan's slice 5
 owner-run runner. **It spends subscription usage.** Two routed provider
-turns on one host, a launch and its explicit resume, each with a 3-minute
+turns on the Mac, a launch and its explicit resume, each with a 3-minute
 allowance and a fixed trivial prompt (owner decision B). It drives the real
 native transport directly, as the routed acceptance does: the real
 `GeneralSessionGateway` with the real provider, the owner's vault account
@@ -500,8 +451,7 @@ ID; the plan expires after an hour:
 node scripts/run-native-credentialed-qualification.mjs prepare aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "${ACCOUNT_ID:?}" "${PRIVATE_STATE:?}"
 ```
 
-Then, from a clean, built checkout with the VM running (macOS shown; on
-Windows use `aios-podman-noshare` and the same arguments), with `AUTH_DIR` and
+Then, from a clean, built checkout with the VM running, with `AUTH_DIR` and
 `CODEX` (the pinned codex executable) set:
 
 ```sh

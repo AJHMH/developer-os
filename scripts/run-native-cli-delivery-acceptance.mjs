@@ -30,7 +30,6 @@ import { arch, platform, release, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freshBuild } from "./fresh-build.mjs";
-import { ownWindowsPaths } from "./windows-owner.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
@@ -148,7 +147,6 @@ export function ownerInputs(root, environment) {
     },
   });
   // One owner setup for the records, as the CLI's private-file checks need.
-  ownWindowsPaths([owner, policyPath, attestationPath]);
   return {
     repository,
     revision,
@@ -164,29 +162,15 @@ export function ownerInputs(root, environment) {
         verification: ["Check the visible hint in the isolated page."],
         ambiguity: null,
       });
-      ownWindowsPaths([criteriaPath]);
       return criteriaPath;
     },
   };
 }
 
-/** A new folder under `parent` that only its owner, SYSTEM and Administrators
- * can use. The CLI refuses owner records and decision state that anyone else
- * can reach, and a Windows temp folder can grant other accounts access by
- * inheritance; elsewhere a new temp folder is already private. */
+/** A new private folder under `parent`. The CLI refuses owner records and
+ * decision state that anyone else can reach; a new temp folder is private. */
 export async function privateRoot(prefix, parent = tmpdir()) {
-  const root = realpathSync(mkdtempSync(join(parent, prefix)));
-  if (process.platform === "win32")
-    try {
-      const { initializeWindowsAuthDirectory } = await import(
-        "../dist/windows-auth-store.js"
-      );
-      initializeWindowsAuthDirectory(root);
-    } catch (error) {
-      rmSync(root, { recursive: true, force: true });
-      throw error;
-    }
-  return root;
+  return realpathSync(mkdtempSync(join(parent, prefix)));
 }
 
 /** One CLI process: its parsed result, or its bounded refusal as an error. */
@@ -197,7 +181,7 @@ export function cliRunner(state) {
       const child = spawn(
         process.execPath,
         [cli, ...args, "--state-dir", state],
-        { stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
+        { stdio: ["ignore", "pipe", "pipe"] },
       );
       const out = [],
         err = [];
@@ -273,8 +257,7 @@ export async function cliDeliveryAcceptance(
     }
   }
   // A refusal is the CLI's own bounded message, never its environment: the
-  // last stderr line that is its JSON error. Node may warn before or after
-  // it (on Windows, about SQLite and a deprecation).
+  // last stderr line that is its JSON error. Node may warn before or after it.
   const refusal = (result) => {
     for (const line of result.stderr.split("\n").reverse())
       try {

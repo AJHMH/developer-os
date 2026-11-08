@@ -77,7 +77,7 @@ that cannot dispatch or verify retains failure and the available evidence.
 ## Qualification still required
 
 Only controlled adapters are accepted. No native repair executor, provider call,
-host validation script or publication authority is added. Qualify real Windows/macOS
+host validation script or publication authority is added. Qualify real macOS
 coding and validation runtimes, process-tree shutdown under interruption/deadline,
 clock/checkpoint persistence across controller crashes, dependency/script isolation,
 protected validation inputs and disposable E2E fixtures before live use.

@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import http from "node:http";
-import cp from "node:child_process";
-import { syncBuiltinESMExports } from "node:module";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import {
   mkdtempSync,
@@ -15,15 +13,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { authorizeSubscriptionAuth } from "../dist/auth-host.js";
 import { prepareSubscriptionAuth } from "../dist/subscription-auth.js";
-import { windowsAuthStore } from "../dist/windows-auth-store.js";
 
 const encode = (value) =>
   Buffer.from(JSON.stringify(value)).toString("base64url");
 
-for (const [platform, arch] of [
-  ["darwin", "arm64"],
-  ["win32", "x64"],
-]) {
+for (const [platform, arch] of [["darwin", "arm64"]]) {
   test(`separate ${platform} authorization completes a local callback with a verified synthetic account and stores only through its host adapter`, async (t) => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-auth-host-")));
     t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -89,31 +83,14 @@ for (const [platform, arch] of [
     let authorizationUrl;
     const credentialVault = (directory) => {
       assert.equal(directory, authDirectory);
-      const nativeVault =
-        platform === "win32" && process.platform === "win32"
-          ? windowsAuthStore(directory)
-          : undefined;
       return {
         read: (id) => {
           if (stored === undefined)
             throw Error("No account is selected during first authorization");
-          return nativeVault ? nativeVault.read(id) : stored;
+          return stored;
         },
         write: (accountId, value, replace) => {
           assert.equal(replace, stored !== undefined);
-          if (nativeVault) {
-            nativeVault.write(accountId, value, replace);
-            assert.equal(nativeVault.read(accountId), value);
-            assert.equal(
-              readFileSync(join(directory, accountId + ".dpapi")).includes(
-                Buffer.from(value),
-              ),
-              false,
-            );
-            assert.throws(() => nativeVault.read("0".repeat(64)));
-            if (!replace)
-              assert.throws(() => nativeVault.write(accountId, value, false));
-          }
           stored = value;
         },
       };
@@ -124,86 +101,6 @@ for (const [platform, arch] of [
       transport,
       credentialVault,
     };
-
-    if (process.platform === "win32") {
-      const nativeSpawn = cp.spawnSync;
-      t.mock.method(cp, "spawnSync", (executable, args, options) => {
-        const started = performance.now();
-        const observedArgs = [...args];
-        if (
-          String(executable).toLowerCase().endsWith("powershell.exe") &&
-          !String(options.input).includes("\n")
-        ) {
-          const index = observedArgs.indexOf("-EncodedCommand") + 1;
-          let source = Buffer.from(observedArgs[index], "base64").toString(
-            "utf16le",
-          );
-          const mark = (label) =>
-            `[Console]::Error.WriteLine('storage-init-phase: ${label}');\n`;
-          source = mark("entered") + source;
-          for (const [statement, label] of [
-            ["$wire=[Console]::In.ReadToEnd()", "stdin-read"],
-            [
-              "$path=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($wire))",
-              "path-decoded",
-            ],
-            ["$attributes=[IO.File]::GetAttributes($path)", "attributes-read"],
-            [
-              "$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User",
-              "identity-read",
-            ],
-            [
-              "$acl=[Security.AccessControl.DirectorySecurity]::new()",
-              "acl-created",
-            ],
-            ["$acl.SetOwner($sid)", "owner-set"],
-            ["$acl.SetAccessRuleProtection($true,$false)", "inheritance-set"],
-            ["[IO.Directory]::SetAccessControl($path,$acl)", "acl-written"],
-          ])
-            source = source.replace(statement, statement + "\n" + mark(label));
-          observedArgs[index] = Buffer.from(source, "utf16le").toString(
-            "base64",
-          );
-        }
-        const result = nativeSpawn(executable, observedArgs, options);
-        if (String(executable).toLowerCase().endsWith("powershell.exe")) {
-          let stage = "initialize";
-          try {
-            const fields = options.input.split("\n");
-            if (fields.length > 1) stage = fields[0];
-          } catch {
-            stage = "unknown";
-          }
-          const allowed = [
-            "initialize",
-            "check",
-            "create",
-            "protect",
-            "unprotect",
-          ];
-          t.diagnostic(
-            JSON.stringify({
-              probe: "windows-storage",
-              milestones: String(result.stderr ?? "")
-                .split(/\r?\n/)
-                .filter((line) => /^storage-init-phase: [a-z-]+$/.test(line))
-                .slice(0, 16),
-              stage: allowed.includes(stage) ? stage : "unknown",
-              elapsedMs: Math.round(performance.now() - started),
-              exitCode: result.status,
-              timedOut: result.error?.code === "ETIMEDOUT",
-              signaled: result.signal !== null && result.signal !== undefined,
-            }),
-          );
-        }
-        return result;
-      });
-      syncBuiltinESMExports();
-      t.after(() => {
-        t.mock.restoreAll();
-        syncBuiltinESMExports();
-      });
-    }
 
     const result = await authorizeSubscriptionAuth(
       authDirectory,
@@ -257,10 +154,7 @@ for (const [platform, arch] of [
 
     assert.equal(result.status, "authorized");
     assert.equal(result.credentialsStored, true);
-    assert.equal(
-      result.storage,
-      platform === "win32" ? "Windows CurrentUser DPAPI" : "macOS Keychain",
-    );
+    assert.equal(result.storage, "macOS Keychain");
     assert.equal(result.deliveryEnabled, false);
     assert.equal(result.planUsageAuthorized, true);
     assert.equal(exchangeCount, 1);
@@ -316,7 +210,7 @@ test("separate authorization refuses unsupported hosts before opening storage or
       () => assert.fail("unsupported host must not open a browser"),
       undefined,
       {
-        platform: "win32",
+        platform: "linux",
         arch: "arm64",
         transport: assert.fail,
         credentialVault: () =>

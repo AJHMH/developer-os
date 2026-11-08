@@ -6,7 +6,6 @@ import {
   realpathSync,
   writeFileSync,
 } from "node:fs";
-import { platform } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { WorkerSession } from "./controller.js";
 import {
@@ -14,7 +13,7 @@ import {
   syntheticGatewayApproval,
 } from "./gateway-canary.js";
 import { hostCanaryVersion, withHostCanary } from "./host-canary.js";
-import { codexWorkerSha256, hostTargets } from "./host-target.js";
+import { codexWorkerSha256 } from "./host-target.js";
 import {
   IsolationProbeError,
   nativeProbeDiagnostic,
@@ -48,8 +47,6 @@ import {
 } from "./vm-management.js";
 export { codexWorkerSha256 } from "./host-target.js";
 
-export const offlineTemplate = hostTargets.win32.offlineTemplate;
-
 /** Runs only in the VM's trusted management namespace, not in the worker.
  * A machine-wide flock serializes dispatch with durable revocation. A single
  * authority directory is bound during explicit enrollment. Worker containers
@@ -61,9 +58,7 @@ function ordinary(path: string, directory = false): void {
   const entry = lstatSync(path);
   if (
     entry.isSymbolicLink() ||
-    (platform() === "win32"
-      ? realpathSync(path).toLowerCase() !== resolve(path).toLowerCase()
-      : realpathSync(path) !== resolve(path)) ||
+    realpathSync(path) !== resolve(path) ||
     (directory ? !entry.isDirectory() : !entry.isFile() || entry.nlink !== 1)
   )
     throw Error("Unsafe native path");
@@ -311,47 +306,44 @@ export class NativePodmanDriver implements OfflineCanaryRuntime {
     try {
       const expected = this.policy(repository);
       enter("canary");
-      const evidence = await withHostCanary(
-        async (challenge) => {
-          enter("isolate");
-          const observed = this.invoke("isolate", { expected, challenge });
-          if (observed.challengeId !== challenge.id)
-            throw Error("Unbound isolation evidence");
-          if (
-            observed.passed === true &&
-            codexWorkerSha256(expected.platform!, expected.arch!)
-          ) {
-            enter("codex-stream");
-            const codex = await this.gatewayInvocation(
-              { expected, challenge, deliveryId },
-              deliveryId,
-            );
-            enter("codex-evidence");
-            if (codex.blockedStage) {
-              observed.codex = {
-                blockedStage: codex.blockedStage,
-                diagnostic: nativeProbeDiagnostic(codex.diagnostic),
-              };
-            } else if (
-              codex.protocol !== "passed" ||
-              codex.explicitResume !== "passed" ||
-              codex.resumeInferenceRequests !== 0 ||
-              codex.credentialIsolation !== "passed" ||
-              codex.shutdown?.remainingProcesses !== 0 ||
-              codex.observedCodexProcesses < 1 ||
-              JSON.stringify(codex.binding) !== JSON.stringify(expected)
-            )
-              throw Error("Unverified Codex worker");
-            if (!codex.blockedStage) observed.codex = codex;
-          }
-          enter("canary-recheck");
-          return {
-            ...observed,
-            probeVersion: sha256(vmManagementVersion + hostCanaryVersion),
-          };
-        },
-        expected.platform === "darwin" ? 120000 : 25000,
-      );
+      const evidence = await withHostCanary(async (challenge) => {
+        enter("isolate");
+        const observed = this.invoke("isolate", { expected, challenge });
+        if (observed.challengeId !== challenge.id)
+          throw Error("Unbound isolation evidence");
+        if (
+          observed.passed === true &&
+          codexWorkerSha256(expected.platform!, expected.arch!)
+        ) {
+          enter("codex-stream");
+          const codex = await this.gatewayInvocation(
+            { expected, challenge, deliveryId },
+            deliveryId,
+          );
+          enter("codex-evidence");
+          if (codex.blockedStage) {
+            observed.codex = {
+              blockedStage: codex.blockedStage,
+              diagnostic: nativeProbeDiagnostic(codex.diagnostic),
+            };
+          } else if (
+            codex.protocol !== "passed" ||
+            codex.explicitResume !== "passed" ||
+            codex.resumeInferenceRequests !== 0 ||
+            codex.credentialIsolation !== "passed" ||
+            codex.shutdown?.remainingProcesses !== 0 ||
+            codex.observedCodexProcesses < 1 ||
+            JSON.stringify(codex.binding) !== JSON.stringify(expected)
+          )
+            throw Error("Unverified Codex worker");
+          if (!codex.blockedStage) observed.codex = codex;
+        }
+        enter("canary-recheck");
+        return {
+          ...observed,
+          probeVersion: sha256(vmManagementVersion + hostCanaryVersion),
+        };
+      }, 120000);
       if (evidence.passed === true) {
         enter("model-frame");
         const body = JSON.stringify({

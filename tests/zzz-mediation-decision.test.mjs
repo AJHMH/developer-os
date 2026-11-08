@@ -14,7 +14,6 @@ import {
 } from "../scripts/record-mediation-decision.mjs";
 import { syntheticMediation } from "../scripts/synthetic-mediation.mjs";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 
 const accountId = "a".repeat(64);
 const usageAccount = createHash("sha256")
@@ -76,9 +75,6 @@ async function qualifiedDelivery(t) {
     policyPath,
     registrationPath,
     account: () => (reads.push(accountId), {}),
-    // On Windows, each file the script writes gets the owner-only access
-    // the decision projection checks, as the host's `windowsAuthStore` gives.
-    protect: (paths) => ownWindowsFixturePaths(paths),
   };
   return { f, id, inputs, native, reads, mediation };
 }
@@ -93,8 +89,7 @@ test("prepare names the qualified fixed worker's evidence and reads no credentia
   assert.equal(plan.maxRequests, 1);
   const path = join(f.state, `mediation-inference-${plan.runId}.plan.json`);
   assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), plan);
-  if (process.platform !== "win32")
-    assert.equal(statSync(path).mode & 0o777, 0o600);
+  assert.equal(statSync(path).mode & 0o777, 0o600);
   assert.deepEqual(reads, []);
   // Without passing gateway evidence there is nothing to plan.
   mediation.regress();
@@ -190,7 +185,6 @@ test("execute spends the one-shot approval before any credential, then records t
   );
   // The owner endorses the usage account, and the decision then qualifies.
   const recordPath = join(f.state, `subscription-decision-${id}.json`);
-  ownWindowsFixturePaths([recordPath]);
   await endorseUsageAccount({
     state: f.state,
     deliveryId: id,
@@ -210,7 +204,6 @@ test("execute spends the one-shot approval before any credential, then records t
     expectedUsageAccountId: usageAccount,
     confirm: true,
   });
-  ownWindowsFixturePaths([recordPath]);
   const decision = (await inputs.controller.qualify(id)).qualification
     .subscriptionMediation.mechanismDecision;
   assert.equal(decision.qualified, true);
@@ -371,8 +364,7 @@ test("a reply the gateway rejects keeps the gateway's content-free summary besid
     "response.in_progress",
     "other",
   ]);
-  if (process.platform !== "win32")
-    assert.equal(statSync(path).mode & 0o777, 0o600);
+  assert.equal(statSync(path).mode & 0o777, 0o600);
 });
 
 test("a new decision keeps the one it replaces", async (t) => {

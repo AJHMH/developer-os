@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -231,11 +232,7 @@ test("CLI accepts external owner policy and reports a real saved remote mismatch
 test("a candidate-controlled directory link cannot select an external owner policy", (t) => {
   const f = onboarded(t);
   const link = join(f.repository, "linked-owner-storage");
-  symlinkSync(
-    join(f.repository, ".."),
-    link,
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  symlinkSync(join(f.repository, ".."), link, "dir");
   const controller = new DeliveryController(
     join(f.repository, "..", "linked-policy-state"),
     { policyPath: join(link, "owner-policy.json") },
@@ -253,16 +250,8 @@ test("a candidate-controlled directory link cannot select an external owner poli
 test("a repository alias cannot hide candidate-controlled policy redirection", (t) => {
   const f = onboarded(t);
   const alias = join(f.repository, "..", "repository-alias");
-  symlinkSync(
-    f.repository,
-    alias,
-    process.platform === "win32" ? "junction" : "dir",
-  );
-  symlinkSync(
-    join(f.repository, ".."),
-    join(f.repository, "external"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  symlinkSync(f.repository, alias, "dir");
+  symlinkSync(join(f.repository, ".."), join(f.repository, "external"), "dir");
   const controller = new DeliveryController(
     join(f.repository, "..", "alias-state"),
     { policyPath: join(alias, "external", "owner-policy.json") },
@@ -277,9 +266,6 @@ test("a repository alias cannot hide candidate-controlled policy redirection", (
 // ADR 0004: the owner attests what the CLI cannot observe locally.
 async function attestedOnboarding(t, facts, fields = {}, inspected = {}) {
   const { inspectOnboarding } = await import("../dist/onboarding.js");
-  const { ownWindowsFixturePaths } = await import(
-    "./helpers/windows-fixture-owner.mjs"
-  );
   const { createHash } = await import("node:crypto");
   const { chmodSync, readFileSync } = await import("node:fs");
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-attested-")));
@@ -316,7 +302,6 @@ async function attestedOnboarding(t, facts, fields = {}, inspected = {}) {
     }),
     { mode: 0o600 },
   );
-  ownWindowsFixturePaths([root, attestationPath]);
   return inspectOnboarding(repository, {
     policyPath,
     attestationPath,

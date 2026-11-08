@@ -36,14 +36,14 @@ const safePath = (path) =>
     .every((part) => part && ![".", "..", ".git"].includes(part.toLowerCase()));
 function environment(extra = {}) {
   const env = Object.fromEntries(
-    ["PATH", "SystemRoot", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG"]
+    ["PATH", "TEMP", "TMP", "TMPDIR", "LANG"]
       .filter((key) => process.env[key])
       .map((key) => [key, process.env[key]]),
   );
   return {
     ...env,
     GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_OPTIONAL_LOCKS: "0",
     GIT_NO_REPLACE_OBJECTS: "1",
     ...extra,
@@ -483,10 +483,6 @@ export class GitHubPublisher {
   }
   async authenticate(proposal, path) {
     try {
-      check(
-        process.platform !== "win32",
-        "Native Windows publication is not qualified",
-      );
       const keyPath = resolve(path);
       trustedAncestors(keyPath);
       check(
@@ -637,10 +633,6 @@ export class GitHubPublisher {
     const helper = join(
       this.stateRoot,
       "askpass-" + digest({ commit, now: Date.now() }) + ".sh",
-    );
-    check(
-      process.platform !== "win32",
-      "Native Windows local adoption is not qualified; remote evidence remains retained",
     );
     writeFileSync(
       helper,

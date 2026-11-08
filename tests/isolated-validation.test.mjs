@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import { ownerValidationContract } from "./helpers/validation-fixture.mjs";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";

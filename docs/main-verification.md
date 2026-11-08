@@ -35,7 +35,7 @@ and identify an owner next action: investigate; any fix or revert requires a new
 signed PR and approval. Direct-main repair, automatic revert and cleanup remain
 unavailable.
 
-Native Windows/macOS qualification must demonstrate trusted complete API
+Native macOS qualification must demonstrate trusted complete API
 pagination/history, publisher/workflow identity, current-main race handling,
 PR/head/merge linkage and reachability, bounded reads and credential separation.
 Controlled tests do not qualify native operation or enable the profile-page pilot.

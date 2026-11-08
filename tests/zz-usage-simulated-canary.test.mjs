@@ -15,7 +15,6 @@ import {
   usageCanary,
 } from "../scripts/run-native-usage-canary.mjs";
 import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
-import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const pins = {
   cliVersion: "0.161.0",
@@ -292,50 +291,20 @@ test("the usage canary passes when the controller enforces every usage control o
   );
 });
 
-test(
-  "a passing canary leaves no coding session in the guest",
-  posixGuest,
-  async (t) => {
-    const guest = guestBackedSessions(t);
-    const report = await usageCanary({
-      transport: guest.transport(vm().transport),
-      admission: { pins: () => ({ ...pins }) },
-    });
-    assert.equal(
-      report.outcome,
-      passingOutcome,
-      JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
-    );
-    assert.equal(guest.launched(), 3);
-    assert.deepEqual(guest.left(), { containers: [], folders: [] });
-  },
-);
-
-test(
-  "the canary keeps its state private when the temp folder lets others read it",
-  { skip: process.platform !== "win32" },
-  async (t) => {
-    // As on an owner PC whose temp folder grants a sandbox group access:
-    // here the built-in Users group, inherited by everything created inside.
-    const loose = mkdtempSync(join(tmpdir(), "aios-loose-temp-"));
-    t.after(() => rmSync(loose, { recursive: true, force: true }));
-    const granted = spawnSync(
-      "icacls",
-      [loose, "/grant", "*S-1-5-32-545:(OI)(CI)(RX)"],
-      { encoding: "utf8" },
-    );
-    assert.equal(granted.status, 0, granted.stderr);
-    const saved = { TEMP: process.env.TEMP, TMP: process.env.TMP };
-    t.after(() => Object.assign(process.env, saved));
-    Object.assign(process.env, { TEMP: loose, TMP: loose });
-    const { report } = await canary();
-    assert.equal(
-      report.outcome,
-      passingOutcome,
-      JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
-    );
-  },
-);
+test("a passing canary leaves no coding session in the guest", async (t) => {
+  const guest = guestBackedSessions(t);
+  const report = await usageCanary({
+    transport: guest.transport(vm().transport),
+    admission: { pins: () => ({ ...pins }) },
+  });
+  assert.equal(
+    report.outcome,
+    passingOutcome,
+    JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
+  );
+  assert.equal(guest.launched(), 3);
+  assert.deepEqual(guest.left(), { containers: [], folders: [] });
+});
 
 test("a canary whose owner record names other pins is blocked before any turn", async () => {
   const { report, effects } = await canary(

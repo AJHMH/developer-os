@@ -10,7 +10,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { hostname, platform, tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { codexEndpointFixture } from "./codex-endpoint.js";
 import { hostCanaryVersion } from "./host-canary.js";
@@ -52,7 +52,7 @@ wait
 `;
 /** Fixed trusted-management helper. Opens exact process handles before validating
  * identities; never signals a reused PID or falls back to name-based killing. */
-const windowsCodexCrashFixture = String.raw`
+const codexCrashFixture = String.raw`
 import os,sys,json,pathlib,signal
 expected=json.loads(sys.argv[1]);handles=[]
 try:
@@ -265,11 +265,7 @@ def snapshot():
  check(mounts['filesystems'])
  vendor=pathlib.Path('/sys/class/dmi/id/sys_vendor').read_text().strip()
  product=pathlib.Path('/sys/class/dmi/id/product_name').read_text().strip()
- if R['hostBinding']['provider']=='hyperv':
-  if vendor!='Microsoft Corporation' or product!='Virtual Machine' or command(['uname','-m']).strip()!=b'x86_64': fail()
- elif R['hostBinding']['provider']=='applehv':
-  if vendor!='Apple Inc.' or product!='Apple Virtualization Generic Platform' or command(['systemd-detect-virt']).strip()!=b'apple' or command(['uname','-m']).strip()!=b'aarch64': fail()
- else: fail()
+ if R['hostBinding']['provider']!='applehv' or vendor!='Apple Inc.' or product!='Apple Virtualization Generic Platform' or command(['systemd-detect-virt']).strip()!=b'apple' or command(['uname','-m']).strip()!=b'aarch64': fail()
  boot=json.loads(command(['rpm-ostree','status','--json']))
  d=next(x for x in boot['deployments'] if x.get('booted'))
  image=d.get('container-image-reference-digest','')
@@ -400,7 +396,7 @@ if cat /proc/1/root"$4" >/dev/null 2>&1; then echo failed-escape-proc; else echo
 if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo failed-owner-credentials; else echo passed-owner-credentials; fi
 
 '''
-   hostPaths=['/mnt/'+p[0].lower()+'/'+p[3:].replace('\\','/') for p in challenge['files']] if R['hostBinding']['platform']=='win32' else challenge['files']
+   hostPaths=challenge['files']
    stage='worker-denials'
    observed=pod('exec',name,'/bin/sh','-c',script,'--',*hostPaths,*paths[:2],url,engineSocket,paths[2]).decode().splitlines()
    expected=['passed-host-files']*3+['passed-controller-ledger','passed-cross-delivery','passed-network-bypass','passed-skills-mcp-hooks','passed-host-docker','passed-escape-unshare','passed-escape-chroot','passed-escape-cgroup','passed-escape-proc','passed-owner-credentials']
@@ -635,7 +631,7 @@ if cat "$8" >/dev/null 2>&1 || cat /proc/1/root"$8" >/dev/null 2>&1; then echo f
        try:
         current=inspect(name)
         if current['Config'].get('Labels',{}).get('aios.authority')!=R['authority'] or cgroup(current['State']['Pid'])!=cg: fail()
-        crashSource=base64.b64decode('${Buffer.from(windowsCodexCrashFixture).toString("base64")}').decode()
+        crashSource=base64.b64decode('${Buffer.from(codexCrashFixture).toString("base64")}').decode()
         pod('unshare','python3','-c',crashSource,json.dumps(dict(cgroup=cg,pids=previousCodex)))
        except Exception:
         observeTaskLimits()
@@ -1037,9 +1033,7 @@ function ordinary(path: string, directory = false): void {
   const entry = lstatSync(path);
   if (
     entry.isSymbolicLink() ||
-    (platform() === "win32"
-      ? realpathSync(path).toLowerCase() !== resolve(path).toLowerCase()
-      : realpathSync(path) !== resolve(path)) ||
+    realpathSync(path) !== resolve(path) ||
     (directory ? !entry.isDirectory() : !entry.isFile() || entry.nlink !== 1)
   )
     throw Error("Unsafe native path");
@@ -1067,10 +1061,7 @@ export class VMManagementChannel {
     if (!/^\d+\.\d+\.\d+$/.test(clientVersion ?? ""))
       throw Error("Unknown client version");
     const executableSha256 = sha256(readFileSync(host.executable));
-    const authorityPath = resolve(this.authorityDirectory);
-    const authority = sha256(
-      host.platform === "win32" ? authorityPath.toLowerCase() : authorityPath,
-    );
+    const authority = sha256(resolve(this.authorityDirectory));
     const request = {
       ...payload,
       action,
@@ -1096,8 +1087,8 @@ export class VMManagementChannel {
         codexWorkerSha256: host.codexWorkerSha256,
       },
     };
-    // Send fixed management code on stdin: Windows SSH truncates long command
-    // arguments. The request is base64 data, never interpolated shell source.
+    // Send fixed management code on stdin, never as long command arguments.
+    // The request is base64 data, never interpolated shell source.
     const input =
       "import json,base64\n" +
       `R=json.loads(base64.b64decode('${Buffer.from(JSON.stringify(request)).toString("base64")}'))\n` +
@@ -1140,7 +1131,6 @@ export class VMManagementChannel {
         {
           cwd: host.cwd,
           shell: false,
-          windowsHide: true,
           encoding: "utf8",
           timeout: host.managementMs,
           maxBuffer: 1048576,
@@ -1196,14 +1186,13 @@ export class VMManagementChannel {
       {
         cwd: host.cwd,
         shell: false,
-        windowsHide: true,
         env: host.env,
         stdio: ["pipe", "pipe", "pipe"],
       },
     );
     return {
       child,
-      deadlineMs: host.platform === "darwin" ? 180000 : 55000,
+      deadlineMs: 180000,
       start: () =>
         child.stdin.write(Buffer.from(input).toString("base64") + "\n"),
       unchanged: () =>

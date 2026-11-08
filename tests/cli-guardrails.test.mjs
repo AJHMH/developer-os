@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";

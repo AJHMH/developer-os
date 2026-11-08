@@ -65,7 +65,7 @@ review decisions. No port operation submits a human approval.
 
 ## Qualification still required
 
-Native Windows and macOS GitHub ports must prove complete pagination, review order
+Native macOS GitHub ports must prove complete pagination, review order
 and dismissal semantics, effective owner permissions/protection policy, trusted
 scope assessment, thread fingerprints and conditional resolution, clock behavior,
 credential isolation, dispatch fencing and uncertain-effect reconciliation. The

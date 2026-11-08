@@ -13,7 +13,6 @@ import {
 } from "../scripts/run-native-routed-acceptance.mjs";
 import { fakeProvider, maxKeepalives } from "../scripts/routed-provider.mjs";
 import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
-import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const pins = {
   cliVersion: "0.161.0",
@@ -614,20 +613,16 @@ test("a refused lineage cleanup blocks the routed acceptance", async () => {
   assert.equal(ran(report).at(-1).name, "routed-lineage-cleanup");
 });
 
-test(
-  "a passing routed acceptance leaves no coding session in the guest",
-  posixGuest,
-  async (t) => {
-    const guest = guestBackedSessions(t);
-    const report = await routedAcceptance(
-      {
-        transport: guest.transport(vm().transport),
-        admission: { pins: () => ({ ...pins }) },
-      },
-      { pause: tick },
-    );
-    assert.equal(report.outcome, passingOutcome, report.error);
-    assert.equal(guest.launched(), 2);
-    assert.deepEqual(guest.left(), { containers: [], folders: [] });
-  },
-);
+test("a passing routed acceptance leaves no coding session in the guest", async (t) => {
+  const guest = guestBackedSessions(t);
+  const report = await routedAcceptance(
+    {
+      transport: guest.transport(vm().transport),
+      admission: { pins: () => ({ ...pins }) },
+    },
+    { pause: tick },
+  );
+  assert.equal(report.outcome, passingOutcome, report.error);
+  assert.equal(guest.launched(), 2);
+  assert.deepEqual(guest.left(), { containers: [], folders: [] });
+});

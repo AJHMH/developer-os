@@ -43,15 +43,15 @@ The admitted candidate records a SHA-256 of its complete manifest, original inpu
 4. `code-feature` on the owner-admitted coding and validation runtimes
 5. `validate-candidate`
 
-The script writes the repository, owner policy, onboarding attestation and criteria file itself. They are synthetic, private and outside every repository, and the report labels them so. On Windows, a new temp folder can inherit access for other accounts, such as a sandbox group, and the CLI refuses owner records anyone else can reach. So the script restricts its records folder and the CLI state folder to you, SYSTEM and Administrators before writing anything. Your `TEMP` folder itself is left unchanged.
+The script writes the repository, owner policy, onboarding attestation and criteria file itself. They are synthetic, private and outside every repository, and the report labels them so.
 
 The coding turn is offline. With no model access it never completes, so it proves the delivery mechanics only: a launch that reports a thread, an exact stop, no route and no candidate. `validate-candidate` must refuse, and the host checkout must stay on unchanged `main`. A validated candidate needs a routed live turn, which stays under the owner's one-shot approval (ADR 0002).
 
 Before any CLI step, the run reads the VM's fresh coding and validation pins and checks that both admission records name them. If either record is stale, for example after a guest program change, it stops there and prints the fresh pins, so that you can check or rewrite the record. A stale record otherwise refuses the coding turn and leaves its stop unverifiable.
 
-The run reads usage through the pinned `codex` executable, as every coding turn does. It sends no inference and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. A passing run then removes the coding session from the VM by its exact identity; a blocked run keeps it for diagnosis. The CLI's delivery state stays in the printed `state` directory as evidence, and it names a session that can no longer be resumed. Run it from a fresh build of `main`. Usage is read only through the pinned native `codex` 0.161.0 (`nativeCodexSha256` in `src/host-target.ts`): on macOS `12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de` from `@openai/codex@0.161.0-darwin-arm64`, on Windows `a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30`. Any other executable, such as the Codex app's bundled one, reads as unknown usage, and `code-feature` refuses before launch. On Windows, the pinned copy is the one under the checkout's ignored `.scratch/codex-runtime`; if yours is elsewhere, set `$codex` to it. `(Get-FileHash $codex).Hash` must equal the Windows digest.
+The run reads usage through the pinned `codex` executable, as every coding turn does. It sends no inference and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. A passing run then removes the coding session from the VM by its exact identity; a blocked run keeps it for diagnosis. The CLI's delivery state stays in the printed `state` directory as evidence, and it names a session that can no longer be resumed. Run it from a fresh build of `main`. Usage is read only through the pinned native `codex` 0.161.0 (`nativeCodexSha256` in `src/host-target.ts`): `12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de` from `@openai/codex@0.161.0-darwin-arm64`. Any other executable, such as the Codex app's bundled one, reads as unknown usage, and `code-feature` refuses before launch.
 
-macOS (Terminal):
+In Terminal:
 
 ```sh
 cd ~/Repos/developer-os
@@ -61,45 +61,36 @@ CODEX="$HOME/.developer-os/ticket4-macos/runtime/codex-0.161.0"
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$CODEX" "$HOME/.developer-os/issue04-cli-delivery-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
-Windows (PowerShell, not elevated), from the checkout. The first run creates its own state directory, which holds the acceptance lock:
-
-```powershell
-git switch main; git pull --ff-only; npm ci --ignore-scripts; npm run build; $codex = "D:/repos/developer-os/.scratch/codex-runtime/node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe"; New-Item -ItemType Directory -Force -Path "C:/Users/mraar/.developer-os/cli-delivery/state" | Out-Null; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/cli-delivery/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/coding-admission.json" "C:/Users/mraar/.developer-os/admission/validation-admission.json" $codex "C:/Users/mraar/.developer-os/issue04-cli-delivery-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
-```
-
 ### Native results (1 November 2026)
 
-Both hosts passed with outcome `observed-offline-cli-delivery-acceptance`, from clean `main` at `84b80d7`:
+The Mac passed with outcome `observed-offline-cli-delivery-acceptance`, from clean `main` at `84b80d7`:
 
 | Host                            | Baseline             | Coding turn                                                                | Candidate           |
 | ------------------------------- | -------------------- | -------------------------------------------------------------------------- | ------------------- |
 | macOS (`aios-macos-noshare`)    | 5 of 5 checks, 31 s  | thread reported, stopped exactly, `exhausted` after its 5-minute allowance | refused, no attempt |
-| Windows (`aios-podman-noshare`) | 5 of 5 checks, 163 s | thread reported, stopped exactly, `failed` after 307 s                     | refused, no attempt |
 
-The previous passes, on 31 October, were at `81eb317` (macOS) and `3354df8` (Windows).
+The previous pass, on 31 October, was at `81eb317`.
 
-On both, the turn was not routed and admitted no candidate. The host checkout stayed on unchanged `main`, and production stayed disabled. Reaching these passes needed:
+The turn was not routed and admitted no candidate. The host checkout stayed on unchanged `main`, and production stayed disabled. Reaching these passes needed:
 
-- fresh coding admission records on both hosts (the coding guest program changed in PRs 155 and 157);
+- a fresh coding admission record (the coding guest program changed in PRs 155 and 157);
 - the pinned `codex` for usage (PR 165);
-- private records folders on Windows (PR 167);
-- a usage executable bound that admits the 317 MiB Windows `codex` (PR 168);
-- a 5-second wait for the usage reader's `codex` to exit, which the Windows `codex` often needs (PR 181). Before it, the read was discarded as `stop`, usage read as unknown and the turn never dispatched.
+- a 5-second wait for the usage reader's `codex` to exit (PR 181). Before it, a slow exit meant the read was discarded as `stop`, usage read as unknown and the turn never dispatched.
 
 A validated candidate still needs a routed live turn, which stays under the owner's one-shot approval.
 
 ## Owner-run routed live turn
 
-`scripts/run-native-routed-delivery.mjs` runs one delivery to a routed live turn through the real CLI, on one host, in its VM's authority state (`docs/owner-hosts.md`). The repository, owner policy, attestation and criteria are synthetic, as in the CLI acceptance, and are written to a private folder beside the state. It runs as four commands, so each approval is yours, given in between:
+`scripts/run-native-routed-delivery.mjs` runs one delivery to a routed live turn through the real CLI, in the VM's authority state (`docs/owner-hosts.md`). The repository, owner policy, attestation and criteria are synthetic, as in the CLI acceptance, and are written to a private folder beside the state. It runs as four commands, so each approval is yours, given in between:
 
 1. **`prepare`**: `start`, `plan-feature`, `validate-baseline`, the fixed worker's `qualify --adversarial`, and a planned decision inference. It reads no credential and sends nothing live. It prints the session file and the decision run ID.
 2. **`decide`**: spends your approval of that run. It sends one live request through the host-only gateway and records the delivery's mediation decision (`docs/operator-tools.md`), then prints the usage account it observed. If reading that usage account is refused, run `decide` again with the same approval once the read works: it finds this run's decision record and goes straight to the usage read, sending nothing.
 3. **`route`**: endorses that usage account once you've checked it's yours, re-qualifies until the decision qualifies, and prints the routed run ID for the turns you name (1 or 2).
 4. **`code`**: spends your approval of the routed run on a routed `code-feature` turn, which sends live model requests. It validates an admitted candidate, stops anything left open by its exact identity, and writes `report.json` in the session folder. The outcome is `observed-routed-validated-candidate`, `observed-routed-turn-without-candidate`, `blocked` or `uncertain`.
 
-Production stays disabled: a validated candidate still ends at `DELIVERY_NOT_ENABLED`, and nothing is published. Start from a fresh build of clean `main` with the VM running. On macOS, quit Podman Desktop first: with it open, qualifies slow down and stop at varying stages (`docs/macos-worker-qualification.md`). Quitting can stop the VM, so check that it's still running. `prepare` also prints a warning if it finds the app running, then carries on.
+Production stays disabled: a validated candidate still ends at `DELIVERY_NOT_ENABLED`, and nothing is published. Start from a fresh build of clean `main` with the VM running. Quit Podman Desktop first: with it open, qualifies slow down and stop at varying stages (`docs/macos-worker-qualification.md`). Quitting can stop the VM, so check that it's still running. `prepare` also prints a warning if it finds the app running, then carries on.
 
-macOS (Terminal). Set `WORKER_POLICY` to the fixed worker's pins, `AUTH_DIR` and `AUTH_ACCOUNT` to your authorized account, then `SESSION`, `DECISION_RUN`, `USAGE_ACCOUNT` and `ROUTED_RUN` from each step's output:
+In Terminal, set `WORKER_POLICY` to the fixed worker's pins, `AUTH_DIR` and `AUTH_ACCOUNT` to your authorized account, then `SESSION`, `DECISION_RUN`, `USAGE_ACCOUNT` and `ROUTED_RUN` from each step's output:
 
 ```sh
 H="$HOME/.developer-os"
@@ -109,15 +100,6 @@ node scripts/run-native-routed-delivery.mjs route --session "${SESSION:?}" --exp
 node scripts/run-native-routed-delivery.mjs code --session "${SESSION:?}" --approve-run "${ROUTED_RUN:?}" --approve-turns 1
 ```
 
-Windows (PowerShell, not elevated), from `D:/repos/developer-os`. Set `$workerPolicy`, `$authDir` and `$authAccount` first, then `$session`, `$decisionRun`, `$usageAccount` and `$routedRun` from each step's output; each line refuses to run while its values are unset:
-
-```powershell
-if (-not ($workerPolicy -and $authDir -and $authAccount)) { throw 'Set $workerPolicy, $authDir and $authAccount' }; $h = "C:/Users/mraar/.developer-os"; node scripts/run-native-routed-delivery.mjs prepare --state-dir "$h/ticket19-native/state" --podman-machine aios-podman-noshare --worker-policy $workerPolicy --coding-admission "$h/admission/coding-admission.json" --validation-admission "$h/admission/validation-admission.json" --codex-executable "D:/repos/developer-os/.scratch/codex-runtime/node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/bin/codex.exe" --auth-directory $authDir --auth-account $authAccount
-if (-not ($session -and $decisionRun)) { throw 'Set $session and $decisionRun' }; node scripts/run-native-routed-delivery.mjs decide --session $session --approve-run $decisionRun --approve-unknown-usage
-if (-not ($session -and $usageAccount)) { throw 'Set $session and $usageAccount' }; node scripts/run-native-routed-delivery.mjs route --session $session --expect-usage-account $usageAccount --turns 1
-if (-not ($session -and $routedRun)) { throw 'Set $session and $routedRun' }; node scripts/run-native-routed-delivery.mjs code --session $session --approve-run $routedRun --approve-turns 1
-```
-
 ### Routed repair evidence
 
 When `code`'s candidate fails validation (its report's `candidateValidation.outcome` isn't `passed`), two more commands record one routed repair turn on the same delivery. That's the native evidence for slice 1 of the Issue 04 plan:
@@ -125,25 +107,18 @@ When `code`'s candidate fails validation (its report's `candidateValidation.outc
 5. **`plan-repair`**: checks through `status` that `repair-feature` would accept the delivery: a routed candidate whose session stopped, whose own tree failed validation, with no repair or validation attempt still open. Then it plans a fresh routed run of exactly one turn and prints its run ID. It sends nothing live. It refuses a candidate that passed, or a delivery without one: then there's nothing to repair, and repair evidence needs a run whose candidate fails.
 6. **`repair`**: spends your approval of that run on one routed `repair-feature` turn, which sends live model requests and revalidates the candidate. It stops anything left open by its exact identity and writes `repair-report.json` beside `report.json`. The outcome is `observed-routed-repair-validated`, `observed-routed-repair-still-failing`, `blocked` or `uncertain`. A repair that still fails is evidence too: a new routed turn ran, and its result was revalidated. The report is `blocked` when no new repair turn was coded, the turn wasn't routed, or the repair ended without its own revalidation, for example `interrupted` or `exhausted`.
 
-macOS, with `REPAIR_RUN` from `plan-repair`'s output:
+With `REPAIR_RUN` from `plan-repair`'s output:
 
 ```sh
 node scripts/run-native-routed-delivery.mjs plan-repair --session "${SESSION:?}"
 node scripts/run-native-routed-delivery.mjs repair --session "${SESSION:?}" --approve-run "${REPAIR_RUN:?}"
 ```
 
-Windows, with `$repairRun` from `plan-repair`'s output:
-
-```powershell
-if (-not $session) { throw 'Set $session' }; node scripts/run-native-routed-delivery.mjs plan-repair --session $session
-if (-not ($session -and $repairRun)) { throw 'Set $session and $repairRun' }; node scripts/run-native-routed-delivery.mjs repair --session $session --approve-run $repairRun
-```
-
 ### If the repository is held
 
 Every routed run uses the same synthetic repository, and a delivery keeps holding it until it's released, even after a successful run. While it's held, the next `prepare` queues its new delivery and stops at `plan-feature` with `Resolve controls before planning this feature.` A refused `prepare` leaves its delivery holding the repository too, and so does an interrupted baseline. An interrupted baseline also leaves its validation attempt open, and `release` refuses until that attempt has stopped.
 
-On macOS, this lists the deliveries that hold a repository or are queued for one. Routed runs show the key `github:ajhmh/acceptance-page`:
+This lists the deliveries that hold a repository or are queued for one. Routed runs show the key `github:ajhmh/acceptance-page`:
 
 ```sh
 STATE_DIR="$HOME/.developer-os/ticket4-macos/state"
@@ -163,4 +138,4 @@ Then release it:
 node dist/cli.js release --id "${DELIVERY_ID:?}" --state-dir "$STATE_DIR"
 ```
 
-Releasing hands the repository to the oldest queued delivery, which a refused `prepare` may have left behind. List again and release that one too, until no routed delivery holds the repository or is queued. On Windows, use the same commands with the values in `docs/owner-hosts.md`.
+Releasing hands the repository to the oldest queued delivery, which a refused `prepare` may have left behind. List again and release that one too, until no routed delivery holds the repository or is queued.

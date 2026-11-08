@@ -309,11 +309,10 @@ export class NativeOnlineAccess implements OnlineAccessRuntime {
           env: host.env,
           stdio: ["pipe", "pipe", "ignore"],
           shell: false,
-          windowsHide: true,
         },
       );
-      // Windows SSH truncates long command arguments. Fixed management source
-      // is a bounded first stdin line; later lines carry requests/authorization.
+      // Fixed management source is a bounded first stdin line, never a long
+      // command argument; later lines carry requests/authorization.
       child.stdin.write(source + "\n");
       child.stdin.write(
         JSON.stringify({

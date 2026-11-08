@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const shells = new Set(["sh", "bash", "zsh", "shell", "powershell", "pwsh"]);
+const shells = new Set(["sh", "bash", "zsh", "shell"]);
 
 function markdown(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -34,7 +34,7 @@ function placeholders(path) {
 }
 
 // Owners paste these commands as they are: zsh reads `<` as a redirect,
-// PowerShell refuses it, and inside quotes it becomes a literal path. A value
+// and inside quotes it becomes a literal path. A value
 // the owner supplies is a named variable that the fence checks before use.
 test("owner-facing shell commands name their inputs as variables, not <placeholders>", () => {
   const files = [join(root, "README.md"), ...markdown(join(root, "docs"))];
@@ -59,6 +59,6 @@ test("the owner hosts table names the current guest program digests", async () =
       coding: coding.managementPolicySha256,
       validation: validation.managementPolicySha256,
     },
-    "A guest program changed: the owner must re-pin that admission record on both hosts; then update docs/owner-hosts.md",
+    "A guest program changed: the owner must re-pin that admission record on the Mac; then update docs/owner-hosts.md",
   );
 });

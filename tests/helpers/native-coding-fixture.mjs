@@ -50,10 +50,8 @@ export function nativeHost(t, respond, platform = "darwin", channel) {
   // Fields a test adds to, or changes in, the machine's Podman configuration.
   const machineConfig = {};
   t.mock.method(os, "platform", () => platform);
-  t.mock.method(os, "arch", () => (platform === "darwin" ? "arm64" : "x64"));
-  t.mock.method(os, "release", () =>
-    platform === "darwin" ? "27.2.0" : "10.0.26100",
-  );
+  t.mock.method(os, "arch", () => "arm64");
+  t.mock.method(os, "release", () => "27.2.0");
   t.mock.method(os, "homedir", () => "/virtual-home");
   t.mock.method(fs, "lstatSync", () => ({
     isFile: () => true,
@@ -70,7 +68,6 @@ export function nativeHost(t, respond, platform = "darwin", channel) {
           Version: 1,
           Mounts: [],
           HostUser: { Rootful: false },
-          HyperVHypervisor: {},
           AppleHypervisor: { Vfkit: { Rosetta: false, BinaryPath: null } },
           Rosetta: false,
           ImportNativeCA: false,
@@ -400,13 +397,6 @@ function running(pid) {
     return false;
   }
 }
-export const posixGuest = {
-  skip:
-    process.platform === "win32"
-      ? "Linux guest simulator requires a POSIX filesystem"
-      : false,
-};
-
 // Tests within one file run serially, so a single fixed root can be reused.
 // The standard first launch runs once per engine configuration; each later
 // caller receives a byte-for-byte copy of that stopped predecessor state at the

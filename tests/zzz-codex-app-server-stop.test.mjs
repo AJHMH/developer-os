@@ -39,38 +39,26 @@ for await(const line of readline.createInterface({input:process.stdin})){
   );
   return { path: node, sha256: pin, argumentsPrefix: [script] };
 }
-const windows = process.platform === "win32" && "a kill cannot be deferred";
 
-test(
-  "a completed read survives an app-server that takes a second to exit",
-  { skip: windows },
-  async (t) => {
-    // The pinned Windows codex has taken longer than 250 ms to exit.
-    assert.ok(stopGraceMs >= 2000);
-    const observed = await observeCodexAccount(
-      fakeCodex(t, 1000),
-      { policy: "owner" },
-      true,
-    );
-    assert.equal(observed.refusal, undefined);
-    assert.equal(
-      observed.session.rateLimits.rateLimits.primary.usedPercent,
-      10,
-    );
-  },
-);
+test("a completed read survives an app-server that takes a second to exit", async (t) => {
+  // The pinned Windows codex has taken longer than 250 ms to exit.
+  assert.ok(stopGraceMs >= 2000);
+  const observed = await observeCodexAccount(
+    fakeCodex(t, 1000),
+    { policy: "owner" },
+    true,
+  );
+  assert.equal(observed.refusal, undefined);
+  assert.equal(observed.session.rateLimits.rateLimits.primary.usedPercent, 10);
+});
 
-test(
-  "an app-server that never exits is still killed and refused with stop",
-  { skip: windows },
-  async (t) => {
-    const started = Date.now();
-    const observed = await observeCodexAccount(
-      fakeCodex(t, null),
-      { policy: "owner" },
-      true,
-    );
-    assert.equal(observed.refusal, "stop");
-    assert.ok(Date.now() - started < stopGraceMs + 4000);
-  },
-);
+test("an app-server that never exits is still killed and refused with stop", async (t) => {
+  const started = Date.now();
+  const observed = await observeCodexAccount(
+    fakeCodex(t, null),
+    { policy: "owner" },
+    true,
+  );
+  assert.equal(observed.refusal, "stop");
+  assert.ok(Date.now() - started < stopGraceMs + 4000);
+});

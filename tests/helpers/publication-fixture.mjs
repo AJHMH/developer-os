@@ -14,7 +14,7 @@ export function signedFixture(f) {
   const env = {
     ...process.env,
     GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_AUTHOR_NAME: "Fixture",
     GIT_AUTHOR_EMAIL: "fixture@example.invalid",
     GIT_COMMITTER_NAME: "Fixture",
@@ -54,8 +54,7 @@ export function signedFixture(f) {
         "-c",
         "core.hooksPath=" + empty,
         "-c",
-        "core.attributesFile=" +
-          (process.platform === "win32" ? "NUL" : "/dev/null"),
+        "core.attributesFile=" + "/dev/null",
         "-c",
         "gpg.format=ssh",
         "-c",
