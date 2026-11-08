@@ -13,9 +13,7 @@ export interface SubscriptionMediationReport {
   decisionPins?: import("./subscription-decision.js").SubscriptionDecisionPins;
   mechanismDecision?: {
     qualified: true;
-    scope:
-      | "macos-fixed-codex-subscription"
-      | "windows-fixed-codex-subscription";
+    scope: "macos-fixed-codex-subscription";
     runId: string;
     observedAt: string;
     /** The vault credential account the mediated relay uses. */
