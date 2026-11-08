@@ -19,7 +19,7 @@ import {
   syntheticSiteOutput,
   syntheticTaskVersion,
 } from "./synthetic-task.js";
-import { hostControlNames, hostControlsVersion } from "./windows-controls.js";
+import { hostControlNames, hostControlsVersion } from "./host-controls.js";
 
 export type QualificationCheckResult = "passed" | "failed" | "not-run";
 export interface QualificationCheck {
@@ -39,28 +39,27 @@ const check = (
   evidenceMode,
   ...(sha256(evidenceSha256) ? { evidenceSha256 } : {}),
 });
-function contextFor(delivery: Delivery, macos: boolean, now: number) {
+function contextFor(delivery: Delivery, now: number) {
   const q = delivery.qualification,
     binding = q?.offlineAdmission?.binding,
     online = delivery.onlineAccess,
     authorized = online?.usageAuthorization;
   return {
     delivery,
-    macos,
     q,
     binding,
     evidenceMode: q?.mode ?? "unavailable",
     noQualification: !q,
     matchingBinding: Boolean(
       q?.offlineAdmission?.allowed &&
-        validHostBinding(binding, macos ? "darwin" : "win32") &&
+        validHostBinding(binding, "darwin") &&
         validEffectiveControls(q.offlineAdmission.effective) &&
         sha256(q.bindingSha256) &&
         sha256(q.policySha256) &&
         qualificationVersionsMatch(q.runtimeVersions),
     ),
     canary: delivery.offlineCanary,
-    controls: delivery.windowsControls,
+    controls: delivery.hostControls,
     probes: q?.probes ?? [],
     adversarial: q?.adversarial,
     online,
@@ -106,12 +105,11 @@ function controlsProven(context: Context): boolean {
 }
 
 function adversarialProven(context: Context): boolean {
-  const { macos, matchingBinding, probes, adversarial } = context;
+  const { matchingBinding, probes, adversarial } = context;
   const requiredIsolation = isolationProbes;
   const adversarialPassed = Boolean(
     matchingBinding &&
-      adversarial?.scope ===
-        (macos ? "synthetic-macos-controls" : "synthetic-windows-controls") &&
+      adversarial?.scope === "synthetic-macos-controls" &&
       /^[a-f0-9-]{36}$/.test(adversarial.challengeId) &&
       sha256(adversarial.probeVersion) &&
       adversarial.escapeAttempts.length === 4 &&
@@ -332,7 +330,7 @@ function checkUsage(context: Context): QualificationCheck {
 /** Supplemental controls can complete only explicitly listed not-run probes.
  * A failed probe is never upgraded by this rule. */
 function supplementalIsolationProven(context: Context): boolean {
-  const { macos, q, probes, adversarial } = context;
+  const { q, probes, adversarial } = context;
   const requiredIsolation = isolationProbes;
   const controlsPassed = controlsProven(context),
     adversarialPassed = adversarialProven(context),
@@ -347,8 +345,7 @@ function supplementalIsolationProven(context: Context): boolean {
       authentication.result === "passed" &&
       q?.subscriptionMediation?.explicitResume === "passed" &&
       adversarial &&
-      adversarial.scope ===
-        (macos ? "synthetic-macos-controls" : "synthetic-windows-controls") &&
+      adversarial.scope === "synthetic-macos-controls" &&
       /^[a-f0-9-]{36}$/.test(adversarial.challengeId) &&
       sha256(adversarial.probeVersion) &&
       adversarial.escapeAttempts.length === 4 &&
@@ -395,7 +392,7 @@ const rules: readonly Rule[] = [
     evaluate: checkHost,
     blocker: (context, value) =>
       value.result !== "passed" || context.evidenceMode !== "live"
-        ? "Native Windows Hyper-V binding and effective worker controls are not qualified; controlled observations do not qualify the host."
+        ? "Native macOS AppleHV binding and effective worker controls are not qualified; controlled observations do not qualify the host."
         : undefined,
   },
   {
@@ -411,7 +408,7 @@ const rules: readonly Rule[] = [
     evaluate: checkIsolation,
     blocker: (context, value) =>
       value.result !== "passed" || context.evidenceMode !== "live"
-        ? "The complete native Windows positive/negative isolation and escape-control report is not recorded."
+        ? "The complete native macOS positive/negative isolation and escape-control report is not recorded."
         : undefined,
   },
   {
@@ -419,7 +416,7 @@ const rules: readonly Rule[] = [
     evaluate: checkOnline,
     blocker: (context, value) =>
       value.result !== "passed" || context.online?.mode !== "live"
-        ? "Native model and dependency endpoint enforcement is not qualified for this Windows binding."
+        ? "Native model and dependency endpoint enforcement is not qualified for this macOS binding."
         : undefined,
   },
   {
@@ -427,7 +424,7 @@ const rules: readonly Rule[] = [
     evaluate: checkAuthentication,
     blocker: (context, value) =>
       value.result !== "passed"
-        ? "Windows worker authentication isolation has no trusted qualification evidence."
+        ? "macOS worker authentication isolation has no trusted qualification evidence."
         : undefined,
   },
   {
@@ -443,7 +440,7 @@ const rules: readonly Rule[] = [
     evaluate: checkFencing,
     blocker: (context, value) =>
       value.result !== "passed" || context.evidenceMode !== "live"
-        ? "Native Windows fencing and recovery evidence is incomplete for this delivery."
+        ? "Native macOS fencing and recovery evidence is incomplete for this delivery."
         : undefined,
   },
   {
@@ -451,7 +448,7 @@ const rules: readonly Rule[] = [
     evaluate: checkTask,
     blocker: (context, value) =>
       value.result !== "passed"
-        ? "A synthetic worker task has not completed through the qualified Windows worker."
+        ? "A synthetic worker task has not completed through the qualified macOS worker."
         : undefined,
   },
   {
@@ -459,20 +456,19 @@ const rules: readonly Rule[] = [
     evaluate: checkValidation,
     blocker: (context, value) =>
       value.result !== "passed"
-        ? "Isolated validation and safe result collection have not been qualified through the Windows worker."
+        ? "Isolated validation and safe result collection have not been qualified through the macOS worker."
         : undefined,
   },
 ];
 /** No filesystem or process observations occur while evaluating retained reports. */
 export function evaluateQualificationRules(
   delivery: Delivery,
-  macos: boolean,
   now = Date.now(),
 ): {
   checks: Record<QualificationCheckName, QualificationCheck>;
   blockers: string[];
 } {
-  const context = contextFor(delivery, macos, now),
+  const context = contextFor(delivery, now),
     blockers: string[] = [];
   const checks = Object.fromEntries(
     rules.map((rule) => {

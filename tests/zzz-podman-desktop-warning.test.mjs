@@ -95,7 +95,7 @@ test("prepare says nothing when Podman Desktop is not running", async (t) => {
 });
 
 test("prepare says nothing off macOS, without looking for the app", async (t) => {
-  for (const platform of ["win32", "linux"])
+  for (const platform of ["linux", "freebsd"])
     assert.deepEqual(
       await prepare(t, () =>
         podmanDesktopRunning({

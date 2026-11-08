@@ -20,8 +20,6 @@ import { testPython } from "./helpers/python.mjs";
 
 const simulator = new URL("./helpers/vm-management-engine.py", import.meta.url)
   .pathname;
-const windows = process.platform === "win32";
-const skip = windows ? "Runs Linux VM management code on the host" : false;
 
 function guest(t, engine = {}) {
   const root = realMkdtempSync(`${realTemporaryDirectory}/aios-vm-guest-`);
@@ -138,25 +136,21 @@ const probes = (f) => [
   },
 ];
 
-test(
-  "probe actions remove their container and record on success",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    for (const { action, prefix, payload } of probes(f)) {
-      const result = f.run(action, payload());
-      assert.equal(result.ok, true, `${action}: ${result.stderr}`);
-      const answer = JSON.parse(result.output);
-      assert.equal(answer.blockedStage, undefined, action);
-      assert.deepEqual(f.names(), [], action);
-      assert.ok(
-        f.removals().some((name) => name.startsWith(prefix)),
-        action,
-      );
-      assert.deepEqual(f.probeRecords(), [], action);
-    }
-  },
-);
+test("probe actions remove their container and record on success", (t) => {
+  const f = guest(t);
+  for (const { action, prefix, payload } of probes(f)) {
+    const result = f.run(action, payload());
+    assert.equal(result.ok, true, `${action}: ${result.stderr}`);
+    const answer = JSON.parse(result.output);
+    assert.equal(answer.blockedStage, undefined, action);
+    assert.deepEqual(f.names(), [], action);
+    assert.ok(
+      f.removals().some((name) => name.startsWith(prefix)),
+      action,
+    );
+    assert.deepEqual(f.probeRecords(), [], action);
+  }
+});
 
 for (const [failure, faults, reached] of [
   ["a failed start", { start: "exit" }, true],
@@ -169,24 +163,20 @@ for (const [failure, faults, reached] of [
   ],
   ["a create that made nothing", { create: "exit" }, false],
 ]) {
-  test(
-    `probe actions remove their container after ${failure}`,
-    { skip },
-    (t) => {
-      const f = guest(t);
-      for (const { action, prefix, payload } of probes(f)) {
-        f.fault({ [prefix]: faults });
-        const before = f.removals().length;
-        const result = f.run(action, payload());
-        const refused =
-          !result.ok || JSON.parse(result.output).blockedStage !== undefined;
-        assert.equal(refused, true, action);
-        assert.deepEqual(f.names(), [], `${action} left a container`);
-        assert.equal(f.removals().length > before, reached, action);
-        assert.deepEqual(f.probeRecords(), [], `${action} left a record`);
-      }
-    },
-  );
+  test(`probe actions remove their container after ${failure}`, (t) => {
+    const f = guest(t);
+    for (const { action, prefix, payload } of probes(f)) {
+      f.fault({ [prefix]: faults });
+      const before = f.removals().length;
+      const result = f.run(action, payload());
+      const refused =
+        !result.ok || JSON.parse(result.output).blockedStage !== undefined;
+      assert.equal(refused, true, action);
+      assert.deepEqual(f.names(), [], `${action} left a container`);
+      assert.equal(f.removals().length > before, reached, action);
+      assert.deepEqual(f.probeRecords(), [], `${action} left a record`);
+    }
+  });
 }
 
 const codexPayload = (f) => ({
@@ -210,62 +200,50 @@ for (const [failure, faults] of [
   // With no relay answer, the first denial check refuses both running workers.
   ["a refused relay denial", {}],
 ]) {
-  test(
-    `codex-protocol removes both workers after ${failure}`,
-    { skip },
-    (t) => {
-      const f = guest(t);
-      f.fault(faults);
-      const result = f.run("codex-protocol", codexPayload(f));
-      assert.ok(JSON.parse(result.output).blockedStage, "the probe must stop");
-      assert.deepEqual(f.names(), []);
-      assert.deepEqual(f.probeRecords(), []);
-      assert.deepEqual(
-        fs.readdirSync(f.records).filter((n) => n.startsWith("credential-")),
-        [],
-      );
-    },
-  );
-}
-
-test(
-  "a failed removal keeps the evidence and the next action retries it",
-  { skip },
-  (t) => {
+  test(`codex-protocol removes both workers after ${failure}`, (t) => {
     const f = guest(t);
-    f.fault({ "aios-qualification-": { rm: "exit" } });
-    const first = f.run("observe", { expected: f.expected });
-    assert.equal(first.ok, true, first.stderr);
-    assert.ok(JSON.parse(first.output).effective, "evidence stands");
-    assert.equal(f.names().length, 1);
-    assert.equal(f.probeRecords().length, 1);
-    f.fault({});
-    const second = f.run("observe", { expected: f.expected });
-    assert.equal(second.ok, true, second.stderr);
+    f.fault(faults);
+    const result = f.run("codex-protocol", codexPayload(f));
+    assert.ok(JSON.parse(result.output).blockedStage, "the probe must stop");
     assert.deepEqual(f.names(), []);
     assert.deepEqual(f.probeRecords(), []);
-  },
-);
+    assert.deepEqual(
+      fs.readdirSync(f.records).filter((n) => n.startsWith("credential-")),
+      [],
+    );
+  });
+}
 
-test(
-  "a failed removal is not tried again in the same action",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    for (const { action, prefix, payload } of probes(f)) {
-      f.fault({ [prefix]: { rm: "exit" } });
-      const result = f.run(action, payload());
-      assert.equal(result.ok, true, `${action}: ${result.stderr}`);
-      assert.equal(JSON.parse(result.output).blockedStage, undefined, action);
-      assert.equal(
-        f.removals().filter((name) => name.startsWith(prefix)).length,
-        1,
-        action,
-      );
-      f.fault({});
-    }
-  },
-);
+test("a failed removal keeps the evidence and the next action retries it", (t) => {
+  const f = guest(t);
+  f.fault({ "aios-qualification-": { rm: "exit" } });
+  const first = f.run("observe", { expected: f.expected });
+  assert.equal(first.ok, true, first.stderr);
+  assert.ok(JSON.parse(first.output).effective, "evidence stands");
+  assert.equal(f.names().length, 1);
+  assert.equal(f.probeRecords().length, 1);
+  f.fault({});
+  const second = f.run("observe", { expected: f.expected });
+  assert.equal(second.ok, true, second.stderr);
+  assert.deepEqual(f.names(), []);
+  assert.deepEqual(f.probeRecords(), []);
+});
+
+test("a failed removal is not tried again in the same action", (t) => {
+  const f = guest(t);
+  for (const { action, prefix, payload } of probes(f)) {
+    f.fault({ [prefix]: { rm: "exit" } });
+    const result = f.run(action, payload());
+    assert.equal(result.ok, true, `${action}: ${result.stderr}`);
+    assert.equal(JSON.parse(result.output).blockedStage, undefined, action);
+    assert.equal(
+      f.removals().filter((name) => name.startsWith(prefix)).length,
+      1,
+      action,
+    );
+    f.fault({});
+  }
+});
 
 const leftovers = (f, count) => {
   const seeded = {};
@@ -284,28 +262,24 @@ const leftovers = (f, count) => {
 // A third of macOS's 90-second action deadline.
 const removalBudget = hostTargets.darwin.managementMs / 3000;
 
-test(
-  "a stalled removal costs one budget and leaves the action its evidence",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    leftovers(f, 12);
-    f.fault({ "aios-qualification-": { rm: "stall" } });
-    const result = f.run("observe", { expected: f.expected });
-    assert.equal(result.ok, true, result.stderr);
-    assert.ok(JSON.parse(result.output).effective, "evidence stands");
-    assert.equal(f.removals().length, 1, "the budget went on the first");
-    assert.equal(f.state().removalSeconds, removalBudget);
-    assert.equal(f.probeRecords().length, 13, "every record stays for later");
-    f.fault({});
-    for (let round = 0; round < 2; round++)
-      assert.equal(f.run("observe", { expected: f.expected }).ok, true);
-    assert.deepEqual(f.names(), []);
-    assert.deepEqual(f.probeRecords(), []);
-  },
-);
+test("a stalled removal costs one budget and leaves the action its evidence", (t) => {
+  const f = guest(t);
+  leftovers(f, 12);
+  f.fault({ "aios-qualification-": { rm: "stall" } });
+  const result = f.run("observe", { expected: f.expected });
+  assert.equal(result.ok, true, result.stderr);
+  assert.ok(JSON.parse(result.output).effective, "evidence stands");
+  assert.equal(f.removals().length, 1, "the budget went on the first");
+  assert.equal(f.state().removalSeconds, removalBudget);
+  assert.equal(f.probeRecords().length, 13, "every record stays for later");
+  f.fault({});
+  for (let round = 0; round < 2; round++)
+    assert.equal(f.run("observe", { expected: f.expected }).ok, true);
+  assert.deepEqual(f.names(), []);
+  assert.deepEqual(f.probeRecords(), []);
+});
 
-test("slow removals stop when the budget is spent", { skip }, (t) => {
+test("slow removals stop when the budget is spent", (t) => {
   const f = guest(t);
   leftovers(f, 8);
   f.fault({ "aios-qualification-": { rm: "slow" } });
@@ -317,113 +291,101 @@ test("slow removals stop when the budget is spent", { skip }, (t) => {
   assert.equal(f.names().length, 7);
 });
 
-test(
-  "each host's removal budget fits inside its action deadline",
-  { skip },
-  (t) => {
-    for (const platform of ["darwin", "win32"]) {
-      const host = hostTargets[platform];
-      nativeHost(t, () => ({}), platform);
-      const ordinaryFile = fs.lstatSync("/authority");
-      t.mock.method(fs, "lstatSync", () => ({
-        ...ordinaryFile,
-        isDirectory: () => true,
-      }));
-      syncBuiltinESMExports();
-      const { input } = new VMManagementChannel(
-        "aios-test",
-        "/authority",
-      ).prepare("observe", {});
-      const { target } = JSON.parse(
-        Buffer.from(input.match(/b64decode\('([^']+)'\)/)[1], "base64"),
-      );
-      assert.equal(target.removalSeconds, host.managementMs / 3000, platform);
-      t.mock.restoreAll();
-    }
-  },
-);
+test("the Mac's removal budget fits inside its action deadline", (t) => {
+  for (const platform of ["darwin"]) {
+    const host = hostTargets[platform];
+    nativeHost(t, () => ({}), platform);
+    const ordinaryFile = fs.lstatSync("/authority");
+    t.mock.method(fs, "lstatSync", () => ({
+      ...ordinaryFile,
+      isDirectory: () => true,
+    }));
+    syncBuiltinESMExports();
+    const { input } = new VMManagementChannel(
+      "aios-test",
+      "/authority",
+    ).prepare("observe", {});
+    const { target } = JSON.parse(
+      Buffer.from(input.match(/b64decode\('([^']+)'\)/)[1], "base64"),
+    );
+    assert.equal(target.removalSeconds, host.managementMs / 3000, platform);
+    t.mock.restoreAll();
+  }
+});
 
-test(
-  "an interrupted run is stopped and removed by the next action",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    const authority = f.authority();
-    f.seed({
-      "aios-qualification-crashed": {
-        ...container(authority, "running"),
-        Name: "aios-qualification-crashed",
-        State: { Running: true, Pid: 4500, Status: "running" },
-      },
-      "aios-isolation-never-started": {
-        ...container(authority, "created"),
-        Name: "aios-isolation-never-started",
-      },
-    });
-    f.writeRecord("probe-crashed.json", {
-      name: "aios-qualification-crashed",
-      cgroup: "",
-      pids: {},
-      stopped: false,
-    });
-    f.writeRecord("probe-never-started.json", {
-      name: "aios-isolation-never-started",
-      cgroup: "",
-      pids: {},
-      stopped: false,
-    });
-    // A create that wrote its record and then died made no container.
-    f.writeRecord("probe-absent.json", {
-      name: "aios-qualification-absent",
-      cgroup: "",
-      pids: {},
-      stopped: false,
-    });
-    const result = f.run("observe", { expected: f.expected });
-    assert.equal(result.ok, true, result.stderr);
-    assert.deepEqual(f.names(), []);
-    assert.deepEqual(f.probeRecords(), []);
-  },
-);
+test("an interrupted run is stopped and removed by the next action", (t) => {
+  const f = guest(t);
+  const authority = f.authority();
+  f.seed({
+    "aios-qualification-crashed": {
+      ...container(authority, "running"),
+      Name: "aios-qualification-crashed",
+      State: { Running: true, Pid: 4500, Status: "running" },
+    },
+    "aios-isolation-never-started": {
+      ...container(authority, "created"),
+      Name: "aios-isolation-never-started",
+    },
+  });
+  f.writeRecord("probe-crashed.json", {
+    name: "aios-qualification-crashed",
+    cgroup: "",
+    pids: {},
+    stopped: false,
+  });
+  f.writeRecord("probe-never-started.json", {
+    name: "aios-isolation-never-started",
+    cgroup: "",
+    pids: {},
+    stopped: false,
+  });
+  // A create that wrote its record and then died made no container.
+  f.writeRecord("probe-absent.json", {
+    name: "aios-qualification-absent",
+    cgroup: "",
+    pids: {},
+    stopped: false,
+  });
+  const result = f.run("observe", { expected: f.expected });
+  assert.equal(result.ok, true, result.stderr);
+  assert.deepEqual(f.names(), []);
+  assert.deepEqual(f.probeRecords(), []);
+});
 
-test(
-  "records left by earlier programs drain a few at a time",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    const authority = f.authority();
-    const seeded = {};
-    for (let index = 0; index < 20; index++) {
-      const name = `aios-qualification-old-${index}`;
-      seeded[name] = { ...container(authority), Name: name };
-      f.writeRecord(`probe-old-${index}.json`, {
-        name,
-        cgroup: "",
-        pids: {},
-        stopped: true,
-      });
-    }
-    f.seed(seeded);
-    // The codex probe's earlier program kept its record after removal.
-    f.writeRecord("probe-removed.json", {
-      name: "aios-codex-protocol-gone",
+test("records left by earlier programs drain a few at a time", (t) => {
+  const f = guest(t);
+  const authority = f.authority();
+  const seeded = {};
+  for (let index = 0; index < 20; index++) {
+    const name = `aios-qualification-old-${index}`;
+    seeded[name] = { ...container(authority), Name: name };
+    f.writeRecord(`probe-old-${index}.json`, {
+      name,
       cgroup: "",
       pids: {},
       stopped: true,
-      removed: true,
     });
-    const result = f.run("observe", { expected: f.expected });
-    assert.equal(result.ok, true, result.stderr);
-    assert.equal(f.names().length, 12, "eight at most in one action");
-    assert.equal(f.probeRecords().length, 12);
-    for (let round = 0; round < 2; round++)
-      assert.equal(f.run("observe", { expected: f.expected }).ok, true);
-    assert.deepEqual(f.names(), []);
-    assert.deepEqual(f.probeRecords(), []);
-  },
-);
+  }
+  f.seed(seeded);
+  // The codex probe's earlier program kept its record after removal.
+  f.writeRecord("probe-removed.json", {
+    name: "aios-codex-protocol-gone",
+    cgroup: "",
+    pids: {},
+    stopped: true,
+    removed: true,
+  });
+  const result = f.run("observe", { expected: f.expected });
+  assert.equal(result.ok, true, result.stderr);
+  assert.equal(f.names().length, 12, "eight at most in one action");
+  assert.equal(f.probeRecords().length, 12);
+  for (let round = 0; round < 2; round++)
+    assert.equal(f.run("observe", { expected: f.expected }).ok, true);
+  assert.deepEqual(f.names(), []);
+  assert.deepEqual(f.probeRecords(), []);
+});
 
-test("nothing the actions did not create is removed", { skip }, (t) => {
+test("nothing the actions did not create is removed", (t) => {
   const f = guest(t);
   const authority = f.authority();
   const unrelated = {
@@ -451,24 +413,20 @@ test("nothing the actions did not create is removed", { skip }, (t) => {
   );
 });
 
-test(
-  "a record naming another authority's container refuses and removes nothing",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    f.seed({ "aios-qualification-foreign": container("another-authority") });
-    f.writeRecord("probe-foreign.json", {
-      name: "aios-qualification-foreign",
-      cgroup: "",
-      pids: {},
-      stopped: true,
-    });
-    assert.equal(f.run("observe", { expected: f.expected }).ok, false);
-    assert.deepEqual(f.names(), ["aios-qualification-foreign"]);
-    assert.equal(f.probeRecords().length, 1);
-    assert.deepEqual(f.removals(), []);
-  },
-);
+test("a record naming another authority's container refuses and removes nothing", (t) => {
+  const f = guest(t);
+  f.seed({ "aios-qualification-foreign": container("another-authority") });
+  f.writeRecord("probe-foreign.json", {
+    name: "aios-qualification-foreign",
+    cgroup: "",
+    pids: {},
+    stopped: true,
+  });
+  assert.equal(f.run("observe", { expected: f.expected }).ok, false);
+  assert.deepEqual(f.names(), ["aios-qualification-foreign"]);
+  assert.equal(f.probeRecords().length, 1);
+  assert.deepEqual(f.removals(), []);
+});
 
 const canary = Buffer.from("AIOS offline canary input\n").toString("base64");
 const pins = { bindingSha256: "a".repeat(64), policySha256: "b".repeat(64) };
@@ -495,119 +453,103 @@ function runSession(f, s) {
   return { ...s, state: "stopped" };
 }
 
-test(
-  "a stopped session stays collectable until a later fence supersedes it",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    const first = runSession(f, session("repository-a", 1));
-    const name = `aios-offline-${first.sandboxId}`;
-    assert.deepEqual(f.names(), [name], "stop keeps the worker's logs");
-    const collect = () => f.run("collect", { session: first, pins });
-    assert.equal(collect().ok, true);
-    assert.equal(collect().ok, true, "a repeated collection still reads it");
-    assert.deepEqual(f.names(), [name]);
+test("a stopped session stays collectable until a later fence supersedes it", (t) => {
+  const f = guest(t);
+  const first = runSession(f, session("repository-a", 1));
+  const name = `aios-offline-${first.sandboxId}`;
+  assert.deepEqual(f.names(), [name], "stop keeps the worker's logs");
+  const collect = () => f.run("collect", { session: first, pins });
+  assert.equal(collect().ok, true);
+  assert.equal(collect().ok, true, "a repeated collection still reads it");
+  assert.deepEqual(f.names(), [name]);
 
-    // Another repository's session cannot supersede this one.
-    const other = runSession(f, session("repository-b", 1));
-    assert.ok(f.names().includes(name));
-    assert.equal(collect().ok, true);
+  // Another repository's session cannot supersede this one.
+  const other = runSession(f, session("repository-b", 1));
+  assert.ok(f.names().includes(name));
+  assert.equal(collect().ok, true);
 
-    // Fences are monotonic per repository: nothing can read the old one now.
-    const second = runSession(f, session("repository-a", 2));
-    assert.deepEqual(
-      f.names(),
-      [
-        `aios-offline-${other.sandboxId}`,
-        `aios-offline-${second.sandboxId}`,
-      ].sort(),
-    );
-    assert.equal(
-      collect().ok,
-      false,
-      "the fence refuses it, not a missing name",
-    );
-    const record = f.readRecord(`${first.sandboxId}.json`);
-    assert.equal(record.stopped, true, "the record outlives the container");
-    assert.equal(
-      f.run("execute", {
-        expected: f.expected,
-        session: { ...first, state: "running" },
-        pins,
-        input: canary,
-      }).ok,
-      false,
-      "the kept record still refuses a replay",
-    );
-  },
-);
-
-test(
-  "a superseded session is kept while it runs, or if it is not exactly ours",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    const running = session("repository-a", 1);
-    const started = f.run("execute", {
+  // Fences are monotonic per repository: nothing can read the old one now.
+  const second = runSession(f, session("repository-a", 2));
+  assert.deepEqual(
+    f.names(),
+    [
+      `aios-offline-${other.sandboxId}`,
+      `aios-offline-${second.sandboxId}`,
+    ].sort(),
+  );
+  assert.equal(collect().ok, false, "the fence refuses it, not a missing name");
+  const record = f.readRecord(`${first.sandboxId}.json`);
+  assert.equal(record.stopped, true, "the record outlives the container");
+  assert.equal(
+    f.run("execute", {
       expected: f.expected,
-      session: running,
+      session: { ...first, state: "running" },
       pins,
       input: canary,
-    });
-    assert.equal(started.ok, true, started.stderr);
-    const foreign = runSession(f, session("repository-a", 2));
-    assert.ok(f.names().includes(`aios-offline-${running.sandboxId}`));
-    // The same name with another session's label is not this record's worker.
-    const name = `aios-offline-${foreign.sandboxId}`;
-    f.seed({
-      [name]: {
-        ...container(f.authority(), "exited", { "aios.session": "another" }),
-        Name: name,
-      },
-    });
-    const third = session("repository-a", 3);
-    assert.equal(
-      f.run("execute", {
-        expected: f.expected,
-        session: third,
-        pins,
-        input: canary,
-      }).ok,
+    }).ok,
+    false,
+    "the kept record still refuses a replay",
+  );
+});
+
+test("a superseded session is kept while it runs, or if it is not exactly ours", (t) => {
+  const f = guest(t);
+  const running = session("repository-a", 1);
+  const started = f.run("execute", {
+    expected: f.expected,
+    session: running,
+    pins,
+    input: canary,
+  });
+  assert.equal(started.ok, true, started.stderr);
+  const foreign = runSession(f, session("repository-a", 2));
+  assert.ok(f.names().includes(`aios-offline-${running.sandboxId}`));
+  // The same name with another session's label is not this record's worker.
+  const name = `aios-offline-${foreign.sandboxId}`;
+  f.seed({
+    [name]: {
+      ...container(f.authority(), "exited", { "aios.session": "another" }),
+      Name: name,
+    },
+  });
+  const third = session("repository-a", 3);
+  assert.equal(
+    f.run("execute", {
+      expected: f.expected,
+      session: third,
+      pins,
+      input: canary,
+    }).ok,
+    true,
+  );
+  assert.ok(f.names().includes(name));
+  assert.ok(f.names().includes(`aios-offline-${running.sandboxId}`));
+});
+
+test("a stalled superseded session spends the budget and stays collectable later", (t) => {
+  const f = guest(t);
+  // Failed removals leave two superseded sessions behind.
+  f.fault({ "aios-offline-": { rm: "exit" } });
+  const first = runSession(f, session("repository-a", 1));
+  const second = runSession(f, session("repository-a", 2));
+  runSession(f, session("repository-a", 3));
+  assert.equal(f.names().length, 3);
+  f.fault({ "aios-offline-": { rm: "stall" } });
+  const before = f.removals().length;
+  const fourth = session("repository-a", 4);
+  const started = f.run("execute", {
+    expected: f.expected,
+    session: fourth,
+    pins,
+    input: canary,
+  });
+  assert.equal(started.ok, true, started.stderr);
+  assert.equal(f.removals().length - before, 1);
+  assert.equal(f.state().removalSeconds, removalBudget);
+  for (const { sandboxId } of [first, second])
+    assert.notEqual(
+      f.readRecord(`${sandboxId}.json`).containerRemoved,
       true,
+      "a later action retries it",
     );
-    assert.ok(f.names().includes(name));
-    assert.ok(f.names().includes(`aios-offline-${running.sandboxId}`));
-  },
-);
-
-test(
-  "a stalled superseded session spends the budget and stays collectable later",
-  { skip },
-  (t) => {
-    const f = guest(t);
-    // Failed removals leave two superseded sessions behind.
-    f.fault({ "aios-offline-": { rm: "exit" } });
-    const first = runSession(f, session("repository-a", 1));
-    const second = runSession(f, session("repository-a", 2));
-    runSession(f, session("repository-a", 3));
-    assert.equal(f.names().length, 3);
-    f.fault({ "aios-offline-": { rm: "stall" } });
-    const before = f.removals().length;
-    const fourth = session("repository-a", 4);
-    const started = f.run("execute", {
-      expected: f.expected,
-      session: fourth,
-      pins,
-      input: canary,
-    });
-    assert.equal(started.ok, true, started.stderr);
-    assert.equal(f.removals().length - before, 1);
-    assert.equal(f.state().removalSeconds, removalBudget);
-    for (const { sandboxId } of [first, second])
-      assert.notEqual(
-        f.readRecord(`${sandboxId}.json`).containerRemoved,
-        true,
-        "a later action retries it",
-      );
-  },
-);
+});

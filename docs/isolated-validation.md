@@ -156,11 +156,11 @@ only when isolation holds:
 - the user is unprivileged;
 - no engine socket is visible.
 
-Any image with `/bin/sh` works. The pinned Alpine image already in each VM is
+Any image with `/bin/sh` works. The pinned Alpine image already in the VM is
 enough, so nothing needs to be loaded. If the record is missing or names other
 pins, the run stops before any check and prints the fresh pins.
 
-macOS (Terminal):
+In Terminal:
 
 ```sh
 cd ~/Repos/developer-os
@@ -171,13 +171,6 @@ mkdir -m 700 -p "$HOME/.developer-os/admission"
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "$IMAGE" "$HOME/.developer-os/issue04-validation-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
-Windows (PowerShell, not elevated), from the checkout. Command Prompt does not
-split commands on `;`, so there it never runs the build:
-
-```powershell
-npm ci --ignore-scripts; npm run build; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764; $image; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-validation-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run
-```
-
 Write `validation-admission.json` yourself from the printed pins, with the same
 private permissions as the coding record. It needs no credentials, sends no
 inference and never starts the VM.
@@ -185,11 +178,9 @@ inference and never starts the VM.
 ### Remaining
 
 The following remain open:
-- a native run of the dependency install on Windows (it passed on macOS on
-  30 October), which needs an owner-loaded image with `npm`;
 - disposable browser and database fixtures;
 - hosted checks;
-- native qualification of this executor on both hosts.
+- native qualification of this executor on the Mac.
 
 Build or coverage output written into the tree currently invalidates the tested
 tree by design. Real repositories need an owner contract whose checks leave the
@@ -254,8 +245,8 @@ meaning. A failed or timed-out install ends the check unrun as a failure
 or timeout, whatever npm exited with. The result carries the plan's and the layer's
 digests as artifacts. Stop also ends an install still running.
 
-The guest program changed, so the validation policy pin changed: each host's
-owner validation record must be re-approved, and running it natively needs an
+The guest program changed, so the validation policy pin changed: the owner
+validation record must be re-approved, and running it natively needs an
 owner-loaded image that contains `npm`.
 
 ### Native dependency acceptance
@@ -279,19 +270,12 @@ so a new image needs a new validation record: run the acceptance once without
 the flag to print the fresh pins, write the record, then run it with the flag.
 The baseline probes also pass on such an image.
 
-Set the owner-chosen image digest, without `sha256:`, as `NODE_DIGEST` on
-macOS or `$nodeDigest` on Windows.
+Set the owner-chosen image digest, without `sha256:`, as `NODE_DIGEST`.
 
-macOS (Terminal), after loading the owner-chosen image into the VM:
+In Terminal, after loading the owner-chosen image into the VM:
 
 ```sh
 NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
 IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies
-```
-
-Windows (PowerShell, not elevated):
-
-```powershell
-if (-not $nodeDigest) { throw 'Set $nodeDigest to the owner-chosen image digest, without sha256:' }; $nodeImage = "docker.io/library/node@sha256:$nodeDigest"; $image = podman --connection aios-podman-noshare image inspect --format "{{.Id}}" $nodeImage; node scripts/run-native-acceptance.mjs "C:/Users/mraar/.developer-os/ticket19-native/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-podman-noshare "C:/Users/mraar/.developer-os/admission/validation-admission.json" $image "C:/Users/mraar/.developer-os/issue04-dependency-acceptance-$(Get-Date -Format yyyyMMdd-HHmmss).json" --approve-offline-native-run --with-npm-dependencies
 ```

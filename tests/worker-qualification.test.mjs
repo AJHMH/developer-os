@@ -7,7 +7,7 @@ import {
   codingBoundaryProbeNames,
 } from "../dist/worker-probes.js";
 import { sessionsLeft } from "./helpers/guest-backed-sessions.mjs";
-import { guestFixture, posixGuest } from "./helpers/native-coding-fixture.mjs";
+import { guestFixture } from "./helpers/native-coding-fixture.mjs";
 import {
   passingOutcome,
   probeCheck,
@@ -337,33 +337,26 @@ test("a blocked report names every stage that never ran", async () => {
   );
 });
 
-// The check's shell runs inside the Linux worker, so it is exercised on POSIX.
-const posix = {
-  skip: process.platform === "win32" ? "The check is a POSIX shell" : false,
-};
+// The check's shell runs inside the Linux worker.
 
-test(
-  "a validation probe check passes only on its own probe's verdict",
-  posix,
-  () => {
-    const { command } = probeCheck(boundaryProbe, "network");
-    assert.ok(command.length <= 32);
-    assert.ok(
-      command.every((a) => a.length <= 2000 && !/[\u0000-\u001f]/.test(a)),
-    );
-    const run = (verdicts) =>
-      spawnSync("/bin/sh", [
-        "-c",
-        command[2],
-        command[3],
-        `printf '%s\\n' ${verdicts}`,
-        ...command.slice(5),
-      ]).status;
-    assert.equal(run("passed-tools passed-network"), 0);
-    assert.equal(run("passed-tools failed-network"), 1);
-    assert.equal(run("passed-tools passed-network-extra"), 1);
-  },
-);
+test("a validation probe check passes only on its own probe's verdict", () => {
+  const { command } = probeCheck(boundaryProbe, "network");
+  assert.ok(command.length <= 32);
+  assert.ok(
+    command.every((a) => a.length <= 2000 && !/[\u0000-\u001f]/.test(a)),
+  );
+  const run = (verdicts) =>
+    spawnSync("/bin/sh", [
+      "-c",
+      command[2],
+      command[3],
+      `printf '%s\\n' ${verdicts}`,
+      ...command.slice(5),
+    ]).status;
+  assert.equal(run("passed-tools passed-network"), 0);
+  assert.equal(run("passed-tools failed-network"), 1);
+  assert.equal(run("passed-tools passed-network-extra"), 1);
+});
 
 test("the qualification runs only with explicit, well-formed arguments", () => {
   const record = "/r.json";
@@ -410,51 +403,47 @@ for (const [name, threadId, cleanup] of [
   ["with a recorded thread", "12345678-1234-4234-8234-123456789abc", "lineage"],
   ["without a recorded thread", undefined, "sweep"],
 ])
-  test(
-    `a passing qualification leaves no coding session in the guest, ${name}`,
-    posixGuest,
-    async (t) => {
-      const fixture = guestFixture(t, {
-        keepRunning: true,
-        probeOutput:
-          codingBoundaryProbeNames.map((n) => `passed-${n}`).join("\n") + "\n",
-        ...(threadId ? { threadId } : {}),
-      });
-      const pins = await fixture.transport.inspect({
-        operationId: "12345678-1234-4234-8234-123456789abd",
-        fence: 1,
-        state: "running",
-        intent: "start",
-      });
-      const { validation } = workers();
-      const original = validation.transport.run;
-      validation.transport.run = (request) => {
-        request0Tree = request.treeSha256;
-        return original(request);
-      };
-      const report = await workerQualification(
-        {
-          coding: {
-            transport: fixture.transport,
-            admission: { pins: () => ({ ...pins }) },
-            Runtime: runtime(pins),
-          },
-          validation,
-          imageSha256: image,
-          probes: { script: boundaryProbe, names: boundaryProbeNames },
+  test(`a passing qualification leaves no coding session in the guest, ${name}`, async (t) => {
+    const fixture = guestFixture(t, {
+      keepRunning: true,
+      probeOutput:
+        codingBoundaryProbeNames.map((n) => `passed-${n}`).join("\n") + "\n",
+      ...(threadId ? { threadId } : {}),
+    });
+    const pins = await fixture.transport.inspect({
+      operationId: "12345678-1234-4234-8234-123456789abd",
+      fence: 1,
+      state: "running",
+      intent: "start",
+    });
+    const { validation } = workers();
+    const original = validation.transport.run;
+    validation.transport.run = (request) => {
+      request0Tree = request.treeSha256;
+      return original(request);
+    };
+    const report = await workerQualification(
+      {
+        coding: {
+          transport: fixture.transport,
+          admission: { pins: () => ({ ...pins }) },
+          Runtime: runtime(pins),
         },
-        { pause: tick },
-      );
-      assert.equal(
-        report.outcome,
-        passingOutcome,
-        JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
-      );
-      assert.equal(report.coding.cleanup, cleanup);
-      assert.ok(
-        fixture.read().commands.some((args) => args[1] === "rm"),
-        "the session had a container to remove",
-      );
-      assert.deepEqual(sessionsLeft(fixture), { containers: [], folders: [] });
-    },
-  );
+        validation,
+        imageSha256: image,
+        probes: { script: boundaryProbe, names: boundaryProbeNames },
+      },
+      { pause: tick },
+    );
+    assert.equal(
+      report.outcome,
+      passingOutcome,
+      JSON.stringify(report.stages.find((s) => s.outcome === "blocked")),
+    );
+    assert.equal(report.coding.cleanup, cleanup);
+    assert.ok(
+      fixture.read().commands.some((args) => args[1] === "rm"),
+      "the session had a container to remove",
+    );
+    assert.deepEqual(sessionsLeft(fixture), { containers: [], folders: [] });
+  });

@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 import { hostTargets } from "../dist/host-target.js";
 import { VMManagementChannel } from "../dist/vm-management.js";
 
-const guestTest = process.platform === "win32" ? test.skip : test;
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const simulator = fileURLToPath(
   new URL("./helpers/vm-management-guest.py", import.meta.url),
@@ -69,18 +68,15 @@ echo '{"Client":{"Version":"${version}"}}'
   };
 }
 
-guestTest(
-  "a restart keeps the offline binding, which names the VM by its machine ID",
-  (t) => {
-    const f = fixture(t);
-    const first = f.observe();
-    // Apple's hypervisor gives the VM a new hardware UUID on every boot.
-    f.vm.productUuid = "b9c8020a-0000-4000-8000-000000000002";
-    assert.deepEqual(f.observe(), first);
-  },
-);
+test("a restart keeps the offline binding, which names the VM by its machine ID", (t) => {
+  const f = fixture(t);
+  const first = f.observe();
+  // Apple's hypervisor gives the VM a new hardware UUID on every boot.
+  f.vm.productUuid = "b9c8020a-0000-4000-8000-000000000002";
+  assert.deepEqual(f.observe(), first);
+});
 
-guestTest("a recreated VM moves only the offline host identity", (t) => {
+test("a recreated VM moves only the offline host identity", (t) => {
   const f = fixture(t);
   const first = f.observe();
   f.vm.machineId = "f".repeat(32);
@@ -89,39 +85,33 @@ guestTest("a recreated VM moves only the offline host identity", (t) => {
   assert.deepEqual({ ...recreated, hostId: first.hostId }, first);
 });
 
-guestTest(
-  "a Podman upgrade or a changed hostname moves the host identity",
-  (t) => {
-    const f = fixture(t);
-    const first = f.observe();
-    // Podman 6.1.1 to 6.1.4 on 4 November 2026 moved every pin on the owner's Mac.
-    f.installPodman("6.1.4");
-    const upgraded = f.observe();
-    assert.notEqual(upgraded.hostId, first.hostId);
-    f.installPodman("6.1.1");
-    assert.equal(f.observe().hostId, first.hostId);
-    t.mock.method(os, "hostname", () => "another-host");
-    syncBuiltinESMExports();
-    assert.notEqual(f.observe().hostId, first.hostId);
-    os.hostname.mock.restore();
-    syncBuiltinESMExports();
-  },
-);
+test("a Podman upgrade or a changed hostname moves the host identity", (t) => {
+  const f = fixture(t);
+  const first = f.observe();
+  // Podman 6.1.1 to 6.1.4 on 4 November 2026 moved every pin on the owner's Mac.
+  f.installPodman("6.1.4");
+  const upgraded = f.observe();
+  assert.notEqual(upgraded.hostId, first.hostId);
+  f.installPodman("6.1.1");
+  assert.equal(f.observe().hostId, first.hostId);
+  t.mock.method(os, "hostname", () => "another-host");
+  syncBuiltinESMExports();
+  assert.notEqual(f.observe().hostId, first.hostId);
+  os.hostname.mock.restore();
+  syncBuiltinESMExports();
+});
 
-guestTest(
-  "the offline host identity binds the host facts and machine ID",
-  (t) => {
-    const f = fixture(t);
-    const { hostId } = f.observe();
-    const executable = hash(f.podman("6.1.1"));
-    assert.equal(
-      hostId,
-      hash(`${os.hostname()}${executable}6.1.1${f.vm.machineId}`),
-    );
-  },
-);
+test("the offline host identity binds the host facts and machine ID", (t) => {
+  const f = fixture(t);
+  const { hostId } = f.observe();
+  const executable = hash(f.podman("6.1.1"));
+  assert.equal(
+    hostId,
+    hash(`${os.hostname()}${executable}6.1.1${f.vm.machineId}`),
+  );
+});
 
-guestTest("a missing or malformed machine ID refuses the observation", (t) => {
+test("a missing or malformed machine ID refuses the observation", (t) => {
   const f = fixture(t);
   for (const machineId of [
     "",

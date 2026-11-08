@@ -1,7 +1,5 @@
 import cp from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
-import { initializeWindowsAuthDirectory } from "../dist/windows-auth-store.js";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -27,12 +25,11 @@ import {
 } from "../dist/subscription-gateway.js";
 import { modelRelayVersion } from "../dist/model-relay.js";
 const hash = (v) => createHash("sha256").update(v).digest("hex");
-for (const target of ["macos", "windows"])
+for (const target of ["macos"])
   test(`${target} qualification and status expose owner-state positive mediation without authorizing inference`, async (t) => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-decision-")));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     // Filesystem protection follows the runner, not the simulated VM binding.
-    if (process.platform === "win32") initializeWindowsAuthDirectory(root);
     const repo = join(root, "repo"),
       state = join(root, "state");
     mkdirSync(repo);
@@ -59,10 +56,7 @@ for (const target of ["macos", "windows"])
       offlineAdmission: {
         allowed: true,
         scope: "offline-probe-only",
-        binding:
-          target === "macos"
-            ? { platform: "darwin", arch: "arm64", provider: "applehv" }
-            : { platform: "win32", arch: "x64", provider: "hyperv" },
+        binding: { platform: "darwin", arch: "arm64", provider: "applehv" },
       },
       subscriptionMediation: {
         qualified: false,
@@ -70,9 +64,7 @@ for (const target of ["macos", "windows"])
         hostGatewayVersion: subscriptionGatewayVersion,
         gatewayIntegration: "passed",
         workerExecutableSha256:
-          target === "macos"
-            ? "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7"
-            : "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
+          "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
         codexCredentialIsolation: "passed",
         endpointEnforcement: "passed",
         deliveryCapabilities: "passed",
@@ -128,26 +120,12 @@ for (const target of ["macos", "windows"])
     const { usageAccountId, ...unendorsed } = record;
     assert.ok(usageAccountId);
     writeFileSync(recordPath, JSON.stringify(unendorsed), { mode: 0o600 });
-    ownWindowsFixturePaths([
-      state,
-      policy,
-      registration,
-      recordPath,
-      join(state, "inference-" + run + ".consumed"),
-    ]);
     assert.equal(
       (await c.qualify(d.id)).qualification.subscriptionMediation
         .mechanismDecision,
       undefined,
     );
     writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
-    ownWindowsFixturePaths([
-      state,
-      policy,
-      registration,
-      recordPath,
-      join(state, "inference-" + run + ".consumed"),
-    ]);
     const result = await c.qualify(d.id);
     assert.equal(
       result.qualification.subscriptionMediation.mechanismDecision.qualified,
@@ -202,7 +180,6 @@ for (const target of ["macos", "windows"])
     writeFileSync(readablePolicy, "synthetic independent pins", {
       mode: 0o600,
     });
-    ownWindowsFixturePaths([readablePolicyParent, readablePolicy]);
     writeFileSync(
       recordPath,
       JSON.stringify({ ...record, policyPath: readablePolicy }),
@@ -213,15 +190,12 @@ for (const target of ["macos", "windows"])
         .qualified,
       true,
     );
-    // POSIX modes do not change Windows ACLs; this is a macOS-only mechanism.
-    if (process.platform !== "win32") {
-      chmodSync(readablePolicyParent, 0o777);
-      assert.equal(
-        c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
-        undefined,
-      );
-      chmodSync(readablePolicyParent, 0o755);
-    }
+    chmodSync(readablePolicyParent, 0o777);
+    assert.equal(
+      c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+      undefined,
+    );
+    chmodSync(readablePolicyParent, 0o755);
     writeFileSync(recordPath, JSON.stringify(record));
     // Source, independent policy, registration and fresh binding drift invalidate the decision.
     for (const field of [
@@ -269,33 +243,28 @@ for (const target of ["macos", "windows"])
       undefined,
     );
     writeFileSync(marker, "one-shot approval consumed\n", { mode: 0o600 });
-    ownWindowsFixturePaths([marker]);
-    if (process.platform !== "win32") {
-      chmodSync(recordPath, 0o644);
-      assert.equal(
-        c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
-        undefined,
-      );
-      chmodSync(recordPath, 0o600);
-    }
+    chmodSync(recordPath, 0o644);
+    assert.equal(
+      c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+      undefined,
+    );
+    chmodSync(recordPath, 0o600);
     linkSync(recordPath, join(root, "duplicate-evidence"));
     assert.equal(
       c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
       undefined,
     );
     unlinkSync(join(root, "duplicate-evidence"));
-    if (process.platform !== "win32") {
-      unlinkSync(recordPath);
-      symlinkSync(
-        join(repo, "subscription-decision-" + d.id + ".json"),
-        recordPath,
-      );
-      assert.equal(
-        c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
-        undefined,
-      );
-      unlinkSync(recordPath);
-    }
+    unlinkSync(recordPath);
+    symlinkSync(
+      join(repo, "subscription-decision-" + d.id + ".json"),
+      recordPath,
+    );
+    assert.equal(
+      c.status(d.id).qualification.subscriptionMediation.mechanismDecision,
+      undefined,
+    );
+    unlinkSync(recordPath);
     writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
     q.offlineAdmission.allowed = false;
     assert.equal(
@@ -305,34 +274,6 @@ for (const target of ["macos", "windows"])
     );
     q.offlineAdmission.allowed = true;
     await c.qualify(d.id);
-    if (target === "windows" && process.platform === "win32") {
-      const icacls = join(process.env.SystemRoot, "System32", "icacls.exe");
-      for (const path of [recordPath, state, marker, registration, policy]) {
-        assert.equal(
-          spawnSync(icacls, [path, "/grant", "*S-1-1-0:W"], {
-            windowsHide: true,
-          }).status,
-          0,
-        );
-        assert.equal(
-          (await c.qualify(d.id)).qualification.subscriptionMediation
-            .mechanismDecision,
-          undefined,
-          "A writable Windows authority path must refuse: " + path,
-        );
-        assert.equal(
-          spawnSync(icacls, [path, "/remove:g", "*S-1-1-0"], {
-            windowsHide: true,
-          }).status,
-          0,
-        );
-        assert.equal(
-          (await c.qualify(d.id)).qualification.subscriptionMediation
-            .mechanismDecision.qualified,
-          true,
-        );
-      }
-    }
     if (process.platform === "darwin") {
       for (const path of [recordPath, state, marker, registration, policy]) {
         assert.equal(

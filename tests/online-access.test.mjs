@@ -1,5 +1,3 @@
-import { initializeWindowsAuthDirectory } from "../dist/windows-auth-store.js";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -25,11 +23,10 @@ import {
 } from "../dist/subscription-gateway.js";
 import { modelRelayVersion } from "../dist/model-relay.js";
 const hash = (v) => createHash("sha256").update(v).digest("hex");
-function fixture(t, online, target = "macos") {
+function fixture(t, online) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-decision-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   // Storage belongs to the actual runner, independently of the simulated VM target.
-  if (process.platform === "win32") initializeWindowsAuthDirectory(root);
   const repo = join(root, "repo"),
     state = join(root, "state");
   mkdirSync(repo);
@@ -56,10 +53,7 @@ function fixture(t, online, target = "macos") {
     offlineAdmission: {
       allowed: true,
       scope: "offline-probe-only",
-      binding:
-        target === "macos"
-          ? { platform: "darwin", arch: "arm64", provider: "applehv" }
-          : { platform: "win32", arch: "x64", provider: "hyperv" },
+      binding: { platform: "darwin", arch: "arm64", provider: "applehv" },
     },
     subscriptionMediation: {
       qualified: false,
@@ -108,13 +102,6 @@ function fixture(t, online, target = "macos") {
     { mode: 0o600 },
   );
   writeFileSync(recordPath, JSON.stringify(record), { mode: 0o600 });
-  ownWindowsFixturePaths([
-    state,
-    policy,
-    registration,
-    recordPath,
-    join(state, "inference-" + run + ".consumed"),
-  ]);
   const usage = {
     observedAt: new Date().toISOString(),
     accountId: record.usageAccountId,
@@ -504,7 +491,6 @@ test("operator-pinned npm artifact dispatch admits exact bytes and refuses candi
     }),
     { mode: 0o600 },
   );
-  ownWindowsFixturePaths([policy]);
   let response = { status: 200, bytes };
   const runtime = new NpmArtifactRuntime(inner, policy, async (url) => {
     requests.push(url);
@@ -652,7 +638,7 @@ test("an exact inference plan that expires during qualification cannot be dispat
   assert.equal(f.c.status(f.d.id).onlinePlan.consumed, false);
 });
 
-test("Windows positive mediation permits only synthetic online controls and keeps production disabled", async (t) => {
+test("positive mediation permits only synthetic online controls and keeps production disabled", async (t) => {
   let count = 0;
   const online = {
     mode: "controlled",
@@ -671,14 +657,14 @@ test("Windows positive mediation permits only synthetic online controls and keep
       return { runId, revoked: true, remainingProcesses: 0 };
     },
   };
-  const f = fixture(t, online, "windows");
+  const f = fixture(t, online);
   const result = await f.c.onlineCanary(f.d.id);
   assert.equal(result.onlineAccess.outcome, "passed");
   assert.equal(result.onlineAccess.productionEnabled, false);
   assert.equal(count, 1);
 });
 
-for (const target of ["windows", "macos"])
+for (const target of ["macos"])
   test(`synthetic ${target} site task validates only inside its worker and imports after verified shutdown`, async (t) => {
     const {
       syntheticSiteInput,
@@ -687,7 +673,7 @@ for (const target of ["windows", "macos"])
       syntheticTaskVersion,
     } = await import("../dist/synthetic-task.js");
     const { canaryOutput, sha256 } = await import("../dist/offline-canary.js");
-    const f = fixture(t, undefined, target);
+    const f = fixture(t);
     const repo = f.d.repository;
     writeFileSync(join(repo, "canary.txt"), "AIOS offline canary input\n");
     writeFileSync(join(repo, "index.html"), syntheticSiteInput);

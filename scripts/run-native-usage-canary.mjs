@@ -82,9 +82,6 @@ export async function usageCanary({ transport, admission }, options = {}) {
     subscriptionAccountId,
     subscriptionIssuer,
   } = await import("../dist/subscription-account.js");
-  const { initializeWindowsAuthDirectory } = await import(
-    "../dist/windows-auth-store.js"
-  );
   const report = {
     scope: "native-coding-offline-usage-canary",
     productionEnabled: false,
@@ -169,16 +166,6 @@ export async function usageCanary({ transport, admission }, options = {}) {
   };
 
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-usage-canary-")));
-  // The controller trusts a decision record only in state that no one else
-  // can read. A Windows temp folder can grant others access by inheritance,
-  // so the canary's root keeps only its owner, SYSTEM and Administrators.
-  if (process.platform === "win32")
-    try {
-      initializeWindowsAuthDirectory(root);
-    } catch (error) {
-      rmSync(root, { recursive: true, force: true });
-      throw error;
-    }
   let controller, deliveryId, mediation;
   // Every session a turn recorded, so each can be stopped at the end.
   const sessions = [];

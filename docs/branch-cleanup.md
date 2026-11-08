@@ -72,4 +72,4 @@ observations. These tests do not qualify native credential-bearing transports,
 remote protection/worktree races, exclusive authority or process shutdown.
 
 Parent 04, native integration acceptance in 05–14, independent complete-controller
-Windows/macOS qualification (15–16), and the observed pilot (17) remain open.
+macOS qualification (15–16), and the observed pilot (17) remain open.

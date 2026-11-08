@@ -50,12 +50,6 @@ export const subscriptionDecisionPath = (state: string, deliveryId: string) =>
 
 export function subscriptionDecisionScope(binding?: Record<string, string>) {
   if (
-    binding?.platform === "win32" &&
-    binding.arch === "x64" &&
-    binding.provider === "hyperv"
-  )
-    return "windows-fixed-codex-subscription" as const;
-  if (
     binding?.platform === "darwin" &&
     binding.arch === "arm64" &&
     binding.provider === "applehv"
@@ -78,15 +72,11 @@ export function projectSubscriptionDecision(
   try {
     const repository = realpathSync(delivery.repository);
     const binding = q.offlineAdmission?.binding;
-    const windows =
-      binding?.platform === "win32" &&
-      binding.arch === "x64" &&
-      binding.provider === "hyperv";
     const macos =
       binding?.platform === "darwin" &&
       binding.arch === "arm64" &&
       binding.provider === "applehv";
-    if (!windows && !macos) throw Error();
+    if (!macos) throw Error();
     assertPrivateAuthStorage(state, "directory");
     const files = new Map<string, string>(),
       directories = new Map<string, "private" | "readable">([
@@ -171,9 +161,7 @@ export function projectSubscriptionDecision(
       throw Error();
     mediation.mechanismDecision = {
       qualified: true,
-      scope: windows
-        ? "windows-fixed-codex-subscription"
-        : "macos-fixed-codex-subscription",
+      scope: "macos-fixed-codex-subscription",
       runId: r.runId,
       observedAt: r.observedAt,
       accountId: r.accountId,

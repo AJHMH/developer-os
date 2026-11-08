@@ -8,19 +8,27 @@ import { pathToFileURL } from "node:url";
 /** Output arrives file by file, so the limit must exceed the slowest test file. */
 export const quietLimitMs = 5 * 60 * 1000;
 
+/** The CLI refuses every host but the owner's Mac. Off macOS, the suite's CLI
+ * runs stand in for it; on macOS they meet the real check. */
+export function testEnvironment(platform = process.platform) {
+  const env = { ...process.env };
+  if (platform === "darwin") delete env.AIOS_TEST_HOST_PLATFORM;
+  else env.AIOS_TEST_HOST_PLATFORM = "darwin";
+  return env;
+}
+
 export function runWatched(command, args, limitMs = quietLimitMs) {
   return new Promise((resolve, reject) => {
-    const posix = process.platform !== "win32";
     const child = spawn(command, args, {
       stdio: ["ignore", "pipe", "pipe"],
-      detached: posix,
+      detached: true,
+      env: testEnvironment(),
     });
     let stalled = false,
       timer;
     const kill = () => {
       try {
-        if (posix) process.kill(-child.pid, "SIGKILL");
-        else child.kill("SIGKILL");
+        process.kill(-child.pid, "SIGKILL");
       } catch {}
     };
     const arm = () => {

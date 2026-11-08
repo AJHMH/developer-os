@@ -1,7 +1,6 @@
 // Coding sessions: explicit resume, recovery and reconciliation, and retired
-// lineage cleanup. Split from feature-candidate.test.mjs so these slower
-// controller tests run on another Windows test shard. The `zz-` prefix sorts
-// it near the end, so few other files change shard. Usage authority,
+// lineage cleanup. Split from feature-candidate.test.mjs. The `zz-` prefix
+// sorts it near the end. Usage authority,
 // monitoring, restart approval, mediation and routed sessions are in
 // zz-usage-coding-session.test.mjs.
 import { planAndValidate } from "./helpers/validation-fixture.mjs";

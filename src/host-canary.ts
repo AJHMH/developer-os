@@ -20,7 +20,7 @@ export const hostCanaryVersion = createHash("sha256")
   .update(readFileSync(new URL(import.meta.url)))
   .digest("hex");
 
-/** Explicit adversarial qualification fixture. A short-lived Windows listener
+/** Explicit adversarial qualification fixture. A short-lived host listener
  * exposes only a random synthetic HTTP/MCP response. All files are newly
  * generated canaries; no real controller/peer/credential files are read. */
 export async function withHostCanary<T>(
@@ -49,14 +49,9 @@ export async function withHostCanary<T>(
     {
       cwd: root,
       shell: false,
-      windowsHide: true,
       stdio: ["ignore", "pipe", "ignore"],
       env: {
-        SystemRoot: process.env.SystemRoot,
-        PATH:
-          process.platform === "win32"
-            ? `${process.env.SystemRoot}\\System32`
-            : "/usr/bin:/bin",
+        PATH: "/usr/bin:/bin",
         TEMP: root,
         TMP: root,
       },

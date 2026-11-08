@@ -33,7 +33,6 @@ export interface WorkerReceipt extends WorkerSession {
  * sandbox files for an explicit session resume rather than deleting work.
  * Ticket 4 supplies a qualified implementation; the CLI has no worker adapter. */
 export interface WorkerAdapter {
-  readonly qualificationPlatform?: "darwin" | "win32" | undefined;
   probe?(
     delivery: Delivery,
     authorityDirectory: string,

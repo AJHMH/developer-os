@@ -45,8 +45,6 @@ export async function endorseUsageAccount(options: {
   expectedUsageAccountId?: string;
   confirm?: boolean;
   now?: () => number;
-  /** Selects the write strategy; defaults to the running platform. */
-  platform?: NodeJS.Platform;
 }): Promise<UsageEndorsement> {
   const refuse = (reason: string): never => {
     throw new EndorsementRefusal("Usage endorsement refused: " + reason + ".");
@@ -101,20 +99,13 @@ export async function endorseUsageAccount(options: {
   const endorsed = JSON.stringify({ ...record, usageAccountId });
   const temporary = join(state, ".pending-endorsement-" + randomUUID());
   try {
-    if ((options.platform ?? process.platform) === "win32") {
-      // A new Windows file takes the process's default owner, which an
-      // elevated shell sets to Administrators, so only an in-place rewrite
-      // keeps the record's owner and access rules.
-      writeFileSync(recordPath, endorsed, { flush: true });
-    } else {
-      writeFileSync(temporary, endorsed, {
-        flag: "wx",
-        mode: 0o600,
-        flush: true,
-      });
-      assertPrivateAuthStorage(temporary, "file", 65536);
-      renameSync(temporary, recordPath);
-    }
+    writeFileSync(temporary, endorsed, {
+      flag: "wx",
+      mode: 0o600,
+      flush: true,
+    });
+    assertPrivateAuthStorage(temporary, "file", 65536);
+    renameSync(temporary, recordPath);
   } catch {
     refuse("the endorsement could not be written");
   } finally {

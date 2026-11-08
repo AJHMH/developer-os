@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -24,10 +25,10 @@ function fixture(t) {
   mkdirSync(repository);
   writeFileSync(join(repository, "canary.txt"), "AIOS offline canary input\n");
   const binding = {
-    platform: "win32",
-    arch: "x64",
-    osVersion: "10.0.26100",
-    provider: "hyperv",
+    platform: "darwin",
+    arch: "arm64",
+    osVersion: "27.2.0",
+    provider: "applehv",
     machine: "aios-test",
     hostId: "a".repeat(64),
     engineVersion: "6.0.2",

@@ -59,7 +59,7 @@ export function runHostAcceptanceCLI(target) {
     console.error(
       JSON.stringify({
         status: "refused",
-        reason: `${target.platform === "win32" ? "windows" : "macos"}-acceptance-incomplete`,
+        reason: "macos-acceptance-incomplete",
         productionEnabled: false,
       }),
     );

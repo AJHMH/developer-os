@@ -79,8 +79,8 @@ export interface AppPullRequestPort {
     approver: string;
   }): Promise<Observation<ProposedPullRequest>>;
 }
-/** Cross-platform composition of separately configured host identity ports.
- * No Windows helper, home/keystore path, PEM, token or review API enters this
+/** Composition of separately configured host identity ports.
+ * No host helper, home/keystore path, PEM, token or review API enters this
  * adapter. Native ports are deliberately not installed by the CLI. */
 export class SplitPublicationAdapter implements PublicationRuntime {
   readonly mode = "controlled" as const;

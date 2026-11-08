@@ -50,7 +50,7 @@ test("native inference starts its one-shot gateway lease only after bound isolat
     "/authority",
     "/pins.json",
   );
-  const binding = { platform: "win32", arch: "x64" };
+  const binding = { platform: "darwin", arch: "arm64" };
   let created = 0,
     revoked = 0,
     refused = false;
@@ -115,17 +115,12 @@ import {
 } from "../dist/subscription-gateway.js";
 
 // External OS, filesystem and process observations are simulated; no VM is launched.
-function hostFixture(
-  t,
-  platform,
-  arch = platform === "darwin" ? "arm64" : "x64",
-) {
+function hostFixture(t, platform = "darwin", arch = "arm64") {
   let config = {
     Name: "aios-test",
     Version: 1,
     Mounts: [],
     HostUser: { Rootful: false },
-    HyperVHypervisor: {},
     AppleHypervisor: { Vfkit: { Rosetta: false, BinaryPath: null } },
     Rosetta: false,
     ImportNativeCA: false,
@@ -150,9 +145,7 @@ function hostFixture(
   const nativeReadFile = fs.readFileSync;
   t.mock.method(os, "platform", () => platform);
   t.mock.method(os, "arch", () => arch);
-  t.mock.method(os, "release", () =>
-    platform === "darwin" ? "27.2.0" : "10.0.26100",
-  );
+  t.mock.method(os, "release", () => "27.2.0");
   t.mock.method(os, "homedir", () => "/virtual-home");
   t.mock.method(fs, "lstatSync", () => stat);
   t.mock.method(fs, "realpathSync", (path) => actualPath(path));
@@ -172,8 +165,8 @@ function hostFixture(
         binding: {
           platform,
           arch,
-          osVersion: platform === "darwin" ? "27.2.0" : "10.0.26100",
-          provider: platform === "darwin" ? "applehv" : "hyperv",
+          osVersion: "27.2.0",
+          provider: "applehv",
           machine: "aios-test",
         },
       });
@@ -192,8 +185,7 @@ function hostFixture(
       // `input`, which can lose EOF just over 64 KiB on macOS.
       assert.equal(options.input, undefined);
       assert.equal(typeof options.stdio[0], "number");
-      if (process.platform !== "win32")
-        assert.equal(fs.fstatSync(options.stdio[0]).mode & 0o777, 0o600);
+      assert.equal(fs.fstatSync(options.stdio[0]).mode & 0o777, 0o600);
       const program = nativeReadFile(options.stdio[0], "utf8");
       programs.push(program);
       timeouts.push(options.timeout);
@@ -236,12 +228,12 @@ function hostFixture(
   };
 }
 
-for (const platform of ["darwin", "win32"]) {
+for (const platform of ["darwin"]) {
   test(`trusted ${platform} observations select the explicit provider and refuse unsafe configuration`, (t) => {
     const f = hostFixture(t, platform);
     const host = podmanMachine("aios-test");
-    assert.equal(host.provider, platform === "darwin" ? "applehv" : "hyperv");
-    assert.equal(host.guestArch, platform === "darwin" ? "arm64" : "amd64");
+    assert.equal(host.provider, "applehv");
+    assert.equal(host.guestArch, "arm64");
     assert.equal(podmanCommand(host, ["info"]), "observed");
     for (const patch of [
       { Name: "wrong" },
@@ -249,24 +241,18 @@ for (const platform of ["darwin", "win32"]) {
       { Mounts: ["host"] },
       { Mounts: null },
       { HostUser: { Rootful: true } },
-      platform === "darwin"
-        ? { AppleHypervisor: null }
-        : { HyperVHypervisor: null },
-      ...(platform === "darwin"
-        ? [
-            { Rosetta: true },
-            { ImportNativeCA: true },
-            { Ansible: {} },
-            { Resources: { USBs: ["usb"] } },
-            { Resources: { USBs: null } },
-            { AppleHypervisor: { Vfkit: { Rosetta: true, BinaryPath: null } } },
-            {
-              AppleHypervisor: {
-                Vfkit: { Rosetta: false, BinaryPath: "/custom" },
-              },
-            },
-          ]
-        : []),
+      { AppleHypervisor: null },
+      { Rosetta: true },
+      { ImportNativeCA: true },
+      { Ansible: {} },
+      { Resources: { USBs: ["usb"] } },
+      { Resources: { USBs: null } },
+      { AppleHypervisor: { Vfkit: { Rosetta: true, BinaryPath: null } } },
+      {
+        AppleHypervisor: {
+          Vfkit: { Rosetta: false, BinaryPath: "/custom" },
+        },
+      },
     ]) {
       f.setConfig({ ...f.config, ...patch });
       assert.throws(
@@ -310,7 +296,7 @@ for (const platform of ["darwin", "win32"]) {
     f.setResult({
       status: 0,
       stdout: JSON.stringify({
-        binding: { provider: platform === "darwin" ? "applehv" : "hyperv" },
+        binding: { provider: "applehv" },
         effective: { network: "none" },
       }),
     });
@@ -324,11 +310,8 @@ for (const platform of ["darwin", "win32"]) {
     const request = f.requests[0];
     assert.equal(request.action, "observe");
     assert.equal(request.hostBinding.platform, platform);
-    assert.equal(
-      request.hostBinding.provider,
-      platform === "darwin" ? "applehv" : "hyperv",
-    );
-    assert.equal(request.guestArch, platform === "darwin" ? "arm64" : "amd64");
+    assert.equal(request.hostBinding.provider, "applehv");
+    assert.equal(request.guestArch, "arm64");
     assert.equal(request.expected.provider, request.hostBinding.provider);
     f.setVersion("unknown");
     assert.throws(() => driver.observe("/candidate"), /Unknown client version/);
@@ -361,6 +344,10 @@ for (const platform of ["darwin", "win32"]) {
 
 test("unsupported hosts and Intel Macs cannot select a native provider", (t) => {
   hostFixture(t, "linux");
+  assert.throws(() => podmanPlatform(), /Unsupported native host/);
+});
+test("a Windows host cannot select a native provider", (t) => {
+  hostFixture(t, "win32", "x64");
   assert.throws(() => podmanPlatform(), /Unsupported native host/);
 });
 test("Intel Macs cannot select AppleHV", (t) => {
@@ -442,7 +429,7 @@ test("native model-frame transport returns only binding-matched bounded frames",
   );
 });
 
-for (const hostPlatform of ["darwin", "win32"])
+for (const hostPlatform of ["darwin"])
   test(`native ${hostPlatform} isolation uses a synthetic host process and model-only gateway capability`, async (t) => {
     const f = hostFixture(t, hostPlatform);
     f.setResult((request) => {
@@ -590,7 +577,7 @@ test("generated native management freezes direct wait failures before successful
     t.skip("Python required to exercise generated management code");
     return;
   }
-  const f = hostFixture(t, "win32");
+  const f = hostFixture(t);
   f.setResult({ status: 0, stdout: "{}" });
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
@@ -602,7 +589,7 @@ test("generated native management freezes direct wait failures before successful
       String.raw`
 import ast,json,sys,subprocess,time
 program=ast.parse(sys.stdin.read())
-R={'hostBinding':{'platform':'win32'},'target':{'guestCommandSeconds':15}}
+R={'hostBinding':{'platform':'darwin'},'target':{'guestCommandSeconds':30}}
 functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command','freeze_failure']]
 # Exercise the actual emitted exception handler, replacing VM work and cleanup
 # with fixed synthetic subprocess outcomes; no management authority is opened.
@@ -623,7 +610,7 @@ for cleanupExit in [0,7]:
 print('preserved')
 `,
     ],
-    // Generous: parsing the generated program is slow on hosted Windows.
+    // Generous: parsing the generated program is slow on hosted runners.
     { input: f.programs[0], encoding: "utf8", timeout: 30000 },
   );
   assert.equal(result.status, 0, result.stderr);
@@ -641,7 +628,7 @@ test("Native Codex launch constrains thread pools and audits the exact environme
     t.skip("Python required to exercise generated management code");
     return;
   }
-  const f = hostFixture(t, "win32");
+  const f = hostFixture(t);
   f.setResult({ status: 0, stdout: "{}" });
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
@@ -688,7 +675,7 @@ print('bounded')
 test("Native Codex task-headroom gate waits for idle workers and refuses exhausted budgets", (t) => {
   const runPython = childProcess.spawnSync;
   const python = testPython;
-  const f = hostFixture(t, "win32");
+  const f = hostFixture(t);
   f.setResult({ status: 0, stdout: "{}" });
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
     "/candidate",
@@ -759,7 +746,7 @@ test("native fixed task enforces staging, dispatch authority and exact stopped c
     syntheticSiteOutput,
     syntheticSiteValidator,
   } = await import("../dist/synthetic-task.js");
-  const f = hostFixture(t, "win32");
+  const f = hostFixture(t);
   const pins = { bindingSha256: "a".repeat(64), policySha256: "b".repeat(64) };
   const session = {
     sandboxId: "00000000-0000-4000-8000-000000000001",
@@ -860,22 +847,15 @@ test("native fixed task enforces staging, dispatch authority and exact stopped c
   );
 });
 
-for (const [platform, deadline] of [
-  ["darwin", 90000],
-  ["win32", 30000],
-]) {
-  test(`native ${platform} management deadline remains bounded`, (t) => {
-    const f = hostFixture(t, platform);
-    f.setResult({ status: 0, stdout: "{}" });
-    new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
-      "/candidate",
-    );
-    assert.deepEqual(f.timeouts, [deadline]);
-    assert.deepEqual(f.versionTimeouts, [
-      platform === "darwin" ? 30000 : 10000,
-    ]);
-  });
-}
+test("native management deadline remains bounded", (t) => {
+  const f = hostFixture(t);
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  assert.deepEqual(f.timeouts, [90000]);
+  assert.deepEqual(f.versionTimeouts, [30000]);
+});
 test("host positive-control fixture refuses an unbounded lifetime before starting", async () => {
   const { withHostCanary } = await import("../dist/host-canary.js");
   await assert.rejects(
@@ -884,7 +864,7 @@ test("host positive-control fixture refuses an unbounded lifetime before startin
   );
 });
 
-test("guest command budgets keep Mac scheduling bounded and Windows unchanged", (t) => {
+test("guest command budgets keep Mac scheduling bounded", (t) => {
   const f = hostFixture(t, "darwin");
   f.setResult({ status: 0, stdout: "{}" });
   new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
@@ -905,7 +885,7 @@ mark('imports-ready')
 source=sys.stdin.read();mark('input-read')
 program=ast.parse(source);mark('ast-parsed')
 functions=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name in ['fail','command']]
-for platform,expected in [('darwin',30),('win32',15)]:
+for platform,expected in [('darwin',30)]:
  mark(platform+'-check')
  R={'hostBinding':{'platform':platform},'target':{'guestCommandSeconds':expected}};deadlines=[]
  def run(args,**kw): deadlines.append(kw['timeout']);return subprocess.CompletedProcess(args,0,b'ok',b'')
@@ -924,7 +904,6 @@ print('bounded')
     "input-read",
     "ast-parsed",
     "darwin-check",
-    "win32-check",
     "checks-complete",
   ]);
   const stderr = Buffer.from(r.stderr ?? "");
@@ -991,25 +970,17 @@ print('bounded')
   assert.equal(r.stdout.trim(), "bounded");
 });
 
-test(
-  "native relay observes coalesced readiness and acceptance frames on both hosts",
-  {
-    skip:
-      process.platform === "win32"
-        ? "Executes Linux VM management code with POSIX pipes and shell on the host"
-        : false,
-  },
-  (t) => {
-    const f = hostFixture(t, "darwin");
-    f.setResult({ status: 0, stdout: "{}" });
-    new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
-      "/candidate",
-    );
-    const r = harnessSpawnSync(
-      testPython,
-      [
-        "-c",
-        String.raw`
+test("native relay observes coalesced readiness and acceptance frames", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = harnessSpawnSync(
+    testPython,
+    [
+      "-c",
+      String.raw`
 import ast,sys,subprocess,json,select,time
 program=ast.parse(sys.stdin.read());relayNode=next(n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name=='relay')
 rawPopen=subprocess.Popen;rawSelect=select.select
@@ -1028,13 +999,12 @@ for platform in ['win32','darwin']:
   for p in proxies:p.kill();p.wait()
 print('coalesced frames observed')
 `,
-      ],
-      { input: f.programs[0], encoding: "utf8", timeout: 5000 },
-    );
-    assert.equal(r.status, 0, r.stderr);
-    assert.equal(r.stdout.trim(), "coalesced frames observed");
-  },
-);
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), "coalesced frames observed");
+});
 
 test("Mac relay permits observed exec scheduling delay while retaining the network deadline", (t) => {
   const f = hostFixture(t, "darwin");
@@ -1308,25 +1278,17 @@ print('one bounded exec; transport failure refuses')
   assert.equal(r.stdout.trim(), "one bounded exec; transport failure refuses");
 });
 
-test(
-  "native credential denials are bounded and fail closed on transport errors",
-  {
-    skip:
-      process.platform === "win32"
-        ? "Executes Linux VM management code with POSIX pipes and shell on the host"
-        : false,
-  },
-  (t) => {
-    const f = hostFixture(t, "darwin");
-    f.setResult({ status: 0, stdout: "{}" });
-    new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
-      "/candidate",
-    );
-    const r = harnessSpawnSync(
-      testPython,
-      [
-        "-c",
-        String.raw`
+test("native credential denials are bounded and fail closed on transport errors", (t) => {
+  const f = hostFixture(t, "darwin");
+  f.setResult({ status: 0, stdout: "{}" });
+  new NativePodmanDriver("aios-test", "/authority", "/pins.json").observe(
+    "/candidate",
+  );
+  const r = harnessSpawnSync(
+    testPython,
+    [
+      "-c",
+      String.raw`
 import ast,sys,subprocess,json,time,tempfile,pathlib,textwrap
 source=sys.stdin.read();program=ast.parse(source)
 nodes=[n for n in ast.walk(program) if isinstance(n,ast.FunctionDef) and n.name in ['command','pod']]
@@ -1351,16 +1313,15 @@ with tempfile.TemporaryDirectory() as directory:
   except RuntimeError:assert readable or transport
 print('credential read and transport failure both refuse')
 `,
-      ],
-      { input: f.programs[0], encoding: "utf8", timeout: 5000 },
-    );
-    assert.equal(r.status, 0, r.stderr);
-    assert.equal(
-      r.stdout.trim(),
-      "credential read and transport failure both refuse",
-    );
-  },
-);
+    ],
+    { input: f.programs[0], encoding: "utf8", timeout: 5000 },
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(
+    r.stdout.trim(),
+    "credential read and transport failure both refuse",
+  );
+});
 
 test("native stop cannot mistake a timed-out engine query for an absent container", (t) => {
   const f = hostFixture(t, "darwin");
@@ -1379,7 +1340,7 @@ assert any(isinstance(n,ast.If) and ast.unparse(n.test)=='exists(name)' for n in
 nodes=[n for n in program.body if isinstance(n,ast.FunctionDef) and n.name=='exists']
 exec(compile(ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[])),'actual-exists','exec'));name='fixture'
 def fail():raise RuntimeError('refused')
-for platform,budget in [('darwin',30),('win32',15)]:
+for platform,budget in [('darwin',30)]:
  R={'hostBinding':{'platform':platform},'target':{'guestCommandSeconds':budget}}
  for result in [0,1,125,'timeout']:
   def run(args,**kwargs):
@@ -1410,7 +1371,7 @@ function commandBudgetFixtureProcess(overrides = {}) {
     process.execPath,
     [
       "--test",
-      "--test-name-pattern=^guest command budgets keep Mac scheduling bounded and Windows unchanged$",
+      "--test-name-pattern=^guest command budgets keep Mac scheduling bounded$",
       fileURLToPath(import.meta.url),
     ],
     { encoding: "utf8", timeout: 15000, env },
@@ -1442,7 +1403,6 @@ test("command-budget fixture exposes bounded native subprocess evidence", () => 
       "input-read",
       "ast-parsed",
       "darwin-check",
-      "win32-check",
       "checks-complete",
     ],
   );
@@ -1454,125 +1414,112 @@ test("command-budget fixture exposes bounded native subprocess evidence", () => 
 });
 
 for (const mode of ["missing", "exit", "timeout"])
-  test(
-    `command-budget fixture retains ${mode} evidence without accepting failure or raw stderr`,
-    {
-      skip:
-        process.platform === "win32"
-          ? "External executable script controls require POSIX shebang dispatch"
-          : false,
-    },
-    (t) => {
-      const root = fs.mkdtempSync(`${os.tmpdir()}/python-budget-control-`);
-      t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-      const executable = `${root}/private-interpreter`;
-      const sentinel = `private-${Date.now()}-${Math.random()}`;
-      if (mode !== "missing")
-        fs.writeFileSync(
-          executable,
-          `#!/usr/bin/env node\nrequire("node:fs").readFileSync(0);\nprocess.stderr.write(${JSON.stringify("guest-command-phase:python-ready:0\n" + sentinel + "\nguest-command-phase:unknown-stage:2\n" + (mode === "exit" ? "z".repeat(5000) : ""))});\n` +
-            (mode === "exit"
-              ? "process.exit(7);\n"
-              : "setTimeout(()=>{},30000);\n"),
-          { mode: 0o700 },
-        );
-      const child = commandBudgetFixtureProcess({
-        AIOS_TEST_PYTHON: executable,
-      });
-      assert.equal(
-        child.status,
-        1,
-        "the original fixture assertion must still reject this native failure",
+  test(`command-budget fixture retains ${mode} evidence without accepting failure or raw stderr`, (t) => {
+    const root = fs.mkdtempSync(`${os.tmpdir()}/python-budget-control-`);
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const executable = `${root}/private-interpreter`;
+    const sentinel = `private-${Date.now()}-${Math.random()}`;
+    if (mode !== "missing")
+      fs.writeFileSync(
+        executable,
+        `#!/usr/bin/env node\nrequire("node:fs").readFileSync(0);\nprocess.stderr.write(${JSON.stringify("guest-command-phase:python-ready:0\n" + sentinel + "\nguest-command-phase:unknown-stage:2\n" + (mode === "exit" ? "z".repeat(5000) : ""))});\n` +
+          (mode === "exit"
+            ? "process.exit(7);\n"
+            : "setTimeout(()=>{},30000);\n"),
+        { mode: 0o700 },
       );
-      const evidence = commandBudgetEvidence(child);
-      assert.equal(evidence.timeoutMs, 5000);
-      assert.ok(Buffer.byteLength(JSON.stringify(evidence)) < 2048);
-      assert.equal(child.stdout.includes(sentinel), false);
-      assert.equal(child.stdout.includes(executable), false);
-      if (mode === "missing") {
-        assert.equal(evidence.status, null);
-        assert.equal(evidence.errorCode, "ENOENT");
+    const child = commandBudgetFixtureProcess({
+      AIOS_TEST_PYTHON: executable,
+    });
+    assert.equal(
+      child.status,
+      1,
+      "the original fixture assertion must still reject this native failure",
+    );
+    const evidence = commandBudgetEvidence(child);
+    assert.equal(evidence.timeoutMs, 5000);
+    assert.ok(Buffer.byteLength(JSON.stringify(evidence)) < 2048);
+    assert.equal(child.stdout.includes(sentinel), false);
+    assert.equal(child.stdout.includes(executable), false);
+    if (mode === "missing") {
+      assert.equal(evidence.status, null);
+      assert.equal(evidence.errorCode, "ENOENT");
+      assert.equal(evidence.timedOut, false);
+      assert.deepEqual(evidence.milestones, []);
+    } else {
+      assert.deepEqual(evidence.milestones, [
+        { stage: "python-ready", elapsedMs: 0 },
+      ]);
+      if (mode === "exit") {
+        assert.equal(evidence.status, 7);
+        assert.equal(evidence.errorCode, null);
         assert.equal(evidence.timedOut, false);
-        assert.deepEqual(evidence.milestones, []);
+        assert.equal(evidence.stderrTruncated, true);
       } else {
-        assert.deepEqual(evidence.milestones, [
-          { stage: "python-ready", elapsedMs: 0 },
-        ]);
-        if (mode === "exit") {
-          assert.equal(evidence.status, 7);
-          assert.equal(evidence.errorCode, null);
-          assert.equal(evidence.timedOut, false);
-          assert.equal(evidence.stderrTruncated, true);
-        } else {
-          assert.equal(evidence.status, null);
-          assert.equal(evidence.errorCode, "ETIMEDOUT");
-          assert.equal(evidence.timedOut, true);
-          assert.equal(evidence.signal, "SIGTERM");
-          assert.ok(evidence.elapsedMs >= 4900);
-        }
+        assert.equal(evidence.status, null);
+        assert.equal(evidence.errorCode, "ETIMEDOUT");
+        assert.equal(evidence.timedOut, true);
+        assert.equal(evidence.signal, "SIGTERM");
+        assert.ok(evidence.elapsedMs >= 4900);
       }
-    },
-  );
+    }
+  });
 
 // A local stand-in for `podman machine ssh … python3`: it answers the engine
 // version query, then reads all of stdin with Python's readall, the reader
 // that piped spawnSync `input` just over 64 KiB can leave without EOF on macOS.
-test(
-  "native management delivers its over-64 KiB program whole through a private stdin file",
-  { skip: process.platform === "win32" && "POSIX stand-in engine" },
-  (t) => {
-    const root = fs.mkdtempSync(join(os.tmpdir(), "aios-management-stdin-"));
-    const scratch = join(root, "tmp");
-    fs.mkdirSync(scratch);
-    const previous = process.env.TMPDIR;
-    t.after(() => {
-      if (previous === undefined) delete process.env.TMPDIR;
-      else process.env.TMPDIR = previous;
-      fs.rmSync(root, { recursive: true, force: true });
-    });
-    const executable = join(root, "podman");
-    fs.writeFileSync(
-      executable,
-      `#!/bin/sh
+test("native management delivers its over-64 KiB program whole through a private stdin file", (t) => {
+  const root = fs.mkdtempSync(join(os.tmpdir(), "aios-management-stdin-"));
+  const scratch = join(root, "tmp");
+  fs.mkdirSync(scratch);
+  const previous = process.env.TMPDIR;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = previous;
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const executable = join(root, "podman");
+  fs.writeFileSync(
+    executable,
+    `#!/bin/sh
 if [ "$1" = "--connection" ]; then echo '{"Client":{"Version":"6.1.1"}}'; exit 0; fi
 exec ${testPython} -I -c 'import sys,json,hashlib,os
 d=sys.stdin.buffer.read()
 print(json.dumps(dict(sha256=hashlib.sha256(d).hexdigest(),bytes=len(d))))
 sys.exit(1 if os.environ.get("FAIL") else 0)'
 `,
-      { mode: 0o755 },
-    );
-    const channel = (env = {}) =>
-      new VMManagementChannel("aios-test", join(root, "authority"), () => ({
-        ...hostTargets.darwin,
-        osVersion: "27.2.0",
-        executable,
-        cwd: root,
-        env: { PATH: process.env.PATH, ...env },
-        managementMs: 10000,
-        config: {},
-      }));
-    const payload = { expected: { platform: "darwin" } };
-    const { input } = channel().prepare("observe", payload);
-    assert.ok(Buffer.byteLength(input) > 65536, "program exceeds 64 KiB");
-    const expected = {
-      sha256: createHash("sha256").update(input).digest("hex"),
-      bytes: Buffer.byteLength(input),
-    };
-    // The private program files land here and must be gone after each call.
-    process.env.TMPDIR = scratch;
-    for (let i = 0; i < 40; i++)
-      assert.deepEqual(channel().invoke("observe", payload), expected);
-    assert.throws(
-      () => channel({ FAIL: "1" }).invoke("observe", payload),
-      /^Error: Native offline operation unavailable$/,
-    );
-    assert.deepEqual(fs.readdirSync(scratch), []);
-    // A program file that can't be made refuses generically, naming no path.
-    process.env.TMPDIR = join(root, "missing");
-    assert.throws(
-      () => channel().invoke("observe", payload),
-      /^Error: Native offline operation unavailable$/,
-    );
-  },
-);
+    { mode: 0o755 },
+  );
+  const channel = (env = {}) =>
+    new VMManagementChannel("aios-test", join(root, "authority"), () => ({
+      ...hostTargets.darwin,
+      osVersion: "27.2.0",
+      executable,
+      cwd: root,
+      env: { PATH: process.env.PATH, ...env },
+      managementMs: 10000,
+      config: {},
+    }));
+  const payload = { expected: { platform: "darwin" } };
+  const { input } = channel().prepare("observe", payload);
+  assert.ok(Buffer.byteLength(input) > 65536, "program exceeds 64 KiB");
+  const expected = {
+    sha256: createHash("sha256").update(input).digest("hex"),
+    bytes: Buffer.byteLength(input),
+  };
+  // The private program files land here and must be gone after each call.
+  process.env.TMPDIR = scratch;
+  for (let i = 0; i < 40; i++)
+    assert.deepEqual(channel().invoke("observe", payload), expected);
+  assert.throws(
+    () => channel({ FAIL: "1" }).invoke("observe", payload),
+    /^Error: Native offline operation unavailable$/,
+  );
+  assert.deepEqual(fs.readdirSync(scratch), []);
+  // A program file that can't be made refuses generically, naming no path.
+  process.env.TMPDIR = join(root, "missing");
+  assert.throws(
+    () => channel().invoke("observe", payload),
+    /^Error: Native offline operation unavailable$/,
+  );
+});

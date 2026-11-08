@@ -85,10 +85,7 @@ const oid = (s: unknown): s is string =>
   typeof s === "string" && /^[a-f0-9]{40}$/.test(s);
 function samePath(a: string, b: string): boolean {
   try {
-    const canonical = (s: string) => {
-      const p = realpathSync.native(s);
-      return process.platform === "win32" ? p.toLowerCase() : p;
-    };
+    const canonical = (s: string) => realpathSync.native(s);
     return canonical(a) === canonical(b);
   } catch {
     return false;

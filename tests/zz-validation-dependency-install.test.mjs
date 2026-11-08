@@ -8,7 +8,6 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import { dependencyTransfer } from "../dist/podman-validation.js";
-import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 import {
   attemptFiles,
   runRequest,
@@ -45,99 +44,84 @@ function lockedRequest(overrides = {}, check = {}) {
 const actions = (guest) =>
   guest.requests.map((r) => r.action).filter((a) => a !== "inspect");
 
-test(
-  "the cache crosses in chunks, installs once, and each check sees it read-only",
-  posixGuest,
-  async (t) => {
-    const guest = validationGuest(t);
-    // Larger than one chunk, so it crosses in two.
-    const big = cacheFile(tarball("b", dependencyTransfer.chunkBytes + 7));
-    const small = cacheFile(tarball("left-pad"));
-    const request = lockedRequest({
-      dependencies: dependencies([big, small]),
-    });
-    const first = await guest.transport.run(request);
-    assert.equal(first.exitCode, 0);
-    assert.equal(first.dependencies.state, "installed");
-    // Only the installed layer stays: the install's workspace, the upload
-    // and npm's own cache are gone.
-    const state = `${guest.root}/.local/state/aios-validation-v1`;
-    const [attempt] = readdirSync(state).filter(
-      (n) => n.startsWith("aios-validation-") && !n.endsWith(".json"),
-    );
-    assert.deepEqual(readdirSync(`${state}/${attempt}`).sort(), [
-      "deps",
-      "input",
-    ]);
-    assert.match(first.dependencies.layerSha256, /^[a-f0-9]{64}$/);
-    assert.deepEqual(
-      actions(guest).filter((a) => a === "cache-put").length,
-      3,
-      "two chunks and one",
-    );
-    const [check] = guest
-      .commands("podman", "create")
-      .filter((c) => c.includes("--name") && !c.join(" ").includes("npm ci"));
-    const volumes = check
-      .map((arg, i) => (arg === "--volume" ? check[i + 1] : null))
-      .filter(Boolean);
-    assert.equal(volumes.length, 2);
-    assert.match(
-      volumes[1] ?? volumes[0],
-      /\/deps:\/workspace\/node_modules:ro,/,
-    );
-    const install = guest
-      .commands("podman", "create")
-      .find((c) => c.join(" ").includes("npm ci"));
-    assert.ok(install.includes("--network=none"));
-    assert.ok(install.includes("--read-only"));
-    // A later check in the same attempt reuses the installed layer.
-    const before = guest.requests.length;
-    const second = await guest.transport.run({
-      ...request,
-      check: { ...request.check, id: "lint" },
-    });
-    assert.equal(
-      second.dependencies.layerSha256,
-      first.dependencies.layerSha256,
-    );
-    assert.deepEqual(
-      guest.requests
-        .slice(before)
-        .map((r) => r.action)
-        .filter((a) => ["cache-put", "install-start"].includes(a)),
-      [],
-    );
-    const stopped = await guest.transport.stop(request);
-    assert.equal(
-      stopped.treeSha256,
-      request.treeSha256,
-      "the tree is unchanged",
-    );
-    assert.equal(
-      existsSync(`${guest.root}/.local/state/aios-validation-v1`) &&
-        guest.read().containers &&
-        Object.keys(guest.read().containers).length,
-      0,
-    );
-  },
-);
+test("the cache crosses in chunks, installs once, and each check sees it read-only", async (t) => {
+  const guest = validationGuest(t);
+  // Larger than one chunk, so it crosses in two.
+  const big = cacheFile(tarball("b", dependencyTransfer.chunkBytes + 7));
+  const small = cacheFile(tarball("left-pad"));
+  const request = lockedRequest({
+    dependencies: dependencies([big, small]),
+  });
+  const first = await guest.transport.run(request);
+  assert.equal(first.exitCode, 0);
+  assert.equal(first.dependencies.state, "installed");
+  // Only the installed layer stays: the install's workspace, the upload
+  // and npm's own cache are gone.
+  const state = `${guest.root}/.local/state/aios-validation-v1`;
+  const [attempt] = readdirSync(state).filter(
+    (n) => n.startsWith("aios-validation-") && !n.endsWith(".json"),
+  );
+  assert.deepEqual(readdirSync(`${state}/${attempt}`).sort(), [
+    "deps",
+    "input",
+  ]);
+  assert.match(first.dependencies.layerSha256, /^[a-f0-9]{64}$/);
+  assert.deepEqual(
+    actions(guest).filter((a) => a === "cache-put").length,
+    3,
+    "two chunks and one",
+  );
+  const [check] = guest
+    .commands("podman", "create")
+    .filter((c) => c.includes("--name") && !c.join(" ").includes("npm ci"));
+  const volumes = check
+    .map((arg, i) => (arg === "--volume" ? check[i + 1] : null))
+    .filter(Boolean);
+  assert.equal(volumes.length, 2);
+  assert.match(
+    volumes[1] ?? volumes[0],
+    /\/deps:\/workspace\/node_modules:ro,/,
+  );
+  const install = guest
+    .commands("podman", "create")
+    .find((c) => c.join(" ").includes("npm ci"));
+  assert.ok(install.includes("--network=none"));
+  assert.ok(install.includes("--read-only"));
+  // A later check in the same attempt reuses the installed layer.
+  const before = guest.requests.length;
+  const second = await guest.transport.run({
+    ...request,
+    check: { ...request.check, id: "lint" },
+  });
+  assert.equal(second.dependencies.layerSha256, first.dependencies.layerSha256);
+  assert.deepEqual(
+    guest.requests
+      .slice(before)
+      .map((r) => r.action)
+      .filter((a) => ["cache-put", "install-start"].includes(a)),
+    [],
+  );
+  const stopped = await guest.transport.stop(request);
+  assert.equal(stopped.treeSha256, request.treeSha256, "the tree is unchanged");
+  assert.equal(
+    existsSync(`${guest.root}/.local/state/aios-validation-v1`) &&
+      guest.read().containers &&
+      Object.keys(guest.read().containers).length,
+    0,
+  );
+});
 
-test(
-  "an install script's writes outside node_modules never reach a check",
-  posixGuest,
-  async (t) => {
-    const guest = validationGuest(t, { installWritesInput: true });
-    const request = lockedRequest({}, { command: ["present", "index.html"] });
-    const result = await guest.transport.run(request);
-    assert.equal(result.dependencies.state, "installed");
-    assert.equal(result.exitCode, 0);
-    assert.equal(
-      (await guest.transport.stop(request)).treeSha256,
-      request.treeSha256,
-    );
-  },
-);
+test("an install script's writes outside node_modules never reach a check", async (t) => {
+  const guest = validationGuest(t, { installWritesInput: true });
+  const request = lockedRequest({}, { command: ["present", "index.html"] });
+  const result = await guest.transport.run(request);
+  assert.equal(result.dependencies.state, "installed");
+  assert.equal(result.exitCode, 0);
+  assert.equal(
+    (await guest.transport.stop(request)).treeSha256,
+    request.treeSha256,
+  );
+});
 
 for (const [name, engine, expected] of [
   ["a failing install", { installExit: 1 }, { exitCode: 1, timedOut: false }],
@@ -159,7 +143,7 @@ for (const [name, engine, expected] of [
     { exitCode: 137, timedOut: true },
   ],
 ])
-  test(`${name} fails the check unrun`, posixGuest, async (t) => {
+  test(`${name} fails the check unrun`, async (t) => {
     const guest = validationGuest(t, engine);
     const request = lockedRequest({
       dependencies: dependencies(undefined, { installTimeoutMs: 1000 }),
@@ -214,22 +198,18 @@ for (const [name, request, engine] of [
     {},
   ],
 ])
-  test(
-    `the guest refuses ${name} and installs nothing`,
-    posixGuest,
-    async (t) => {
-      const guest = validationGuest(t, engine);
-      const r = request();
-      await assert.rejects(guest.transport.run(r));
-      assert.deepEqual(
-        guest
-          .commands("podman", "create")
-          .filter((c) => c.join(" ").includes("npm ci")),
-        [],
-      );
-      await guest.transport.stop(r);
-    },
-  );
+  test(`the guest refuses ${name} and installs nothing`, async (t) => {
+    const guest = validationGuest(t, engine);
+    const r = request();
+    await assert.rejects(guest.transport.run(r));
+    assert.deepEqual(
+      guest
+        .commands("podman", "create")
+        .filter((c) => c.join(" ").includes("npm ci")),
+      [],
+    );
+    await guest.transport.stop(r);
+  });
 
 test("the host's deadline grace must be a bounded whole number", (t) => {
   for (const deadlineGraceMs of [NaN, -1, 1.5, Infinity, 600001])
@@ -239,24 +219,20 @@ test("the host's deadline grace must be a bounded whole number", (t) => {
     );
 });
 
-test(
-  "an upload cut short is never resumed by a later check",
-  posixGuest,
-  async (t) => {
-    const guest = validationGuest(t, { laterChunkDrift: true });
-    const big = cacheFile(tarball("b", dependencyTransfer.chunkBytes + 7));
-    const request = lockedRequest({ dependencies: dependencies([big]) });
-    await assert.rejects(guest.transport.run(request));
-    await assert.rejects(
-      guest.transport.run({
-        ...request,
-        check: { ...request.check, id: "lint" },
-      }),
-      /upload was interrupted/,
-    );
-    await guest.transport.stop(request);
-  },
-);
+test("an upload cut short is never resumed by a later check", async (t) => {
+  const guest = validationGuest(t, { laterChunkDrift: true });
+  const big = cacheFile(tarball("b", dependencyTransfer.chunkBytes + 7));
+  const request = lockedRequest({ dependencies: dependencies([big]) });
+  await assert.rejects(guest.transport.run(request));
+  await assert.rejects(
+    guest.transport.run({
+      ...request,
+      check: { ...request.check, id: "lint" },
+    }),
+    /upload was interrupted/,
+  );
+  await guest.transport.stop(request);
+});
 
 test("malformed dependencies are refused before any guest effect", async (t) => {
   const guest = validationGuest(t);
@@ -278,7 +254,7 @@ test("malformed dependencies are refused before any guest effect", async (t) => 
   assert.deepEqual(guest.requests, []);
 });
 
-test("stop ends an install still running", posixGuest, async (t) => {
+test("stop ends an install still running", async (t) => {
   const guest = validationGuest(t, { installHang: true });
   const request = lockedRequest();
   const running = guest.transport.run(request).catch((error) => error);
@@ -294,26 +270,22 @@ test("stop ends an install still running", posixGuest, async (t) => {
   assert.ok((await running) instanceof Error, "the run ends refused");
 });
 
-test(
-  "a lost guest deadline cannot keep the host waiting on an install",
-  posixGuest,
-  async (t) => {
-    const guest = validationGuest(
-      t,
-      { installHang: true, deadlineLost: true },
-      { deadlineGraceMs: 20 },
-    );
-    const request = lockedRequest({
-      dependencies: dependencies(undefined, { installTimeoutMs: 1 }),
-    });
-    await assert.rejects(
-      guest.transport.run(request),
-      /install outlived its deadline/,
-    );
-    await guest.transport.stop(request);
-    assert.deepEqual(Object.keys(guest.read().containers), []);
-  },
-);
+test("a lost guest deadline cannot keep the host waiting on an install", async (t) => {
+  const guest = validationGuest(
+    t,
+    { installHang: true, deadlineLost: true },
+    { deadlineGraceMs: 20 },
+  );
+  const request = lockedRequest({
+    dependencies: dependencies(undefined, { installTimeoutMs: 1 }),
+  });
+  await assert.rejects(
+    guest.transport.run(request),
+    /install outlived its deadline/,
+  );
+  await guest.transport.stop(request);
+  assert.deepEqual(Object.keys(guest.read().containers), []);
+});
 
 // The pinned runtime plans the attempt's cache from the candidate lockfile,
 // fetches it once on the host and hands it to the transport.

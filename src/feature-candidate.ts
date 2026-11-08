@@ -405,7 +405,7 @@ function candidateGitEnvironment() {
       ),
     ),
     GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_TERMINAL_PROMPT: "0",
     GIT_ATTR_NOSYSTEM: "1",
     GIT_OPTIONAL_LOCKS: "0",
@@ -419,15 +419,14 @@ function candidateGitProcess(repository: string, args: string[]) {
     "git",
     [
       "-c",
-      "core.hooksPath=" + (process.platform === "win32" ? "NUL" : "/dev/null"),
+      "core.hooksPath=/dev/null",
       "-c",
       "core.fsmonitor=false",
 
       "-c",
       "core.untrackedCache=false",
       "-c",
-      "core.attributesFile=" +
-        (process.platform === "win32" ? "NUL" : "/dev/null"),
+      "core.attributesFile=/dev/null",
       "-C",
       repository,
       ...args,
@@ -437,7 +436,6 @@ function candidateGitProcess(repository: string, args: string[]) {
       cwd: hostGitCwd,
       timeout: 5000,
       maxBuffer: 128 * 1024 * 1024,
-      windowsHide: true,
     },
   );
 }
@@ -498,14 +496,7 @@ function observedSource(
   }
   const revision = identity.pop()!;
   const top = identity.join("\n").trim();
-  if (
-    (process.platform === "win32"
-      ? realpathSync.native(top).toLowerCase()
-      : realpathSync.native(top)) !==
-    (process.platform === "win32"
-      ? realpathSync.native(repository).toLowerCase()
-      : realpathSync.native(repository))
-  )
+  if (realpathSync.native(top) !== realpathSync.native(repository))
     throw Error("Changed Git worktree root");
   if (
     !/^[a-f0-9]{40}$/.test(revision) ||

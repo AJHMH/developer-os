@@ -192,7 +192,7 @@ for (const [runner, argumentsOf] of Object.entries(runners))
     symlinkSync(
       join(repository, "node_modules"),
       join(root, "node_modules"),
-      process.platform === "win32" ? "junction" : "dir",
+      "dir",
     );
     writeFileSync(join(root, "src", "a.ts"), "export const a = 4;\n");
     const report = join(root, "report.json");

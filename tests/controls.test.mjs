@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { realpathSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
@@ -302,20 +303,16 @@ test("competing CLI processes admit exactly one owner for the same repository", 
   const f = fixture(t);
   const submit = (request) =>
     new Promise((resolve, reject) => {
-      const child = spawn(
-        process.execPath,
-        [
-          cli,
-          "start",
-          "--repo",
-          f.repository,
-          "--request",
-          request,
-          "--state-dir",
-          f.state,
-        ],
-        { windowsHide: true },
-      );
+      const child = spawn(process.execPath, [
+        cli,
+        "start",
+        "--repo",
+        f.repository,
+        "--request",
+        request,
+        "--state-dir",
+        f.state,
+      ]);
       let stdout = "",
         stderr = "";
       child.stdout.on("data", (data) => (stdout += data));

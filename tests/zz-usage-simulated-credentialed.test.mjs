@@ -23,7 +23,6 @@ import {
   usageAuthority,
 } from "../scripts/run-native-credentialed-qualification.mjs";
 import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
-import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 
 const pins = {
   cliVersion: "0.161.0",
@@ -472,23 +471,19 @@ test("a refused lineage cleanup blocks only that stage, keeping the spent run's 
   );
 });
 
-test(
-  "a passing credentialed qualification leaves no coding session in the guest",
-  posixGuest,
-  async (t) => {
-    const guest = guestBackedSessions(t);
-    const { provider } = model({});
-    const report = await credentialedQualification({
-      transport: guest.transport(vm().transport),
-      admission: { pins: () => ({ ...pins }) },
-      account: () => ownerAccount(),
-      accountId,
-      hostId,
-      observeUsage: async () => usageReport(),
-      provider,
-    });
-    assert.equal(report.outcome, passingOutcome, report.error);
-    assert.equal(guest.launched(), 2);
-    assert.deepEqual(guest.left(), { containers: [], folders: [] });
-  },
-);
+test("a passing credentialed qualification leaves no coding session in the guest", async (t) => {
+  const guest = guestBackedSessions(t);
+  const { provider } = model({});
+  const report = await credentialedQualification({
+    transport: guest.transport(vm().transport),
+    admission: { pins: () => ({ ...pins }) },
+    account: () => ownerAccount(),
+    accountId,
+    hostId,
+    observeUsage: async () => usageReport(),
+    provider,
+  });
+  assert.equal(report.outcome, passingOutcome, report.error);
+  assert.equal(guest.launched(), 2);
+  assert.deepEqual(guest.left(), { containers: [], folders: [] });
+});

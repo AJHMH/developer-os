@@ -17,7 +17,6 @@ import {
   nativeValidationRuntime,
 } from "../dist/native-validation-runtime.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 
 const pins = Object.freeze({
   imageSha256: "a".repeat(64),
@@ -43,7 +42,6 @@ function ownerRecord(t, overrides = {}) {
       }),
       { mode: 0o600 },
     );
-    ownWindowsFixturePaths([directory, path]);
   };
   write();
   return { directory, path, write };

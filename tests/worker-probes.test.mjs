@@ -16,10 +16,6 @@ import {
   boundaryProbeOutcomes,
 } from "../dist/worker-probes.js";
 
-const posix = {
-  skip: process.platform === "win32" ? "The probe is a POSIX script" : false,
-};
-
 function run(t, { admitted = true, privateReadable = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "aios-worker-probe-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -38,12 +34,12 @@ function run(t, { admitted = true, privateReadable = false } = {}) {
   );
 }
 
-test("the probe prints exactly one verdict per probe, in order", posix, (t) => {
+test("the probe prints exactly one verdict per probe, in order", (t) => {
   const outcomes = run(t);
   assert.deepEqual(Object.keys(outcomes), [...boundaryProbeNames]);
 });
 
-test("the probe's own controls detect what they look for", posix, (t) => {
+test("the probe's own controls detect what they look for", (t) => {
   // The admitted file is the positive control: it must be seen when present.
   assert.equal(run(t)["admitted-visible"], "passed");
   assert.equal(run(t, { admitted: false })["admitted-visible"], "failed");
@@ -52,7 +48,7 @@ test("the probe's own controls detect what they look for", posix, (t) => {
   assert.equal(run(t, { privateReadable: true })["guest-private"], "failed");
 });
 
-test("a credential in the environment fails the probe", posix, (t) => {
+test("a credential in the environment fails the probe", (t) => {
   const root = mkdtempSync(join(tmpdir(), "aios-worker-probe-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const name of ["SSH_AUTH_SOCK", "GITHUB_TOKEN", "OPENAI_API_KEY"]) {
@@ -101,64 +97,50 @@ test("each probe is one shell word, so no probe body can break out of it", () =>
     assert.match(boundaryProbe, new RegExp(`; r ${name} '[^']*'(;|$)`));
 });
 
-test(
-  "the worker's home may hold only Codex's own bundled skills",
-  posix,
-  (t) => {
-    const outcomes = (layout) => {
-      const home = mkdtempSync(join(tmpdir(), "aios-worker-probe-home-"));
-      t.after(() => rmSync(home, { recursive: true, force: true }));
-      for (const [path, text] of Object.entries(layout)) {
-        mkdirSync(join(home, path, ".."), { recursive: true });
-        if (text === null) mkdirSync(join(home, path), { recursive: true });
-        else writeFileSync(join(home, path), text);
-      }
-      const result = spawnSync(
-        "/bin/sh",
-        ["-c", boundaryProbe, "--", "/nonexistent", "/nonexistent"],
-        { encoding: "utf8", env: { PATH: process.env.PATH, HOME: home } },
-      );
-      return Object.fromEntries(
-        boundaryProbeOutcomes(result.stdout).map((p) => [p.name, p.outcome]),
-      );
-    };
-    const empty = outcomes({});
-    assert.equal(empty["codex-skills"], "passed");
-    assert.equal(empty["mcp-config"], "passed");
-    assert.equal(empty["hooks-rules-agents"], "passed");
-    // What Codex regenerates on every start.
-    assert.equal(
-      outcomes({ "skills/.system": null })["codex-skills"],
-      "passed",
+test("the worker's home may hold only Codex's own bundled skills", (t) => {
+  const outcomes = (layout) => {
+    const home = mkdtempSync(join(tmpdir(), "aios-worker-probe-home-"));
+    t.after(() => rmSync(home, { recursive: true, force: true }));
+    for (const [path, text] of Object.entries(layout)) {
+      mkdirSync(join(home, path, ".."), { recursive: true });
+      if (text === null) mkdirSync(join(home, path), { recursive: true });
+      else writeFileSync(join(home, path), text);
+    }
+    const result = spawnSync(
+      "/bin/sh",
+      ["-c", boundaryProbe, "--", "/nonexistent", "/nonexistent"],
+      { encoding: "utf8", env: { PATH: process.env.PATH, HOME: home } },
     );
+    return Object.fromEntries(
+      boundaryProbeOutcomes(result.stdout).map((p) => [p.name, p.outcome]),
+    );
+  };
+  const empty = outcomes({});
+  assert.equal(empty["codex-skills"], "passed");
+  assert.equal(empty["mcp-config"], "passed");
+  assert.equal(empty["hooks-rules-agents"], "passed");
+  // What Codex regenerates on every start.
+  assert.equal(outcomes({ "skills/.system": null })["codex-skills"], "passed");
+  assert.equal(
+    outcomes({ "skills/.system": null, "skills/extra": null })["codex-skills"],
+    "failed",
+  );
+  assert.equal(outcomes({ "skills/owner": null })["codex-skills"], "failed");
+  assert.equal(
+    outcomes({ "config.toml": "[mcp_servers.x]\n" })["mcp-config"],
+    "failed",
+  );
+  assert.equal(
+    outcomes({ "config.toml": "model = 'x'\n" })["mcp-config"],
+    "passed",
+  );
+  for (const file of ["hooks.json", "rules", "AGENTS.md", "AGENTS.override.md"])
     assert.equal(
-      outcomes({ "skills/.system": null, "skills/extra": null })[
-        "codex-skills"
-      ],
+      outcomes({ [file]: "x" })["hooks-rules-agents"],
       "failed",
+      file,
     );
-    assert.equal(outcomes({ "skills/owner": null })["codex-skills"], "failed");
-    assert.equal(
-      outcomes({ "config.toml": "[mcp_servers.x]\n" })["mcp-config"],
-      "failed",
-    );
-    assert.equal(
-      outcomes({ "config.toml": "model = 'x'\n" })["mcp-config"],
-      "passed",
-    );
-    for (const file of [
-      "hooks.json",
-      "rules",
-      "AGENTS.md",
-      "AGENTS.override.md",
-    ])
-      assert.equal(
-        outcomes({ [file]: "x" })["hooks-rules-agents"],
-        "failed",
-        file,
-      );
-  },
-);
+});
 
 const { codingBoundaryProbe, codingBoundaryProbeNames } = await import(
   "../dist/worker-probes.js"
@@ -299,125 +281,106 @@ const otherListener =
 const connected =
   "   2: 0100007F:46AB 0100007F:D431 01 00000000:00000000 00:00000000 00000000 65534 0 3 1 0000000000000000 20 4 30 10 -1\n";
 
-test(
-  "a routed worker has exactly the relay listening, and an offline one nothing",
-  posix,
-  (t) => {
+test("a routed worker has exactly the relay listening, and an offline one nothing", (t) => {
+  assert.equal(
+    coding(t, "routed", { tcp: relayListener }).outcomes["relay-listener"],
+    "passed",
+  );
+  // An established connection to the relay is not a listener.
+  assert.equal(
+    coding(t, "routed", { tcp: relayListener + connected }).outcomes[
+      "relay-listener"
+    ],
+    "passed",
+  );
+  for (const [tcp, tcp6] of [
+    ["", ""],
+    [relayListener + otherListener, ""],
+    [otherListener, ""],
+    [relayListener, relayListener],
+  ])
     assert.equal(
-      coding(t, "routed", { tcp: relayListener }).outcomes["relay-listener"],
-      "passed",
+      coding(t, "routed", { tcp, tcp6 }).outcomes["relay-listener"],
+      "failed",
+      tcp + tcp6,
     );
-    // An established connection to the relay is not a listener.
-    assert.equal(
-      coding(t, "routed", { tcp: relayListener + connected }).outcomes[
-        "relay-listener"
-      ],
-      "passed",
-    );
-    for (const [tcp, tcp6] of [
-      ["", ""],
-      [relayListener + otherListener, ""],
-      [otherListener, ""],
-      [relayListener, relayListener],
-    ])
+  assert.equal(coding(t, "offline").outcomes["relay-listener"], "passed");
+  assert.equal(
+    coding(t, "offline", { tcp: relayListener }).outcomes["relay-listener"],
+    "failed",
+  );
+  assert.equal(
+    coding(t, "offline", { tcp6: otherListener }).outcomes["relay-listener"],
+    "failed",
+  );
+  // Any other mode is never a pass, whatever is listening.
+  for (const mode of ["", "Routed", "none"])
+    for (const tcp of ["", relayListener])
       assert.equal(
-        coding(t, "routed", { tcp, tcp6 }).outcomes["relay-listener"],
+        coding(t, mode, { tcp }).outcomes["relay-listener"],
         "failed",
-        tcp + tcp6,
+        `${mode} ${tcp ? "with" : "without"} the relay`,
       );
-    assert.equal(coding(t, "offline").outcomes["relay-listener"], "passed");
-    assert.equal(
-      coding(t, "offline", { tcp: relayListener }).outcomes["relay-listener"],
-      "failed",
-    );
-    assert.equal(
-      coding(t, "offline", { tcp6: otherListener }).outcomes["relay-listener"],
-      "failed",
-    );
-    // Any other mode is never a pass, whatever is listening.
-    for (const mode of ["", "Routed", "none"])
-      for (const tcp of ["", relayListener])
-        assert.equal(
-          coding(t, mode, { tcp }).outcomes["relay-listener"],
-          "failed",
-          `${mode} ${tcp ? "with" : "without"} the relay`,
-        );
-  },
-);
+});
 
-test(
-  "the binaries are read-only, and only the workspace and session take writes",
-  posix,
-  (t) => {
-    const passing = coding(t, "offline");
-    assert.equal(passing.outcomes["read-only-binaries"], "passed");
-    assert.equal(passing.outcomes["writable-only-work"], "passed");
-    // The write test leaves nothing behind.
-    assert.deepEqual(readdirSync(join(passing.root, "workspace")), []);
-    assert.deepEqual(readdirSync(join(passing.root, "session")), []);
+test("the binaries are read-only, and only the workspace and session take writes", (t) => {
+  const passing = coding(t, "offline");
+  assert.equal(passing.outcomes["read-only-binaries"], "passed");
+  assert.equal(passing.outcomes["writable-only-work"], "passed");
+  // The write test leaves nothing behind.
+  assert.deepEqual(readdirSync(join(passing.root, "workspace")), []);
+  assert.deepEqual(readdirSync(join(passing.root, "session")), []);
+  assert.equal(
+    coding(t, "offline", { binaries: 0o644 }).outcomes["read-only-binaries"],
+    "failed",
+  );
+  assert.equal(
+    coding(t, "offline", { writable: false }).outcomes["writable-only-work"],
+    "failed",
+  );
+  for (const dir of ["workspace", "session"])
     assert.equal(
-      coding(t, "offline", { binaries: 0o644 }).outcomes["read-only-binaries"],
+      coding(t, "offline", { readOnly: [dir] }).outcomes["writable-only-work"],
       "failed",
+      dir,
     );
-    assert.equal(
-      coding(t, "offline", { writable: false }).outcomes["writable-only-work"],
-      "failed",
-    );
-    for (const dir of ["workspace", "session"])
-      assert.equal(
-        coding(t, "offline", { readOnly: [dir] }).outcomes[
-          "writable-only-work"
-        ],
-        "failed",
-        dir,
-      );
-    // A writable mount fails even when the file itself refuses writes.
-    assert.equal(
-      coding(t, "offline", { binaryMounts: "rw" }).outcomes[
-        "read-only-binaries"
-      ],
-      "failed",
-    );
-    const denied = coding(t, "offline", { deniedWritable: true });
-    assert.equal(denied.outcomes["writable-only-work"], "failed");
-    // A write that unexpectedly succeeds is not left behind.
-    assert.deepEqual(readdirSync(join(denied.root, "denied-b")), []);
-    assert.equal(
-      coding(t, "offline", { hostsWritable: true }).outcomes[
-        "writable-only-work"
-      ],
-      "failed",
-    );
-  },
-);
+  // A writable mount fails even when the file itself refuses writes.
+  assert.equal(
+    coding(t, "offline", { binaryMounts: "rw" }).outcomes["read-only-binaries"],
+    "failed",
+  );
+  const denied = coding(t, "offline", { deniedWritable: true });
+  assert.equal(denied.outcomes["writable-only-work"], "failed");
+  // A write that unexpectedly succeeds is not left behind.
+  assert.deepEqual(readdirSync(join(denied.root, "denied-b")), []);
+  assert.equal(
+    coding(t, "offline", { hostsWritable: true }).outcomes[
+      "writable-only-work"
+    ],
+    "failed",
+  );
+});
 
-test(
-  "the coding worker's process has no capabilities, no new privileges and a seccomp filter",
-  posix,
-  (t) => {
-    assert.equal(coding(t, "offline").outcomes["hardened-process"], "passed");
-    for (const status of [
-      "CapEff:\t0000000000000400\nNoNewPrivs:\t1\nSeccomp:\t2\n",
-      "CapEff:\t0000000000000000\nNoNewPrivs:\t0\nSeccomp:\t2\n",
-      "CapEff:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t0\n",
-      "CapEff:\t0000000000000000\nNoNewPrivs:\t1\n",
-    ])
-      assert.equal(
-        coding(t, "offline", { status }).outcomes["hardened-process"],
-        "failed",
-        status,
-      );
-  },
-);
+test("the coding worker's process has no capabilities, no new privileges and a seccomp filter", (t) => {
+  assert.equal(coding(t, "offline").outcomes["hardened-process"], "passed");
+  for (const status of [
+    "CapEff:\t0000000000000400\nNoNewPrivs:\t1\nSeccomp:\t2\n",
+    "CapEff:\t0000000000000000\nNoNewPrivs:\t0\nSeccomp:\t2\n",
+    "CapEff:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t0\n",
+    "CapEff:\t0000000000000000\nNoNewPrivs:\t1\n",
+  ])
+    assert.equal(
+      coding(t, "offline", { status }).outcomes["hardened-process"],
+      "failed",
+      status,
+    );
+});
 
 const wget = spawnSync("/bin/sh", ["-c", "command -v wget"]).status === 0;
 test(
   "a routed worker reaches the relay and gets its refusal; an offline one reaches nothing",
   {
-    skip:
-      process.platform === "win32" || !wget
-        ? "Needs a POSIX shell and wget"
-        : false,
+    skip: !wget ? "Needs wget" : false,
   },
   async (t) => {
     // The servers run in their own process: the probe blocks this one.

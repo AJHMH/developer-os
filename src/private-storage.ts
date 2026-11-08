@@ -1,7 +1,5 @@
 import { spawnSync } from "node:child_process";
 import { lstatSync } from "node:fs";
-import { dirname } from "node:path";
-import { assertWindowsPrivateStorage } from "./windows-auth-store.js";
 /** Host storage must be controlled by the effective owner. macOS extended ACLs
  * can grant access beyond mode bits, so an ACL is refused rather than inferred. */
 export function assertStorageMetadata(
@@ -18,14 +16,12 @@ export function assertStorageMetadata(
       : !entry.isFile() || entry.nlink !== 1 || entry.size > maximum)
   )
     throw Error();
-  if (process.platform !== "win32") {
-    if (
-      !process.geteuid ||
-      entry.uid !== process.geteuid() ||
-      (entry.mode & (access === "private" ? 0o077 : 0o022)) !== 0
-    )
-      throw Error();
-  }
+  if (
+    !process.geteuid ||
+    entry.uid !== process.geteuid() ||
+    (entry.mode & (access === "private" ? 0o077 : 0o022)) !== 0
+  )
+    throw Error();
 }
 
 export function assertOwnerControlledStorage(
@@ -35,12 +31,7 @@ export function assertOwnerControlledStorage(
   access: "private" | "readable" = "private",
 ) {
   assertStorageMetadata(path, kind, maximum, access);
-  if (process.platform === "win32")
-    assertWindowsPrivateStorage(
-      kind === "directory" ? path : dirname(path),
-      kind === "file" ? [path] : [],
-    );
-  else if (process.platform === "darwin") {
+  if (process.platform === "darwin") {
     const acl = spawnSync("/bin/ls", ["-lde", path], {
       encoding: "utf8",
       timeout: 4000,

@@ -13,10 +13,9 @@ The 13 October continuation adds a Mac target to the public
 `qualification-report`, `qualify-macos-controls --adversarial` for the six
 supplemental boundary/lifecycle controls, and the fixed `synthetic-task` after
 independent `macos-fixed-codex-subscription` authentication evidence. These use
-the same fixed runtime/control implementation as Windows, with independent
-AppleHV bindings, synthetic Mac isolation scope and protected Mac receipts.
-The internal `windowsControls` ledger field is retained for compatibility; its
-evidence must match the independently observed Mac binding and policy.
+the fixed runtime/control implementation with AppleHV bindings, synthetic Mac
+isolation scope and protected Mac receipts. The delivery's `hostControls`
+evidence must match the observed Mac binding and policy.
 
 Use `node scripts/assert-macos-qualification.mjs --state-dir <external-state>
 --id <delivery-id>` to require all nine live report checks and every retained
@@ -29,7 +28,7 @@ They have fixed host paths and must run serially through the shared native
 acceptance lock. Preparation sends no inference. Execution requires fresh
 protected account eligibility and owner approval of the exact unconsumed run;
 the synthetic online stage requires its own one-run usage allowance. Historical
-Mac/Windows approvals are not reusable. No automatic refresh or paid fallback
+Mac approvals are not reusable. No automatic refresh or paid fallback
 is allowed. The current local receipt is
 `ticket25-macos-validation-20261013.md`; the older observations below remain
 historical.
@@ -42,15 +41,13 @@ bounded observed task-headroom gate and exact process-handle crash helper. The
 worker ceiling stays 32 tasks. Trusted Mac management commands have a fixed
 90-second deadline and disposable positive-control listeners have a fixed
 120-second lifetime. Mac version preflight and individual guest commands have
-30-second deadlines (Windows: 10 and 15 seconds); the Windows management
-command deadline remains 25 seconds. The Mac proof/crash-resume has a 60-second deadline (Windows: 35 seconds), with
-a 180-second gateway transport deadline including preparation and cleanup
-(Windows: 55 seconds). Synthetic namespace fixture grants expire after 120
-seconds (Windows: 60), independently of the provider lease. The Mac post-turn
-history read also waits for observed task headroom before its persistence
-window begins. The synthetic relay exec permits ten seconds of VM scheduling (Windows: four) while
-its network timeout remains two seconds. Relay stdout is unbuffered so readiness
-checks observe coalesced frames on either host. The provider request retains its
+30-second deadlines. The Mac proof/crash-resume has a 60-second deadline, with
+a 180-second gateway transport deadline including preparation and cleanup.
+Synthetic namespace fixture grants expire after 120 seconds, independently of
+the provider lease. The Mac post-turn history read also waits for observed task
+headroom before its persistence window begins. The synthetic relay exec permits
+ten seconds of VM scheduling while its network timeout remains two seconds.
+Relay stdout is unbuffered so readiness checks observe coalesced frames. The provider request retains its
 separate 30-second lease, one-request limit and no-retry rule. The Mac expiry fixture admits one positive request and confirms
 an incomplete body read before a one-time management signal shortens its
 synthetic nongateway lease to 1.5 seconds. It cannot extend, revive or arm a
@@ -87,7 +84,7 @@ it with `podman machine start aios-macos-noshare`. If `qualify` then refuses at
 
 ## Scope and outcome
 
-Ticket 25 is complete for the independently observed fixed synthetic Mac worker slice, including all nine checks in the completion receipt above. The dated offline observations below are historical subsets. Production `ready`/`liveReady` remain false; parent ticket 04, native generalized delivery integrations and full-controller ticket 16 remain separate open gates. Windows results are not inherited by this Mac's report.
+Ticket 25 is complete for the independently observed fixed synthetic Mac worker slice, including all nine checks in the completion receipt above. The dated offline observations below are historical subsets. Production `ready`/`liveReady` remain false; parent ticket 04, native generalized delivery integrations and full-controller ticket 16 remain separate open gates.
 
 ## Observed host and pins
 
@@ -109,10 +106,7 @@ shares before checking the worker's actual process restrictions.
 
 The ARM64 template is Alpine 3.22.2 at
 `docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f`.
-The Windows AMD64 digest remains separate. Management policy is now
-`offline-native-v3-<digest>`; existing Windows v2 pins must be independently
-re-enrolled before using the changed driver. This Mac run does not requalify
-Windows after the driver change.
+Management policy is now `offline-native-v3-<digest>`.
 
 ## What moves the pins
 

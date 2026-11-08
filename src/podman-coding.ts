@@ -22,7 +22,7 @@ import {
 } from "./native-management.js";
 import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
-import { codexWorkerSha256, offlineTemplate } from "./podman-native.js";
+import { codexWorkerSha256 } from "./podman-native.js";
 import { codeModeHostSha256 } from "./host-target.js";
 import { gatewayModel } from "./inference-contract.js";
 import {
@@ -52,8 +52,6 @@ const sessionIdentity = (value: CodingSession | undefined) =>
   value.fence >= 1;
 const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
-const armTemplate =
-  "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f";
 
 /** Trusted VM management source. Requests are JSON data, never generated commands.
  * This separate offline scope cannot reuse fixed-worker credentials/qualification. */
@@ -932,7 +930,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       provider: host.provider,
       guestArch: host.guestArch,
       imageReference: host.imageReference,
-      template: host.guestArch === "arm64" ? armTemplate : offlineTemplate,
+      template: host.offlineTemplate,
       cliSha256,
       codeModeHostSha256: hostSha256,
       ...payload,

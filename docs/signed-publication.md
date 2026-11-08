@@ -31,7 +31,7 @@ or passed to the coding worker. No human-review submission method exists.
 ## Separate host ports
 
 SplitPublicationAdapter composes GitPublicationPort and AppPullRequestPort.
-It has no Windows helper, fixed keystore/home path, token or PEM configuration.
+It has no host-specific helper, fixed keystore/home path, token or PEM configuration.
 Host integrations supply the separate ports and measured runtime binding.
 
 The Git port signs through an isolated trusted metadata/configuration context:
@@ -86,7 +86,7 @@ bare remote. It leaves the source checkout unchanged.
 GitHub verified signatures, App authorization and PRs in these tests are controlled
 observations. Native credential-bearing ports are not installed or qualified.
 Implement and qualify the configured owner signer/push transport and scoped Factory
-App transport on both Windows and macOS, including secret handling, effective Git
+App transport on macOS, including secret handling, effective Git
 configuration isolation, conditional branch creation, actual GitHub signature
 verification, App installation scope, PR reconciliation and crash windows.
 Full host/repository qualification and live pilot authorization remain required.

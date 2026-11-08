@@ -47,7 +47,7 @@ export function freshBuild(root) {
         "--outDir",
         scratch,
       ],
-      { encoding: "utf8", timeout: 300000, windowsHide: true },
+      { encoding: "utf8", timeout: 300000 },
     );
     if (compiled.status === null)
       throw Error("The checkout's TypeScript could not run; run npm ci");

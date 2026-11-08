@@ -20,9 +20,7 @@ import {
 import { createHash } from "node:crypto";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
-import { posixGuest } from "./helpers/native-coding-fixture.mjs";
 import { planAndValidate } from "./helpers/validation-fixture.mjs";
-import { ownWindowsFixturePaths } from "./helpers/windows-fixture-owner.mjs";
 
 const pins = Object.freeze({
   cliSha256: "c".repeat(64),
@@ -51,7 +49,6 @@ function ownerRecord(t, overrides = {}, folder) {
       }),
       { mode: 0o600 },
     );
-    ownWindowsFixturePaths([directory, path]);
   };
   write();
   return { directory, path, write };
@@ -523,57 +520,41 @@ test("a repository appearing above the record later revokes it", (t) => {
   assert.throws(() => admission.pins(), /missing or invalid/);
 });
 
-test(
-  "a symlinked folder cannot hide a repository above the record",
-  {
-    skip:
-      process.platform === "win32" &&
-      "Creating symlinks needs elevated rights on Windows",
-  },
-  (t) => {
-    const repository = mkdtempSync(join(tmpdir(), "aios-admission-repo-"));
-    const links = mkdtempSync(join(tmpdir(), "aios-admission-link-"));
-    t.after(() => {
-      rmSync(repository, { recursive: true });
-      rmSync(links, { recursive: true });
-    });
-    mkdirSync(join(repository, ".git"));
-    mkdirSync(join(repository, "admission"));
-    symlinkSync(join(repository, "admission"), join(links, "admission"));
-    assert.throws(
-      () =>
-        ownerCodingAdmission(join(links, "admission", "coding-admission.json")),
-      /never live in a repository/,
-    );
-  },
-);
+test("a symlinked folder cannot hide a repository above the record", (t) => {
+  const repository = mkdtempSync(join(tmpdir(), "aios-admission-repo-"));
+  const links = mkdtempSync(join(tmpdir(), "aios-admission-link-"));
+  t.after(() => {
+    rmSync(repository, { recursive: true });
+    rmSync(links, { recursive: true });
+  });
+  mkdirSync(join(repository, ".git"));
+  mkdirSync(join(repository, "admission"));
+  symlinkSync(join(repository, "admission"), join(links, "admission"));
+  assert.throws(
+    () =>
+      ownerCodingAdmission(join(links, "admission", "coding-admission.json")),
+    /never live in a repository/,
+  );
+});
 
-test(
-  "the owner record refuses storage others can read or replace",
-  {
-    skip:
-      process.platform === "win32" &&
-      "POSIX permission bits; Windows uses owner ACLs",
-  },
-  async (t) => {
-    await t.test("readable record", (t) => {
-      const record = ownerRecord(t);
-      chmodSync(record.path, 0o644);
-      assert.throws(
-        () => ownerCodingAdmission(record.path).pins(),
-        /missing or invalid/,
-      );
-    });
-    await t.test("writable folder", (t) => {
-      const record = ownerRecord(t);
-      chmodSync(record.directory, 0o777);
-      assert.throws(
-        () => ownerCodingAdmission(record.path).pins(),
-        /missing or invalid/,
-      );
-    });
-  },
-);
+test("the owner record refuses storage others can read or replace", async (t) => {
+  await t.test("readable record", (t) => {
+    const record = ownerRecord(t);
+    chmodSync(record.path, 0o644);
+    assert.throws(
+      () => ownerCodingAdmission(record.path).pins(),
+      /missing or invalid/,
+    );
+  });
+  await t.test("writable folder", (t) => {
+    const record = ownerRecord(t);
+    chmodSync(record.directory, 0o777);
+    assert.throws(
+      () => ownerCodingAdmission(record.path).pins(),
+      /missing or invalid/,
+    );
+  });
+});
 
 test("the admission acceptance drives one controller turn through the admitted transport", async (t) => {
   const { admissionAcceptance } = await import(
@@ -603,27 +584,23 @@ test("the admission acceptance drives one controller turn through the admitted t
   assert.equal(report.stages.at(-1).name, "session-cleanup");
 });
 
-test(
-  "a passing admission acceptance leaves no coding session in the guest",
-  posixGuest,
-  async (t) => {
-    const { admissionAcceptance } = await import(
-      "../scripts/run-native-coding-admission-acceptance.mjs"
-    );
-    const guest = guestBackedSessions(t);
-    const report = await admissionAcceptance(
-      guest.transport(liveTransport(codingFixture(t))),
-      ownerCodingAdmission(ownerRecord(t).path),
-    );
-    assert.equal(
-      report.outcome,
-      "observed-offline-admission-acceptance",
-      report.error,
-    );
-    assert.equal(guest.launched(), 1);
-    assert.deepEqual(guest.left(), { containers: [], folders: [] });
-  },
-);
+test("a passing admission acceptance leaves no coding session in the guest", async (t) => {
+  const { admissionAcceptance } = await import(
+    "../scripts/run-native-coding-admission-acceptance.mjs"
+  );
+  const guest = guestBackedSessions(t);
+  const report = await admissionAcceptance(
+    guest.transport(liveTransport(codingFixture(t))),
+    ownerCodingAdmission(ownerRecord(t).path),
+  );
+  assert.equal(
+    report.outcome,
+    "observed-offline-admission-acceptance",
+    report.error,
+  );
+  assert.equal(guest.launched(), 1);
+  assert.deepEqual(guest.left(), { containers: [], folders: [] });
+});
 
 test("the admission acceptance stops before coding when the record names other pins", async (t) => {
   const { admissionAcceptance } = await import(

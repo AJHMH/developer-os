@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
@@ -31,8 +32,8 @@ const id = createHash("sha256")
   .digest("hex");
 const inspect = (value, selected = id) =>
   inspectSubscriptionAuth("/auth", "/repo", "/state", selected, {
-    platform: "win32",
-    arch: "x64",
+    platform: "darwin",
+    arch: "arm64",
     now: () => 70000,
     registration: () => ({ hostId: account.hostId }),
     vault: () => ({
@@ -86,8 +87,8 @@ test("malformed or mismatched protected accounts expose no secret diagnostics", 
 test("malformed selection and unsupported hosts refuse before opening protected storage", () => {
   let reads = 0;
   const adapters = {
-    platform: "win32",
-    arch: "x64",
+    platform: "darwin",
+    arch: "arm64",
     now: () => 70000,
     registration: () => {
       reads++;
@@ -107,6 +108,13 @@ test("malformed selection and unsupported hosts refuse before opening protected 
     inspectSubscriptionAuth("/auth", "/repo", "/state", id, {
       ...adapters,
       platform: "linux",
+    }).status,
+    "unavailable",
+  );
+  assert.equal(
+    inspectSubscriptionAuth("/auth", "/repo", "/state", id, {
+      ...adapters,
+      arch: "x64",
     }).status,
     "unavailable",
   );

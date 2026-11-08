@@ -176,31 +176,22 @@ test("a refused account read names one bounded reason, never the provider's erro
   );
 });
 
-test(
-  "an executable that changes during the session is refused after it stops",
-  {
-    skip:
-      process.platform === "win32" &&
-      "a shell wrapper is the pinned executable",
-  },
-  async (t) => {
-    const f = fixture(t, "mutate");
-    const [script] = f.executable.argumentsPrefix;
-    const wrapper = join(f.home, "..", "codex");
-    writeFileSync(
-      wrapper,
-      `#!/bin/sh\nexec ${JSON.stringify(node)} ${JSON.stringify(script)} mutate "$0" "$@"\n`,
-      { mode: 0o700 },
-    );
-    const executable = {
-      path: wrapper,
-      sha256: createHash("sha256").update(readFileSync(wrapper)).digest("hex"),
-    };
-    // The fake app-server appends to its own wrapper once it is initialized.
-    assert.equal(
-      (await observeCodexAccount(executable, { policy: "owner" }, true))
-        .refusal,
-      "executable-hash",
-    );
-  },
-);
+test("an executable that changes during the session is refused after it stops", async (t) => {
+  const f = fixture(t, "mutate");
+  const [script] = f.executable.argumentsPrefix;
+  const wrapper = join(f.home, "..", "codex");
+  writeFileSync(
+    wrapper,
+    `#!/bin/sh\nexec ${JSON.stringify(node)} ${JSON.stringify(script)} mutate "$0" "$@"\n`,
+    { mode: 0o700 },
+  );
+  const executable = {
+    path: wrapper,
+    sha256: createHash("sha256").update(readFileSync(wrapper)).digest("hex"),
+  };
+  // The fake app-server appends to its own wrapper once it is initialized.
+  assert.equal(
+    (await observeCodexAccount(executable, { policy: "owner" }, true)).refusal,
+    "executable-hash",
+  );
+});

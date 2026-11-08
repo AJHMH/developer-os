@@ -20,7 +20,6 @@ import {
   syntheticSiteValidator,
 } from "../dist/synthetic-task.js";
 
-const guestTest = process.platform === "win32" ? test.skip : test;
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 function fixture(t) {
   const root = realpathSync(mkdtempSync("/tmp/"));
@@ -122,116 +121,104 @@ sys.exit(1)
   };
 }
 
-guestTest(
-  "whole boundary action checks the common private journal, fence and positive/negative controls",
-  (t) => {
-    const f = fixture(t),
-      challenge = randomUUID();
-    const result = f.channel.invoke("boundary-probe", {
-      session: f.session,
-      pins: f.pins,
-      challenge,
-    });
-    assert.deepEqual(result, {
-      challenge,
-      operationId: f.session.operationId,
-      names: ["ssh-gpg", "github-binding", "effective-mounts"],
-      positiveControls: true,
-      privilegedDenial: true,
-    });
-  },
-);
+test("whole boundary action checks the common private journal, fence and positive/negative controls", (t) => {
+  const f = fixture(t),
+    challenge = randomUUID();
+  const result = f.channel.invoke("boundary-probe", {
+    session: f.session,
+    pins: f.pins,
+    challenge,
+  });
+  assert.deepEqual(result, {
+    challenge,
+    operationId: f.session.operationId,
+    names: ["ssh-gpg", "github-binding", "effective-mounts"],
+    positiveControls: true,
+    privilegedDenial: true,
+  });
+});
 
-guestTest(
-  "all management actions refuse stale fences, changed session identity and insecure journals",
-  (t) => {
-    for (const action of ["boundary-probe", "task-execute", "task-collect"]) {
-      for (const mutate of [
-        (f) => {
-          f.registry.fences[hash(f.session.repositoryKey)]++;
-          f.save();
-        },
-        (f) => {
-          f.journal.session.runnerId = randomUUID();
-          f.save();
-        },
-        (f) => {
-          f.journal.pins.bindingSha256 = "c".repeat(64);
-          f.save();
-        },
-        (f) => {
-          chmodSync(f.journalPath, 0o644);
-        },
-      ]) {
-        const f = fixture(t);
-        mutate(f);
-        assert.throws(() =>
-          f.channel.invoke(action, {
-            session: f.session,
-            pins: f.pins,
-            challenge: randomUUID(),
-          }),
-        );
-      }
+test("all management actions refuse stale fences, changed session identity and insecure journals", (t) => {
+  for (const action of ["boundary-probe", "task-execute", "task-collect"]) {
+    for (const mutate of [
+      (f) => {
+        f.registry.fences[hash(f.session.repositoryKey)]++;
+        f.save();
+      },
+      (f) => {
+        f.journal.session.runnerId = randomUUID();
+        f.save();
+      },
+      (f) => {
+        f.journal.pins.bindingSha256 = "c".repeat(64);
+        f.save();
+      },
+      (f) => {
+        chmodSync(f.journalPath, 0o644);
+      },
+    ]) {
+      const f = fixture(t);
+      mutate(f);
+      assert.throws(() =>
+        f.channel.invoke(action, {
+          session: f.session,
+          pins: f.pins,
+          challenge: randomUUID(),
+        }),
+      );
     }
-  },
-);
+  }
+});
 
-guestTest(
-  "synthetic task execution and stopped collection use the same authority journal",
-  (t) => {
-    const f = fixture(t);
-    const request = {
+test("synthetic task execution and stopped collection use the same authority journal", (t) => {
+  const f = fixture(t);
+  const request = {
+    session: f.session,
+    pins: f.pins,
+    version: "d".repeat(64),
+    expected: Buffer.from(syntheticSiteOutput).toString("base64"),
+    files: [
+      {
+        path: "index.html",
+        bytes: Buffer.from(syntheticSiteInput).toString("base64"),
+      },
+      {
+        path: "validate.sh",
+        bytes: Buffer.from(syntheticSiteValidator).toString("base64"),
+      },
+    ],
+  };
+  assert.deepEqual(f.channel.invoke("task-execute", request), {
+    completed: true,
+  });
+  assert.throws(() => f.channel.invoke("task-collect", request));
+  f.session.state = "stopped";
+  f.journal.session.state = "stopped";
+  f.journal.revoked = true;
+  f.journal.stopped = true;
+  f.state.running = false;
+  f.saveEngine();
+  f.save();
+  const result = f.channel.invoke("task-collect", request);
+  assert.equal(result.output, syntheticSiteOutput);
+  assert.equal(result.operationId, f.session.operationId);
+  assert.equal(result.validation, "passed");
+  assert.equal(result.outputSha256, hash(syntheticSiteOutput));
+  assert.match(result.collectionSha256, /^[a-f0-9]{64}$/);
+});
+
+test("revoked execution and altered synthetic output cannot pass management actions", (t) => {
+  const f = fixture(t);
+  f.journal.revoked = true;
+  f.save();
+  assert.throws(() =>
+    f.channel.invoke("boundary-probe", {
       session: f.session,
       pins: f.pins,
-      version: "d".repeat(64),
-      expected: Buffer.from(syntheticSiteOutput).toString("base64"),
-      files: [
-        {
-          path: "index.html",
-          bytes: Buffer.from(syntheticSiteInput).toString("base64"),
-        },
-        {
-          path: "validate.sh",
-          bytes: Buffer.from(syntheticSiteValidator).toString("base64"),
-        },
-      ],
-    };
-    assert.deepEqual(f.channel.invoke("task-execute", request), {
-      completed: true,
-    });
-    assert.throws(() => f.channel.invoke("task-collect", request));
-    f.session.state = "stopped";
-    f.journal.session.state = "stopped";
-    f.journal.revoked = true;
-    f.journal.stopped = true;
-    f.state.running = false;
-    f.saveEngine();
-    f.save();
-    const result = f.channel.invoke("task-collect", request);
-    assert.equal(result.output, syntheticSiteOutput);
-    assert.equal(result.operationId, f.session.operationId);
-    assert.equal(result.validation, "passed");
-    assert.equal(result.outputSha256, hash(syntheticSiteOutput));
-    assert.match(result.collectionSha256, /^[a-f0-9]{64}$/);
-  },
-);
-
-guestTest(
-  "revoked execution and altered synthetic output cannot pass management actions",
-  (t) => {
-    const f = fixture(t);
-    f.journal.revoked = true;
-    f.save();
-    assert.throws(() =>
-      f.channel.invoke("boundary-probe", {
-        session: f.session,
-        pins: f.pins,
-        challenge: randomUUID(),
-      }),
-    );
-    assert.throws(() =>
-      f.channel.invoke("task-execute", { session: f.session, pins: f.pins }),
-    );
-  },
-);
+      challenge: randomUUID(),
+    }),
+  );
+  assert.throws(() =>
+    f.channel.invoke("task-execute", { session: f.session, pins: f.pins }),
+  );
+});

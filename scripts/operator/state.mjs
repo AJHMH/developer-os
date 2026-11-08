@@ -43,11 +43,10 @@ export function privateFile(path) {
     info.isFile() && info.nlink === 1 && info.size <= 16 * 1024 * 1024,
     "State/input must be a bounded ordinary single-link file",
   );
-  if (process.platform !== "win32")
-    requireValue(
-      info.uid === process.getuid() && (info.mode & 0o077) === 0,
-      "Private input permissions required",
-    );
+  requireValue(
+    info.uid === process.getuid() && (info.mode & 0o077) === 0,
+    "Private input permissions required",
+  );
 }
 /** Read a private file through one no-follow open, so the checked file is the
  * file read even if its path is swapped after the check. */
@@ -64,11 +63,10 @@ export function readPrivateFile(path) {
         info.ino === before.ino,
       "State/input must be a bounded ordinary single-link file",
     );
-    if (process.platform !== "win32")
-      requireValue(
-        info.uid === process.getuid() && (info.mode & 0o077) === 0,
-        "Private input permissions required",
-      );
+    requireValue(
+      info.uid === process.getuid() && (info.mode & 0o077) === 0,
+      "Private input permissions required",
+    );
     return readFileSync(fd);
   } finally {
     closeSync(fd);
@@ -78,7 +76,6 @@ export function readPrivateFile(path) {
  * by no one else (sticky shared directories excepted), so another user cannot
  * replace a checked entry with their own. */
 export function trustedAncestors(path) {
-  if (process.platform === "win32") return;
   for (let current = realpathSync(dirname(resolve(path))); ; ) {
     const info = lstatSync(current);
     requireValue(
@@ -92,10 +89,6 @@ export function trustedAncestors(path) {
   }
 }
 export function stateDirectory(path, repository) {
-  requireValue(
-    process.platform !== "win32",
-    "Native Windows private state is not qualified; ACL verification required",
-  );
   const absolute = resolve(path);
   trustedAncestors(absolute);
   if (!existsSync(absolute)) {
@@ -107,11 +100,10 @@ export function stateDirectory(path, repository) {
     info.isDirectory() && !info.isSymbolicLink(),
     "Ordinary state directory required",
   );
-  if (process.platform !== "win32")
-    requireValue(
-      info.uid === process.getuid() && (info.mode & 0o077) === 0,
-      "Private state directory permissions required",
-    );
+  requireValue(
+    info.uid === process.getuid() && (info.mode & 0o077) === 0,
+    "Private state directory permissions required",
+  );
   const actual = realpathSync(absolute);
   checkOutside(actual);
   return actual;
@@ -142,14 +134,11 @@ export function writeState(directory, name, value) {
     closeSync(fd);
     fd = undefined;
     renameSync(temporary, path);
-    // Windows does not support opening directories for fsync.
-    if (process.platform !== "win32") {
-      const parent = openSync(directory, "r");
-      try {
-        fsyncSync(parent);
-      } finally {
-        closeSync(parent);
-      }
+    const parent = openSync(directory, "r");
+    try {
+      fsyncSync(parent);
+    } finally {
+      closeSync(parent);
     }
   } finally {
     if (fd !== undefined) closeSync(fd);

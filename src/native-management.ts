@@ -51,7 +51,6 @@ export function runManagement(
         cwd: host.cwd,
         env: host.env,
         shell: false,
-        windowsHide: true,
         stdio: ["pipe", "pipe", "pipe"],
       },
     );
@@ -116,7 +115,6 @@ export function openManagementChannel(
       cwd: host.cwd,
       env: host.env,
       shell: false,
-      windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
     },
   );
