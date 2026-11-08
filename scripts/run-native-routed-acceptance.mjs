@@ -500,42 +500,27 @@ async function main() {
   // The build must be what this source compiles to, before anything from it
   // runs or any evidence, record or VM is touched.
   const source = sourceEvidence(fileURLToPath(new URL("..", import.meta.url)));
-  const { NativePodmanCodingTransport, claudeGuest } = await import(
-    "../dist/podman-coding.js"
+  const { nativeCodingAuthority, ownerCodingWorker } = await import(
+    "../dist/native-coding-runtime.js"
   );
-  const {
-    claudeCodingAdmissionScope,
-    ownerClaudeCodingAdmission,
-    ownerCodingAdmission,
-    readOwnerRecord,
-  } = await import("../dist/coding-admission.js");
   const { claudeCodingBoundaryProbe, codingBoundaryProbe } = await import(
     "../dist/worker-probes.js"
   );
   const { messagesGatewayVersion } = await import(
     "../dist/messages-gateway.js"
   );
-  // The owner's coding record names the agent: a Claude Code record (ADR
-  // 0008) runs the Claude Code guest, and any other the Codex guest.
-  let claude = false;
-  try {
-    claude =
-      readOwnerRecord(codingRecord)?.scope === claudeCodingAdmissionScope;
-  } catch {}
   const { generalSessionGatewayVersion } = await import(
     "../dist/general-session-gateway.js"
   );
-  // The coding authority this VM's management state and the owner record
-  // already belong to, as in the admission acceptance.
-  const authority = sha256("issue04-native-offline-lifecycle-v1:" + machine);
-  const transport = claude
-    ? new NativePodmanCodingTransport(machine, authority, claudeGuest)
-    : new NativePodmanCodingTransport(machine, authority);
+  // The owner's coding record names the agent: a Claude Code record (ADR
+  // 0008) runs the Claude Code guest, and any other the Codex guest, under
+  // the coding authority this VM's management state already belongs to.
+  const worker = ownerCodingWorker(machine, codingRecord);
+  const claude = worker.agent === "claude";
+  const { transport, admission } = worker;
+  const authority = nativeCodingAuthority(machine);
   if (transport.mode !== "live" || transport.productionEnabled !== false)
     throw Error("Expected the live transport with production disabled");
-  const admission = claude
-    ? ownerClaudeCodingAdmission(codingRecord)
-    : ownerCodingAdmission(codingRecord);
   // Refuse overwriting retained evidence before any worker effect.
   closeSync(openSync(reportPath, "wx", 0o600));
   const context = {

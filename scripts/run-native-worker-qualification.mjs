@@ -598,18 +598,12 @@ async function main() {
   // The build must be what this source compiles to, before anything from it
   // runs or any evidence, record or VM is touched.
   const source = sourceEvidence(fileURLToPath(new URL("..", import.meta.url)));
-  const { NativePodmanCodingTransport, claudeGuest } = await import(
-    "../dist/podman-coding.js"
+  const { ownerCodingWorker } = await import(
+    "../dist/native-coding-runtime.js"
   );
   const { NativePodmanValidationTransport } = await import(
     "../dist/podman-validation.js"
   );
-  const {
-    claudeCodingAdmissionScope,
-    ownerClaudeCodingAdmission,
-    ownerCodingAdmission,
-    readOwnerRecord,
-  } = await import("../dist/coding-admission.js");
   const { PinnedCodingRuntime, claudeAgent, claudeCodingPinFields } =
     await import("../dist/feature-candidate.js");
   const { claudeCodeArgv } = await import("../dist/coding-agent.js");
@@ -624,23 +618,14 @@ async function main() {
     codingBoundaryProbe,
   } = await import("../dist/worker-probes.js");
   // The owner's coding record names the agent: a Claude Code record (ADR
-  // 0008) qualifies the Claude Code guest, and any other the Codex guest.
-  let claude = false;
-  try {
-    claude =
-      readOwnerRecord(codingRecord)?.scope === claudeCodingAdmissionScope;
-  } catch {}
-  // The authorities each VM's management state and the owner records already
-  // belong to, as in the admission acceptances.
-  const authority = sha256("issue04-native-offline-lifecycle-v1:" + machine);
+  // 0008) qualifies the Claude Code guest, and any other the Codex guest,
+  // under the authority the VM's coding state already belongs to.
+  const worker = ownerCodingWorker(machine, codingRecord);
+  const claude = worker.agent === "claude";
   const coding = claude
     ? {
-        transport: new NativePodmanCodingTransport(
-          machine,
-          authority,
-          claudeGuest,
-        ),
-        admission: ownerClaudeCodingAdmission(codingRecord),
+        transport: worker.transport,
+        admission: worker.admission,
         Runtime: class extends PinnedCodingRuntime {
           constructor(pins, transport, admission) {
             super(pins, transport, admission, claudeAgent);
@@ -653,8 +638,8 @@ async function main() {
         }),
       }
     : {
-        transport: new NativePodmanCodingTransport(machine, authority),
-        admission: ownerCodingAdmission(codingRecord),
+        transport: worker.transport,
+        admission: worker.admission,
         Runtime: PinnedCodingRuntime,
       };
   const validation = {

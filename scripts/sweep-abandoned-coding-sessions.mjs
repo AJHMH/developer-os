@@ -3,8 +3,9 @@
 // dedicated VM: a start that recorded no thread, and a resume whose recovery
 // returned its home. Without --approve-removal it only counts. It never
 // provisions or starts the VM, and it refuses a guest that the owner's coding
-// admission record does not name. Run it through scripts/run-native-acceptance.mjs,
-// so it cannot overlap an acceptance run that still needs a stopped session.
+// admission record does not name; the record names Claude Code's guest or
+// Codex's. Run it through scripts/run-native-acceptance.mjs, so it cannot
+// overlap an acceptance run that still needs a stopped session.
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { freshBuild } from "./fresh-build.mjs";
@@ -23,20 +24,15 @@ if (
 }
 try {
   freshBuild(fileURLToPath(new URL("..", import.meta.url)));
-  const [
-    { NativePodmanCodingTransport },
-    { nativeCodingAuthority },
-    admission,
-  ] = await Promise.all([
-    import("../dist/podman-coding.js"),
-    import("../dist/native-coding-runtime.js"),
-    import("../dist/coding-admission.js"),
-  ]);
-  const transport = new NativePodmanCodingTransport(
-    machine,
-    nativeCodingAuthority(machine),
+  const { ownerCodingWorker } = await import(
+    "../dist/native-coding-runtime.js"
   );
-  const admitted = admission.ownerCodingAdmission(admissionPath).pins();
+  // The owner's record names the guest: Claude Code's or Codex's.
+  const { agent, transport, admission } = ownerCodingWorker(
+    machine,
+    admissionPath,
+  );
+  const admitted = admission.pins();
   const observed = await transport.inspect({
     operationId: randomUUID(),
     fence: 1,
@@ -49,7 +45,9 @@ try {
   const apply = approval === "--approve-removal";
   const { removed, abandoned, refused, kept } =
     await transport.cleanupAbandonedSessions(apply);
-  console.log(JSON.stringify({ apply, removed, abandoned, refused, kept }));
+  console.log(
+    JSON.stringify({ agent, apply, removed, abandoned, refused, kept }),
+  );
   if (apply && (abandoned > 0 || refused > 0)) process.exitCode = 1;
 } catch (error) {
   console.error(String(error?.message).slice(0, 300));
