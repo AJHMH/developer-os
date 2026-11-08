@@ -357,6 +357,37 @@ once, delete only those two files, and only from sessions whose record says
 podman machine ssh aios-macos-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
 ```
 
+### Routed acceptance for Claude Code
+
+As with the worker qualification, a coding record with scope
+`aios-claude-coding-admission-v1` runs the routed acceptance on the Claude Code
+guest. The report's `agent` is `claude`. The lineage, stages and checks are the
+same, with these differences:
+
+- **Gateway:** each turn's requests reach a real `MessagesGateway`. It runs
+  under a fresh grant and a synthetic key for that turn, and its budget is a
+  counter, never the owner's spend budget.
+- **Fake provider:** `fakeMessagesProvider` in `scripts/routed-provider.mjs`
+  answers in the Messages stream format and calls Claude Code's own tools:
+  - **Keep-alives:** a `Bash` `sleep 5` until the launch has been probed (at
+    most 24).
+  - **Work:** `Write` adds `routed-<turn>.txt`, then `Bash` reads it back with
+    `cat`. Only a successful read that returns the file's content counts.
+  - **Final message:** then the turn ends.
+- **Thread:** a turn's conversation is the session id in Claude Code's `init`
+  event. The resume must report the same one.
+- **Unexpected requests:** any request that isn't the turn's next step, such as
+  a title or a token count, is answered with plain text and counted as
+  `unexpected`, which blocks the run at `routed-launch-tools-ran`. A request to
+  a path or model the relay refuses never reaches the gateway. It appears only
+  as Claude Code's own handling of a 403.
+
+Run it with the Claude Code record from the worker qualification above:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-routed-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/issue04-routed-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+```
+
 ## Coding container census
 
 This read-only command counts a VM's `aios-coding-*` containers by what their
