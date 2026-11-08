@@ -152,7 +152,7 @@ test("usage that lapses after coding is prepared is seen before the turn is disp
   // Exhausted once the feature branch exists, i.e. after preparation.
   f.subscription = async (at) => {
     const prepared =
-      f.git("branch", "--list", `codex/feature-${f.delivery.id}`).trim() !== "";
+      f.git("branch", "--list", `aios/feature-${f.delivery.id}`).trim() !== "";
     if (prepared) f.usedPercent = 100;
     return healthy(at);
   };
