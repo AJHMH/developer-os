@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import { planAndValidate } from "./helpers/validation-fixture.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";

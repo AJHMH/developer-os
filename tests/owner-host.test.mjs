@@ -51,3 +51,17 @@ test("the suite stands in for the Mac only off macOS", () => {
   assert.equal(testEnvironment("darwin").AIOS_TEST_HOST_PLATFORM, undefined);
   assert.equal(testEnvironment("linux").AIOS_TEST_HOST_PLATFORM, "darwin");
 });
+
+test("test files that start the CLI stand in for the Mac only off macOS", async () => {
+  const { standInForOwnerHost } = await import(
+    "./helpers/owner-host-stand-in.mjs"
+  );
+  assert.deepEqual(standInForOwnerHost({}, "linux"), {
+    AIOS_TEST_HOST_PLATFORM: "darwin",
+  });
+  assert.deepEqual(standInForOwnerHost({}, "darwin"), {});
+  assert.deepEqual(
+    standInForOwnerHost({ AIOS_TEST_HOST_PLATFORM: "linux" }, "linux"),
+    { AIOS_TEST_HOST_PLATFORM: "linux" },
+  );
+});

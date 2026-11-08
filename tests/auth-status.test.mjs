@@ -1,3 +1,4 @@
+import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
