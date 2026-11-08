@@ -26,7 +26,11 @@ import {
 import { arch, platform, release } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freshBuild } from "./fresh-build.mjs";
-import { fakeProvider, maxKeepalives } from "./routed-provider.mjs";
+import {
+  fakeMessagesProvider,
+  fakeProvider,
+  maxKeepalives,
+} from "./routed-provider.mjs";
 
 const usage =
   "Usage: node scripts/run-native-routed-acceptance.mjs <aios-machine> <owner-coding-admission.json> <new-report.json> --approve-offline-native-run";
@@ -40,9 +44,10 @@ const codingPinFields = [
   "policySha256",
   "bindingSha256",
 ];
-const same = (a, b) => codingPinFields.every((field) => a[field] === b[field]);
 const prompt =
   "Offline routed acceptance only. Run the code-mode scripts you are given.";
+const claudePrompt =
+  "Offline routed acceptance only. Run the tool calls you are given.";
 const admittedFile = "canary.txt";
 const admittedBytes = Buffer.from("AIOS native routed acceptance\n");
 const files = () => [
@@ -67,26 +72,34 @@ export const stageNames = Object.freeze([
   "routed-lineage-cleanup",
 ]);
 
-/** Only complete JSON lines count; a partial final line is not evidence. */
-function threadsIn(bytes) {
+/** Only complete JSON lines count; a partial final line is not evidence.
+ * `bound` names the conversation an event starts, if it starts one. */
+function threadsIn(bytes, bound) {
   return bytes
     .toString("utf8")
     .split("\n")
     .slice(0, -1)
     .flatMap((line) => {
       try {
-        const event = JSON.parse(line);
-        return event?.type === "thread.started" ? [event.thread_id] : [];
+        const thread = bound(JSON.parse(line));
+        return thread === undefined ? [] : [thread];
       } catch {
         return [];
       }
     });
 }
+const codexThread = (event) =>
+  event?.type === "thread.started" ? event.thread_id : undefined;
 
 /** Run the routed lineage against `transport` under the owner's coding
  * `admission`, and return the report; `persist` receives it after every
- * stage. */
-export async function routedAcceptance({ transport, admission }, options = {}) {
+ * stage. `agent` is `"codex"`, the default, or `"claude"` (ADR 0008): Claude
+ * Code's turns reach a real `MessagesGateway` whose provider is a fake that
+ * calls Claude Code's own `Write` and `Bash` tools. */
+export async function routedAcceptance(
+  { transport, admission, agent = "codex" },
+  options = {},
+) {
   const persist = options.persist ?? (() => {});
   const interrupted = options.interrupted ?? (() => false);
   const pause =
@@ -94,7 +107,17 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
   const { GeneralSessionGateway, GeneralSessionRefusal } = await import(
     "../dist/general-session-gateway.js"
   );
-  const { lockedCodingArgv } = await import("../dist/feature-candidate.js");
+  const { lockedCodingArgv, claudeAgent, claudeCodingPinFields } = await import(
+    "../dist/feature-candidate.js"
+  );
+  const claude = agent === "claude";
+  const { MessagesGateway, MessagesRefusal } = await import(
+    "../dist/messages-gateway.js"
+  );
+  const { claudeCodeArgv } = await import("../dist/coding-agent.js");
+  const { pinnedModelPrices } = await import("../dist/spend-budget.js");
+  const pinFields = claude ? claudeCodingPinFields : codingPinFields;
+  const same = (a, b) => pinFields.every((field) => a[field] === b[field]);
   const {
     requiredSubscriptionScopes,
     subscriptionAccountId,
@@ -102,6 +125,7 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
   } = await import("../dist/subscription-account.js");
   const report = {
     scope: "native-coding-offline-routed-acceptance",
+    agent: claude ? "claude" : "codex",
     productionEnabled: false,
     qualified: false,
     inferenceAuthorized: false,
@@ -150,6 +174,7 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
     accessToken: "aios-routed-acceptance-synthetic",
   });
   const accountId = subscriptionAccountId(account());
+  const key = `sk-ant-api03-${randomBytes(24).toString("hex")}`;
   const sourceRevision = sha256("aios-native-routed-acceptance").slice(0, 40);
   const attempted = [];
   let nextFence = 0;
@@ -170,20 +195,41 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
       decisionSha256,
       capability: randomBytes(32).toString("hex"),
     };
-    const fake = fakeProvider(tag, released);
-    const gateway = new GeneralSessionGateway(
-      {
-        deliveryId,
-        sessionId: s.operationId,
-        accountId,
-        hostId,
-        expiresAt: Date.now() + allowanceMs + 60_000,
-        maxRequests: maxKeepalives + 8,
-      },
-      account,
-      async () => (interrupted() ? "withdrawn" : "permitted"),
-      fake.provider,
-    );
+    const fake = claude
+      ? fakeMessagesProvider(tag, released, pinnedModelPrices.model)
+      : fakeProvider(tag, released);
+    const gateway = claude
+      ? // Synthetic, per turn, and never used by the fake. The budget is a
+        // counter, never the owner's spend budget.
+        new MessagesGateway(
+          {
+            deliveryId,
+            sessionId: s.operationId,
+            expiresAt: Date.now() + allowanceMs + 60_000,
+            maxRequests: maxKeepalives + 8,
+          },
+          () => key,
+          {
+            admit: () => !interrupted(),
+            charge: () => {},
+            chargeReservation: () => {},
+            release: () => {},
+          },
+          fake.provider,
+        )
+      : new GeneralSessionGateway(
+          {
+            deliveryId,
+            sessionId: s.operationId,
+            accountId,
+            hostId,
+            expiresAt: Date.now() + allowanceMs + 60_000,
+            maxRequests: maxKeepalives + 8,
+          },
+          account,
+          async () => (interrupted() ? "withdrawn" : "permitted"),
+          fake.provider,
+        );
     const turn = (report[tag] = {
       fence: s.fence,
       capabilitySha256: sha256(route.capability),
@@ -195,8 +241,12 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
           ...s,
           ...(threadId ? { threadId, resumeFrom } : {}),
           pins: report.pins,
-          argv: [...lockedCodingArgv(threadId, route), prompt],
-          branch: "codex/issue04-native-routed-acceptance",
+          argv: claude
+            ? [...claudeCodeArgv(threadId), claudePrompt]
+            : [...lockedCodingArgv(threadId, route), prompt],
+          branch: claude
+            ? "aios/issue04-native-routed-acceptance"
+            : "codex/issue04-native-routed-acceptance",
           sourceRevision,
           files: files(),
           inputSha256,
@@ -222,7 +272,10 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
     const finish = () => (recorded ??= record());
     async function record() {
       const end = await running;
-      const threads = threadsIn(output);
+      const threads = threadsIn(
+        output,
+        claude ? (event) => claudeAgent.boundThread(event) : codexThread,
+      );
       Object.assign(turn, {
         exitCode: end.result?.exitCode ?? null,
         outputBytes: output.length,
@@ -236,7 +289,10 @@ export async function routedAcceptance({ transport, admission }, options = {}) {
         turn.refusedAfterStop = null;
       } catch (error) {
         turn.refusedAfterStop =
-          error instanceof GeneralSessionRefusal ? error.reason : "error";
+          error instanceof GeneralSessionRefusal ||
+          error instanceof MessagesRefusal
+            ? error.reason
+            : "error";
       }
       check(
         !end.error,
@@ -444,28 +500,53 @@ async function main() {
   // The build must be what this source compiles to, before anything from it
   // runs or any evidence, record or VM is touched.
   const source = sourceEvidence(fileURLToPath(new URL("..", import.meta.url)));
-  const { NativePodmanCodingTransport } = await import(
+  const { NativePodmanCodingTransport, claudeGuest } = await import(
     "../dist/podman-coding.js"
   );
-  const { ownerCodingAdmission } = await import("../dist/coding-admission.js");
-  const { codingBoundaryProbe } = await import("../dist/worker-probes.js");
+  const {
+    claudeCodingAdmissionScope,
+    ownerClaudeCodingAdmission,
+    ownerCodingAdmission,
+    readOwnerRecord,
+  } = await import("../dist/coding-admission.js");
+  const { claudeCodingBoundaryProbe, codingBoundaryProbe } = await import(
+    "../dist/worker-probes.js"
+  );
+  const { messagesGatewayVersion } = await import(
+    "../dist/messages-gateway.js"
+  );
+  // The owner's coding record names the agent: a Claude Code record (ADR
+  // 0008) runs the Claude Code guest, and any other the Codex guest.
+  let claude = false;
+  try {
+    claude =
+      readOwnerRecord(codingRecord)?.scope === claudeCodingAdmissionScope;
+  } catch {}
   const { generalSessionGatewayVersion } = await import(
     "../dist/general-session-gateway.js"
   );
   // The coding authority this VM's management state and the owner record
   // already belong to, as in the admission acceptance.
   const authority = sha256("issue04-native-offline-lifecycle-v1:" + machine);
-  const transport = new NativePodmanCodingTransport(machine, authority);
+  const transport = claude
+    ? new NativePodmanCodingTransport(machine, authority, claudeGuest)
+    : new NativePodmanCodingTransport(machine, authority);
   if (transport.mode !== "live" || transport.productionEnabled !== false)
     throw Error("Expected the live transport with production disabled");
-  const admission = ownerCodingAdmission(codingRecord);
+  const admission = claude
+    ? ownerClaudeCodingAdmission(codingRecord)
+    : ownerCodingAdmission(codingRecord);
   // Refuse overwriting retained evidence before any worker effect.
   closeSync(openSync(reportPath, "wx", 0o600));
   const context = {
     host: { platform: platform(), arch: arch(), release: release(), machine },
     authority,
-    codingProbeSha256: sha256(codingBoundaryProbe),
-    gatewayVersion: generalSessionGatewayVersion,
+    codingProbeSha256: sha256(
+      claude ? claudeCodingBoundaryProbe : codingBoundaryProbe,
+    ),
+    gatewayVersion: claude
+      ? messagesGatewayVersion
+      : generalSessionGatewayVersion,
     ...source,
   };
   let interrupted = false;
@@ -473,7 +554,7 @@ async function main() {
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", interrupt);
   const report = await routedAcceptance(
-    { transport, admission },
+    { transport, admission, agent: claude ? "claude" : "codex" },
     {
       interrupted: () => interrupted,
       persist: (r) =>
