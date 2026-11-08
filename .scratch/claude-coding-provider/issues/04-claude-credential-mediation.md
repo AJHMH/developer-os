@@ -1,3 +1,5 @@
+> **Moved to GitHub:** https://github.com/AJHMH/developer-os/issues/218 on 7 November 2026. This file is history; update the issue instead.
+
 # 04: Claude credential mediation
 
 Type: task
