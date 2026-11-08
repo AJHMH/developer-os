@@ -306,7 +306,12 @@ export async function launchRequest(transport, overrides = {}) {
   };
 }
 
-export function guestFixture(t, engine = {}, restoredRoot = undefined) {
+export function guestFixture(
+  t,
+  engine = {},
+  restoredRoot = undefined,
+  guest = undefined,
+) {
   const root =
     restoredRoot ??
     realMkdtempSync(`${realTemporaryDirectory}/aios-native-coding-`);
@@ -378,7 +383,11 @@ export function guestFixture(t, engine = {}, restoredRoot = undefined) {
     root,
     requests,
     machineConfig: fixture.machineConfig,
-    transport: new NativePodmanCodingTransport("aios-test", "a".repeat(64)),
+    transport: new NativePodmanCodingTransport(
+      "aios-test",
+      "a".repeat(64),
+      guest,
+    ),
     /** The last management program sent to the guest, as transported. */
     program: () => lastProgram,
     read: () => JSON.parse(realReadFileSync(statePath, "utf8")),

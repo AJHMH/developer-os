@@ -125,9 +125,10 @@ the Alpine offline template provides. The pin is `claudeCode` in
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `@anthropic-ai/claude-code-linux-arm64-musl@2.1.311` | `sha512-ymSGc6vv0QCcVQZCC2JG03P/upLraox+iXAG1DfnUU1OZBCIR9QncxINBEp6QgnKbqywwR2/ic3GD8hAz0Tiow==` | `172150e3f9ea07e8e2e2e29862d7d9a25f5c234d8e909e4063df237665bf09b9` |
 
-No guest reads this file yet; the Claude Code guest (#216) will, and it
-will refuse unless the file is in VM management storage, private to the guest
-user, and matches the pin. Run the block in one terminal, in order, with the
+The Claude Code guest program (`claudeGuest` in `src/podman-coding.ts`)
+refuses to inspect, prepare or launch unless the file is in VM management
+storage, private to the guest user, and matches the pin. No delivery runs that
+guest yet. Run the block in one terminal, in order, with the
 VM running. `npm pack` checks the registry integrity as it downloads, and
 `--ignore-scripts` runs nothing from the package. The last command prints the
 guest's hash, which must match the table.
@@ -143,6 +144,23 @@ Claude Code turns are admitted by their own owner record, with scope
 `policySha256` and `bindingSha256`. There is no code-mode host pin. A
 Codex-era coding admission record never admits a Claude Code turn, and the
 owner writes the new record once the guest program is final.
+
+The Claude Code guest differs from the Codex guest in these ways:
+
+- **Mounts:** it mounts only the `claude` binary, read-only, beside the
+  workspace and the session home.
+- **Session home:** `CLAUDE_CONFIG_DIR` is the session home. A resume refuses a
+  home that holds settings, `CLAUDE.md`, agents, commands, skills, hooks,
+  plugins, output styles, rules or an MCP file. It drops the shell snapshots
+  that Claude Code would source on its next start.
+- **Event summaries:** only a summary of each stream-json event leaves the
+  guest, matching `claudeEventSummary`. The summary keeps the event's kind,
+  session and content-block kinds, and never its text, thinking or tool input
+  and output.
+- **Model route:** it refuses a model route until it serves one.
+
+The Codex guest program is unchanged, so its `policySha256` and the Codex
+admission record that pins it still match.
 
 ## Running it
 
