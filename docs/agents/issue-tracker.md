@@ -24,21 +24,27 @@ issues or specs there. Receipts and evidence files can still go under
 ## When a skill says "publish to the issue tracker"
 
 ```bash
-gh issue create --repo AJHMH/developer-os --title "<title>" --label needs-triage --body-file <file>
+ISSUE_TITLE="01. Pin the Claude Code CLI"
+ISSUE_BODY_FILE="$PWD/issue-body.md"
+test -s "$ISSUE_BODY_FILE" && gh issue create --repo AJHMH/developer-os --title "$ISSUE_TITLE" --label needs-triage --body-file "$ISSUE_BODY_FILE"
 ```
 
 To attach a ticket to its spec, add it as a sub-issue:
 
 ```bash
-gh api -X POST repos/AJHMH/developer-os/issues/<spec-number>/sub_issues -F sub_issue_id=<ticket-issue-id>
+SPEC_NUMBER=214
+TICKET_NUMBER=216
+TICKET_ID=$(gh api "repos/AJHMH/developer-os/issues/$TICKET_NUMBER" --jq .id)
+test -n "$TICKET_ID" && gh api -X POST "repos/AJHMH/developer-os/issues/$SPEC_NUMBER/sub_issues" -F sub_issue_id="$TICKET_ID"
 ```
 
-The sub-issue API takes the issue's numeric `id` from `gh api repos/AJHMH/developer-os/issues/<n> --jq .id`. That is not its number.
+The sub-issue API takes the ticket's numeric `id`, not its issue number.
 
 ## When a skill says "fetch the relevant ticket"
 
 ```bash
-gh issue view <n> --repo AJHMH/developer-os --comments
+ISSUE_NUMBER=216
+gh issue view "$ISSUE_NUMBER" --repo AJHMH/developer-os --comments
 ```
 
 The user normally passes the issue number or URL.
