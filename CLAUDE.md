@@ -17,7 +17,7 @@ checkout wins: report it as behind instead.
 
 ### Issue tracker
 
-Issues and specs are tracked as local Markdown under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+Issues and specs are tracked in GitHub Issues on `AJHMH/developer-os`, through `gh`. `.scratch/` holds older issues as history. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

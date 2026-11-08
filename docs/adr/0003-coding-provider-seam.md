@@ -1,7 +1,7 @@
 # Coding provider seam
 
 Date: 2026-10-29
-Status: accepted (seam only; no second provider is admitted)
+Status: superseded by ADR 0008 (2026-11-07)
 
 ## Context
 

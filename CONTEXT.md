@@ -2,7 +2,7 @@
 
 ## Implementation scope
 
-This glossary defines the target delivery domain. The implementation currently reaches controlled synchronization, eligible cleanup and completion; native delivery integrations and complete-platform/pilot qualification remain unfinished. Independent fixed Windows/Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), and [architecture module decisions](docs/adr/0001-architecture-module-boundaries.md).
+This glossary defines the target delivery domain. The implementation currently reaches controlled synchronization, eligible cleanup and completion; native delivery integrations and complete-platform/pilot qualification remain unfinished. The owner's Mac is the only host; fixed Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), and [architecture module decisions](docs/adr/0001-architecture-module-boundaries.md).
 
 A developer agent system that carries delegated feature work through validation, pull request review, merge, synchronization, and branch cleanup.
 
@@ -29,8 +29,28 @@ The verified alignment of clean local main with remote main at a recorded revisi
 _Avoid_: Hard reset
 
 **Merge approval**:
-The owner's GitHub APPROVED review on the pull request's current head, authorizing agent merge once all required gates pass. A subsequent commit requires renewed approval; the agent never supplies the human review.
+The owner's GitHub APPROVED review on a gated change's current head, authorizing agent merge once all required gates pass. A subsequent commit requires renewed approval; the agent never supplies the human review. Ungated changes need none.
 _Avoid_: Automatic merge authorization
+
+**Gated change**:
+A delivered pull request whose current head the delivery controller's fixed change gate classifies as destructive or wide-impact. Only gated changes wait for merge approval; a later commit is classified afresh.
+_Avoid_: Risky PR, sensitive change
+
+**Ungated change**:
+A delivered pull request the change gate does not classify as gated. It merges once all other required gates pass, without owner review.
+_Avoid_: Auto-merge (GitHub's feature), unreviewed change
+
+**Change gate**:
+The delivery controller's deterministic classification of a pull request head from its diff and the repository's state, never from the coding worker's own claim.
+_Avoid_: Risk score, reviewer judgement
+
+**Destructive change**:
+A change that deletes or irreversibly alters something the owner relies on: files, branches, history, protections, or persisted data.
+_Avoid_: Breaking change (an API concern)
+
+**Wide-impact change**:
+A change whose reach exceeds the change gate's size limits, or that touches the controller's own authority: credentials, admission, merge and cleanup.
+_Avoid_: Large PR
 
 **Delivery blocker**:
 An unresolved validation or review issue that prevents feature delivery after the permitted retry or time budget is exhausted, reported to the owner with evidence.
@@ -53,11 +73,11 @@ The state reached after approved code is merged, configured main-branch checks p
 _Avoid_: PR opened, merge alone
 
 **Onboarded repository**:
-A personal repository whose identity, Factory authority, App access, signing, validation and approval protections have been verified for feature delivery. Missing prerequisites prevent delivery and produce an onboarding checklist.
+A personal repository whose identity, Factory authority, App access, signing, validation and gated-change approval protections have been verified for feature delivery. Missing prerequisites prevent delivery and produce an onboarding checklist.
 _Avoid_: Any accessible repository
 
 **Pilot delivery**:
-An observed small feature delivery that demonstrates the complete workflow in the selected profile-page repository, including signed code, App PR authorship, owner review, merge, validation, synchronization and eligible cleanup.
+An observed small feature delivery that demonstrates the complete workflow in the selected profile-page repository, including signed code, App PR authorship, the change gate, merge, validation, synchronization and eligible cleanup.
 _Avoid_: Configuration inspection alone
 
 **Feature acceptance criteria**:
@@ -94,29 +114,21 @@ _Avoid_: Repair budget
 
 ## Runtime evidence terms
 
-**Usage approval**: Fresh owner authorization for one observed account/window
-scope and at most one operation. It must be at most 60 s old when it is bound
-to an operation and at a coding turn's dispatch. Once that turn is
-dispatched, the approval covers the whole turn while each usage observation
-stays fresh, so a long turn is not cut off by the approval's age; exhaustion,
-unknown usage, an account or window change, or a withdrawn decision still
-ends it. Other operations, such as fixed workers and online runs, keep the
-60 s limit throughout. It grants no worker, credential or publication authority.
+**Vault credential account**: The identity of the Anthropic API key the
+delivery controller holds (organization, workspace and key). Gateways and
+evidence name it; the key itself never leaves the host.
 
-**Vault credential account**: The mediated subscription credential's identity
-(issuer, client, subject and host). Online plans and relays use it.
+**Budget interruption**: A coding turn stopped because its delivery's spend
+budget could not cover the next model request, or because model access was
+lost. The reason is recorded, the agent conversation is preserved, and the
+workspace is kept as `interrupted-turn` evidence, never as a candidate. Coding
+stays blocked until a budget extension or restored access.
+_Avoid_: Usage interruption (a subscription concept)
 
-**Endorsed usage account**: The usage reader's identity for the same
-subscription. The owner endorses it in the mediation decision record, and every
-check against observed usage compares with it, never with the vault account.
-
-**Usage interruption**: A coding turn stopped because its usage authority
-lapsed during the turn or before its output was collected (exhaustion, a
-needed owner approval, an account change or a lost observation), or because
-the owner's mediation decision was withdrawn. The reason is recorded, the
-thread is preserved, and the workspace is kept as `interrupted-turn`
-evidence, never as a candidate. Coding stays blocked until a coding restart
-approval.
+**Budget extension**: The owner's decision to add to a delivery's spend budget
+after a budget interruption. It names the delivery and the amount, and the next
+turn may resume the preserved agent conversation.
+_Avoid_: Coding restart approval, usage approval
 
 **Owner coding admission**: An owner-written record, kept privately on one
 host and never in a repository, that names the exact pins (CLI version and
@@ -158,29 +170,42 @@ sees it read-only at `/workspace/node_modules`; the tested tree stays the
 candidate's files, and the layer has its own digest in the evidence.
 _Avoid_: Vendored modules (the candidate never supplies them)
 
-**Coding restart approval**: The owner's decision to restart coding after a
-usage interruption. It names the interrupted operation and records the
-feature's account, which every turn must use anyway. The one re-dispatch that
-passes the controller's dispatch recheck spends it, and it never replaces the
-fresh usage authority every turn needs.
+**Owner host**: The owner's Mac, the only machine the delivery controller and
+its coding and validation VMs run on (ADR 0007).
+_Avoid_: Platform, worker host
 
-**Coding provider**: The coding CLI a session runs, today only Codex. A
-session recorded without one ran Codex. A resume keeps its predecessor's
-provider; a provider change starts a new lineage (ADR 0003).
-_Avoid_: Model, vendor
+**Coding agent**: Claude Code, the only coding CLI a session runs (ADR 0008).
+It reaches Claude models only through metered model access.
+_Avoid_: Coding provider, model, Codex
 
-**Coding-session resume**: A new coding turn that continues the provider
-conversation (Codex's thread) of an exact stopped predecessor session, named to the coding VM
+**Metered model access**: The coding agent's only route to Claude models: an
+Anthropic API key the delivery controller holds and relays, so the key never
+reaches the coding VM (ADR 0006). Every request is paid for and charged to the
+delivery's spend budget.
+_Avoid_: Subscription
+
+**Spend budget**: A delivery's dollar allowance for metered model access,
+defaulting to $10 and measured by the gateway from provider-reported tokens.
+It is the only authority a coding turn needs: no owner approval per turn.
+Exhaustion ends the turn before the allowance is exceeded, preserves the work,
+and needs a budget extension.
+_Avoid_: Usage approval, credits
+
+**Agent conversation**: The coding agent's own resumable conversation (Claude
+Code's session id) that a coding turn starts or continues.
+_Avoid_: Session (the dispatched operation), thread
+
+**Coding-session resume**: A new coding turn that continues the agent
+conversation of an exact stopped predecessor session, named to the coding VM
 by operation and fence rather than by a "last session" lookup. It needs fresh
 authority like any turn, keeps its predecessor's route, and repair turns never
 resume.
 _Avoid_: Resume (unqualified; a delivery's resumption leaves a pause)
 
-**Retained session home**: A stopped coding session's private provider home
-in the coding VM (for Codex, its `CODEX_HOME`). A resume reserves it, one successor at a time, and moves it into
-its own session. Codex's regenerated `skills/.system` and temp folders are
-removed first; any other configuration, link or unusual file refuses the
-resume.
+**Retained session home**: A stopped coding session's private coding-agent
+home in the coding VM. A resume reserves it, one successor at a time, and moves
+it into its own session. Anything beyond the agent's own expected state refuses
+the resume.
 
 **Resume recovery**: Settling a resume that stopped before it launched: any
 retained session home it had taken returns to its predecessor and the
@@ -188,8 +213,8 @@ reservation is released, so the predecessor can be resumed again. The
 recovered resume itself is never resumed.
 
 **Resume reconciliation**: Settling a resume that launched but never reported
-its thread to the controller, by the coding VM's own record. Adopted: the VM
-recorded the expected thread, so the resume becomes the next predecessor.
+its agent conversation to the controller, by the coding VM's own record. Adopted: the VM
+recorded the expected conversation, so the resume becomes the next predecessor.
 Unresolved: it recorded none, or reconciliation can't be verified, so coding
 stays blocked until the owner retires the lineage (see Retired resume
 lineage).
@@ -197,19 +222,18 @@ lineage).
 **Base move**: A coding resume that continues its conversation onto a main
 that moved since its predecessor's turn. It names the exact old and new
 revisions, needs a passed baseline for the new main, builds its workspace from
-the new main and tells Codex the base changed. Only allowed before any
+the new main and tells the coding agent the base changed. Only allowed before any
 candidate exists; an admitted candidate refreshes through repair.
 _Avoid_: Base refresh (that is repair's merge-base refresh)
 
 **Superseded lineage**: A stopped coding lineage left behind because coding
-restarted under another route (a new mediation decision, or a change between
-offline and routed turns) or another coding provider. It is never resumed
-again; its thread and workspace stay as evidence until the owner's lineage
-cleanup, which only its own provider's runtime performs.
-_Avoid_: Retired resume lineage (that one never reported its thread)
+restarted under another route (a change between offline and routed turns).
+It is never resumed again; its conversation and workspace stay as evidence
+until the owner's lineage cleanup.
+_Avoid_: Retired resume lineage (that one never reported its conversation)
 
 **Retired resume lineage**: A resumed coding session the owner retired because
-its launched resume never reported a thread, together with every predecessor
+its launched resume never reported a conversation, together with every predecessor
 it was resumed from. It is never resumed again; coding restarts fresh.
 
 **Lineage cleanup**: The owner's explicit removal of a retired resume
@@ -218,10 +242,10 @@ inside the coding VM. Guest records stay as tombstones, a superseded head is
 marked never to be resumed, and the delivery records the cleanup once.
 
 **Abandoned coding session**: A stopped coding session no action can ever need
-again: a start that recorded no thread, so it can never be resumed, or a resume
+again: a start that recorded no conversation, so it can never be resumed, or a resume
 whose recovery returned its home. The owner's sweep removes its folder and
 container inside the coding VM, keeping its record as a tombstone. A session
-with a thread, a stranded or unresolved resume, and a retired or superseded
+with a conversation, a stranded or unresolved resume, and a retired or superseded
 lineage are never abandoned.
 
 **Session**: A dispatched worker or online operation whose matching receipt must
@@ -237,23 +261,23 @@ passing fixed canary does not qualify production delivery or another platform.
 controlled peers to test a specific boundary without owner credentials/inference.
 
 **General session gateway**: The host side of a mediated general coding
-session (ADR 0002). It carries a session's Responses requests for the pinned
-model only, within a session grant: one delivery, coding session, account and
-deadline, with a request budget. Fresh authority must permit each request,
-and it revokes the grant irreversibly on anything else. It is separate from the
+session (ADR 0002). It carries a session's Messages requests for the pinned
+Claude model only, within a session grant: one delivery, coding session and
+deadline. The delivery's spend budget must cover each request, and it revokes
+the grant irreversibly on anything else. It is separate from the
 fixed-worker gateway and never lets the credential reach the VM.
 
 **Model route**: A general coding session's only path to the model: the session
 relay on the worker's own loopback, reached through fixed provider overrides
 in the locked argv and a revocable relay capability in `AIOS_MODEL_ROUTE`
-(ADR 0002). It names one delivery and mediation decision. It is not a
+(ADR 0002). It names one delivery. It is not a
 network mode, and offline turns have none.
 _Avoid_: model network, egress
 
 **Session relay**: The process guest management runs inside a routed worker's
 network namespace, on the model route's port. It holds no credential and
 forwards only request bodies, over one host channel per turn, to the
-session's gateway. Codex is released only once it is ready, and losing it
+session's gateway. The coding agent is released only once it is ready, and losing it
 stops the session.
 _Avoid_: proxy, forwarder
 

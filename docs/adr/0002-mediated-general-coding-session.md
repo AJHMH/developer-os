@@ -1,7 +1,7 @@
 # Mediated general coding session
 
 Date: 2026-10-24
-Status: accepted (amended 24 October 2026; see "Amendment: tools and sandbox")
+Status: accepted (amended 24 October 2026; amended by ADR 0008 on 7 November 2026: Codex, the Responses API and subscription usage approvals are replaced; the relay, gateway and capability shape stands)
 
 ## Context
 
