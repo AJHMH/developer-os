@@ -1,3 +1,5 @@
+> **Moved to GitHub:** https://github.com/AJHMH/developer-os/issues/217 on 7 November 2026. This file is history; update the issue instead.
+
 # 03: Messages API gateway and relay
 
 Type: task

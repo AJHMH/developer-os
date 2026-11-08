@@ -1,3 +1,5 @@
+> **Moved to GitHub:** https://github.com/AJHMH/developer-os/issues/216 on 7 November 2026. This file is history; update the issue instead.
+
 # 02: Pinned Claude Code CLI, guest and `claudeAgent`
 
 Type: task
