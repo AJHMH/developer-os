@@ -9,6 +9,7 @@ import {
 import { sessionsLeft } from "./helpers/guest-backed-sessions.mjs";
 import { guestFixture } from "./helpers/native-coding-fixture.mjs";
 import {
+  claudeCoding,
   passingOutcome,
   probeCheck,
   stageNames,
@@ -181,8 +182,10 @@ let request0Tree;
 
 const ran = (report) => report.stages.filter((s) => s.outcome !== "not-run");
 
-async function qualify(faults) {
-  const { coding, validation, effects } = workers(faults);
+async function qualify(faults, codingWorker = {}) {
+  const workerSet = workers(faults);
+  const { validation, effects } = workerSet;
+  const coding = { ...workerSet.coding, ...codingWorker };
   const original = validation.transport.run;
   validation.transport.run = (request) => {
     request0Tree = request.treeSha256;
@@ -447,3 +450,99 @@ for (const [name, threadId, cleanup] of [
     );
     assert.deepEqual(sessionsLeft(fixture), { containers: [], folders: [] });
   });
+
+// Claude Code's coding worker (ADR 0008): its own pins, argv and branch, and
+// a routed live session whose relay leads to a held, answer-free stand-in.
+const { MessagesGateway } = await import("../dist/messages-gateway.js");
+const { claudeCodeArgv } = await import("../dist/coding-agent.js");
+const { claudeCodingPinFields } = await import("../dist/feature-candidate.js");
+const claudeWorker = () =>
+  claudeCoding({ MessagesGateway, claudeCodeArgv, claudeCodingPinFields });
+
+test("a Claude Code qualification runs a routed session with Claude's argv, branch and pins", async () => {
+  const worker = claudeWorker();
+  const seen = {};
+  const route = worker.route;
+  worker.route = () => {
+    const made = route();
+    const release = made.release;
+    seen.route = made;
+    made.release = () => ((seen.released = true), release());
+    return made;
+  };
+  const base = workers().coding;
+  const run = base.transport.run;
+  base.transport.run = (request, output, gateway) => {
+    seen.request = request;
+    seen.gateway = gateway;
+    return run(request, output);
+  };
+  const { report } = await qualify(
+    {},
+    { ...worker, transport: base.transport },
+  );
+  assert.equal(report.outcome, passingOutcome);
+  assert.equal(report.coding.mode, "routed");
+  assert.deepEqual(seen.request.argv, [
+    ...claudeCodeArgv(undefined),
+    "Offline qualification only. Do not call any tool or change any file.",
+  ]);
+  assert.equal(seen.request.branch, "aios/issue04-worker-qualification");
+  assert.deepEqual(seen.request.modelRoute, seen.route.modelRoute);
+  assert.match(seen.request.modelRoute.capability, /^[a-f0-9]{64}$/);
+  // The relay's capability is never the gateway's own.
+  assert.equal(seen.gateway, seen.route.gateway);
+  assert.notEqual(seen.gateway.capability, seen.request.modelRoute.capability);
+  assert.equal(seen.released, true);
+  assert.deepEqual(report.coding.routedRequests, { requests: 0, charged: 0 });
+});
+
+test("a Claude Code qualification checks every Claude pin, and only those", async () => {
+  // A record that differs only in a pin Claude Code does not have still names
+  // the fresh pins.
+  const { report } = await qualify(
+    { codingRecord: { ...codingPins, codeModeHostSha256: "9".repeat(64) } },
+    claudeWorker(),
+  );
+  assert.equal(report.outcome, passingOutcome);
+  for (const field of claudeCodingPinFields) {
+    const { report: changed } = await qualify(
+      { codingRecord: { ...codingPins, [field]: "9".repeat(64) } },
+      claudeWorker(),
+    );
+    assert.equal(changed.outcome, "blocked", field);
+    assert.equal(ran(changed).at(-1).name, "owner-records-name-fresh-pins");
+  }
+});
+
+test("the Claude Code stand-in holds each request until released, then answers nothing", async () => {
+  const made = claudeWorker().route();
+  const body = JSON.stringify({
+    model: (await import("../dist/spend-budget.js")).pinnedModelPrices.model,
+    messages: [{ role: "user", content: "synthetic" }],
+    max_tokens: 16,
+    stream: true,
+  });
+  let settled = false;
+  const pending = made.gateway
+    .respond(made.modelRoute.deliveryId, made.gateway.capability, body)
+    .then(
+      async (stream) => {
+        for await (const _ of stream ?? []);
+      },
+      () => {},
+    )
+    .finally(() => (settled = true));
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(settled, false);
+  assert.equal(made.effects.requests, 1);
+  made.release();
+  await pending;
+  assert.equal(settled, true);
+  assert.equal(made.gateway.observation.revoked, true);
+  // Each route is fresh: its own delivery, capability and key.
+  const other = claudeWorker().route();
+  assert.notEqual(other.modelRoute.deliveryId, made.modelRoute.deliveryId);
+  assert.notEqual(other.modelRoute.capability, made.modelRoute.capability);
+  other.release();
+});
