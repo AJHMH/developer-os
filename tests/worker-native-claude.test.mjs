@@ -19,11 +19,10 @@ import {
   guestFixture,
   launchRequest,
   session,
-  sessionGateway,
 } from "./helpers/native-coding-fixture.mjs";
 
 // The Claude Code guest (ADR 0008), offline, against the external Linux and
-// Podman simulator. The model route is a later change; this guest refuses one.
+// Podman simulator. The routed guest is in worker-native-claude-route.test.mjs.
 const sessionId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const resumedOperation = "22345678-1234-4234-8234-123456789abc";
 const branch = "aios/feature-12345678-1234-4234-8234-123456789abc";
@@ -253,7 +252,7 @@ test("the Claude Code guest refuses what is not exactly its launch", async (t) =
       transport.run(await start(transport, overrides), () => {}, gateway),
       pattern,
     );
-  // A model route: this guest serves none yet.
+  // A model route without its gateway.
   await refused(
     {
       modelRoute: {
@@ -262,7 +261,7 @@ test("the Claude Code guest refuses what is not exactly its launch", async (t) =
         decisionSha256: "d".repeat(64),
       },
     },
-    sessionGateway(),
+    undefined,
     /Unsupported native coding launch/,
   );
   // Codex's argv, or another branch namespace.

@@ -18,8 +18,8 @@ export const messagesGatewayVersion = createHash("sha256")
   .update(readFileSync(new URL("./spend-budget.js", import.meta.url)))
   .digest("hex");
 
-/** The worker-side routes Claude Code sends Messages requests to, for the
- * session relay's configuration once the guest carries Claude Code. */
+/** The worker-side routes Claude Code sends Messages requests to: the only
+ * paths the Claude Code guest's session relay accepts. */
 export const messagesRelayPaths = Object.freeze([
   "/v1/messages",
   "/v1/messages?beta=true",

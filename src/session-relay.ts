@@ -36,7 +36,7 @@ export const sessionRelayLimits = Object.freeze({
  * only the body of the session's exact Responses request, one at a time, and
  * refuses everything else with an empty 403. When the channel closes, it
  * stops at once. */
-export const sessionRelaySource = String.raw`
+export const sessionRelayProgram = (pathCheck: string) => String.raw`
 import json,sys,os,threading,hmac,queue,base64,re
 from http.server import HTTPServer,BaseHTTPRequestHandler
 from socketserver import TCPServer
@@ -72,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
   started=False
   try:
    h=self.headers;auth=h.get_all('Authorization',[]);length=h.get_all('Content-Length',[])
-   if self.path!='/v1/responses' or len(auth)!=1 or not hmac.compare_digest(auth[0].encode(),('Bearer '+C['capability']).encode()) or h.get_all('X-AIOS-Delivery')!=[C['deliveryId']]: return self.deny()
+   if ${pathCheck} or len(auth)!=1 or not hmac.compare_digest(auth[0].encode(),('Bearer '+C['capability']).encode()) or h.get_all('X-AIOS-Delivery')!=[C['deliveryId']]: return self.deny()
    if h.get('Upgrade') or h.get('Transfer-Encoding') or h.get('Content-Encoding') or h.get('Expect') or h.get_content_type()!='application/json': return self.deny()
    if len(length)!=1 or not re.fullmatch('[0-9]{1,9}',length[0]) or not 0<int(length[0])<=C['requestBytes']: return self.deny()
    body=self.rfile.read(int(length[0]))
@@ -114,6 +114,10 @@ server=Server(('127.0.0.1',C['port']),Handler)
 emit({'ready':True,'port':server.server_address[1],'pid':os.getpid()})
 server.serve_forever()
 `;
+/** Codex's relay, for its exact Responses route. */
+export const sessionRelaySource = sessionRelayProgram(
+  "self.path!='/v1/responses'",
+);
 
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
