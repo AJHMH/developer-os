@@ -542,6 +542,38 @@ test("the request shape admits only the pinned model's Messages fields", async (
     "adaptive",
   ])
     await shape({ thinking }, "value");
+  // Only the effort level, which is generally available: no output format.
+  for (const output_config of [
+    "high",
+    { effort: "extreme" },
+    { effort: "high", format: { type: "json_schema" } },
+    { format: { type: "json_schema" } },
+  ])
+    await shape({ output_config }, "value");
+  for (const effort of ["low", "medium", "high", "xhigh", "max"]) {
+    const e = harness();
+    await drain(await e.respond(request({ output_config: { effort } })));
+  }
+  // Beta-only fields stay refused: Claude Code is run with its experimental
+  // betas off, and the gateway sends no beta header.
+  await shape(
+    { context_management: { edits: [{ type: "clear_thinking_20251015" }] } },
+    "field",
+    { refusedFields: ["context_management"] },
+  );
+  await shape({ thinking: { type: "adaptive", display: "updates" } }, "value");
+  await shape(
+    {
+      tools: [
+        {
+          name: "Bash",
+          input_schema: { type: "object" },
+          defer_loading: true,
+        },
+      ],
+    },
+    "tool",
+  );
   const h = harness();
   await drain(
     await h.respond(
@@ -652,9 +684,32 @@ test("messages carry known blocks, and images only inline", async () => {
   await shape({ messages: [] }, "request-shape");
   await shape({ messages: {} }, "request-shape");
   await shape(
-    { messages: [{ role: "system", content: "x" }] },
+    { messages: [{ role: "developer", content: "x" }] },
     "request-shape",
   );
+  // Claude Code sends its environment as a system message (seen on the real
+  // CLI): text, and nothing else.
+  const system = harness();
+  await drain(
+    await system.respond(
+      request({
+        messages: [
+          { role: "user", content: "x" },
+          { role: "system", content: "# Environment" },
+          { role: "system", content: [{ type: "text", text: "more" }] },
+        ],
+      }),
+    ),
+  );
+  for (const block of [
+    { type: "tool_use", id: "t", name: "Bash", input: {} },
+    { type: "tool_result", tool_use_id: "t", content: "x" },
+    {
+      type: "image",
+      source: { type: "base64", media_type: "image/png", data: "x" },
+    },
+  ])
+    await shape({ messages: [{ role: "system", content: [block] }] }, "block");
   await shape(
     { messages: [{ role: "user", content: "x", id: 1 }] },
     "request-shape",
@@ -795,6 +850,7 @@ test("Claude Code reaches the relay with only the capability", () => {
     ANTHROPIC_CUSTOM_HEADERS: `X-AIOS-Delivery: ${grant().deliveryId}`,
     ANTHROPIC_MODEL: "claude-opus-5-5",
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+    CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: "1",
   });
   assert.equal(env.ANTHROPIC_API_KEY, undefined);
   for (const [port, id, cap] of [

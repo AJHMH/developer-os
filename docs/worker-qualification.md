@@ -99,14 +99,14 @@ management storage, private to the guest user, and matches its pin:
 | ----------------------------------- | ------------------------------------------------------------------ |
 | `@openai/codex@0.161.0-linux-arm64` | `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0` |
 
-Run the block in one terminal, in order, with the VM running. The copy uses a
-relative path from the folder the first line moves into. The last command
-prints the guest's hash, which must match the table.
+Run the block with the VM running. It runs in a subshell in a new temporary
+folder, so your shell stays where it was. The last command prints the guest's
+hash, which must match the table.
 
 ```sh
-D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @openai/codex@0.161.0-linux-arm64 && tar -xzf openai-codex-0.161.0-linux-arm64.tgz && shasum -a 256 package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host
-/opt/podman/bin/podman machine cp package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host aios-macos-noshare:/var/home/core/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0
-/opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 && sha256sum ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0'
+(D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @openai/codex@0.161.0-linux-arm64 && tar -xzf openai-codex-0.161.0-linux-arm64.tgz && shasum -a 256 package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host &&
+/opt/podman/bin/podman machine cp package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host aios-macos-noshare:/var/home/core/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 &&
+/opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 && sha256sum ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0')
 ```
 
 The owner coding admission record then needs re-approval. The new pin
@@ -128,15 +128,16 @@ the Alpine offline template provides. The pin is `claudeCode` in
 The Claude Code guest program (`claudeGuest` in `src/podman-coding.ts`)
 refuses to inspect, prepare or launch unless the file is in VM management
 storage, private to the guest user, and matches the pin. No delivery runs that
-guest yet. Run the block in one terminal, in order, with the
-VM running. `npm pack` checks the registry integrity as it downloads, and
-`--ignore-scripts` runs nothing from the package. The last command prints the
-guest's hash, which must match the table.
+guest yet. Run the block with the VM running. It runs in a subshell in a new
+temporary folder, so your shell stays where it was. `npm pack` checks the
+registry integrity as it downloads, and `--ignore-scripts` runs nothing from
+the package. The last command prints the guest's hash, which must match the
+table.
 
 ```sh
-D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @anthropic-ai/claude-code-linux-arm64-musl@2.1.311 && tar -xzf anthropic-ai-claude-code-linux-arm64-musl-2.1.311.tgz && shasum -a 256 package/claude
-/opt/podman/bin/podman machine cp package/claude aios-macos-noshare:/var/home/core/.local/state/aios-offline-v1/claude-2.1.311
-/opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/claude-2.1.311 && sha256sum ~/.local/state/aios-offline-v1/claude-2.1.311'
+(D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @anthropic-ai/claude-code-linux-arm64-musl@2.1.311 && tar -xzf anthropic-ai-claude-code-linux-arm64-musl-2.1.311.tgz && shasum -a 256 package/claude &&
+/opt/podman/bin/podman machine cp package/claude aios-macos-noshare:/var/home/core/.local/state/aios-offline-v1/claude-2.1.311 &&
+/opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/claude-2.1.311 && sha256sum ~/.local/state/aios-offline-v1/claude-2.1.311')
 ```
 
 Claude Code turns are admitted by their own owner record, with scope
@@ -151,8 +152,17 @@ The Claude Code guest differs from the Codex guest in these ways:
   workspace and the session home.
 - **Session home:** `CLAUDE_CONFIG_DIR` is the session home. A resume refuses a
   home that holds settings, `CLAUDE.md`, agents, commands, skills, hooks,
-  plugins, output styles, rules or an MCP file. It drops the shell snapshots
-  that Claude Code would source on its next start.
+  output styles, rules or an MCP file. It drops the shell snapshots that Claude
+  Code would source on its next start. It also drops `plugins`: the real CLI
+  writes its built-in plugins' state to `plugins/store` on every start, and
+  nothing in that folder may reach the next turn.
+- **Request shape:** the worker sets `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`,
+  so Claude Code sends no fields that need a beta header. Without it, the real
+  CLI sends `context_management`, `thinking.display: "updates"` and deferred
+  tools (`defer_loading`). The gateway sends no beta header and refuses all
+  three. It accepts what the real CLI still sends:
+  - `output_config`, with only its `effort` level;
+  - a `system`-role message carrying the environment, as text only.
 - **Event summaries:** only a summary of each stream-json event leaves the
   guest, matching `claudeEventSummary`. The summary keeps the event's kind,
   session and content-block kinds, and never its text, thinking or tool input
@@ -168,7 +178,7 @@ The Claude Code guest differs from the Codex guest in these ways:
   - **`claude-config`** replaces `codex-skills`, `mcp-config` and
     `hooks-rules-agents`. The home must hold none of the names a resume
     refuses, and `/etc/claude-code`, Claude Code's managed-settings folder,
-    must not exist.
+    must not exist. A `plugins` folder may hold only `store`.
   - **`credential-env`** also refuses `ANTHROPIC_API_KEY`,
     `CLAUDE_CODE_OAUTH_TOKEN` and `AWS_BEARER_TOKEN_BEDROCK`.
     `ANTHROPIC_AUTH_TOKEN`, the relay capability, must be set in a routed
@@ -190,7 +200,7 @@ to. It takes a few minutes.
 From a clean, built checkout with the VM running:
 
 ```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
 ### Qualifying the Claude Code worker
@@ -237,7 +247,7 @@ to you. A run with it blocks at `owner-records-name-fresh-pins` and prints
 then run again:
 
 ```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 171e65262c8018f8f09a360006af2acbb2c0c494cb2be933025b466ea3d672dc "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
 ## Limits
