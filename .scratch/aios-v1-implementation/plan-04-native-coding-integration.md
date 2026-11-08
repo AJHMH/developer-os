@@ -143,7 +143,9 @@ Still refused, each for a different reason:
    (`scripts/run-native-routed-delivery.mjs`): after a candidate is admitted
    and fails validation, one routed repair turn under a fresh approval. The
    runner's `plan-repair` and `repair` commands do this
-   (`docs/feature-candidate.md`); the owner's run is still to come.
+   (`docs/feature-candidate.md`). The owner's first run, on 8 November,
+   produced a candidate that passed validation, so it gave no repair evidence
+   ([receipt](ticket04-macos-routed-run-repinned-receipt.md)).
 
 2. **`run()` and `start()`, per D1.** No guest or pin change. Before choosing
    how, measure what still depends on `delivery.execution`: `run()`, the

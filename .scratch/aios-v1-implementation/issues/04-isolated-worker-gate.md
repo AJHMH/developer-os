@@ -1268,3 +1268,16 @@ anything left open and writes `repair-report.json`
 Shown with every CLI call simulated. The live run needs a routed candidate that
 fails validation, and hasn't happened. No guest or pin change. Nothing is
 checked off. Production remains disabled.
+
+## 8 November: macOS routed run on the re-pinned guests
+
+From `main` at `af68d52`, the owner ran the routed runner on the Mac. The first
+`prepare` was refused: PR 198 had moved the fixed worker's offline pins by
+changing the VM management program. After a new `pin-offline`, in which only
+`policyVersion` moved, and a renewed sign-in, a routed `code-feature` turn on
+the coding guest `89f2db60…` produced a candidate that passed validation. That
+is that guest's first real-VM run. The candidate passed, so slice 1's repair
+evidence still needs a routed candidate that fails validation. Windows' offline
+pins still need re-pinning. One decision request and one routed turn's
+requests were spent. Nothing is checked off. Production remains disabled. See
+the [receipt](../ticket04-macos-routed-run-repinned-receipt.md).

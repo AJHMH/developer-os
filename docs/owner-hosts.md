@@ -35,6 +35,21 @@ Before changing a guest program to deal with what is in a VM, ask the owner for
 the [coding container census](worker-qualification.md#coding-container-census),
 so the change is sized against the real counts.
 
+## Fixed worker's offline pins
+
+The offline pins that `pin-offline` writes, and `qualify`, `offline-canary`
+and the routed runner read through `--worker-policy`, include a
+`policyVersion`. It hashes the VM management program (`src/vm-management.ts`,
+through `vmManagementVersion`) and the host canary. A change to either moves
+it, and `qualify` then refuses offline admission at `observation` until the
+owner enrolls new pins with `pin-offline` into a new file on each host. Say so
+in the PR's "Pin impact", as for a guest program.
+
+PR 198 moved it without saying so. The Mac was re-pinned on 7 November to
+`$HOME/.developer-os/ticket4-macos/pins-routed-20261107a.json`
+([receipt](../.scratch/aios-v1-implementation/ticket04-macos-routed-run-repinned-receipt.md));
+Windows hasn't been.
+
 ## Next coding guest change
 
 Each coding guest change costs a re-pin on both hosts, so these wait for one
