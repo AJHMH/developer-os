@@ -465,6 +465,14 @@ It works through 8 at a time until it has tried them all, and moves past any it
 can't remove. A refused session stays for a later sweep; `refused` says how many,
 and the command then exits non-zero.
 
+The coding record's `scope` chooses the guest, as for the qualification. With
+the Claude Code record, the sweep uses the Claude Code guest and must match its
+pins. The output's `agent` says which guest ran:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json"
+```
+
 From a clean, built checkout with the VM running:
 
 ```sh
