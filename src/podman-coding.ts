@@ -23,7 +23,12 @@ import {
 import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
 import { codexWorkerSha256 } from "./podman-native.js";
-import { codeModeHostSha256 } from "./host-target.js";
+import {
+  claudeCodePin,
+  codeModeHostSha256,
+  hostTargets,
+} from "./host-target.js";
+import { claudeCodeArgv, type CodingProvider } from "./coding-agent.js";
 import { gatewayModel } from "./inference-contract.js";
 import {
   boundaryProbeOutcomes,
@@ -53,9 +58,112 @@ const sessionIdentity = (value: CodingSession | undefined) =>
 const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 
+/** The parts of the coding guest program that differ by coding agent. */
+interface GuestParts {
+  hostPin: string;
+  retainedHome: string;
+  mount: string;
+  locked: string;
+  env: string;
+  mounts: string;
+  paths: string;
+  branch: string;
+  hostCopy: string;
+  createEnv: string;
+  createMounts: string;
+  copies: string;
+  launchHost: string;
+  poll: string;
+  cli: string;
+}
+/** The coding guest program's Codex parts: its text before Claude Code
+ * (ADR 0008), so its digest, and every admission that pins it, is unchanged. */
+const codexGuestParts: GuestParts = {
+  hostPin: String.raw`
+ provisioned(hostSource,R['codeModeHostSha256'])
+`,
+  retainedHome: String.raw`def retained_home(path):
+ # Require existing private state; never synthesize a missing session home.
+ s=os.lstat(path)
+ if not stat.S_ISDIR(s.st_mode): fail()
+ directory(path)
+ # Codex recreates these on every start; a prior turn's copies never carry
+ # over. Everything else is checked before anything is removed.
+ regenerated=['skills','tmp','.tmp']
+ skills=path+'/skills'
+ if os.path.lexists(skills):
+  if not stat.S_ISDIR(os.lstat(skills).st_mode): fail()
+  with os.scandir(skills) as entries:
+   if [e.name for e in entries]!=['.system']: fail()
+ # Codex loads these from CODEX_HOME; a prior turn must not configure the next.
+ with os.scandir(path) as entries:
+  if any(e.name not in regenerated and (e.name.lower() in ['hooks.json','agents.md','agents.override.md','skills','rules','prompts','.env'] or e.name.lower().endswith('.toml')) for e in entries): fail()
+ pending=[path];count=0;total=0
+ while pending:
+  current=pending.pop()
+  with os.scandir(current) as entries:
+   for entry in entries:
+    if current==path and entry.name in regenerated: continue
+    count+=1
+    if count>4096: fail()
+    s=entry.stat(follow_symlinks=False)
+    if s.st_uid!=os.getuid(): fail()
+    if stat.S_ISDIR(s.st_mode): pending.append(entry.path)
+    else:
+     ordinary(entry.path)
+     total+=s.st_size
+     if s.st_size>4194304 or total>16777216: fail()
+ for name in regenerated:
+  if os.path.lexists(path+'/'+name): remove_tree(path+'/'+name)
+`,
+  mount: String.raw`/codex`,
+  locked: String.raw`# The locked argv before the prompt (lockedCodingArgv in src/feature-candidate.ts).
+def locked(thread,route):
+ sandbox='danger-full-access' if route else 'workspace-write'
+ p='model_providers.aios.'
+ values=['model_provider="aios"',p+'name="AIOS session relay"',p+'base_url="http://127.0.0.1:${modelRoutePort}/v1"',p+'env_key="${modelRouteVariable}"',p+'wire_api="responses"',p+'requires_openai_auth=false',p+'supports_websockets=false',p+'http_headers.X-AIOS-Delivery="'+route['deliveryId']+'"','model="${gatewayModel}"'] if route else []
+ overrides=[x for v in values for x in ['-c',v]]
+ return ['exec','resume','--json','--skip-git-repo-check','-c','sandbox_mode="'+sandbox+'"',*overrides,thread] if thread else ['exec','--json','--skip-git-repo-check','--sandbox',sandbox,*overrides]
+`,
+  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CODEX_HOME':'/session','HOSTNAME':'aios-coding'}`,
+  mounts: String.raw` wanted={'/workspace':(work,True),'/session':(home,True),'/codex':(binary,False),'/codex-code-mode-host':(codeModeHost,False)}
+ if len(mounts)!=4: fail()`,
+  paths: String.raw`binary=operation+'/codex';codeModeHost=operation+'/codex-code-mode-host'`,
+  branch: String.raw`codex/`,
+  hostCopy: String.raw`   fd=os.open(codeModeHost,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o500)
+   with os.fdopen(fd,'wb') as f:
+    f.write(provisioned(hostSource,R['codeModeHostSha256']));f.flush();os.fsync(f.fileno())
+`,
+  createEnv: String.raw`'--env','CODEX_HOME=/session'`,
+  createMounts: String.raw`'--volume',binary+':/codex:ro,Z,rprivate','--volume',codeModeHost+':/codex-code-mode-host:ro,Z,rprivate'`,
+  copies: String.raw`[binary,codeModeHost]`,
+  launchHost: String.raw`    ordinary(codeModeHost)
+    if h(pathlib.Path(codeModeHost).read_bytes())!=R['codeModeHostSha256']: fail()
+`,
+  poll: String.raw`    logs=pod('logs',R['name'])
+    if len(logs)>65536: fail()
+    # Bind a complete explicit CLI thread event to this durable session. A
+    # partial final line is not evidence and cannot authorize later resume.
+    threads=[]
+    for line in logs.split(b'\n')[:-1]:
+     try: event=json.loads(line)
+     except (ValueError,UnicodeDecodeError): continue
+     if isinstance(event,dict) and event.get('type')=='thread.started':
+      thread=event.get('thread_id')
+      if not isinstance(thread,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread): fail()
+      threads.append(thread)
+    if len(threads)>1: fail()
+    if threads:
+     if record.get('threadId',threads[0])!=threads[0] or record['admission'].get('threadId',threads[0])!=threads[0]: fail()
+     record['threadId']=threads[0];save(recordPath,record)
+    if not c['State']['Running'] and record['admission'].get('threadId') and not threads: fail()
+    result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(logs).decode())
+`,
+  cli: String.raw`codex-0.161.0`,
+};
 /** Trusted VM management source. Requests are JSON data, never generated commands.
  * This separate offline scope cannot reuse fixed-worker credentials/qualification. */
-const management = String.raw`
+const guestProgram = (g: GuestParts) => String.raw`
 import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time,sys,threading,select
 
 def fail(): raise RuntimeError('Native coding observation unavailable')
@@ -134,14 +242,12 @@ def snapshot():
  imageInfo=obj('image','inspect',R['template'])[0]
  if R['template'] not in imageInfo.get('RepoDigests',[]) or imageInfo.get('Architecture')!=R['guestArch']: fail()
  if imageInfo['Config'].get('Env')!=['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']: fail()
- binary=os.path.expanduser('~/.local/state/aios-offline-v1/codex-0.161.0')
+ binary=os.path.expanduser('~/.local/state/aios-offline-v1/${g.cli}')
  s=ordinary(binary)
  if s.st_mode&0o077: fail()
  fd=os.open(binary,os.O_RDONLY|os.O_NOFOLLOW)
  with os.fdopen(fd,'rb') as f:
-  if h(f.read())!=R['cliSha256']: fail()
- provisioned(hostSource,R['codeModeHostSha256'])
- machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
+  if h(f.read())!=R['cliSha256']: fail()${g.hostPin} machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
  if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
  return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],template=R['template'],hostId=h(machine_id.encode()))
 
@@ -156,40 +262,7 @@ def directory(path):
   if parent.is_symlink(): fail()
  s=os.lstat(path)
  if not stat.S_ISDIR(s.st_mode) or s.st_uid!=os.getuid() or s.st_mode&0o077: fail()
-def retained_home(path):
- # Require existing private state; never synthesize a missing session home.
- s=os.lstat(path)
- if not stat.S_ISDIR(s.st_mode): fail()
- directory(path)
- # Codex recreates these on every start; a prior turn's copies never carry
- # over. Everything else is checked before anything is removed.
- regenerated=['skills','tmp','.tmp']
- skills=path+'/skills'
- if os.path.lexists(skills):
-  if not stat.S_ISDIR(os.lstat(skills).st_mode): fail()
-  with os.scandir(skills) as entries:
-   if [e.name for e in entries]!=['.system']: fail()
- # Codex loads these from CODEX_HOME; a prior turn must not configure the next.
- with os.scandir(path) as entries:
-  if any(e.name not in regenerated and (e.name.lower() in ['hooks.json','agents.md','agents.override.md','skills','rules','prompts','.env'] or e.name.lower().endswith('.toml')) for e in entries): fail()
- pending=[path];count=0;total=0
- while pending:
-  current=pending.pop()
-  with os.scandir(current) as entries:
-   for entry in entries:
-    if current==path and entry.name in regenerated: continue
-    count+=1
-    if count>4096: fail()
-    s=entry.stat(follow_symlinks=False)
-    if s.st_uid!=os.getuid(): fail()
-    if stat.S_ISDIR(s.st_mode): pending.append(entry.path)
-    else:
-     ordinary(entry.path)
-     total+=s.st_size
-     if s.st_size>4194304 or total>16777216: fail()
- for name in regenerated:
-  if os.path.lexists(path+'/'+name): remove_tree(path+'/'+name)
-def save(path,value):
+${g.retainedHome}def save(path,value):
  temp=path+'.new-'+uuid.uuid4().hex
  fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
  with os.fdopen(fd,'w') as f: json.dump(value,f);f.flush();os.fsync(f.fileno())
@@ -282,20 +355,13 @@ def container():
  c=obj('inspect',R['name'])[0]
  if c['Config'].get('Labels',{}).get('aios.coding.authority')!=R['authority'] or c['Config'].get('Labels',{}).get('aios.coding.session')!=identity: fail()
  return c
-bootstrap='while test ! -f /tmp/launch; do sleep 0.1; done; cd /workspace; exec /codex "$@"'
-# The locked argv before the prompt (lockedCodingArgv in src/feature-candidate.ts).
-def locked(thread,route):
- sandbox='danger-full-access' if route else 'workspace-write'
- p='model_providers.aios.'
- values=['model_provider="aios"',p+'name="AIOS session relay"',p+'base_url="http://127.0.0.1:${modelRoutePort}/v1"',p+'env_key="${modelRouteVariable}"',p+'wire_api="responses"',p+'requires_openai_auth=false',p+'supports_websockets=false',p+'http_headers.X-AIOS-Delivery="'+route['deliveryId']+'"','model="${gatewayModel}"'] if route else []
- overrides=[x for v in values for x in ['-c',v]]
- return ['exec','resume','--json','--skip-git-repo-check','-c','sandbox_mode="'+sandbox+'"',*overrides,thread] if thread else ['exec','--json','--skip-git-repo-check','--sandbox',sandbox,*overrides]
-def valid_route(route):
+bootstrap='while test ! -f /tmp/launch; do sleep 0.1; done; cd /workspace; exec ${g.mount} "$@"'
+${g.locked}def valid_route(route):
  return isinstance(route,dict) and sorted(route)==['capability','decisionSha256','deliveryId'] and all(isinstance(v,str) for v in route.values()) and re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}',route['deliveryId']) and re.fullmatch('[a-f0-9]{64}',route['capability']) and re.fullmatch('[a-f0-9]{64}',route['decisionSha256'])
 def effective(c,live):
  if c['Config'].get('Entrypoint') not in [None,[]] or c['Config'].get('Cmd')!=['/bin/sh','-c',bootstrap,'--',*record['argv']]: fail()
  hc=c['HostConfig'];env=dict(x.split('=',1) for x in c['Config']['Env'])
- expected={'PATH':'/usr/bin:/bin','HOME':'/session','CODEX_HOME':'/session','HOSTNAME':'aios-coding'}
+ expected=${g.env}
  # A routed session adds exactly its relay capability, checked by digest.
  route=record.get('admission',{}).get('modelRoute')
  if route:
@@ -306,8 +372,7 @@ def effective(c,live):
  if c['Config']['User']!='65534:65534' or env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no': fail()
  if hc.get('PidsLimit')!=64 or hc.get('Memory')!=536870912 or 'no-new-privileges' not in hc.get('SecurityOpt',[]) or 'seccomp='+root+'/seccomp.json' not in hc.get('SecurityOpt',[]): fail()
  mounts=c.get('Mounts',[])
- wanted={'/workspace':(work,True),'/session':(home,True),'/codex':(binary,False),'/codex-code-mode-host':(codeModeHost,False)}
- if len(mounts)!=4: fail()
+${g.mounts}
  for m in mounts:
   if m.get('Type')!='bind' or m.get('Destination') not in wanted or (m.get('Source'),m.get('RW'))!=wanted[m['Destination']]: fail()
   if m.get('Propagation') not in ['rprivate','private']: fail()
@@ -469,13 +534,13 @@ else:
   record=read(recordPath) if os.path.lexists(recordPath) else None
   if record and record['identity']!=identity: fail()
   operation=root+'/'+R['name']
-  work=operation+'/workspace';home=operation+'/home';binary=operation+'/codex';codeModeHost=operation+'/codex-code-mode-host'
+  work=operation+'/workspace';home=operation+'/home';${g.paths}
   if R['action']=='prepare':
    binding=snapshot()
    if binding!=R['expectedBinding'] or record: fail()
    branch=R.get('branch')
    if not isinstance(R.get('sourceRevision'),str) or not re.fullmatch('[a-f0-9]{40}',R['sourceRevision']) or not isinstance(R.get('inputSha256'),str) or not re.fullmatch('[a-f0-9]{64}',R['inputSha256']): fail()
-   if not isinstance(branch,str) or len(branch)>240 or not re.fullmatch(r'codex/[A-Za-z0-9][A-Za-z0-9._/-]*',branch) or '..' in branch or any(not p or p.startswith('.') or p.endswith('.') or p.lower().endswith('.lock') for p in branch.split('/')): fail()
+   if not isinstance(branch,str) or len(branch)>240 or not re.fullmatch(r'${g.branch}[A-Za-z0-9][A-Za-z0-9._/-]*',branch) or '..' in branch or any(not p or p.startswith('.') or p.endswith('.') or p.lower().endswith('.lock') for p in branch.split('/')): fail()
    resuming=R['session']['intent']=='resume'
    route=R.get('modelRoute')
    if route is not None and not valid_route(route): fail()
@@ -523,16 +588,13 @@ else:
     predecessor['resumedBy']=identity;save(oldPath,predecessor)
     os.rename(oldHome,home)
    directory(home)
-   source=os.path.expanduser('~/.local/state/aios-offline-v1/codex-0.161.0')
+   source=os.path.expanduser('~/.local/state/aios-offline-v1/${g.cli}')
    fd=os.open(binary,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o500)
    with os.fdopen(fd,'wb') as f:
     data=pathlib.Path(source).read_bytes()
     if h(data)!=R['cliSha256']: fail()
     f.write(data);f.flush();os.fsync(f.fileno())
-   fd=os.open(codeModeHost,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o500)
-   with os.fdopen(fd,'wb') as f:
-    f.write(provisioned(hostSource,R['codeModeHostSha256']));f.flush();os.fsync(f.fileno())
-   for path,data,executable in inputs:
+${g.hostCopy}   for path,data,executable in inputs:
     target=work+'/'+path
     os.makedirs(os.path.dirname(target),mode=0o700,exist_ok=True)
     fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o700 if executable else 0o600)
@@ -544,7 +606,7 @@ else:
    save(root+'/seccomp.json',profile)
    reserve(True)
    # Bootstrap waits before any candidate-controlled Codex input is executed.
-   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session','--env','CODEX_HOME=/session',*(['--env','${modelRouteVariable}='+route['capability']] if route else []),'--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate','--volume',binary+':/codex:ro,Z,rprivate','--volume',codeModeHost+':/codex-code-mode-host:ro,Z,rprivate',R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
+   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session',${g.createEnv},*(['--env','${modelRouteVariable}='+route['capability']] if route else []),'--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate',${g.createMounts},R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
    effective(container(),False)
    record['phase']='prepared';save(recordPath,record)
   elif R['action']=='stop':
@@ -576,7 +638,7 @@ else:
    if not gone(record): fail()
    # A stopped session never runs again, so its private program copies go
    # with the worker; a resume copies its own. This also frees a full disk.
-   for path in [binary,codeModeHost]:
+   for path in ${g.copies}:
     try: os.unlink(path)
     except FileNotFoundError: pass
    # The worker is gone, so the headroom now goes to these records. A worker
@@ -643,9 +705,7 @@ else:
     if record['phase']!='prepared' or not isinstance(record.get('admission'),dict) or record['admission']!=R.get('admission') or record.get('pins')!=R.get('pins'): fail()
     ordinary(binary)
     if h(pathlib.Path(binary).read_bytes())!=R['cliSha256']: fail()
-    ordinary(codeModeHost)
-    if h(pathlib.Path(codeModeHost).read_bytes())!=R['codeModeHostSha256']: fail()
-    effective(container(),False)
+${g.launchHost}    effective(container(),False)
     # Durable before start: stop rewrites the phase, and recovery must never
     # return a home that a started worker could have changed.
     record['phase']='launching';record['launchAttempted']=True;save(recordPath,record)
@@ -702,25 +762,7 @@ else:
      if group(c['State']['Pid'])!=record['group']: fail()
      effective(c,True);record['pids'].update(census(record['group']));save(recordPath,record)
      lease()
-    logs=pod('logs',R['name'])
-    if len(logs)>65536: fail()
-    # Bind a complete explicit CLI thread event to this durable session. A
-    # partial final line is not evidence and cannot authorize later resume.
-    threads=[]
-    for line in logs.split(b'\n')[:-1]:
-     try: event=json.loads(line)
-     except (ValueError,UnicodeDecodeError): continue
-     if isinstance(event,dict) and event.get('type')=='thread.started':
-      thread=event.get('thread_id')
-      if not isinstance(thread,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread): fail()
-      threads.append(thread)
-    if len(threads)>1: fail()
-    if threads:
-     if record.get('threadId',threads[0])!=threads[0] or record['admission'].get('threadId',threads[0])!=threads[0]: fail()
-     record['threadId']=threads[0];save(recordPath,record)
-    if not c['State']['Running'] and record['admission'].get('threadId') and not threads: fail()
-    result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(logs).decode())
-   elif R['action']=='probe-boundary':
+${g.poll}   elif R['action']=='probe-boundary':
     # Qualification only: the fixed probe in the exact live session, then a
     # detached descendant that only this session's exact stop may remove.
     if record['phase']!='running' or not isinstance(R.get('admittedPath'),str) or not path_ok(R['admittedPath']): fail()
@@ -852,9 +894,156 @@ print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha25
 if R['action']=='relay': pump(relayProcess)
 
 `;
+const management = guestProgram(codexGuestParts);
+
+const claudeCli = hostTargets.darwin.claudeCode;
+/** The coding guest program's Claude Code parts (ADR 0008). Claude Code is one
+ * binary with no code-mode host, keeps its sessions in CLAUDE_CONFIG_DIR, and
+ * reaches a model only through a route, which this guest refuses until it
+ * serves one. Only a summary of its stream leaves the guest. */
+const claudeGuestParts: GuestParts = {
+  hostPin: "\n",
+  retainedHome: String.raw`def retained_home(path):
+ # Require existing private state; never synthesize a missing session home.
+ s=os.lstat(path)
+ if not stat.S_ISDIR(s.st_mode): fail()
+ directory(path)
+ # Claude Code recreates these on every start; a prior turn's copies never
+ # carry over. Its shell snapshots are sourced by the next turn's shell.
+ # Everything else is checked before anything is removed.
+ regenerated=['shell-snapshots','tmp','.tmp']
+ # Claude Code loads these from CLAUDE_CONFIG_DIR; a prior turn must not
+ # configure the next.
+ with os.scandir(path) as entries:
+  if any(e.name not in regenerated and e.name.lower() in ['settings.json','settings.local.json','managed-settings.json','claude.md','claude.local.md','agents','commands','skills','hooks','plugins','output-styles','rules','.mcp.json','.claude','.env'] for e in entries): fail()
+ # Session transcripts carry tool output, so they get room to grow.
+ pending=[path];count=0;total=0
+ while pending:
+  current=pending.pop()
+  with os.scandir(current) as entries:
+   for entry in entries:
+    if current==path and entry.name in regenerated: continue
+    count+=1
+    if count>4096: fail()
+    s=entry.stat(follow_symlinks=False)
+    if s.st_uid!=os.getuid(): fail()
+    if stat.S_ISDIR(s.st_mode): pending.append(entry.path)
+    else:
+     ordinary(entry.path)
+     total+=s.st_size
+     if s.st_size>33554432 or total>67108864: fail()
+ for name in regenerated:
+  if os.path.lexists(path+'/'+name): remove_tree(path+'/'+name)
+`,
+  mount: "/claude",
+  locked: String.raw`# The locked argv before the prompt (claudeCodeArgv in src/coding-agent.ts).
+# This guest serves no model route yet, so a routed launch is refused.
+def locked(thread,route):
+ if route: fail()
+ return ${JSON.stringify(claudeCodeArgv(undefined))}+(['--resume',thread] if thread else [])
+`,
+  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','HOSTNAME':'aios-coding'}`,
+  mounts: String.raw` wanted={'/workspace':(work,True),'/session':(home,True),'/claude':(binary,False)}
+ if len(mounts)!=3: fail()`,
+  paths: String.raw`binary=operation+'/claude'`,
+  // Deliveries begun under Codex keep their codex/feature-<id> branches.
+  branch: String.raw`(?:aios|codex)/`,
+  hostCopy: "",
+  createEnv: String.raw`'--env','CLAUDE_CONFIG_DIR=/session','--env','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1'`,
+  createMounts: String.raw`'--volume',binary+':/claude:ro,Z,rprivate'`,
+  copies: "[binary]",
+  launchHost: "",
+  poll: String.raw`    logs=pod('logs',R['name'])
+    # Only a summary crosses: each event's kind, session and block kinds, never
+    # its text, thinking or tool input or output (claudeEventSummary in
+    # src/coding-agent.ts). A line that is not a JSON object carries no event,
+    # and a partial final line is not evidence.
+    def reject(value): raise ValueError(value)
+    def copy(source,target,*keys):
+     for key in keys:
+      if key in source: target[key]=source[key]
+     return target
+    def summary(event):
+     kind=event.get('type')
+     if kind=='system': return copy(event,{},'type','subtype','session_id')
+     if kind=='result': return copy(event,{},'type','subtype','is_error','num_turns','session_id')
+     if kind not in ['assistant','user']: return copy(event,{},'type','session_id')
+     message=event.get('message') if isinstance(event.get('message'),dict) else {}
+     content=message.get('content')
+     blocks=[{'type':'text'}] if isinstance(content,str) else [copy(b,{},'type') if isinstance(b,dict) else {'type':None} for b in content] if isinstance(content,list) else None
+     kept=copy(event,{},'type','session_id');kept['parent_tool_use_id']=event.get('parent_tool_use_id')
+     kept['message']=copy(message,{},'role');kept['message']['content']=blocks
+     return kept
+    output=bytearray();threads=[]
+    for line in logs.split(b'\n')[:-1]:
+     try: event=json.loads(line,parse_constant=reject)
+     except (ValueError,UnicodeDecodeError,RecursionError): continue
+     if not isinstance(event,dict): continue
+     output.extend(json.dumps(summary(event),ensure_ascii=False,separators=(',',':')).encode()+b'\n')
+     if len(output)>65536: fail()
+     # Bind the complete init event's session to this durable session.
+     if event.get('type')=='system' and event.get('subtype')=='init':
+      thread=event.get('session_id')
+      if not isinstance(thread,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread): fail()
+      threads.append(thread)
+    if len(threads)>1: fail()
+    if threads:
+     if record.get('threadId',threads[0])!=threads[0] or record['admission'].get('threadId',threads[0])!=threads[0]: fail()
+     record['threadId']=threads[0];save(recordPath,record)
+    if not c['State']['Running'] and record['admission'].get('threadId') and not threads: fail()
+    result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(bytes(output)).decode())
+`,
+  cli: `claude-${claudeCli.version}`,
+};
+const claudeManagement = guestProgram(claudeGuestParts);
 /** The coding guest program's digest: the `policySha256` an owner coding
  * admission pins. */
 export const managementPolicySha256 = digest(management);
+/** The Claude Code guest program's digest, which its admission pins. */
+export const claudeManagementPolicySha256 = digest(claudeManagement);
+
+/** What the host transport needs to drive one coding agent's guest. */
+export interface NativeCodingGuest {
+  readonly provider: CodingProvider;
+  readonly program: string;
+  readonly policySha256: string;
+  readonly cliVersion: string;
+  /** The guest executable pins for this host, in request order. */
+  pins(host: { platform: string; arch: string }): {
+    cliSha256: string;
+    codeModeHostSha256?: string;
+  };
+  /** The locked argv before the prompt. */
+  argv(threadId: string | undefined, route: ModelRoute | undefined): string[];
+  readonly branch: RegExp;
+}
+export const codexGuest: NativeCodingGuest = Object.freeze({
+  provider: "codex",
+  program: management,
+  policySha256: managementPolicySha256,
+  cliVersion: "0.161.0",
+  pins: (host: { platform: string; arch: string }) => ({
+    cliSha256: codexWorkerSha256(host.platform, host.arch)!,
+    codeModeHostSha256: codeModeHostSha256(host.platform, host.arch)!,
+  }),
+  argv: lockedCodingArgv,
+  branch: /^codex\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
+});
+/** Claude Code's guest (ADR 0008). It serves no model route yet. */
+export const claudeGuest: NativeCodingGuest = Object.freeze({
+  provider: "claude",
+  program: claudeManagement,
+  policySha256: claudeManagementPolicySha256,
+  cliVersion: claudeCli.version,
+  pins: (host: { platform: string; arch: string }) => ({
+    cliSha256: claudeCodePin(host.platform, host.arch)!.sha256,
+  }),
+  argv: (threadId: string | undefined, route: ModelRoute | undefined) => {
+    if (route) throw Error("Unsupported native coding launch");
+    return claudeCodeArgv(threadId);
+  },
+  branch: /^(?:aios|codex)\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
+});
 
 /** Native resume names its exact stopped predecessor through
  * `CodingRequest.resumeFrom`; there is no global session selection. */
@@ -901,6 +1090,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
   constructor(
     private readonly machine: string,
     private readonly authority: string,
+    readonly guest: NativeCodingGuest = codexGuest,
   ) {
     if (!/^aios-[a-z0-9-]+$/.test(machine) || !/^[a-f0-9]{64}$/.test(authority))
       throw Error("Invalid native coding authority");
@@ -920,8 +1110,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       throw Error("Invalid native coding session");
     const managed = managementHost(this.machine);
     const { host } = managed;
-    const cliSha256 = codexWorkerSha256(host.platform, host.arch)!;
-    const hostSha256 = codeModeHostSha256(host.platform, host.arch)!;
+    const executables = this.guest.pins(host);
     const request = {
       action,
       session,
@@ -931,19 +1120,17 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       guestArch: host.guestArch,
       imageReference: host.imageReference,
       template: host.offlineTemplate,
-      cliSha256,
-      codeModeHostSha256: hostSha256,
+      ...executables,
       ...payload,
     };
-    return { managed, request, session, cliSha256, hostSha256 };
+    return { managed, request, session, executables };
   }
   /** The pins a guest result binds, or a refusal if it names anything else. */
   private bind(
     {
       managed,
       session,
-      cliSha256,
-      hostSha256,
+      executables,
     }: ReturnType<NativePodmanCodingTransport["request"]>,
     result: unknown,
   ) {
@@ -951,14 +1138,13 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       !record(result) ||
       !validGuestBinding(managed, result.binding) ||
       JSON.stringify(result.session) !== JSON.stringify(session) ||
-      result.cliSha256 !== cliSha256
+      result.cliSha256 !== executables.cliSha256
     )
       throw Error("Native coding binding changed");
     const pins: CodingPins = {
-      cliVersion: "0.161.0",
-      cliSha256,
-      codeModeHostSha256: hostSha256,
-      policySha256: managementPolicySha256,
+      cliVersion: this.guest.cliVersion,
+      ...executables,
+      policySha256: this.guest.policySha256,
       bindingSha256: managementBindingSha256(
         managed,
         this.authority,
@@ -977,7 +1163,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     const result: unknown = await runManagement(
       bound.managed,
       bound.request,
-      management,
+      this.guest.program,
       "coding",
       action,
       permit,
@@ -995,7 +1181,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       capability: route.capability,
     });
     const { ready, relay } = await openSessionRelay(
-      openManagementChannel(bound.managed, bound.request, management),
+      openManagementChannel(bound.managed, bound.request, this.guest.program),
       route.deliveryId,
       gateway,
     );
@@ -1053,7 +1239,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
           gateway.capability === route!.capability))
     )
       throw Error("Unsupported native coding launch");
-    const prefix = lockedCodingArgv(
+    const prefix = this.guest.argv(
       resuming ? request.threadId : undefined,
       route,
     );
@@ -1070,7 +1256,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       typeof request.branch !== "string" ||
       request.branch.length > 240 ||
       request.branch.trim() !== request.branch ||
-      !/^codex\/[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(request.branch) ||
+      !this.guest.branch.test(request.branch) ||
       request.branch.includes("..") ||
       request.branch
         .split("/")

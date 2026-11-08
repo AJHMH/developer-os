@@ -45,7 +45,10 @@ if request['action'] == state.get('relayForged'):
     path.write_text(json.dumps(saved))
 if request['action'] == 'launch' and state.get('launchProvenanceDrift'):
     request['admission'] = {'sourceRevision': 'f'*40, 'branch': 'codex/foreign', 'inputSha256': '0'*64}
-artifact = root / '.local/state/aios-offline-v1/codex-0.161.0'
+# The Claude Code guest program names its own pinned CLI file.
+claude = "'CLAUDE_CONFIG_DIR':'/session'" in source
+cli_name = re.search(r"aios-offline-v1/((?:codex|claude)-[0-9.]+)'", source)[1]
+artifact = root / '.local/state/aios-offline-v1' / cli_name
 artifact.parent.mkdir(parents=True, exist_ok=True)
 artifact.parent.chmod(0o700)
 artifact.write_bytes(b'synthetic-pinned-artifact')
@@ -242,7 +245,17 @@ def run(args, **kwargs):
         elif action == 'logs':
             if (root / 'codex-exit').exists():
                 c['State'].update(Running=False, Pid=0, Status='exited', ExitCode=1);set_alive(c, False)
-            output = ((json.dumps({'type':'thread.started','thread_id':state['threadId']})+'\n').encode() if state.get('threadId') else b'') + b'{"type":"turn.failed"}\n'
+            if claude:
+                # Claude Code's stream-json, content and all; the guest summarizes it.
+                lines = state.get('claudeLogs')
+                if lines is None:
+                    sid = state.get('threadId')
+                    lines = [{'type':'system','subtype':'init','session_id':sid,'cwd':'/workspace','tools':['Bash']}] if sid else []
+                    lines.append({'type':'assistant','session_id':sid,'parent_tool_use_id':None,'message':{'role':'assistant','content':[{'type':'text','text':'secret-candidate-text'},{'type':'tool_use','id':'toolu_1','name':'Bash','input':{'command':'secret-tool-input'}}]}})
+                    lines.append({'type':'result','subtype':'error_during_execution','is_error':True,'num_turns':1,'session_id':sid,'result':'secret-result'})
+                output = b''.join((x if isinstance(x, str) else json.dumps(x)).encode() + b'\n' for x in lines) + state.get('claudeTail', '').encode()
+            else:
+                output = ((json.dumps({'type':'thread.started','thread_id':state['threadId']})+'\n').encode() if state.get('threadId') else b'') + b'{"type":"turn.failed"}\n'
             state['polls'] = state.get('polls',0) + 1
             if state.get('stopAfterPolls') and state['polls'] >= state['stopAfterPolls']:
                 c['State'].update(Running=False, Pid=0, Status='exited', ExitCode=1);set_alive(c, False)

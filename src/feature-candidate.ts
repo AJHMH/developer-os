@@ -134,8 +134,9 @@ export function featurePlan(plan: FeaturePlan | undefined): FeatureEvidence {
 export interface CodingPins {
   cliVersion: string;
   cliSha256: string;
-  /** The code-mode host beside the CLI, from the same package. */
-  codeModeHostSha256: string;
+  /** Codex's code-mode host beside the CLI, from the same package. Claude
+   * Code has none (`ClaudeCodingPins`). */
+  codeModeHostSha256?: string;
   policySha256: string;
   bindingSha256: string;
 }
@@ -407,7 +408,7 @@ export function validCodingPins(pins: CodingPins): boolean {
         pins.codeModeHostSha256,
         pins.policySha256,
         pins.bindingSha256,
-      ].every((x) => /^[a-f0-9]{64}$/.test(x)),
+      ].every((x) => typeof x === "string" && /^[a-f0-9]{64}$/.test(x)),
   );
 }
 
