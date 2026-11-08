@@ -157,7 +157,12 @@ The Claude Code guest differs from the Codex guest in these ways:
   guest, matching `claudeEventSummary`. The summary keeps the event's kind,
   session and content-block kinds, and never its text, thinking or tool input
   and output.
-- **Model route:** it refuses a model route until it serves one.
+- **Model route:** a routed turn reaches the host's `MessagesGateway` through
+  the session relay. The relay accepts only `POST /v1/messages` and
+  `POST /v1/messages?beta=true` for the pinned model, under the route's
+  capability and delivery header. The worker gets exactly the route's
+  environment (`claudeCodeRelayEnvironment`), which holds no API key; its
+  capability is checked by digest. Codex's relay keeps its Responses route.
 
 The Codex guest program is unchanged, so its `policySha256` and the Codex
 admission record that pins it still match.

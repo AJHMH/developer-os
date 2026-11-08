@@ -35,9 +35,12 @@ import {
   codingBoundaryProbe,
   codingBoundaryProbeNames,
 } from "./worker-probes.js";
+import { messagesLimits, messagesRelayPaths } from "./messages-gateway.js";
+import { pinnedModelPrices } from "./spend-budget.js";
 import {
   openSessionRelay,
   sessionRelayLimits,
+  sessionRelayProgram,
   sessionRelaySource,
   type SessionGateway,
   type SessionRelay,
@@ -60,6 +63,11 @@ const digest = (value: string | Buffer) =>
 
 /** The parts of the coding guest program that differ by coding agent. */
 interface GuestParts {
+  createRouteEnv: string;
+  routeEnvCheck: string;
+  relaySource: string;
+  relayModel: string;
+  relayGapMs: number;
   hostPin: string;
   retainedHome: string;
   mount: string;
@@ -79,6 +87,12 @@ interface GuestParts {
 /** The coding guest program's Codex parts: its text before Claude Code
  * (ADR 0008), so its digest, and every admission that pins it, is unchanged. */
 const codexGuestParts: GuestParts = {
+  createRouteEnv: String.raw`*(['--env','${modelRouteVariable}='+route['capability']] if route else [])`,
+  routeEnvCheck: String.raw`  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
+  env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}`,
+  relaySource: sessionRelaySource,
+  relayModel: gatewayModel,
+  relayGapMs: sessionRelayLimits.responseGapMs,
   hostPin: String.raw`
  provisioned(hostSource,R['codeModeHostSha256'])
 `,
@@ -253,7 +267,7 @@ def snapshot():
 
 import fcntl,uuid,base64,re,time,shutil
 # The session relay (src/session-relay.ts), part of this program's pin.
-RELAY=base64.b64decode('${Buffer.from(sessionRelaySource).toString("base64")}').decode()
+RELAY=base64.b64decode('${Buffer.from(g.relaySource).toString("base64")}').decode()
 
 def directory(path):
  os.makedirs(path,mode=0o700,exist_ok=True)
@@ -365,8 +379,7 @@ def effective(c,live):
  # A routed session adds exactly its relay capability, checked by digest.
  route=record.get('admission',{}).get('modelRoute')
  if route:
-  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
-  env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}
+${g.routeEnvCheck}
  if hc.get('Privileged') or hc.get('VolumesFrom') or hc.get('PortBindings') or hc.get('Devices') or hc.get('CapAdd'): fail()
  if hc.get('NetworkMode')!='none' or hc.get('PidMode')!='private' or hc.get('IpcMode')!='private' or not hc.get('ReadonlyRootfs'): fail()
  if c['Config']['User']!='65534:65534' or env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no': fail()
@@ -606,7 +619,7 @@ ${g.hostCopy}   for path,data,executable in inputs:
    save(root+'/seccomp.json',profile)
    reserve(True)
    # Bootstrap waits before any candidate-controlled Codex input is executed.
-   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session',${g.createEnv},*(['--env','${modelRouteVariable}='+route['capability']] if route else []),'--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate',${g.createMounts},R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
+   pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session',${g.createEnv},${g.createRouteEnv},'--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate',${g.createMounts},R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
    effective(container(),False)
    record['phase']='prepared';save(recordPath,record)
   elif R['action']=='stop':
@@ -728,7 +741,7 @@ ${g.launchHost}    effective(container(),False)
     try:
      record['relay']=dict(pid=relayProcess.pid,start=started(relayProcess.pid),capabilitySha256=route['capabilitySha256']);save(recordPath,record)
      if not record['relay']['start']: fail()
-     relayProcess.stdin.write((json.dumps(dict(port=${modelRoutePort},netns='/proc/'+str(c['State']['Pid'])+'/ns/net',deliveryId=route['deliveryId'],capability=R['capability'],model='${gatewayModel}',requestBytes=${sessionRelayLimits.requestBytes},responseGapMs=${sessionRelayLimits.responseGapMs}))+'\n').encode());relayProcess.stdin.flush()
+     relayProcess.stdin.write((json.dumps(dict(port=${modelRoutePort},netns='/proc/'+str(c['State']['Pid'])+'/ns/net',deliveryId=route['deliveryId'],capability=R['capability'],model='${g.relayModel}',requestBytes=${sessionRelayLimits.requestBytes},responseGapMs=${g.relayGapMs}))+'\n').encode());relayProcess.stdin.flush()
      if not select.select([relayProcess.stdout],[],[],15)[0]: fail()
      ready=json.loads(relayProcess.stdout.readline(4097))
      if not isinstance(ready,dict) or set(ready)!={'ready','port','pid'} or ready['ready'] is not True or ready['port']!=${modelRoutePort} or type(ready['pid']) is not int: fail()
@@ -899,9 +912,23 @@ const management = guestProgram(codexGuestParts);
 const claudeCli = hostTargets.darwin.claudeCode;
 /** The coding guest program's Claude Code parts (ADR 0008). Claude Code is one
  * binary with no code-mode host, keeps its sessions in CLAUDE_CONFIG_DIR, and
- * reaches a model only through a route, which this guest refuses until it
- * serves one. Only a summary of its stream leaves the guest. */
+ * reaches a model only through a route: the session relay, on the Messages
+ * paths, to the host's MessagesGateway. Only a summary of its stream leaves
+ * the guest. */
 const claudeGuestParts: GuestParts = {
+  // The route reaches Claude Code only through its environment
+  // (claudeCodeRelayEnvironment in src/messages-gateway.ts).
+  createRouteEnv: String.raw`*([x for k,v in route_env(route).items() for x in ['--env',k+'='+v]] if route else [])`,
+  // The capability is checked by digest; the rest must be exactly the route's.
+  routeEnvCheck: String.raw`  if h(env.get('ANTHROPIC_AUTH_TOKEN','').encode())!=route['capabilitySha256']: fail()
+  routed=route_env(dict(route,capability=env['ANTHROPIC_AUTH_TOKEN']))
+  if any(env.get(k)!=v for k,v in routed.items()): fail()
+  env={k:v for k,v in env.items() if k not in routed}`,
+  relaySource: sessionRelayProgram(
+    `self.path not in ${JSON.stringify(messagesRelayPaths)}`,
+  ),
+  relayModel: pinnedModelPrices.model,
+  relayGapMs: messagesLimits.requestMs + 5000,
   hostPin: "\n",
   retainedHome: String.raw`def retained_home(path):
  # Require existing private state; never synthesize a missing session home.
@@ -937,10 +964,13 @@ const claudeGuestParts: GuestParts = {
 `,
   mount: "/claude",
   locked: String.raw`# The locked argv before the prompt (claudeCodeArgv in src/coding-agent.ts).
-# This guest serves no model route yet, so a routed launch is refused.
+# A route changes only the environment, never the argv.
 def locked(thread,route):
- if route: fail()
  return ${JSON.stringify(claudeCodeArgv(undefined))}+(['--resume',thread] if thread else [])
+# The route's environment for Claude Code, without the base environment
+# (claudeCodeRelayEnvironment in src/messages-gateway.ts).
+def route_env(route):
+ return {'ANTHROPIC_BASE_URL':'http://127.0.0.1:${modelRoutePort}','ANTHROPIC_AUTH_TOKEN':route['capability'],'ANTHROPIC_CUSTOM_HEADERS':'X-AIOS-Delivery: '+route['deliveryId'],'ANTHROPIC_MODEL':'${pinnedModelPrices.model}'}
 `,
   env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','HOSTNAME':'aios-coding'}`,
   mounts: String.raw` wanted={'/workspace':(work,True),'/session':(home,True),'/claude':(binary,False)}
@@ -1029,7 +1059,8 @@ export const codexGuest: NativeCodingGuest = Object.freeze({
   argv: lockedCodingArgv,
   branch: /^codex\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
 });
-/** Claude Code's guest (ADR 0008). It serves no model route yet. */
+/** Claude Code's guest (ADR 0008). A routed turn reaches the host's
+ * MessagesGateway through the session relay. */
 export const claudeGuest: NativeCodingGuest = Object.freeze({
   provider: "claude",
   program: claudeManagement,
@@ -1038,10 +1069,8 @@ export const claudeGuest: NativeCodingGuest = Object.freeze({
   pins: (host: { platform: string; arch: string }) => ({
     cliSha256: claudeCodePin(host.platform, host.arch)!.sha256,
   }),
-  argv: (threadId: string | undefined, route: ModelRoute | undefined) => {
-    if (route) throw Error("Unsupported native coding launch");
-    return claudeCodeArgv(threadId);
-  },
+  // A route reaches Claude Code through its environment, not its argv.
+  argv: (threadId: string | undefined) => claudeCodeArgv(threadId),
   branch: /^(?:aios|codex)\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
 });
 

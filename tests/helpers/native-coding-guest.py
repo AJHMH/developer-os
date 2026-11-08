@@ -202,7 +202,8 @@ def run(args, **kwargs):
                 if value == '--volume':
                     src, dest, opts = args[i+1].split(':')
                     mounts.append({'Type': 'bind', 'Source': src, 'Destination': dest, 'RW': 'rw' in opts.split(','), 'Propagation': 'rprivate'})
-                elif value == '--env': env.append(args[i+1] + ('0' if state.get('routeEnvDrift') and args[i+1].startswith('AIOS_MODEL_ROUTE=') else ''))
+                # A drifted route variable: Codex's capability, or the named Claude Code one.
+                elif value == '--env': env.append(args[i+1] + ('0' if state.get('routeEnvDrift') and args[i+1].startswith(state['routeEnvDrift'] + '=' if isinstance(state['routeEnvDrift'], str) else 'AIOS_MODEL_ROUTE=') else ''))
                 elif value == '--label':
                     key, val = args[i+1].split('=',1); labels[key] = val
             if state.get('dropHostMount'): mounts = [m for m in mounts if m['Destination'] != '/codex-code-mode-host']
