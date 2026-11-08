@@ -10,8 +10,11 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import {
+  type ClaudeCodingPins,
   type CodingPins,
+  claudeCodingPinFields,
   codingPinFields,
+  validClaudeCodingPins,
   validCodingPins,
 } from "./feature-candidate.js";
 import {
@@ -20,6 +23,9 @@ import {
 } from "./private-storage.js";
 
 const scope = "aios-native-coding-admission-v1";
+/** Claude Code turns have their own scope, so no Codex-era record admits
+ * them, and a Claude record never admits a Codex turn. */
+export const claudeCodingAdmissionScope = "aios-claude-coding-admission-v1";
 
 /** An owner-written, per-host record that admits one live transport at
  * exactly these pins. Editing or removing the file, or any pin change, revokes
@@ -157,6 +163,24 @@ export function ownerCodingAdmission(
       label: "coding",
       fields: codingPinFields,
       valid: validCodingPins,
+    },
+    options,
+  );
+}
+
+/** Owner coding admission for Claude Code turns: the Claude pin shape under
+ * its own scope. */
+export function ownerClaudeCodingAdmission(
+  path: string,
+  options: { clock?: () => number } = {},
+): OwnerAdmission<ClaudeCodingPins> {
+  return ownerAdmission(
+    path,
+    {
+      scope: claudeCodingAdmissionScope,
+      label: "coding",
+      fields: claudeCodingPinFields,
+      valid: validClaudeCodingPins,
     },
     options,
   );

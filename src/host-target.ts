@@ -18,6 +18,19 @@ export const hostTargets = {
       "64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0",
     nativeCodexSha256:
       "12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de",
+    /** The Claude Code CLI the coding guest runs (ADR 0008): the native
+     * binary from the official per-platform package for the guest, which is
+     * musl Linux on arm64. `integrity` is the registry's tarball digest;
+     * `sha256` is the `claude` binary inside it. */
+    claudeCode: {
+      package: "@anthropic-ai/claude-code-linux-arm64-musl",
+      version: "2.1.311",
+      integrity:
+        "sha512-ymSGc6vv0QCcVQZCC2JG03P/upLraox+iXAG1DfnUU1OZBCIR9QncxINBEp6QgnKbqywwR2/ic3GD8hAz0Tiow==",
+      binary: "claude",
+      sha256:
+        "172150e3f9ea07e8e2e2e29862d7d9a25f5c234d8e909e4063df237665bf09b9",
+    },
     commandMs: 30_000,
     managementMs: 90_000,
     guestCommandSeconds: 30,
@@ -114,6 +127,13 @@ export function codeModeHostSha256(
   arch: string,
 ): string | undefined {
   return hostTarget(platform, arch)?.codeModeHostSha256;
+}
+/** The pinned Claude Code CLI for this host's guest, if it has one. */
+export function claudeCodePin(
+  platform: string,
+  arch: string,
+): HostTarget["claudeCode"] | undefined {
+  return hostTarget(platform, arch)?.claudeCode;
 }
 export const qualificationCheckNames = [
   "hostBinding",

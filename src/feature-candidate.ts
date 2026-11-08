@@ -139,6 +139,14 @@ export interface CodingPins {
   policySha256: string;
   bindingSha256: string;
 }
+/** The pins a Claude Code turn runs at (ADR 0008). There is no code-mode
+ * host: the CLI is one binary. */
+export interface ClaudeCodingPins {
+  cliVersion: string;
+  cliSha256: string;
+  policySha256: string;
+  bindingSha256: string;
+}
 export interface CodingSession {
   operationId: string;
   fence: number;
@@ -371,6 +379,22 @@ export const codingPinFields = Object.freeze([
   "policySha256",
   "bindingSha256",
 ] as const);
+export const claudeCodingPinFields = Object.freeze([
+  "cliVersion",
+  "cliSha256",
+  "policySha256",
+  "bindingSha256",
+] as const);
+export function validClaudeCodingPins(pins: ClaudeCodingPins): boolean {
+  return Boolean(
+    pins &&
+      typeof pins.cliVersion === "string" &&
+      /^\d+\.\d+\.\d+$/.test(pins.cliVersion) &&
+      [pins.cliSha256, pins.policySha256, pins.bindingSha256].every(
+        (x) => typeof x === "string" && /^[a-f0-9]{64}$/.test(x),
+      ),
+  );
+}
 /** While a turn streams, a record read this recently still admits it. */
 const admissionStreamMaxAgeMs = 1000;
 
