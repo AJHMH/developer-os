@@ -153,10 +153,7 @@ function validInventory(
       o.branches.length > 10000
     )
       return false;
-    const path = (s: string) =>
-      process.platform === "win32"
-        ? realpathSync.native(s).toLowerCase()
-        : realpathSync.native(s);
+    const path = (s: string) => realpathSync.native(s);
     if (path(o.checkout) !== path(t.checkout)) return false;
     const keys = new Set<string>();
     for (const f of o.branches) {

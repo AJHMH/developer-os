@@ -173,12 +173,11 @@ import {
   hostControlsVersion,
   type HostControlsEvidence,
   type HostControlsRuntime,
-} from "./windows-controls.js";
+} from "./host-controls.js";
 import {
-  macosWorkerQualificationReport,
-  windowsWorkerQualificationReport,
+  workerQualificationReport,
   type HostWorkerQualificationReport,
-} from "./windows-qualification.js";
+} from "./host-qualification.js";
 import { admitFiles } from "./workspace.js";
 export type {
   WorkerAdapter,
@@ -255,7 +254,7 @@ export interface CoordinationOptions {
   featurePlanner?: FeaturePlanner;
   featureRuntime?: FeatureRuntime;
   clock?: () => number;
-  windowsControls?: HostControlsRuntime;
+  hostControls?: HostControlsRuntime;
   synthetic?: SyntheticTaskRuntime;
   offline?: OfflineCanaryRuntime;
   online?: OnlineAccessRuntime;
@@ -322,7 +321,7 @@ export interface Delivery {
   qualification?: WorkerQualification;
   offlineCanary?: OfflineCanaryEvidence;
   syntheticTask?: SyntheticTaskEvidence;
-  windowsControls?: HostControlsEvidence;
+  hostControls?: HostControlsEvidence;
   onlineAccess?: OnlineAccessEvidence;
   onlineRuns?: OnlineAccessEvidence[];
   onlinePlan?: PreparedOnline;
@@ -565,11 +564,7 @@ export class DeliveryController {
 
   /** Read a version-bound qualification snapshot without running probes. */
   qualificationReport(id: string): HostWorkerQualificationReport {
-    const delivery = this.status(id);
-    return (delivery.qualification?.intendedPlatform ??
-      delivery.qualification?.offlineAdmission?.binding?.platform) === "darwin"
-      ? macosWorkerQualificationReport(delivery)
-      : windowsWorkerQualificationReport(delivery);
+    return workerQualificationReport(this.status(id));
   }
 
   list(): { deliveries: Delivery[] } {
@@ -3795,36 +3790,20 @@ export class DeliveryController {
         throw new DeliveryError(
           "Delivery authority changed during qualification.",
         );
-      const intendedPlatform =
-        this.coordination.worker?.qualificationPlatform ??
-        snapshot.qualification?.intendedPlatform;
-      if (intendedPlatform) qualification.intendedPlatform = intendedPlatform;
-      else delete qualification.intendedPlatform;
       delivery.qualification = qualification;
       projectSubscriptionDecision(delivery, this.stateDirectory);
     });
   }
 
-  async qualifyWindowsControls(id: string): Promise<Delivery> {
-    return this.qualifyControls(id, "win32");
-  }
-
   async qualifyMacosControls(id: string): Promise<Delivery> {
-    return this.qualifyControls(id, "darwin");
-  }
-
-  private async qualifyControls(
-    id: string,
-    platform: "win32" | "darwin",
-  ): Promise<Delivery> {
-    const runtime = this.coordination.windowsControls;
+    const runtime = this.coordination.hostControls;
     if (!runtime || runtime.version !== hostControlsVersion)
       throw new DeliveryError("A trusted host controls runtime is required.");
     const before = await this.qualify(id);
     if (
       !before.ownership.held ||
       before.phase !== "blocked" ||
-      before.qualification?.offlineAdmission?.binding?.platform !== platform ||
+      before.qualification?.offlineAdmission?.binding?.platform !== "darwin" ||
       !before.qualification.offlineAdmission.allowed ||
       before.qualification.mode !== runtime.mode
     )
@@ -3873,7 +3852,7 @@ export class DeliveryController {
         d.phase !== "blocked"
       )
         throw new DeliveryError("Host controls authority changed.");
-      d.windowsControls = structuredClone(evidence);
+      d.hostControls = structuredClone(evidence);
     });
   }
 

@@ -530,8 +530,8 @@ function privateState(directory) {
   if (
     !s.isDirectory() ||
     s.isSymbolicLink() ||
-    (process.platform !== "win32" &&
-      ((s.mode & 0o077) !== 0 || s.uid !== process.getuid()))
+    (s.mode & 0o077) !== 0 ||
+    s.uid !== process.getuid()
   )
     throw Error("The state directory must be private");
   return realpathSync(directory);

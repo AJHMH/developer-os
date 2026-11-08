@@ -74,10 +74,8 @@ export function inspectSubscriptionAuth(
   try {
     if (
       !/^[a-f0-9]{64}$/.test(accountId) ||
-      !(
-        (adapters.platform === "win32" && adapters.arch === "x64") ||
-        (adapters.platform === "darwin" && adapters.arch === "arm64")
-      )
+      adapters.platform !== "darwin" ||
+      adapters.arch !== "arm64"
     )
       return denied;
     const host = adapters.registration(directory, repository, authority);

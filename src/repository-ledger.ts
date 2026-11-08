@@ -67,7 +67,7 @@ export function repositoryIdentity(
 ): string {
   return onboarding?.canonicalRepository
     ? `github:${onboarding.canonicalRepository.name.toLowerCase()}`
-    : `path:${process.platform === "win32" ? repository.toLowerCase() : repository}`;
+    : `path:${repository}`;
 }
 
 export interface OwnershipTransaction {

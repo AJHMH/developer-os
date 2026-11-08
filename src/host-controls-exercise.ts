@@ -11,7 +11,7 @@ import {
   hostControlsVersion,
   type HostControlsEvidence,
   type HostControlsRuntime,
-} from "./windows-controls.js";
+} from "./host-controls.js";
 const crash = String.raw`
 let text='';for await(const chunk of process.stdin)text+=chunk;
 const r=JSON.parse(text);
@@ -99,7 +99,7 @@ export class NativeHostControls implements HostControlsRuntime {
       });
     const contender = c.start({
       repository: delivery.repository,
-      request: "Fixed Windows competing-owner probe",
+      request: "Fixed competing-owner probe",
     });
     if (
       contender.ownership.held ||
@@ -131,16 +131,10 @@ export class NativeHostControls implements HostControlsRuntime {
       ["--input-type=module", "-e", crash],
       {
         cwd: podmanMachine(n.machine).cwd,
-        windowsHide: true,
         stdio: ["pipe", "pipe", "ignore"],
         env: {
-          ...(process.platform === "darwin"
-            ? { HOME: podmanMachine(n.machine).env.HOME }
-            : {}),
-          SystemRoot: process.env.SystemRoot,
-          PATH: process.env.SystemRoot
-            ? process.env.SystemRoot + "/System32"
-            : "/usr/bin:/bin",
+          HOME: podmanMachine(n.machine).env.HOME,
+          PATH: "/usr/bin:/bin",
         },
       },
     );
@@ -245,5 +239,3 @@ export class NativeHostControls implements HostControlsRuntime {
     };
   }
 }
-
-export { NativeHostControls as NativeWindowsControls };

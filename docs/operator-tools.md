@@ -7,14 +7,13 @@ tooling on a trusted host. Neither tool grants workers credentials or authority.
 
 ## Investigation ledger
 
-Use one private external state directory per investigation. On POSIX it must be
-owned by the operator and mode 0700; records are ordinary single-link mode-0600
-files. State inside the source repository is refused. Native Windows state access refuses before creating files until ACL-backed
-protection is implemented; use a qualified POSIX trusted host.
+Use one private external state directory per investigation. It must be owned by
+the operator and mode 0700; records are ordinary single-link mode-0600 files.
+State inside the source repository is refused.
 
 ```sh
-node scripts/investigation-ledger.mjs init --repo "$PWD" --state-dir "$LEDGER_DIR" --scope windows-git-timeout --minutes 60 --cycles 3
-node scripts/investigation-ledger.mjs begin --repo "$PWD" --state-dir "$LEDGER_DIR" --scope windows-git-timeout --operation attempt-1 --repair true
+node scripts/investigation-ledger.mjs init --repo "$PWD" --state-dir "$LEDGER_DIR" --scope git-timeout --minutes 60 --cycles 3
+node scripts/investigation-ledger.mjs begin --repo "$PWD" --state-dir "$LEDGER_DIR" --scope git-timeout --operation attempt-1 --repair true
 node scripts/investigation-ledger.mjs checkpoint --repo "$PWD" --state-dir "$LEDGER_DIR" --operation attempt-1 --active-ms 60000
 node scripts/investigation-ledger.mjs end --repo "$PWD" --state-dir "$LEDGER_DIR" --operation attempt-1 --active-ms 30000
 node scripts/investigation-ledger.mjs status --repo "$PWD" --state-dir "$LEDGER_DIR"
@@ -56,8 +55,7 @@ manually removing that lock. Automatic stale-lock stealing is intentionally abse
 This route uses GitHub's platform signing: the configured App bot authors the
 commit and PR; GitHub/web-flow is the verified committer. It does not claim a bot
 committer or replace the product's separate local-signing/App-port contract.
-POSIX host adoption is supported; native Windows publication refuses before key
-loading. The pilot defaults to the existing Software Factory App and installation.
+The pilot defaults to the existing Software Factory App and installation.
 Explicit `--bot`, `--app-id` and `--installation-id` may select another authorized
 installation, but every observed identity must match the prepared proposal.
 
@@ -110,7 +108,7 @@ independent. Neither tool approves, merges, reruns checks or supplies flake waiv
 A routed coding turn needs the delivery's protected mediation decision record.
 `scripts/record-mediation-decision.mjs` writes it from one fixed-worker
 inference through the host-only subscription gateway (ADR 0002), on the
-delivery's macOS or Windows host. It needs the fixed worker's qualification of
+owner host. It needs the fixed worker's qualification of
 that delivery first (`qualify --adversarial` with the fixed worker's pins).
 
 Set `STATE_DIR`, `DELIVERY_ID`, `MACHINE`, `WORKER_POLICY` (the fixed worker's
@@ -174,10 +172,6 @@ executable. The command refuses:
 - a record that isn't this delivery's decision or isn't private;
 - a record already endorsed for another account.
 
-On macOS and Linux it writes the endorsed record to a private temporary file in
-the state directory and renames it over the original, so an interrupted write
-leaves the original record and a re-run is safe. On Windows a new file would
-take the shell's default owner (Administrators when elevated), so it rewrites
-the record in place to keep its owner and access rules. An interrupted Windows
-write leaves an unparsable record, which fails closed. Re-run `qualify`
-afterwards.
+It writes the endorsed record to a private temporary file in the state
+directory and renames it over the original, so an interrupted write leaves the
+original record and a re-run is safe. Re-run `qualify` afterwards.

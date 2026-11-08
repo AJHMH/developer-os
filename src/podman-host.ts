@@ -112,10 +112,6 @@ function observeHost(machine: string): PodmanObservation {
 
 /** Offline prerequisite admission is deliberately distinct from production qualification. */
 export class PodmanHostAdapter implements WorkerAdapter {
-  get qualificationPlatform(): "darwin" | "win32" | undefined {
-    if (this.options.mode === "controlled") return undefined;
-    return process.platform === "darwin" ? "darwin" : "win32";
-  }
   constructor(private readonly options: Options) {
     if (
       options.native &&
@@ -295,10 +291,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
           )
             throw Error();
           report.adversarial = {
-            scope:
-              binding.platform === "darwin"
-                ? "synthetic-macos-controls"
-                : "synthetic-windows-controls",
+            scope: "synthetic-macos-controls",
             challengeId: observed.challengeId,
             probeVersion: observed.probeVersion,
             escapeAttempts: observed.escapeAttempts,
@@ -419,7 +412,7 @@ export class PodmanHostAdapter implements WorkerAdapter {
     } catch {
       report.offlineAdmission.refusal = stage;
       report.blockers.push(
-        "Offline admission refused: provide an external ordinary pin policy and fresh matching supported Windows Hyper-V or macOS AppleHV bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify.",
+        "Offline admission refused: provide an external ordinary pin policy and fresh matching supported macOS AppleHV bindings, image provenance, dedicated VM and enforced restricted worker configuration; unknown observations cannot qualify.",
       );
     }
     return report;

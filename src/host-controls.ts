@@ -44,11 +44,3 @@ export interface HostControlsRuntime {
   readonly mode: "live" | "controlled";
   qualify(delivery: Delivery): Promise<HostControlsEvidence>;
 }
-
-// Legacy evidence names remain valid; the implementation is target-neutral.
-export {
-  hostControlNames as windowsControlNames,
-  hostControlsVersion as windowsControlsVersion,
-};
-export type WindowsControlsEvidence = HostControlsEvidence;
-export type WindowsControlsRuntime = HostControlsRuntime;

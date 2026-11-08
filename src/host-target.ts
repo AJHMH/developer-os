@@ -1,36 +1,12 @@
 /** Supported host facts. Native bindings use kernel releases; product versions
  * require an explicit domain when inspecting host metadata. */
 export const hostTargets = {
-  win32: {
-    platform: "win32",
-    arch: "x64",
-    provider: "hyperv",
-    guestArch: "amd64",
-    displayName: "Windows",
-    minimumBuild: 22000,
-    minimumKernelMajor: 0,
-    minimumProductMajor: 0,
-    imageReference: "ostree-unverified-registry:quay.io/podman/machine-os:6.0",
-    offlineTemplate:
-      "docker.io/library/alpine@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764",
-    codexWorkerSha256:
-      "9a820c17865fa825d04db416818679a9d63bd72e50835c396f496e5684626c9c",
-    // The same official package's bin/codex-code-mode-host (ADR 0002 amendment).
-    codeModeHostSha256:
-      "e87096087c02aa6ab90a5a85031659665aa0bf3ee20c07ca0b8ab701c83fcd5b",
-    nativeCodexSha256:
-      "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
-    commandMs: 10_000,
-    managementMs: 30_000,
-    guestCommandSeconds: 15,
-  },
   darwin: {
     platform: "darwin",
     arch: "arm64",
     provider: "applehv",
     guestArch: "arm64",
     displayName: "macOS",
-    minimumBuild: 0,
     minimumKernelMajor: 23,
     minimumProductMajor: 14,
     imageReference: "ostree-unverified-registry:quay.io/podman/machine-os:6.1",
@@ -48,18 +24,20 @@ export const hostTargets = {
   },
 } as const;
 export type HostPlatform = keyof typeof hostTargets;
+
+/** ADR 0007: the owner's Mac is the only owner host. */
+export const ownerHostRefusal =
+  "The delivery controller runs only on macOS (darwin); this host is not supported.";
+export function supportsOwnerHost(platform: unknown): boolean {
+  return platform === "darwin";
+}
 export type HostTarget = (typeof hostTargets)[HostPlatform];
 
 export function hostTarget(
   platform: unknown,
   arch?: unknown,
 ): HostTarget | undefined {
-  const target =
-    platform === "win32"
-      ? hostTargets.win32
-      : platform === "darwin"
-        ? hostTargets.darwin
-        : undefined;
+  const target = platform === "darwin" ? hostTargets.darwin : undefined;
   return target && (arch === undefined || arch === target.arch)
     ? target
     : undefined;
@@ -71,11 +49,6 @@ export function supportsHostOS(
   domain: "kernel" | "product" = "kernel",
 ): boolean {
   if (typeof version !== "string") return false;
-  if (target.platform === "win32")
-    return (
-      /^10\.0\.\d+$/.test(version) &&
-      Number(version.split(".")[2]) >= target.minimumBuild
-    );
   return (
     (domain === "kernel"
       ? /^\d+\.\d+\.\d+$/.test(version)

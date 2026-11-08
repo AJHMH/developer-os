@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // CI: a PR that moves an admitted guest digest must say so in its "Pin impact"
-// section, naming the new digest, because the owner has to re-pin both hosts.
+// section, naming the new digest, because the owner has to re-pin the Mac.
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -23,7 +23,7 @@ export function pinImpactProblems(baseDoc, headDoc, body) {
     .filter((guest) => !section.includes(head[guest]))
     .map(
       (guest) =>
-        `This PR moves the ${guest} guest digest. Add a "## Pin impact" section naming ${head[guest]} and the re-pin it needs on both hosts.`,
+        `This PR moves the ${guest} guest digest. Add a "## Pin impact" section naming ${head[guest]} and the re-pin it needs on the Mac.`,
     );
 }
 

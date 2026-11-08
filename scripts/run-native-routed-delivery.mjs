@@ -576,7 +576,7 @@ function scriptRunner() {
       const child = spawn(
         process.execPath,
         [fileURLToPath(new URL(`./${name}.mjs`, import.meta.url)), ...args],
-        { stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
+        { stdio: ["ignore", "pipe", "pipe"] },
       );
       const out = [],
         err = [];

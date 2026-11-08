@@ -13,7 +13,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ownWindowsPaths } from "./windows-owner.mjs";
 
 const hash = (v) => createHash("sha256").update(v).digest("hex");
 const macosNative =
@@ -38,14 +37,10 @@ export async function syntheticMediation({
     "../dist/subscription-gateway.js"
   );
   const { modelRelayVersion } = await import("../dist/model-relay.js");
-  const { initializeWindowsAuthDirectory } = await import(
-    "../dist/windows-auth-store.js"
-  );
   const nativeVersion = hash(
     readFileSync(new URL("../dist/podman-native.js", import.meta.url)),
   );
   const owner = realpathSync(mkdtempSync(join(tmpdir(), "aios-mediation-")));
-  if (process.platform === "win32") initializeWindowsAuthDirectory(owner);
   const policy = join(owner, "pins.json"),
     registration = join(owner, "registration.json");
   writeFileSync(policy, "synthetic independent pins", { mode: 0o600 });
@@ -115,7 +110,6 @@ export async function syntheticMediation({
       }),
       { mode: 0o600 },
     );
-    ownWindowsPaths([state, policy, registration, recordPath, consumed]);
   };
   write();
   return {

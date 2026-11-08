@@ -41,6 +41,6 @@ not reset usage or silently restart the worker.
 not successful main checks, synchronization, cleanup or completed delivery.
 Ticket 12 now implements controlled main-check verification; synchronization and
 cleanup remain tickets 13–14. Native production delivery qualification remains open:
-Windows and macOS credentials, protected conditional GitHub effects, race handling,
+macOS credentials, protected conditional GitHub effects, race handling,
 complete trusted observations, read-only reconciliation and isolation require
 observed qualification. Controlled tests are not live readiness evidence.

@@ -13,10 +13,6 @@ import { pathContains } from "./path-containment.js";
 import { assertPrivateAuthStorage } from "./private-storage.js";
 import { redact } from "./redaction.js";
 import { validHostRegistration } from "./subscription-account.js";
-import {
-  initializeWindowsAuthDirectory,
-  windowsAuthStore,
-} from "./windows-auth-store.js";
 export {
   assertOwnerControlledStorage,
   assertPrivateAuthStorage,
@@ -66,10 +62,7 @@ export function prepareSubscriptionAuth(
       inside(target, state)
     )
       throw Error();
-    const newDirectory = !existsSync(target);
     mkdirSync(target, { recursive: true, mode: 0o700 });
-    if (newDirectory && process.platform === "win32")
-      initializeWindowsAuthDirectory(target);
     if (
       lstatSync(target).isSymbolicLink() ||
       !lstatSync(target).isDirectory() ||
@@ -98,14 +91,11 @@ export function prepareSubscriptionAuth(
         agentName: "Developer OS",
       };
       const serialized = JSON.stringify(registration, null, 2) + "\n";
-      if (process.platform === "win32")
-        windowsAuthStore(target).createRegistration(serialized);
-      else
-        writeFileSync(path, serialized, {
-          flag: "wx",
-          mode: 0o600,
-          flush: true,
-        });
+      writeFileSync(path, serialized, {
+        flag: "wx",
+        mode: 0o600,
+        flush: true,
+      });
     }
     return {
       status: "prepared",
