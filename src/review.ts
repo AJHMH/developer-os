@@ -1,4 +1,10 @@
 import { randomUUID } from "node:crypto";
+import {
+  classifyChange,
+  type ChangeGateContract,
+  type ChangeGateEvidence,
+  type ChangeGateObservation,
+} from "./change-gate.js";
 import type { Delivery } from "./controller.js";
 import type { PublicationEvidence } from "./publication.js";
 import { repairFindings } from "./repair.js";
@@ -46,7 +52,16 @@ export interface ReviewObservation {
     state: "accepted" | "absent";
     quiescent?: boolean;
   }[];
+  /** The head's complete diff against the base revision, established by the
+   * trusted integration (ADR 0005). Absent means the head is treated as
+   * gated, so only owner approval can authorize it. */
+  changes?: Omit<ChangeGateObservation, "head">;
 }
+/** What authorizes merge of one head: the owner's exact-head approval, or the
+ * change gate classifying the head as ungated (ADR 0005). */
+export type ReviewApproval =
+  | { kind?: "owner"; reviewId: number; head: string; owner: string }
+  | { kind: "ungated"; head: string; contractSha256: string };
 export interface ReviewResolution {
   operationId: string;
   threadId: string;
@@ -64,7 +79,10 @@ export interface ReviewRun {
   outcome: "waiting" | "approved" | "blocked" | "unavailable" | "repairing";
   threads: ReviewThread[];
   reviews: OwnerReview[];
-  approval?: { reviewId: number; head: string; owner: string };
+  approval?: ReviewApproval;
+  /** The change gate's classification of this head, from the latest
+   * observation. */
+  gate?: ChangeGateEvidence;
   repair?: { threads: { id: string; digest: string }[]; findings: string[] };
   resolutions: ReviewResolution[];
 }
@@ -98,6 +116,8 @@ export interface ReviewHost {
     publication: PublicationEvidence;
     criteriaSha256: string;
     checksPassed: boolean;
+    /** The repository's change gate rules (ADR 0005). */
+    changeGate: ChangeGateContract;
   };
   observe<T>(promise: Promise<T>): Promise<T | undefined>;
   now(): number;
@@ -119,6 +139,7 @@ function project(
   p: PublicationEvidence,
   criteria: string,
   now: number,
+  contract: ChangeGateContract,
 ) {
   if (
     !o ||
@@ -219,19 +240,30 @@ function project(
     )
     .sort((a, b) => a.submittedAt - b.submittedAt || a.id - b.id)
     .at(-1);
-  const approved =
+  // Without a trusted diff the head is gated; a malformed one throws.
+  const gate =
+    o.changes === undefined
+      ? undefined
+      : classifyChange({ ...o.changes, head: o.head }, contract);
+  const clear =
+    !o.requiredChanges &&
+    threads.every((t) => t.resolved) &&
+    !(owner?.head === p.commit && owner.state === "CHANGES_REQUESTED");
+  const ownerApproved =
     owner?.type === "User" &&
     owner.head === p.commit &&
     owner.state === "APPROVED" &&
-    !o.requiredChanges &&
-    threads.every((t) => t.resolved);
-  return {
-    reviews,
-    threads,
-    approval: approved
-      ? { reviewId: owner!.id, head: p.commit!, owner: p.approver }
-      : undefined,
-  };
+    clear;
+  const approval: ReviewApproval | undefined = ownerApproved
+    ? { reviewId: owner!.id, head: p.commit!, owner: p.approver }
+    : gate && !gate.gated && clear
+      ? {
+          kind: "ungated",
+          head: p.commit!,
+          contractSha256: gate.contractSha256,
+        }
+      : undefined;
+  return { reviews, threads, gate, approval };
 }
 export class ReviewCoordinator {
   constructor(
@@ -285,6 +317,7 @@ export class ReviewCoordinator {
       run.activeObservation = observationId;
       run.outcome = "waiting";
       delete run.approval;
+      delete run.gate;
       if (!["paused", "cancelled"].includes(d.phase))
         d.phase = "waiting-review";
     });
@@ -313,11 +346,19 @@ export class ReviewCoordinator {
         return;
       delete run.activeObservation;
       delete run.approval;
+      delete run.gate;
       try {
         const end = this.host.now();
         if (!integer(end) || end < now) throw Error("Unavailable clock");
-        const result = project(response!, p, input.criteriaSha256, end);
+        const result = project(
+          response!,
+          p,
+          input.criteriaSha256,
+          end,
+          input.changeGate,
+        );
         run.observedAt = end;
+        if (result.gate) run.gate = result.gate;
         run.threads = result.threads;
         run.reviews = result.reviews;
         for (const effect of run.resolutions) {
@@ -366,8 +407,12 @@ export class ReviewCoordinator {
               : "blocked";
       d.blocker.nextAction =
         run.outcome === "approved"
-          ? "Owner approved this head; revalidate all gates in the separate conditional merge phase."
-          : "Wait for current-head owner GitHub approval or resolve review findings; no approval deadline or repeated reminders.";
+          ? run.approval?.kind === "ungated"
+            ? "The change gate classified this head as ungated; revalidate all gates in the separate conditional merge phase."
+            : "Owner approved this head; revalidate all gates in the separate conditional merge phase."
+          : run.gate?.gated
+            ? `Gated change (${[...run.gate.destructive, ...run.gate.wideImpact].join("; ")}): wait for current-head owner GitHub approval or resolve review findings.`
+            : "Wait for current-head owner GitHub approval or resolve review findings; no approval deadline or repeated reminders.";
     });
   }
   async resolve(threadId: string): Promise<Delivery> {

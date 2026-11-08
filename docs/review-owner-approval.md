@@ -24,6 +24,26 @@ block the gate. Future timestamps are rejected. Comments and pending reviews do
 not replace a submitted decisive review. Raw review bodies, extra provider fields
 and errors are not retained; bounded identifiers and digests preserve provenance.
 
+## Change gate (ADR 0005)
+
+Owner approval is required only for a **gated change**. The trusted port also
+reports the head's complete diff against its base revision (`changes`). The
+controller classifies it with the repository's change gate contract (default
+until onboarding declares one: 20 files, 600 lines, `.github/**` and
+`**/CODEOWNERS` as controller authority). The run records the classification
+as `gate`.
+
+- **Ungated head:** authorized for merge as `approval.kind: "ungated"`, without
+  any owner review, once trusted checks pass. Requested changes, an
+  unresolved conversation, an owner `CHANGES_REQUESTED` review on the head, and
+  any uncertain resolution still block it.
+- **Gated head:** the destructive and wide-impact reasons appear in the next
+  action, and only the owner's exact-head approval authorizes it, as above.
+- **No diff from the port:** the head is gated. A malformed diff makes the
+  observation unavailable. Neither is ever treated as ungated.
+- **New head:** every observation classifies the current head afresh, so a
+  push can turn an ungated head gated.
+
 Every explicit review command refreshes checks and performs bounded foreground
 observations. Status reads are passive; there is no background polling or reminder
 loop. Approval waiting has no elapsed-time deadline and consumes no repair budget.
