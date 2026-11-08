@@ -113,6 +113,37 @@ The owner coding admission record then needs re-approval. The new pin
 `codeModeHostSha256` is part of the record, and the coding guest program,
 and with it `policySha256`, changed.
 
+## Provisioning the Claude Code CLI
+
+Claude Code replaces Codex as the coding agent (ADR 0008). The coding guest
+runs the native `claude` binary from the official per-platform package for the
+guest, which is musl Linux on arm64. The binary links only musl's libc, which
+the Alpine offline template provides. The pin is `claudeCode` in
+`src/host-target.ts`:
+
+| Package                                              | Registry integrity                                                                                  | `claude` SHA-256                                                   |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `@anthropic-ai/claude-code-linux-arm64-musl@2.1.311` | `sha512-ymSGc6vv0QCcVQZCC2JG03P/upLraox+iXAG1DfnUU1OZBCIR9QncxINBEp6QgnKbqywwR2/ic3GD8hAz0Tiow==` | `172150e3f9ea07e8e2e2e29862d7d9a25f5c234d8e909e4063df237665bf09b9` |
+
+No guest reads this file yet; the Claude Code guest (#216) will, and it
+will refuse unless the file is in VM management storage, private to the guest
+user, and matches the pin. Run the block in one terminal, in order, with the
+VM running. `npm pack` checks the registry integrity as it downloads, and
+`--ignore-scripts` runs nothing from the package. The last command prints the
+guest's hash, which must match the table.
+
+```sh
+D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @anthropic-ai/claude-code-linux-arm64-musl@2.1.311 && tar -xzf anthropic-ai-claude-code-linux-arm64-musl-2.1.311.tgz && shasum -a 256 package/claude
+/opt/podman/bin/podman machine cp package/claude aios-macos-noshare:/var/home/core/.local/state/aios-offline-v1/claude-2.1.311
+/opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/claude-2.1.311 && sha256sum ~/.local/state/aios-offline-v1/claude-2.1.311'
+```
+
+Claude Code turns are admitted by their own owner record, with scope
+`aios-claude-coding-admission-v1` and pins `cliVersion`, `cliSha256`,
+`policySha256` and `bindingSha256`. There is no code-mode host pin. A
+Codex-era coding admission record never admits a Claude Code turn, and the
+owner writes the new record once the guest program is final.
+
 ## Running it
 
 Both owner records must name their workers' fresh pins. If either does not, the
