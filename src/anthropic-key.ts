@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, scryptSync } from "node:crypto";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CredentialVault } from "./credential-vault.js";
@@ -44,8 +44,14 @@ export function validAnthropicApiKey(value: unknown): value is string {
   );
 }
 
+/** A deliberately slow, fixed-salt derivation: the fingerprint sits in the
+ * non-secret account record, so it must not make guesses at the key cheap. */
 export function anthropicKeyFingerprint(apiKey: string): string {
-  return createHash("sha256").update(apiKey).digest("hex");
+  return scryptSync(apiKey, "developer-os/anthropic-key-fingerprint/v1", 32, {
+    N: 2 ** 14,
+    r: 8,
+    p: 1,
+  }).toString("hex");
 }
 
 export function anthropicAccountId(

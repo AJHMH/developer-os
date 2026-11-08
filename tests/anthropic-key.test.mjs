@@ -1,6 +1,7 @@
 import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -28,10 +29,11 @@ import {
 } from "../dist/anthropic-key.js";
 
 const hostId = "urn:uuid:01234567-89ab-cdef-0123-456789abcdef";
-const key = ["sk", "ant", "api03", "synthetic-key-canary-0123456789"].join("-");
-const other = ["sk", "ant", "api03", "another-synthetic-canary-98765"].join(
-  "-",
-);
+// Fresh synthetic keys each run, so the source carries no key-shaped value.
+const synthetic = (tier = "api03") =>
+  `sk-ant-${tier}-` + randomBytes(24).toString("base64url");
+const key = synthetic(),
+  other = synthetic();
 const organizationId = "org-synthetic-1234";
 
 function directory(t, registration = true) {
@@ -128,8 +130,8 @@ test("malformed and admin keys are refused before any request or write", async (
   for (const bad of [
     "",
     "not-a-key",
-    ["sk", "ant", "admin01", "synthetic-key-canary-0123456789"].join("-"),
-    ["sk", "ant", "api03", "short"].join("-"),
+    synthetic("admin01"),
+    "sk-ant-api03-short",
     key + " trailing",
   ]) {
     const d = directory(t),
