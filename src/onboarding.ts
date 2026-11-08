@@ -6,6 +6,12 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { pathContains } from "./path-containment.js";
 import { redact } from "./redaction.js";
 import { readOwnerRecord } from "./coding-admission.js";
+import {
+  changeGateContractSha256,
+  defaultChangeGateContract,
+  validChangeGateContract,
+  type ChangeGateContract,
+} from "./change-gate.js";
 
 export const prerequisites = {
   repositoryIdentity:
@@ -16,7 +22,7 @@ export const prerequisites = {
   app: "Verify installation repository access and Factory App PR authorship identity.",
   approver: "Verify the owner is the sole eligible human approver.",
   protections:
-    "Verify effective protections and required checks with trusted publishers.",
+    "Verify effective protections and required checks with trusted publishers: force pushes blocked, signed commits required, and no approving review required for every pull request, since the controller's change gate decides which heads need the owner (ADR 0005).",
   signing:
     "Demonstrate local signature validity and GitHub verification for the same published commit and identity.",
   publication:
@@ -34,6 +40,8 @@ interface OwnerPolicy {
   publicationLogin: string;
   requiredChecks: string[];
   validation: string[];
+  /** The repository's change gate rules (ADR 0005); absent means the default. */
+  changeGate?: ChangeGateContract;
 }
 interface Signature {
   commit: string;
@@ -51,6 +59,13 @@ export interface OnboardingObservation {
   appRepositoryAccess?: boolean;
   eligibleApprovers?: string[];
   protectionsEnforced?: boolean;
+  /** Force pushes to the default branch are refused. */
+  forcePushBlocked?: boolean;
+  /** Commits to the default branch must be signed. */
+  signedCommitsRequired?: boolean;
+  /** Branch protection demands an approving review on every pull request,
+   * which would block ungated merges the change gate authorizes. */
+  everyPullRequestReviewRequired?: boolean;
   requiredChecks?: string[];
   trustedCheckPublishers?: boolean;
   publicationLogin?: string;
@@ -77,6 +92,9 @@ const attestable = [
   "appRepositoryAccess",
   "eligibleApprovers",
   "protectionsEnforced",
+  "forcePushBlocked",
+  "signedCommitsRequired",
+  "everyPullRequestReviewRequired",
   "requiredChecks",
   "trustedCheckPublishers",
   "publicationLogin",
@@ -163,6 +181,8 @@ export interface OnboardingReport {
   ready: boolean;
   checkedAt: string;
   policy?: { source: string; sha256: string; factoryCommit: string };
+  /** The change gate contract the pinned policy declares, or the default. */
+  changeGate?: { sha256: string; declared: boolean };
   canonicalRepository?: { name: string; defaultBranch: string };
   /** The owner attestation the `attested` facts came from. */
   attestation?: {
@@ -245,6 +265,11 @@ function loadPolicy(
     )
       throw new Error("Invalid policy");
   }
+  if (
+    policy.changeGate !== undefined &&
+    !validChangeGateContract(policy.changeGate)
+  )
+    throw new Error("Invalid policy");
   return {
     policy,
     source,
@@ -283,6 +308,12 @@ export function inspectOnboarding(
         source: pinned.source,
         sha256: pinned.sha256,
         factoryCommit: pinned.policy.factoryCommit,
+      };
+      report.changeGate = {
+        sha256: changeGateContractSha256(
+          pinned.policy.changeGate ?? defaultChangeGateContract(),
+        ),
+        declared: pinned.policy.changeGate !== undefined,
       };
       record(
         "policy",
@@ -409,9 +440,19 @@ export function inspectOnboarding(
     );
     evaluate(
       "protections",
-      ["protectionsEnforced", "requiredChecks", "trustedCheckPublishers"],
+      [
+        "protectionsEnforced",
+        "forcePushBlocked",
+        "signedCommitsRequired",
+        "everyPullRequestReviewRequired",
+        "requiredChecks",
+        "trustedCheckPublishers",
+      ],
       () =>
         o.protectionsEnforced === true &&
+        o.forcePushBlocked === true &&
+        o.signedCommitsRequired === true &&
+        o.everyPullRequestReviewRequired === false &&
         o.trustedCheckPublishers === true &&
         p.requiredChecks.every((check) => o.requiredChecks?.includes(check)) &&
         o.requiredChecks?.every((check) => p.requiredChecks.includes(check)) ===
@@ -447,4 +488,30 @@ export function inspectOnboarding(
     }));
   report.ready = report.checklist.length === 0;
   return report;
+}
+
+/** The change gate contract in the owner policy at `path`, read at use and
+ * bound to the policy digest pinned at onboarding. A policy without one gets
+ * the default; a changed or invalid policy throws. */
+export function ownerChangeGate(
+  path: string | undefined,
+  expected: string | null | undefined,
+): ChangeGateContract {
+  if (!path || !expected) throw Error("Missing owner policy");
+  const entry = lstatSync(path);
+  if (
+    !entry.isFile() ||
+    entry.isSymbolicLink() ||
+    entry.nlink !== 1 ||
+    entry.size > 65536
+  )
+    throw Error("Unsafe owner policy");
+  const document = readFileSync(path, "utf8");
+  if (createHash("sha256").update(document).digest("hex") !== expected)
+    throw Error("Changed owner policy");
+  const declared = (JSON.parse(document) as OwnerPolicy).changeGate;
+  if (declared === undefined) return defaultChangeGateContract();
+  if (!validChangeGateContract(declared))
+    throw Error("Invalid change gate contract");
+  return declared;
 }

@@ -14,7 +14,6 @@ import {
   type BranchCleanupEvidence,
   type BranchCleanupRuntime,
 } from "./branch-cleanup.js";
-import { defaultChangeGateContract } from "./change-gate.js";
 import {
   MergeCoordinator,
   mergePending,
@@ -88,6 +87,7 @@ import {
   inspectOnboarding,
   type OnboardingOptions,
   type OnboardingReport,
+  ownerChangeGate,
 } from "./onboarding.js";
 import {
   onlinePolicyVersion,
@@ -1278,8 +1278,11 @@ export class DeliveryController {
       publication,
       criteriaSha256: validationCriteria(d.feature!),
       checksPassed,
-      // Each repository declares its own contract at onboarding (#230).
-      changeGate: defaultChangeGateContract(),
+      // The pinned owner policy's contract, or the default (ADR 0005).
+      changeGate: ownerChangeGate(
+        this.onboardingOptions.policyPath,
+        d.authorityPolicySha256,
+      ),
     };
   }
   private reviewCoordinator(id: string) {
