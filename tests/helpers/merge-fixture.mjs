@@ -42,7 +42,10 @@ export async function mergeFixture(t, configurePolicy) {
         remote.baseRevision !== r.baseRevision ||
         !remote.mergeAllowed ||
         !remote.protectionsEnforced ||
-        review.reviews[0].state !== "APPROVED" ||
+        // GitHub's protection: an approving review, unless the repository
+        // relies on the controller's change gate instead (ADR 0005).
+        (f.remoteRequiresReview !== false &&
+          review.reviews[0]?.state !== "APPROVED") ||
         review.requiredChanges ||
         review.threads.some((t) => !t.resolved) ||
         checks.checks.some((c) => c.status !== "success")

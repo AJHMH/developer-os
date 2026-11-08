@@ -14,6 +14,7 @@ import {
   type BranchCleanupEvidence,
   type BranchCleanupRuntime,
 } from "./branch-cleanup.js";
+import { defaultChangeGateContract } from "./change-gate.js";
 import {
   MergeCoordinator,
   mergePending,
@@ -1277,6 +1278,8 @@ export class DeliveryController {
       publication,
       criteriaSha256: validationCriteria(d.feature!),
       checksPassed,
+      // Each repository declares its own contract at onboarding (#230).
+      changeGate: defaultChangeGateContract(),
     };
   }
   private reviewCoordinator(id: string) {

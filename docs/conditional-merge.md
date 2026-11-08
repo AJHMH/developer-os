@@ -1,4 +1,4 @@
-# Conditional owner-approved merge
+# Conditional merge
 
 Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
 
@@ -11,7 +11,12 @@ Merge refreshes trusted check and review observations, then verifies repository,
 PR, head, base revision, owner-policy digest, configured merge identity and
 effective protections. The trusted adapter must support conditional head **and**
 base dispatch and enforce current approval, checks and conversations at the
-remote effect boundary without bypass. A cached green observation alone cannot
+remote effect boundary without bypass. "Current approval" is the review run's
+authorization for the exact head: the owner's approval for a gated change, or
+the change gate's ungated classification (ADR 0005, see
+[review](review-owner-approval.md#change-gate-adr-0005)). A repository that
+relies on the change gate must not also require an approving review in its
+branch protection (onboarding, #230). A cached green observation alone cannot
 supply those guarantees. Unsupported controls block; there is no blind merge
 fallback and no owner-review submission method.
 
