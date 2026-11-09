@@ -69,6 +69,8 @@ interface GuestParts {
   probe: string;
   /** The worker image's exact environment, as \`podman image inspect\` reports it. */
   imageEnv: string;
+  /** True for a container whose entrypoint is not this guest's. */
+  entrypoint: string;
   createRouteEnv: string;
   routeEnvCheck: string;
   relaySource: string;
@@ -95,6 +97,7 @@ interface GuestParts {
 const codexGuestParts: GuestParts = {
   probe: JSON.stringify(codingBoundaryProbe),
   imageEnv: String.raw`['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']`,
+  entrypoint: String.raw`c['Config'].get('Entrypoint') not in [None,[]]`,
   createRouteEnv: String.raw`*(['--env','${modelRouteVariable}='+route['capability']] if route else [])`,
   routeEnvCheck: String.raw`  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
   env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}`,
@@ -381,7 +384,7 @@ bootstrap='while test ! -f /tmp/launch; do sleep 0.1; done; cd /workspace; exec 
 ${g.locked}def valid_route(route):
  return isinstance(route,dict) and sorted(route)==['capability','decisionSha256','deliveryId'] and all(isinstance(v,str) for v in route.values()) and re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}',route['deliveryId']) and re.fullmatch('[a-f0-9]{64}',route['capability']) and re.fullmatch('[a-f0-9]{64}',route['decisionSha256'])
 def effective(c,live):
- if c['Config'].get('Entrypoint') not in [None,[]] or c['Config'].get('Cmd')!=['/bin/sh','-c',bootstrap,'--',*record['argv']]: fail()
+ if ${g.entrypoint} or c['Config'].get('Cmd')!=['/bin/sh','-c',bootstrap,'--',*record['argv']]: fail()
  hc=c['HostConfig'];env=dict(x.split('=',1) for x in c['Config']['Env'])
  expected=${g.env}
  # A routed session adds exactly its relay capability, checked by digest.
@@ -928,6 +931,9 @@ const claudeGuestParts: GuestParts = {
   // The official bash image (claudeCodeTemplate in src/host-target.ts): Claude
   // Code's Bash tool runs only under bash or zsh, which plain Alpine lacks.
   imageEnv: JSON.stringify(claudeCli.imageEnv),
+  // The bash image has its own entrypoint, which --entrypoint= clears: Podman
+  // records that as [""] and runs the command alone. Nothing else is accepted.
+  entrypoint: String.raw`c['Config'].get('Entrypoint')!=['']`,
   // The route reaches Claude Code only through its environment
   // (claudeCodeRelayEnvironment in src/messages-gateway.ts).
   createRouteEnv: String.raw`*([x for k,v in route_env(route).items() for x in ['--env',k+'='+v]] if route else [])`,
