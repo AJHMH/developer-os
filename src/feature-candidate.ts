@@ -175,7 +175,9 @@ export interface CodingSession {
   route?: SessionRoute;
 }
 /** A coding session's route as the host records it (ADR 0002): its delivery
- * and mediation decision. A resume keeps its predecessor's route. */
+ * and the authority it runs under. For Codex that is the mediation decision;
+ * for Claude Code, `decisionSha256` names the delivery's spend budget
+ * (`budgetRouteSha256`, ADR 0008). A resume keeps its predecessor's route. */
 export type SessionRoute = Omit<ModelRoute, "capability">;
 /** The latest usage interruption, unless an owner-approved restart has
  * already dispatched past it. */

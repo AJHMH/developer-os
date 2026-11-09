@@ -510,3 +510,55 @@ test("a lineage passes whether or not Claude Code sends a trailing system messag
   const { report } = await accept({ noTrailingSystem: true });
   assert.equal(report.outcome, passingOutcome, report.error);
 });
+
+test("the coding admission acceptance meters one controller turn on Claude Code", async () => {
+  const { admissionAcceptance } = await import(
+    "../scripts/run-native-coding-admission-acceptance.mjs"
+  );
+  const { transport, effects } = vm();
+  // The live transport contract: every receipt names its exact session and
+  // pins, and a stop is trusted only after an independent census.
+  const exact = (session, receipt) => ({
+    operationId: session.operationId,
+    fence: session.fence,
+    ...receipt,
+    pins: { ...pins },
+  });
+  const live = {
+    ...transport,
+    mode: "live",
+    run: async (request, stdout, gateway) =>
+      exact(request, await transport.run(request, stdout, gateway)),
+    stop: async (session) => exact(session, await transport.stop(session)),
+    observeSession: async (session) =>
+      exact(session, {
+        ...(await transport.observeSession(session)),
+        timers: {
+          lease: { loadState: "not-found", activeState: "inactive" },
+          deadline: { loadState: "not-found", activeState: "inactive" },
+        },
+      }),
+    cleanupSupersededLineage: async (session) => exact(session, { cleaned: 1 }),
+  };
+  const report = await admissionAcceptance(
+    live,
+    { pins: () => ({ ...pins }) },
+    { agent: "claude" },
+  );
+  assert.equal(
+    report.outcome,
+    "observed-offline-admission-acceptance",
+    report.error,
+  );
+  assert.equal(report.agent, "claude");
+  assert.deepEqual(report.synthetic, [
+    "planning",
+    "validation",
+    "onboarding",
+    "model-provider",
+  ]);
+  assert.ok(report.stages.some((s) => s.name === "controller-metered-turn"));
+  assert.ok(report.spend.spent > 0);
+  assert.equal(report.delivery.sessionState, "stopped");
+  assert.deepEqual(effects.slice(0, 1), ["run:start"]);
+});

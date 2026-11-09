@@ -9,6 +9,7 @@ import {
 } from "../dist/coding-admission.js";
 import {
   nativeCodingAuthority,
+  nativeCodingRuntime,
   ownerCodingWorker,
 } from "../dist/native-coding-runtime.js";
 import { claudeGuest, codexGuest } from "../dist/podman-coding.js";
@@ -114,4 +115,19 @@ test("an owner record is read only from an absolute path outside every repositor
       ),
     /never live in a repository/,
   );
+});
+
+test("the CLI's coding runtime runs the agent its owner record names", (t) => {
+  const claude = nativeCodingRuntime(
+    "aios-test",
+    record(t, claudeCodingAdmissionScope, claudePins),
+  );
+  assert.equal(claude.agent.provider, "claude");
+  assert.deepEqual(claude.pins, claudePins);
+  const codex = nativeCodingRuntime(
+    "aios-test",
+    record(t, "aios-native-coding-admission-v1", codexPins),
+  );
+  assert.equal(codex.agent.provider, "codex");
+  assert.deepEqual(codex.pins, codexPins);
 });

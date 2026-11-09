@@ -385,8 +385,9 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     { id: "d", "podman-machine": "aios-test", "coding-admission": "" },
     { id: "d", "coding-minutes": "0" },
     { id: "d", "worker-policy": "/owner/worker-policy.json" },
-    // Routed coding names the owner's auth directory and account together.
+    // A metered turn's auth directory needs the owner's coding record.
     { id: "d", "auth-directory": "/owner/auth" },
+    // Routed coding names the owner's auth directory and account together.
     { id: "d", "auth-account": "a".repeat(64) },
     { id: "d", "auth-directory": "", "auth-account": "a".repeat(64) },
     // A routed turn spends the owner's one-shot approval for this run, on
@@ -422,6 +423,39 @@ test("code-feature takes the owner's coding and validation inputs and its initia
       .error,
     "account",
   );
+});
+
+// ADR 0008: a Claude Code turn names only the auth directory holding the
+// owner's Anthropic key. The spend budget is its authority, so it takes no
+// account, routed-run approval or usage reader.
+test("a metered Claude Code turn takes the auth directory without an account or approval", () => {
+  const values = {
+    id: "d",
+    "owner-policy": "/owner/policy.json",
+    "podman-machine": "aios-test",
+    "coding-admission": "/owner/coding-admission.json",
+    "validation-admission": "/owner/validation-admission.json",
+    "auth-directory": "/owner/auth",
+  };
+  for (const name of ["code-feature", "repair-feature"])
+    assert.equal(
+      validateCliCommand([name], values, Object.keys(values)).name,
+      name,
+    );
+  for (const refused of [
+    { ...values, "coding-admission": undefined },
+    { ...values, "approve-run": "11111111-2222-4333-8444-555555555555" },
+    { ...values, "approve-turns": "1" },
+    { ...values, "codex-executable": "/owner/codex" },
+  ].map((refused) =>
+    Object.fromEntries(
+      Object.entries(refused).filter(([, value]) => value !== undefined),
+    ),
+  ))
+    assert.equal(
+      validateCliCommand(["code-feature"], refused, Object.keys(refused)).error,
+      "arguments",
+    );
 });
 
 // Slice 1 of the Issue 04 plan, routed from the start (D2): repair-feature
@@ -656,6 +690,20 @@ for (const command of ["code-feature", "repair-feature"])
     assert.match(
       JSON.parse(unregistered.stderr).error,
       /owner's host registration is missing or invalid/,
+    );
+    // A metered turn needs the owner's stored Anthropic key (ADR 0008).
+    const unkeyed = cli(
+      "--coding-admission",
+      coding,
+      "--validation-admission",
+      validation,
+      "--auth-directory",
+      auth,
+    );
+    assert.equal(unkeyed.status, 1);
+    assert.match(
+      JSON.parse(unkeyed.stderr).error,
+      /owner's Anthropic key is missing or invalid/,
     );
     // The owner prepares a plan for an existing delivery; its run ID is what
     // the one-shot approval names.
