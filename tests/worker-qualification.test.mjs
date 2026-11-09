@@ -456,8 +456,14 @@ for (const [name, threadId, cleanup] of [
 const { MessagesGateway } = await import("../dist/messages-gateway.js");
 const { claudeCodeArgv } = await import("../dist/coding-agent.js");
 const { claudeCodingPinFields } = await import("../dist/feature-candidate.js");
+const { pinnedModelPrices } = await import("../dist/spend-budget.js");
 const claudeWorker = () =>
-  claudeCoding({ MessagesGateway, claudeCodeArgv, claudeCodingPinFields });
+  claudeCoding({
+    MessagesGateway,
+    claudeCodeArgv,
+    claudeCodingPinFields,
+    model: pinnedModelPrices.model,
+  });
 
 test("a Claude Code qualification runs a routed session with Claude's argv, branch and pins", async () => {
   const worker = claudeWorker();
@@ -494,7 +500,16 @@ test("a Claude Code qualification runs a routed session with Claude's argv, bran
   assert.equal(seen.gateway, seen.route.gateway);
   assert.notEqual(seen.gateway.capability, seen.request.modelRoute.capability);
   assert.equal(seen.released, true);
-  assert.deepEqual(report.coding.routedRequests, { requests: 0, charged: 0 });
+  const { gateway, ...counts } = report.coding.routedRequests;
+  assert.deepEqual(counts, {
+    requests: 0,
+    keepalives: 0,
+    finalAnswered: false,
+    charged: 0,
+  });
+  // The gateway's own counts and refusal names, never request content.
+  assert.equal(gateway.requests, 0);
+  assert.deepEqual(gateway.refusals, {});
 });
 
 test("a Claude Code qualification checks every Claude pin, and only those", async () => {
@@ -515,34 +530,83 @@ test("a Claude Code qualification checks every Claude pin, and only those", asyn
   }
 });
 
-test("the Claude Code stand-in holds each request until released, then answers nothing", async () => {
+test("the Claude Code stand-in answers at once: keep-alives until released, then a final message", async () => {
   const made = claudeWorker().route();
-  const body = JSON.stringify({
-    model: (await import("../dist/spend-budget.js")).pinnedModelPrices.model,
-    messages: [{ role: "user", content: "synthetic" }],
-    max_tokens: 16,
-    stream: true,
+  const ask = async (messages) => {
+    let text = "";
+    for await (const chunk of await made.gateway.respond(
+      made.modelRoute.deliveryId,
+      made.gateway.capability,
+      JSON.stringify({
+        model: pinnedModelPrices.model,
+        messages,
+        max_tokens: 16,
+        stream: true,
+      }),
+    ))
+      text += Buffer.from(chunk).toString();
+    const events = text
+      .split("\n")
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => JSON.parse(line.slice(6)));
+    assert.equal(events[0].message.model, pinnedModelPrices.model);
+    return {
+      block: events.find((e) => e.type === "content_block_start")
+        ?.content_block,
+      input: events.find((e) => e.delta?.type === "input_json_delta")?.delta
+        .partial_json,
+      stop: events.find((e) => e.type === "message_delta").delta.stop_reason,
+    };
+  };
+  const first = await ask([{ role: "user", content: "go" }]);
+  assert.equal(first.block.name, "Bash");
+  assert.deepEqual(JSON.parse(first.input), {
+    command: "sleep 5",
+    description: "Wait",
   });
-  let settled = false;
-  const pending = made.gateway
-    .respond(made.modelRoute.deliveryId, made.gateway.capability, body)
-    .then(
-      async (stream) => {
-        for await (const _ of stream ?? []);
-      },
-      () => {},
-    )
-    .finally(() => (settled = true));
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  assert.equal(settled, false);
-  assert.equal(made.effects.requests, 1);
+  assert.equal(first.stop, "tool_use");
+  const result = (id) => [
+    {
+      role: "user",
+      content: [{ type: "tool_result", tool_use_id: id, content: "" }],
+    },
+  ];
+  const second = await ask(result(first.block.id));
+  assert.equal(second.block.name, "Bash");
   made.release();
-  await pending;
-  assert.equal(settled, true);
-  assert.equal(made.gateway.observation.revoked, true);
+  const last = await ask(result(second.block.id));
+  assert.equal(last.block.type, "text");
+  assert.equal(last.stop, "end_turn");
+  assert.deepEqual(made.effects, {
+    requests: 3,
+    keepalives: 2,
+    finalAnswered: true,
+    charged: 3,
+  });
+  // The turn's own stop revokes the grant, as the transport does.
+  assert.equal(made.gateway.observation.revoked, false);
   // Each route is fresh: its own delivery, capability and key.
   const other = claudeWorker().route();
   assert.notEqual(other.modelRoute.deliveryId, made.modelRoute.deliveryId);
   assert.notEqual(other.modelRoute.capability, made.modelRoute.capability);
-  other.release();
+});
+
+test("a qualification waits on the real clock when it is given no pause", async () => {
+  const { coding, validation } = workers();
+  const original = validation.transport.run;
+  validation.transport.run = (request) => {
+    request0Tree = request.treeSha256;
+    return original(request);
+  };
+  const started = Date.now();
+  const report = await workerQualification({
+    coding,
+    validation,
+    imageSha256: image,
+    probes: { script: boundaryProbe, names: boundaryProbeNames },
+  });
+  assert.equal(report.outcome, passingOutcome);
+  // The coding session is not yet recorded on the first look, so the run
+  // waits a real second before it looks again.
+  assert.ok(Date.now() - started >= 900);
 });

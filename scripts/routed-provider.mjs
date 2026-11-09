@@ -121,7 +121,7 @@ export function fakeProvider(tag, released) {
 /** Server-sent events for one canned Messages response, as Claude Code reads
  * them, for `model`. `blocks` are complete content blocks; each `tool_use`
  * block's input streams as one JSON delta. */
-function messagesEvents(id, model, blocks, stopReason) {
+export function messagesEvents(id, model, blocks, stopReason) {
   const events = [
     {
       type: "message_start",

@@ -31,6 +31,7 @@ import {
 import { arch, platform, release } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freshBuild } from "./fresh-build.mjs";
+import { messagesEvents } from "./routed-provider.mjs";
 
 const usage =
   "Usage: node scripts/run-native-worker-qualification.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <image-id> <new-report.json> --approve-offline-native-run";
@@ -115,22 +116,30 @@ const codexCoding = {
 /** Claude Code's coding worker (ADR 0008). Claude Code reaches a model only
  * through the session relay, so its live session is routed: the relay leads
  * to a real MessagesGateway whose provider is a stand-in on the host. It sends
- * no network request, holds each request until the probe is done and then
- * answers with nothing, and the key it is given is synthetic and generated per
- * run. Its budget is a counter, never the owner's spend budget. */
+ * no network request, and the key it is given is synthetic and generated per
+ * run. It answers every request at once, as a real provider starts to: a
+ * `Bash` `sleep 5` keeps the turn alive until the probe is done, then a final
+ * message ends it. A request held silent instead is cut short on the VM, and
+ * Claude Code's non-streaming retry is refused. Its budget is a counter, never
+ * the owner's spend budget. */
 export function claudeCoding({
   MessagesGateway,
   claudeCodeArgv,
   claudeCodingPinFields,
+  model,
 }) {
   return {
     pinFields: claudeCodingPinFields,
     argv: [...claudeCodeArgv(undefined), prompt],
     branch: "aios/issue04-worker-qualification",
     route() {
-      let release;
-      const released = new Promise((resolve) => (release = resolve));
-      const effects = { requests: 0, charged: 0 };
+      let released = false;
+      const effects = {
+        requests: 0,
+        keepalives: 0,
+        finalAnswered: false,
+        charged: 0,
+      };
       const deliveryId = randomUUID();
       const key = `sk-ant-api03-${randomBytes(24).toString("hex")}`;
       const gateway = new MessagesGateway(
@@ -147,12 +156,28 @@ export function claudeCoding({
           chargeReservation: () => effects.charged++,
           release: () => {},
         },
-        async function* (_key, _body, signal) {
-          effects.requests++;
-          await Promise.race([
-            released,
-            new Promise((resolve) => signal.addEventListener("abort", resolve)),
-          ]);
+        async function* () {
+          const n = effects.requests++;
+          let blocks,
+            stop = "tool_use";
+          if (released) {
+            effects.finalAnswered = true;
+            blocks = [{ type: "text", text: "Done." }];
+            stop = "end_turn";
+          } else {
+            effects.keepalives++;
+            blocks = [
+              {
+                type: "tool_use",
+                id: `toolu_qualification_${n}`,
+                name: "Bash",
+                input: { command: "sleep 5", description: "Wait" },
+              },
+            ];
+          }
+          yield Buffer.from(
+            messagesEvents(`msg_qualification_${n}`, model, blocks, stop),
+          );
         },
       );
       return {
@@ -163,10 +188,7 @@ export function claudeCoding({
         },
         gateway,
         effects,
-        release: () => {
-          release();
-          gateway.revoke("stopped");
-        },
+        release: () => (released = true),
       };
     },
   };
@@ -354,8 +376,12 @@ export async function workerQualification(
         probed = true;
         route?.release();
         end = await running;
-        // Counts only, never request content.
-        if (route) report.coding.routedRequests = { ...route.effects };
+        // Counts and fixed labels only, never request content.
+        if (route)
+          report.coding.routedRequests = {
+            ...route.effects,
+            gateway: route.gateway.observation,
+          };
       }
       check(
         end.ended || runGateRefusal.test(String(end.error?.message)),
@@ -608,6 +634,7 @@ async function main() {
     await import("../dist/feature-candidate.js");
   const { claudeCodeArgv } = await import("../dist/coding-agent.js");
   const { MessagesGateway } = await import("../dist/messages-gateway.js");
+  const { pinnedModelPrices } = await import("../dist/spend-budget.js");
   const { ownerValidationAdmission, PinnedValidationRuntime } = await import(
     "../dist/native-validation.js"
   );
@@ -635,6 +662,7 @@ async function main() {
           MessagesGateway,
           claudeCodeArgv,
           claudeCodingPinFields,
+          model: pinnedModelPrices.model,
         }),
       }
     : {
