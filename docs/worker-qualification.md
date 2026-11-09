@@ -149,8 +149,9 @@ Docker's official bash image, `bash:5.3.15-alpine3.24` (Alpine 3.24.1, built
 `src/host-target.ts`. It keeps busybox, so the boundary probe's tools are
 there, and bash is `/usr/local/bin/bash`, which the worker names in `SHELL`.
 The worker program refuses the image unless its environment is exactly the
-pinned one. It clears the image's own entrypoint, and refuses any container
-that has one.
+pinned one. It creates the container with `--entrypoint=`, which Podman
+records as `[""]` and doesn't run, so the image's own entrypoint never runs
+before the worker's command. It refuses a container with any other entrypoint.
 
 With the VM running, pull it into the VM's rootless Podman by digest, then
 check that it reports that digest and `arm64`:
@@ -172,7 +173,7 @@ owner writes the new record once the guest program is final.
 The Claude Code guest differs from the Codex guest in these ways:
 
 - **Image:** it runs the pinned bash image, not the Alpine template, with
-  `SHELL=/usr/local/bin/bash` and no entrypoint.
+  `SHELL=/usr/local/bin/bash` and its entrypoint cleared.
 - **Mounts:** it mounts only the `claude` binary, read-only, beside the
   workspace and the session home.
 - **Session home:** `CLAUDE_CONFIG_DIR` is the session home. A resume refuses a

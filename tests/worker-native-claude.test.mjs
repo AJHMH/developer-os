@@ -145,6 +145,7 @@ test("an offline Claude Code turn runs the pinned binary and only a summary leav
   assert.ok(create.includes(hostTargets.darwin.claudeCode.template));
   assert.ok(!create.includes(hostTargets.darwin.offlineTemplate));
   assert.ok(create.includes("--entrypoint="));
+  assert.deepEqual(worker.Config.Entrypoint, [""]);
   assert.equal(worker.HostConfig.NetworkMode, "none");
   const collected = await transport.collect({ ...session, state: "stopped" });
   assert.equal(collected.files[0].bytes.toString(), "after\n");
@@ -372,3 +373,15 @@ test("the Claude Code guest runs only the pinned bash image with its exact envir
     0,
   );
 });
+
+for (const entrypoint of [null, [], ["docker-entrypoint.sh"], ["/bin/sh"]])
+  test(`a Claude Code worker whose entrypoint is ${JSON.stringify(entrypoint)} never starts`, async (t) => {
+    // Only the cleared entrypoint, as Podman records --entrypoint=: the bash
+    // image's own entrypoint never runs before the worker's command.
+    const { transport, read } = claudeFixture(t, { entrypoint });
+    await assert.rejects(transport.run(await start(transport), () => {}));
+    assert.equal(
+      read().commands.filter((args) => args[1] === "start").length,
+      0,
+    );
+  });

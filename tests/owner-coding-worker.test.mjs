@@ -86,3 +86,14 @@ test("both guests run under the machine's one coding authority", (t) => {
     );
   }
 });
+
+test("a record in a folder that does not exist is refused, never admitted", () => {
+  const path = join(
+    tmpdir(),
+    "aios-missing-owner-folder",
+    "coding-admission.json",
+  );
+  const worker = ownerCodingWorker("aios-test", path);
+  assert.equal(worker.agent, "codex");
+  assert.throws(() => worker.admission.pins(), /missing or invalid/);
+});

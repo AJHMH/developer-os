@@ -216,7 +216,7 @@ def run(args, **kwargs):
             nextPid = 42 + len(containers())
             if state.get('containerName'): state.setdefault('containers', {})[state['containerName']] = state['container']
             state['containerName'] = request['name']
-            state['container'] = {'Config': {'Cmd': args[args.index(request['template'])+1:], 'Entrypoint': None, 'User': '65534:65534', 'Env': env, 'Labels': labels}, 'HostConfig': {'NetworkMode': 'none', 'PidMode': 'private', 'IpcMode': 'private', 'ReadonlyRootfs': True, 'PidsLimit': 64, 'Memory': 536870912, 'SecurityOpt': [v.split('=',1)[1] for v in args if v.startswith('--security-opt=')], 'RestartPolicy': {'Name': 'no'}}, 'Mounts': mounts, 'State': {'Running': False, 'Pid': 0, 'Status': 'created', 'ExitCode': 0}}
+            state['container'] = {'Config': {'Cmd': args[args.index(request['template'])+1:], 'Entrypoint': state['entrypoint'] if 'entrypoint' in state else ([''] if '--entrypoint=' in args else None), 'User': '65534:65534', 'Env': env, 'Labels': labels}, 'HostConfig': {'NetworkMode': 'none', 'PidMode': 'private', 'IpcMode': 'private', 'ReadonlyRootfs': True, 'PidsLimit': 64, 'Memory': 536870912, 'SecurityOpt': [v.split('=',1)[1] for v in args if v.startswith('--security-opt=')], 'RestartPolicy': {'Name': 'no'}}, 'Mounts': mounts, 'State': {'Running': False, 'Pid': 0, 'Status': 'created', 'ExitCode': 0}}
             state['container'].update(FixturePid=nextPid, FixtureGroup='libpod-'+request['name']+'.scope', FixtureAlive=False)
             if state.get('unsafeNetwork'): state['container']['HostConfig']['NetworkMode'] = 'bridge'
             state.setdefault('containers', {})[request['name']] = state['container']
