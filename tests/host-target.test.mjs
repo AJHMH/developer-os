@@ -87,3 +87,10 @@ test("effective controls require every measured isolation property", () => {
     false,
   );
 });
+
+test("a binding or control set that is not an object is refused", () => {
+  for (const value of [undefined, null, 0, "", "binding", true])
+    assert.equal(validHostBinding(value), false, String(value));
+  for (const value of [undefined, null, 0, "", "controls", true])
+    assert.equal(validEffectiveControls(value), false, String(value));
+});
