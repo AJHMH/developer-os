@@ -22,7 +22,7 @@ const usageAccount = createHash("sha256")
 // A delivery whose protected mediation record still awaits endorsement, and
 // a usage reader reporting the owner's measured subscription.
 async function awaitingEndorsement(t) {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const { recordPath } = await mediatedCoding(f, t, undefined);
   const observation = {
     observedAt: new Date().toISOString(),

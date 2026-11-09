@@ -53,7 +53,7 @@ function reopen(f) {
   return new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     validationRuntime: f.validation,
     clock: () => f.now,
   });
@@ -328,7 +328,7 @@ for (const missing of ["featureRuntime", "validationRuntime"]) {
     const controller = new DeliveryController(f.state, f.options, {
       featurePlanner: f.criteria,
       featureRuntime: f.runtime,
-      subscription: () => f.subscription(),
+      messagesSessions: f.messagesSessions,
       validationRuntime: f.validation,
       clock: () => f.now,
       [missing]: undefined,
@@ -391,31 +391,25 @@ for (const [name, change, restore, refusal] of [
   });
 }
 
-const freshUsage = /Fresh model-only subscription usage authority/;
-for (const [name, observe, refusal] of [
-  [
-    "no usage observation",
-    (f) => (f.subscription = async () => undefined),
-    /same known model-only account/,
-  ],
-  ["low, unapproved usage", (f) => (f.usedPercent = 95), freshUsage],
-  ["exhausted usage", (f) => (f.usedPercent = 100), freshUsage],
-]) {
-  test(`repair with ${name} records nothing and spends no cycle`, async (t) => {
-    const f = await repairFixture(t);
-    const { subscription, usedPercent } = f;
-    const before = f.controller.status(f.delivery.id);
-    observe(f);
-    await assert.rejects(f.controller.repairFeature(f.delivery.id), refusal);
-    // Only the usage observation itself is recorded.
-    const after = reopen(f).status(f.delivery.id);
-    assert.equal(after.repair, undefined);
-    assert.deepEqual(after.feature, before.feature);
-    assert.deepEqual(after.validation, before.validation);
-    Object.assign(f, { subscription, usedPercent });
-    await repairsOnce(f);
-  });
-}
+// ADR 0008: a repair turn's model authority is the spend budget. While a
+// budget interruption is open, repair refuses before recording an attempt.
+test("repair during a budget interruption records nothing and spends no cycle", async (t) => {
+  const f = await repairFixture(t);
+  const id = f.delivery.id;
+  const before = f.controller.status(id);
+  // A request larger than the whole budget is refused, interrupting it.
+  assert.equal(
+    f.controller.admitModelRequest(id, "oversized", 2 ** 50).admitted,
+    false,
+  );
+  await assert.rejects(f.controller.repairFeature(id), /extend-budget/);
+  const after = reopen(f).status(id);
+  assert.equal(after.repair, undefined);
+  assert.deepEqual(after.feature, before.feature);
+  assert.deepEqual(after.validation, before.validation);
+  f.controller.extendBudget(id, 10);
+  await repairsOnce(f);
+});
 
 test("CLI exposes repair and rejects invalid extension options without installing a native runtime", async (t) => {
   const f = await repairFixture(t);

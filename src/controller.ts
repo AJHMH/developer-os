@@ -41,7 +41,7 @@ import {
   candidateRevisionFiles,
   candidateSource,
   codingBinding,
-  codexAgent,
+  claudeAgent,
   featureBranchName,
   featureBranchPattern,
   advanceFeatureBranch,
@@ -2678,7 +2678,7 @@ export class DeliveryController {
     repairId?: string,
   ) {
     const runtime = this.coordination.featureRuntime,
-      agent = runtime?.agent ?? codexAgent,
+      agent = runtime?.agent ?? claudeAgent,
       snapshot = this.status(id),
       feature = snapshot.feature;
     if (
@@ -4785,7 +4785,7 @@ export class DeliveryController {
       !snapshot.ownership.held ||
       !sessionsQuiescent(snapshot) ||
       !this.sameCodingRuntime(snapshot) ||
-      sessionProvider(lineage) !== (runtime!.agent ?? codexAgent).provider ||
+      sessionProvider(lineage) !== (runtime!.agent ?? claudeAgent).provider ||
       !runtime!.cleanupSuperseded
     )
       throw new DeliveryError(

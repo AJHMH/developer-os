@@ -18,7 +18,11 @@ import { ownerCriteriaPlanner } from "../dist/feature-criteria.js";
 import { chmodSync } from "node:fs";
 
 import { fixture, codingFixture } from "./helpers/feature-fixture.mjs";
-import { failedTurn } from "./helpers/coding-turns.mjs";
+import {
+  claudeEvents,
+  failedTurn,
+  firstThread,
+} from "./helpers/coding-turns.mjs";
 
 test("ordinary requests retain observable criteria and verification across restart without approval", async (t) => {
   const f = fixture(t);
@@ -101,14 +105,7 @@ test("exhaustion persists across restart and only an explicit owner extension pe
       operationId: request.operationId,
       fence: request.fence,
       exitCode: 1,
-      events: [
-        {
-          type: "thread.started",
-          thread_id: "11111111-1111-4111-8111-111111111111",
-        },
-        { type: "turn.started" },
-        { type: "turn.failed", error: { message: "synthetic failure" } },
-      ],
+      events: claudeEvents(firstThread, false),
     };
   };
   await planAndValidate(f);
@@ -120,7 +117,7 @@ test("exhaustion persists across restart and only an explicit owner extension pe
   f.controller = new DeliveryController(f.state, f.options, {
     validationRuntime: f.validation,
     featureRuntime: f.runtime,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
   assert.equal(
@@ -137,11 +134,8 @@ test("exhaustion persists across restart and only an explicit owner extension pe
     resumed.feature.extensions.map((e) => e.addedMs),
     [60000],
   );
-  assert.equal(f.runtime.request.argv[1], "resume");
-  assert.ok(
-    f.runtime.request.argv.includes("11111111-1111-4111-8111-111111111111"),
-  );
-  assert.ok(!f.runtime.request.argv.includes("--last"));
+  const argv = f.runtime.request.argv;
+  assert.equal(argv[argv.indexOf("--resume") + 1], firstThread);
 });
 
 test("material ambiguity blocks coding without creating a branch", async (t) => {
@@ -218,7 +212,7 @@ test("coding uses its persisted allowance rather than the short observation dead
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: f.runtime,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
     observationTimeoutMs: 5,
   });
@@ -288,13 +282,10 @@ test("the initial coding allowance is declared at request submission and retaine
   assert.equal(planned.feature.allowanceMs, 1800000);
 });
 
-test("the explicit Codex session survives a worker failure before a terminal result", async (t) => {
+test("the explicit coding session survives a worker failure before a terminal result", async (t) => {
   const f = codingFixture(t);
   f.runtime.execute = async (request) => {
-    request.onEvent({
-      type: "thread.started",
-      thread_id: "11111111-1111-4111-8111-111111111111",
-    });
+    request.onEvent(claudeEvents(firstThread, false)[0]);
     throw Error("synthetic transport failure");
   };
   await planAndValidate(f);
@@ -403,7 +394,7 @@ test("restart with a changed coding binding cannot acknowledge the old worker's 
   const reopened = new DeliveryController(f.state, f.options, {
     validationRuntime: f.validation,
     featureRuntime: changed,
-    subscription: () => f.subscription(Date.now()),
+    messagesSessions: f.messagesSessions,
   });
   const recovered = await reopened.recover(f.delivery.id);
   assert.equal(recovered.feature.session.state, "uncertain");
@@ -462,7 +453,7 @@ test("the pinned coding adapter consumes coalesced CLI JSON and preserves the ex
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -508,7 +499,7 @@ test("the pinned adapter refuses an independently measured executable mismatch b
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -1008,7 +999,7 @@ for (const failure of [
       featurePlanner: f.criteria,
       validationRuntime: f.validation,
       featureRuntime: adapter,
-      subscription: () => f.subscription(),
+      messagesSessions: f.messagesSessions,
       clock: () => f.now,
     });
     await planAndValidate(f);
@@ -1075,7 +1066,7 @@ for (const drift of [
       featurePlanner: f.criteria,
       validationRuntime: f.validation,
       featureRuntime: adapter,
-      subscription: () => f.subscription(),
+      messagesSessions: f.messagesSessions,
       clock: () => f.now,
     });
     await planAndValidate(f);
@@ -1116,7 +1107,7 @@ test("pin inspection cannot replace controller authority to launch paused work",
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -1158,7 +1149,7 @@ test("transport preparation uses owned admitted bytes despite a retained inspect
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -1193,7 +1184,7 @@ test("changed prepared launch refuses effect acceptance after an asynchronous wa
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: adapter,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
   await planAndValidate(f);
@@ -1404,7 +1395,7 @@ test("the CLI's owner inputs carry one offline delivery from start to an admitte
       featurePlanner: ownerCriteriaPlanner(criteriaPath, f.delivery.id),
       featureRuntime: f.runtime,
       validationRuntime: f.validation,
-      subscription: () => f.subscription(),
+      messagesSessions: f.messagesSessions,
       clock: () => f.now,
     },
   );

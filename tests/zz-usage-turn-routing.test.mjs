@@ -7,7 +7,7 @@ import { unlinkSync } from "node:fs";
 import { lockedCodingArgv } from "../dist/feature-candidate.js";
 import { generalSessionLimits } from "../dist/general-session-gateway.js";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
-import { failedTurn } from "./helpers/coding-turns.mjs";
+import { codexFailedTurn as failedTurn } from "./helpers/coding-turns.mjs";
 import {
   authorizedCoding,
   mediatedAccount,

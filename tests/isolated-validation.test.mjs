@@ -49,7 +49,7 @@ function validationFixture(t, configure = () => {}) {
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
-    subscription: () => f.subscription(Date.now()),
+    messagesSessions: f.messagesSessions,
     validationRuntime: f.validation,
   });
   // The changed owner policy belongs to a new request, never silently replaces old authority.

@@ -91,7 +91,7 @@ test("a timeout fences late dispatch and requires proven quiescent absence befor
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
-    subscription: () => f.subscription(Date.now()),
+    messagesSessions: f.messagesSessions,
     validationRuntime: f.validation,
     publicationRuntime: f.runtimePublication,
     observationTimeoutMs: 20,

@@ -51,7 +51,6 @@ enforcement, browser/database disposal, formatting reconciliation, pinned CLI
 compatibility, and real pilot baseline/acceptance evidence. No provider requests or
 native worker execution are authorized by this controlled test receipt.
 
-
 [Bounded repair](bounded-repair.md) now handles failed candidate batches. Once
 repair begins, local revalidation runs through the repair cycle so it cannot bypass
 the persisted allowance. Native and hosted qualification requirements remain open.
@@ -79,6 +78,7 @@ refuses validation before any check runs. The network policy digest is fixed:
 it measures "no network, no registries, no caches".
 
 How each check runs:
+
 - Each local check runs in a fresh container from the owner-loaded image, by
   ID, with no network, a read-only root, a private `/tmp`, all capabilities
   dropped, no new privileges, the derived seccomp profile, user `65534`, and
@@ -92,6 +92,7 @@ How each check runs:
   a failure.
 
 How the tree is bound and measured:
+
 - The transferred files must hash to the manifest the host computed from the
   controller's bytes. They are kept as a pristine input that is never mounted
   and never replaced.
@@ -106,6 +107,7 @@ How the tree is bound and measured:
   inside the user namespace, and a full disk cannot block shutdown.
 
 Limits:
+
 - **Transfer size:** the same as coding. At most 1,000 files, 256 KiB each and
   1 MiB in total; larger trees are refused before any VM effect.
 - **One run at a time:** inspection refuses while any other container runs in
@@ -150,6 +152,7 @@ build it ran: `buildFresh`, `distSha256`, and the check's own
 The offline acceptance validates unchanged main of a synthetic repository
 through the real transport. Its five baseline checks are shell probes that pass
 only when isolation holds:
+
 - the tree is present;
 - there is no network;
 - the root filesystem is read-only;
@@ -178,6 +181,7 @@ inference and never starts the VM.
 ### Remaining
 
 The following remain open:
+
 - disposable browser and database fixtures;
 - hosted checks;
 - native qualification of this executor on the Mac.
@@ -191,6 +195,7 @@ tree unchanged, until a later slice defines declared output paths.
 The controlled dependency phase starts on the host. `src/dependency-cache.ts`
 reads the candidate's `package-lock.json` (version 2 or 3) as data, never
 running anything from it:
+
 - `npmCachePlan(lockfile)` lists every installed package's tarball. Each must
   resolve to an https tarball on `https://registry.npmjs.org` with sha512
   integrity; workspace links, git, file and other-registry sources are
@@ -224,6 +229,7 @@ is missing or refused fails the check unrun; a cache that cannot be fetched
 leaves it `cancelled`.
 
 The transport then, before the attempt's first check:
+
 - uploads the cache in chunks of at most 4 MiB (`cache-put`), each appended
   at its expected offset, each tarball kept only once its bytes match the
   sha512 it is named by, within 2048 tarballs, 64 MiB each and 128 MiB in
@@ -255,6 +261,7 @@ owner-loaded image that contains `npm`.
 acceptance. After the baseline, the controller validates a second synthetic
 repository whose `package-lock.json` pins one small registry package,
 `is-number@7.0.0` (no dependencies, no install scripts):
+
 - `controller-dependency-validation`: the host plans the lockfile, fetches the
   one tarball from `https://registry.npmjs.org` and verifies its sha512; the
   guest installs it offline; each probe check, plus a `dependencies` check

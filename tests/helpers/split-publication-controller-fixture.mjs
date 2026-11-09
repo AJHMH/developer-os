@@ -66,7 +66,7 @@ export async function splitFixture(t) {
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     validationRuntime: f.validation,
     publicationRuntime: runtime,
     clock: () => f.now,

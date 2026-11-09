@@ -2,7 +2,7 @@ import { realpathSync } from "node:fs";
 import { redact } from "./redaction.js";
 import type { CodingAdmission } from "./coding-admission.js";
 import {
-  codexAgent,
+  claudeAgent,
   type CodingAgent,
   type CodingProvider,
 } from "./coding-agent.js";
@@ -822,7 +822,7 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     pins: CodingPins,
     private readonly transport: IsolatedCodingTransport,
     private readonly admission?: CodingAdmission,
-    readonly agent: CodingAgent = codexAgent,
+    readonly agent: CodingAgent = claudeAgent,
   ) {
     this.pins = Object.freeze(structuredClone(pins));
     // Claude Code's pins have no code-mode host (ADR 0008); Codex's must.

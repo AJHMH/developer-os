@@ -11,7 +11,17 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
-import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
+import {
+  PinnedCodingRuntime as PinnedRuntime,
+  codexAgent,
+} from "../dist/feature-candidate.js";
+// Codex's own runtime, which these tests cover until Codex is removed (#222).
+class PinnedCodingRuntime extends PinnedRuntime {
+  constructor(pins, transport, admission, agent = codexAgent) {
+    super(pins, transport, admission, agent);
+  }
+}
+
 import { ownerCodingAdmission } from "../dist/coding-admission.js";
 import {
   nativeCodingAuthority,
@@ -125,7 +135,7 @@ function admittedController(f, runtime) {
 }
 
 test("an owner record naming the exact pins admits a live transport through coding", async (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   const transport = liveTransport(f);
   const runtime = new PinnedCodingRuntime(
@@ -158,7 +168,7 @@ const stoppedObservation = (request) => ({
 });
 
 test("a live stop is trusted only with an independent observation of the exact stopped session", async (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   const session = {
     operationId: "11111111-2222-4333-8444-555555555555",
@@ -228,7 +238,7 @@ test("a live stop is trusted only with an independent observation of the exact s
 });
 
 test("an unobserved live stop leaves the coding session uncertain, blocking release", async (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   const transport = {
     ...liveTransport(f),
@@ -260,7 +270,7 @@ for (const order of [
   ["observed", "unobserved"],
 ])
   test(`a pause racing the turn's own stop ends stopped once either stop is observed (${order.join(", then ")})`, async (t) => {
-    const f = codingFixture(t);
+    const f = codingFixture(t, undefined, { agent: "codex" });
     const record = ownerRecord(t);
     let release;
     const held = new Promise((resolve) => (release = resolve));
@@ -325,7 +335,7 @@ for (const order of [
   });
 
 test("a live transport needs an owner record and a controlled one refuses it", (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   assert.throws(
     () => new PinnedCodingRuntime(pins, liveTransport(f)),
@@ -352,7 +362,7 @@ test("a live transport needs an owner record and a controlled one refuses it", (
 });
 
 test("a record for any other pin refuses the live transport", async (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   for (const field of Object.keys(pins))
     await t.test(field, (t) => {
       const record = ownerRecord(t, {
@@ -375,7 +385,7 @@ test("a record for any other pin refuses the live transport", async (t) => {
 
 // Revoke the record once dispatch has passed, `advanceMs` before the stream.
 async function revokedAfterDispatch(t, advanceMs) {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   let now = Date.parse("2026-10-21T13:00:00.000Z");
   const transport = liveTransport(f, {
@@ -427,7 +437,7 @@ test("a record revoked within the stream's read interval still refuses the resul
 });
 
 test("a record changed to other pins before coding refuses dispatch", async (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   const transport = liveTransport(f);
   f.controller = admittedController(
@@ -560,7 +570,7 @@ test("the admission acceptance drives one controller turn through the admitted t
   const { admissionAcceptance } = await import(
     "../scripts/run-native-coding-admission-acceptance.mjs"
   );
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   const transport = liveTransport(f);
   const persisted = [];
@@ -590,7 +600,9 @@ test("a passing admission acceptance leaves no coding session in the guest", asy
   );
   const guest = guestBackedSessions(t);
   const report = await admissionAcceptance(
-    guest.transport(liveTransport(codingFixture(t))),
+    guest.transport(
+      liveTransport(codingFixture(t, undefined, { agent: "codex" })),
+    ),
     ownerCodingAdmission(ownerRecord(t).path),
   );
   assert.equal(
@@ -606,7 +618,7 @@ test("the admission acceptance stops before coding when the record names other p
   const { admissionAcceptance } = await import(
     "../scripts/run-native-coding-admission-acceptance.mjs"
   );
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t, {
     pins: { ...pins, bindingSha256: "f".repeat(64) },
   });
@@ -625,7 +637,7 @@ test("the admission acceptance stops an unsettled session by its exact identity"
   const { admissionAcceptance } = await import(
     "../scripts/run-native-coding-admission-acceptance.mjs"
   );
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const record = ownerRecord(t);
   // Revoked mid-turn, the controller cannot trust its own stop receipt.
   const transport = liveTransport(f, {

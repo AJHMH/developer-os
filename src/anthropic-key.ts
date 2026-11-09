@@ -3,7 +3,7 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CredentialVault } from "./credential-vault.js";
 import { DeliveryError } from "./errors.js";
-import { hostRegistration } from "./general-sessions.js";
+import { hostRegistration } from "./host-registration.js";
 import { assertPrivateAuthStorage } from "./private-storage.js";
 
 /** ADR 0006: metered model access. The owner's Anthropic API key lives only in

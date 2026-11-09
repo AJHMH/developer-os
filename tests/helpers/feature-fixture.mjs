@@ -14,6 +14,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { DeliveryController } from "../../dist/controller.js";
+import { claudeAgent, codexAgent } from "../../dist/coding-agent.js";
+import { claudeEvents, firstThread } from "./coding-turns.mjs";
 
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-candidate-")));
@@ -65,7 +67,11 @@ function fixture(t) {
   return { root, repository, state, git, criteria, controller, delivery };
 }
 
-function codingFixture(t, configurePolicy = () => {}) {
+/** A controlled coding fixture. Coding runs on Claude Code by default,
+ * metered through a stand-in Messages session (ADR 0008); `agent: "codex"`
+ * keeps the subscription-authorized Codex path its own tests still cover. */
+function codingFixture(t, configurePolicy = () => {}, options = {}) {
+  const codex = options.agent === "codex";
   const f = fixture(t),
     revision = f.git("rev-parse", "HEAD");
   const policyPath = join(f.root, "owner-policy.json");
@@ -104,13 +110,21 @@ function codingFixture(t, configurePolicy = () => {}) {
   f.now = 1000;
   f.runtime = {
     mode: "controlled",
-    pins: {
-      cliSha256: "c".repeat(64),
-      codeModeHostSha256: "b".repeat(64),
-      cliVersion: "0.161.0",
-      policySha256: "d".repeat(64),
-      bindingSha256: "e".repeat(64),
-    },
+    agent: codex ? codexAgent : claudeAgent,
+    pins: codex
+      ? {
+          cliSha256: "c".repeat(64),
+          codeModeHostSha256: "b".repeat(64),
+          cliVersion: "0.161.0",
+          policySha256: "d".repeat(64),
+          bindingSha256: "e".repeat(64),
+        }
+      : {
+          cliSha256: "c".repeat(64),
+          cliVersion: "2.1.311",
+          policySha256: "d".repeat(64),
+          bindingSha256: "e".repeat(64),
+        },
     async execute(request) {
       this.request = request;
       f.now += 50;
@@ -119,17 +133,16 @@ function codingFixture(t, configurePolicy = () => {}) {
         operationId: request.operationId,
         fence: request.fence,
         exitCode: 0,
-        events: [
-          {
-            type: "thread.started",
-            thread_id: "11111111-1111-4111-8111-111111111111",
-          },
-          { type: "turn.started" },
-          {
-            type: "turn.completed",
-            usage: { input_tokens: 1, output_tokens: 1 },
-          },
-        ],
+        events: codex
+          ? [
+              { type: "thread.started", thread_id: firstThread },
+              { type: "turn.started" },
+              {
+                type: "turn.completed",
+                usage: { input_tokens: 1, output_tokens: 1 },
+              },
+            ]
+          : claudeEvents(request.threadId ?? firstThread, true),
       };
     },
     async stop(request) {
@@ -177,10 +190,27 @@ function codingFixture(t, configurePolicy = () => {}) {
     ],
     exhausted: f.usedPercent >= 100,
   });
+  // Each metered turn's stand-in Messages session; a turn that sends a
+  // request through it fails.
+  f.messagesTurns = [];
+  f.messagesSessions = (turn, budget) => {
+    const gateway = {
+      capability: "f".repeat(64),
+      respond: async () => {
+        throw Error("unused");
+      },
+      revoke: (reason) => gateway.revoked.push(reason),
+      revoked: [],
+    };
+    f.messagesTurns.push({ turn, budget, gateway });
+    return gateway;
+  };
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
-    subscription: () => f.subscription(),
+    ...(codex
+      ? { subscription: () => f.subscription() }
+      : { messagesSessions: f.messagesSessions }),
     validationRuntime: f.validation,
     clock: () => f.now,
   });

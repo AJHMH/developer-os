@@ -52,11 +52,12 @@ node dist/cli.js extend-budget --id "${DELIVERY_ID:?}" --dollars 5
 ## Admitted guest programs
 
 Each owner admission record pins its guest program's digest as
-`policySha256`. These are the digests the records on the Mac admit:
+`policySha256`. These are the digests the records on the Mac admit. The coding
+guest is Claude Code's (`claude-coding-admission.json`, ADR 0008):
 
 | Guest      | `policySha256`                                                     |
 | ---------- | ------------------------------------------------------------------ |
-| Coding     | `89f2db6033e05941ec94dbb11e0215a1161d469429b85af47ba8fff5442c6a1c` |
+| Coding     | `0ca38542675e08a9723a0aecc3a9a9f7d4bd949d45645bbb9830aa6f1181dd6b` |
 | Validation | `585cd02cc6a9eff07e8e4f1f16d96719b3f24f40f0f7f57b349a7c0d1927448f` |
 
 `tests/zzz-docs-commands.test.mjs` fails when a guest program

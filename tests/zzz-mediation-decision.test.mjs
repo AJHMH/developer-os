@@ -25,7 +25,7 @@ const hostId = "urn:uuid:" + randomUUID();
 // and no decision record yet: the synthetic stand-in's record is withdrawn,
 // keeping its owner pins and registration for the real record to name.
 async function qualifiedDelivery(t) {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   const id = f.delivery.id;
   const mediation = await syntheticMediation({
     state: f.state,
