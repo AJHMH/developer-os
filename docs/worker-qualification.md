@@ -140,6 +140,29 @@ table.
 /opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/claude-2.1.311 && sha256sum ~/.local/state/aios-offline-v1/claude-2.1.311')
 ```
 
+### Loading the Claude Code worker image
+
+Claude Code's `Bash` tool runs only under bash or zsh, and the Alpine template
+the other workers use has only busybox `sh`. So the Claude Code worker runs
+Docker's official bash image, `bash:5.3.15-alpine3.24` (Alpine 3.24.1, built
+2026-06-16), pinned by its arm64 manifest digest as `claudeCode.template` in
+`src/host-target.ts`. It keeps busybox, so the boundary probe's tools are
+there, and bash is `/usr/local/bin/bash`, which the worker names in `SHELL`.
+The worker program refuses the image unless its environment is exactly the
+pinned one. It clears the image's own entrypoint, and refuses any container
+that has one.
+
+With the VM running, pull it into the VM's rootless Podman by digest, then
+check that it reports that digest and `arm64`:
+
+```sh
+/opt/podman/bin/podman --connection aios-macos-noshare pull docker.io/library/bash@sha256:826e424f395d3d1e10adc155e63f3c69090c5559c5f3914b0d4c9064e767b06a
+/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.RepoDigests}} {{.Architecture}}' docker.io/library/bash@sha256:826e424f395d3d1e10adc155e63f3c69090c5559c5f3914b0d4c9064e767b06a
+```
+
+The Codex and validation workers keep their images, so their records don't
+change.
+
 Claude Code turns are admitted by their own owner record, with scope
 `aios-claude-coding-admission-v1` and pins `cliVersion`, `cliSha256`,
 `policySha256` and `bindingSha256`. There is no code-mode host pin. A
@@ -148,6 +171,8 @@ owner writes the new record once the guest program is final.
 
 The Claude Code guest differs from the Codex guest in these ways:
 
+- **Image:** it runs the pinned bash image, not the Alpine template, with
+  `SHELL=/usr/local/bin/bash` and no entrypoint.
 - **Mounts:** it mounts only the `claude` binary, read-only, beside the
   workspace and the session home.
 - **Session home:** `CLAUDE_CONFIG_DIR` is the session home. A resume refuses a

@@ -30,6 +30,19 @@ export const hostTargets = {
       binary: "claude",
       sha256:
         "172150e3f9ea07e8e2e2e29862d7d9a25f5c234d8e909e4063df237665bf09b9",
+      /** The worker image: Docker's official bash image,
+       * bash:5.3.15-alpine3.24 (Alpine 3.24.1, built 2026-06-16), by its arm64
+       * manifest digest. Claude Code's Bash tool needs bash or zsh; bash is
+       * /usr/local/bin/bash there. */
+      template:
+        "docker.io/library/bash@sha256:826e424f395d3d1e10adc155e63f3c69090c5559c5f3914b0d4c9064e767b06a",
+      /** The image's exact environment, which the guest checks. */
+      imageEnv: Object.freeze([
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "_BASH_VERSION=5.3.15",
+        "_BASH_BASELINE=5.3",
+        "_BASH_LATEST_PATCH=15",
+      ]),
     },
     commandMs: 30_000,
     managementMs: 90_000,
@@ -129,6 +142,13 @@ export function codeModeHostSha256(
   return hostTarget(platform, arch)?.codeModeHostSha256;
 }
 /** The pinned Claude Code CLI for this host's guest, if it has one. */
+/** The Claude Code worker image for a host target, pinned by digest. */
+export function claudeCodeTemplate(
+  platform: string,
+  arch: string,
+): string | undefined {
+  return claudeCodePin(platform, arch)?.template;
+}
 export function claudeCodePin(
   platform: string,
   arch: string,

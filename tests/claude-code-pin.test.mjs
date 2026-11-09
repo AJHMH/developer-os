@@ -3,7 +3,11 @@ import { test } from "node:test";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { claudeCodePin, hostTargets } from "../dist/host-target.js";
+import {
+  claudeCodePin,
+  claudeCodeTemplate,
+  hostTargets,
+} from "../dist/host-target.js";
 import {
   claudeCodingPinFields,
   validClaudeCodingPins,
@@ -31,8 +35,23 @@ test("the Mac target pins the Claude Code binary from the official musl arm64 pa
       "sha512-ymSGc6vv0QCcVQZCC2JG03P/upLraox+iXAG1DfnUU1OZBCIR9QncxINBEp6QgnKbqywwR2/ic3GD8hAz0Tiow==",
     binary: "claude",
     sha256: "172150e3f9ea07e8e2e2e29862d7d9a25f5c234d8e909e4063df237665bf09b9",
+    // Docker's official bash:5.3.15-alpine3.24, its linux/arm64 manifest
+    // digest and its config's exact environment (registry-1.docker.io).
+    template:
+      "docker.io/library/bash@sha256:826e424f395d3d1e10adc155e63f3c69090c5559c5f3914b0d4c9064e767b06a",
+    imageEnv: [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "_BASH_VERSION=5.3.15",
+      "_BASH_BASELINE=5.3",
+      "_BASH_LATEST_PATCH=15",
+    ],
   });
   assert.equal(claudeCodePin("darwin", "arm64"), hostTargets.darwin.claudeCode);
+  assert.equal(
+    claudeCodeTemplate("darwin", "arm64"),
+    hostTargets.darwin.claudeCode.template,
+  );
+  assert.equal(claudeCodeTemplate("darwin", "x64"), undefined);
   assert.equal(claudeCodePin("darwin", "x64"), undefined);
   assert.equal(claudeCodePin("linux", "arm64"), undefined);
 });

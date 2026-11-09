@@ -185,7 +185,12 @@ def run(args, **kwargs):
             if state.get('oversizedObservation') == 'stdout': info['padding'] = 'x' * (8*1024*1024)
             output = json.dumps(info).encode()
         elif action == 'ps': output = json.dumps([{'Names': [name]} for name, value in containers().items() if value['State']['Running']]).encode()
-        elif action == 'image': output = json.dumps([{'RepoDigests': [request['template']], 'Architecture': request['guestArch'], 'Config': {'Env': ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']}}]).encode()
+        elif action == 'image':
+            # Alpine's environment, or the official bash image's (Claude Code).
+            env = ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']
+            if '/library/bash@' in request['template']: env += ['_BASH_VERSION=5.3.15', '_BASH_BASELINE=5.3', '_BASH_LATEST_PATCH=15']
+            if state.get('imageEnvDrift'): env = env + ['EXTRA=1']
+            output = json.dumps([{'RepoDigests': [request['template']], 'Architecture': request['guestArch'], 'Config': {'Env': env}}]).encode()
         elif action == 'create' and state.get('createUnavailable'): code = 1  # external engine refuses creation
         elif action == 'create':
             if state.get('largeDatabase'):

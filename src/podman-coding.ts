@@ -25,6 +25,7 @@ import { redact } from "./redaction.js";
 import { codexWorkerSha256 } from "./podman-native.js";
 import {
   claudeCodePin,
+  claudeCodeTemplate,
   codeModeHostSha256,
   hostTargets,
 } from "./host-target.js";
@@ -66,6 +67,8 @@ const digest = (value: string | Buffer) =>
 /** The parts of the coding guest program that differ by coding agent. */
 interface GuestParts {
   probe: string;
+  /** The worker image's exact environment, as \`podman image inspect\` reports it. */
+  imageEnv: string;
   createRouteEnv: string;
   routeEnvCheck: string;
   relaySource: string;
@@ -91,6 +94,7 @@ interface GuestParts {
  * (ADR 0008), so its digest, and every admission that pins it, is unchanged. */
 const codexGuestParts: GuestParts = {
   probe: JSON.stringify(codingBoundaryProbe),
+  imageEnv: String.raw`['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']`,
   createRouteEnv: String.raw`*(['--env','${modelRouteVariable}='+route['capability']] if route else [])`,
   routeEnvCheck: String.raw`  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
   env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}`,
@@ -259,7 +263,7 @@ def snapshot():
   if c.get('Names')!=[R['name']]: fail()
  imageInfo=obj('image','inspect',R['template'])[0]
  if R['template'] not in imageInfo.get('RepoDigests',[]) or imageInfo.get('Architecture')!=R['guestArch']: fail()
- if imageInfo['Config'].get('Env')!=['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']: fail()
+ if imageInfo['Config'].get('Env')!=${g.imageEnv}: fail()
  binary=os.path.expanduser('~/.local/state/aios-offline-v1/${g.cli}')
  s=ordinary(binary)
  if s.st_mode&0o077: fail()
@@ -921,6 +925,9 @@ const claudeCli = hostTargets.darwin.claudeCode;
  * the guest. */
 const claudeGuestParts: GuestParts = {
   probe: JSON.stringify(claudeCodingBoundaryProbe),
+  // The official bash image (claudeCodeTemplate in src/host-target.ts): Claude
+  // Code's Bash tool runs only under bash or zsh, which plain Alpine lacks.
+  imageEnv: JSON.stringify(claudeCli.imageEnv),
   // The route reaches Claude Code only through its environment
   // (claudeCodeRelayEnvironment in src/messages-gateway.ts).
   createRouteEnv: String.raw`*([x for k,v in route_env(route).items() for x in ['--env',k+'='+v]] if route else [])`,
@@ -979,14 +986,14 @@ def locked(thread,route):
 def route_env(route):
  return {'ANTHROPIC_BASE_URL':'http://127.0.0.1:${modelRoutePort}','ANTHROPIC_AUTH_TOKEN':route['capability'],'ANTHROPIC_CUSTOM_HEADERS':'X-AIOS-Delivery: '+route['deliveryId'],'ANTHROPIC_MODEL':'${pinnedModelPrices.model}'}
 `,
-  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS':'1','HOSTNAME':'aios-coding'}`,
+  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS':'1','SHELL':'/usr/local/bin/bash','HOSTNAME':'aios-coding'}`,
   mounts: String.raw` wanted={'/workspace':(work,True),'/session':(home,True),'/claude':(binary,False)}
  if len(mounts)!=3: fail()`,
   paths: String.raw`binary=operation+'/claude'`,
   // Deliveries begun under Codex keep their codex/feature-<id> branches.
   branch: String.raw`(?:aios|codex)/`,
   hostCopy: "",
-  createEnv: String.raw`'--env','CLAUDE_CONFIG_DIR=/session','--env','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1','--env','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1'`,
+  createEnv: String.raw`'--env','CLAUDE_CONFIG_DIR=/session','--env','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1','--env','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1','--env','SHELL=/usr/local/bin/bash','--entrypoint='`,
   createMounts: String.raw`'--volume',binary+':/claude:ro,Z,rprivate'`,
   copies: "[binary]",
   launchHost: "",
@@ -1055,6 +1062,12 @@ export interface NativeCodingGuest {
   readonly branch: RegExp;
   /** The boundary probe's names, in output order. */
   readonly probeNames: readonly string[];
+  /** The worker image for this host, pinned by digest. */
+  template(host: {
+    offlineTemplate: string;
+    platform: string;
+    arch: string;
+  }): string;
 }
 export const codexGuest: NativeCodingGuest = Object.freeze({
   provider: "codex",
@@ -1068,6 +1081,7 @@ export const codexGuest: NativeCodingGuest = Object.freeze({
   argv: lockedCodingArgv,
   branch: /^codex\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
   probeNames: codingBoundaryProbeNames,
+  template: (host: { offlineTemplate: string }) => host.offlineTemplate,
 });
 /** Claude Code's guest (ADR 0008). A routed turn reaches the host's
  * MessagesGateway through the session relay. */
@@ -1083,6 +1097,8 @@ export const claudeGuest: NativeCodingGuest = Object.freeze({
   argv: (threadId: string | undefined) => claudeCodeArgv(threadId),
   branch: /^(?:aios|codex)\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
   probeNames: claudeCodingBoundaryProbeNames,
+  template: (host: { platform: string; arch: string }) =>
+    claudeCodeTemplate(host.platform, host.arch)!,
 });
 
 /** Native resume names its exact stopped predecessor through
@@ -1159,7 +1175,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       provider: host.provider,
       guestArch: host.guestArch,
       imageReference: host.imageReference,
-      template: host.offlineTemplate,
+      template: this.guest.template(host),
       ...executables,
       ...payload,
     };

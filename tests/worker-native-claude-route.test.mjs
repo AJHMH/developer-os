@@ -200,6 +200,7 @@ test("a routed Claude Code turn reaches the MessagesGateway through the relay, c
       modelRoute.deliveryId,
       modelRoute.capability,
     ),
+    SHELL: "/usr/local/bin/bash",
     HOSTNAME: "aios-coding",
   });
   assert.deepEqual(worker.Config.Cmd.slice(4), [
