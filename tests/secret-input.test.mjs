@@ -8,6 +8,8 @@ function input({ tty }) {
   e.isTTY = tty;
   e.modes = [];
   if (tty) e.setRawMode = (mode) => e.modes.push(mode);
+  e.unrefs = 0;
+  if (tty) e.unref = () => e.unrefs++;
   e.setEncoding = () => {};
   e.pause = () => {};
   e.resume = () => {};
@@ -27,6 +29,8 @@ test("at a terminal the secret is read with echo off and ends at Enter", async (
   assert.equal(await pending, "sk-abc");
   assert.deepEqual(i.modes, [true, false]);
   assert.deepEqual(o.out, ["Key: ", "\n"]);
+  // The terminal no longer holds the process open.
+  assert.equal(i.unrefs, 1);
 });
 
 test("Ctrl-C cancels at a terminal and restores the terminal", async () => {
@@ -35,6 +39,7 @@ test("Ctrl-C cancels at a terminal and restores the terminal", async () => {
   i.emit("data", "sk\u0003");
   await assert.rejects(pending, /Cancelled/);
   assert.deepEqual(i.modes, [true, false]);
+  assert.equal(i.unrefs, 1);
 });
 
 test("piped input is read to its end and trimmed, with no prompt", async () => {

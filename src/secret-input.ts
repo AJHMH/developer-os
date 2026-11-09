@@ -12,6 +12,8 @@ export interface SecretInput {
   removeAllListeners(): unknown;
   pause(): unknown;
   resume(): unknown;
+  /** Lets the process exit with the stream still open (a terminal). */
+  unref?(): unknown;
 }
 export const secretInputLimit = 4096;
 
@@ -30,6 +32,9 @@ export function readSecret(
         output.write("\n");
       }
       input.pause();
+      // A paused terminal stream still holds the event loop open, so the
+      // command would hang after printing its result.
+      input.unref?.();
       if (error) reject(error);
       else if (!value.trim())
         reject(new DeliveryError("No secret was entered; nothing was stored."));

@@ -36,21 +36,21 @@ The admitted candidate records a SHA-256 of its complete manifest, original inpu
 
 ## Owner-run CLI acceptance (ADR 0004)
 
-`scripts/run-native-cli-delivery-acceptance.mjs` runs one offline delivery through the real CLI. Each step is its own `dist/cli.js` process, given only the owner inputs that command names:
+`scripts/run-native-cli-delivery-acceptance.mjs` runs one metered delivery through the real CLI on Claude Code (ADR 0008). Each step is its own `dist/cli.js` process, given only the owner inputs that command names:
 
-1. `start`
+1. `start`, with a $5 spend budget (`--budget-dollars 5`)
 2. `plan-feature`
 3. `validate-baseline` on the owner-admitted validation runtime
-4. `code-feature` on the owner-admitted coding and validation runtimes
+4. `code-feature` on the owner-admitted Claude Code and validation runtimes, with `--auth-directory` naming your stored Anthropic key
 5. `validate-candidate`
 
 The script writes the repository, owner policy, onboarding attestation and criteria file itself. They are synthetic, private and outside every repository, and the report labels them so.
 
-The coding turn is offline. With no model access it never completes, so it proves the delivery mechanics only: a launch that reports a thread, an exact stop, no route and no candidate. `validate-candidate` must refuse, and the host checkout must stay on unchanged `main`. A validated candidate needs a routed live turn, which stays under the owner's one-shot approval (ADR 0002).
+The coding turn is Claude Code's, metered through your Anthropic key against the delivery's spend budget. It sends real, paid model requests, and the gateway refuses any request once the $5 budget can't cover its worst case, so the run spends at most $5. The budget is set above the expected cost because each request first reserves its worst case: Claude Code asks for up to 128,000 output tokens per request, which alone reserves $2.56. The run passes only when the turn stops exactly, is authorized by the budget alone, charges its requests within the budget, and admits a candidate that then passes validation. The host checkout must stay on unchanged `main`, with the feature branch still at the baseline. If the budget interrupts the turn, the run is `blocked` and the report says so; the work stays in the delivery's state.
 
-Before any CLI step, the run reads the VM's fresh coding and validation pins and checks that both admission records name them. If either record is stale, for example after a guest program change, it stops there and prints the fresh pins, so that you can check or rewrite the record. A stale record otherwise refuses the coding turn and leaves its stop unverifiable.
+Before any CLI step, the run reads the VM's fresh coding and validation pins and checks that both admission records name them. The coding record must be your Claude Code record (`claude-coding-admission.json`). If either record is stale, for example after a guest program change, it stops there and prints the fresh pins, so that you can check or rewrite the record. A stale record otherwise refuses the coding turn and leaves its stop unverifiable.
 
-The run reads usage through the pinned `codex` executable, as every coding turn does. It sends no inference and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. A passing run then removes the coding session from the VM by its exact identity; a blocked run keeps it for diagnosis. The CLI's delivery state stays in the printed `state` directory as evidence, and it names a session that can no longer be resumed. Run it from a fresh build of `main`. Usage is read only through the pinned native `codex` 0.161.0 (`nativeCodexSha256` in `src/host-target.ts`): `12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de` from `@openai/codex@0.161.0-darwin-arm64`. Any other executable, such as the Codex app's bundled one, reads as unknown usage, and `code-feature` refuses before launch.
+The run never reads the key itself and never starts the VM. Any open session is stopped by its exact identity before the run ends; if that stop can't be verified, the outcome is `uncertain`. A passing run then removes the coding session from the VM by its exact identity; a blocked run keeps it for diagnosis. The CLI's delivery state stays in the printed `state` directory as evidence, including the delivery's spend ledger. Run it from a fresh build of `main`.
 
 In Terminal:
 
@@ -58,13 +58,26 @@ In Terminal:
 cd ~/Repos/developer-os
 git switch main && git pull --ff-only
 npm ci --ignore-scripts && npm run build
-CODEX="$HOME/.developer-os/ticket4-macos/runtime/codex-0.161.0"
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$CODEX" "$HOME/.developer-os/issue04-cli-delivery-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue04-cli-delivery-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run
 ```
 
-### Native results (1 November 2026)
+### Native results (9 November 2026)
 
-The Mac passed with outcome `observed-offline-cli-delivery-acceptance`, from clean `main` at `84b80d7`:
+The Mac passed with outcome `observed-metered-cli-delivery-acceptance`, from `main` at `13a88c9` with this change applied:
+
+| Host                         | Baseline            | Coding turn                                                                | Candidate           |
+| ---------------------------- | ------------------- | -------------------------------------------------------------------------- | ------------------- |
+| macOS (`aios-macos-noshare`) | 5 of 5 checks, 28 s | Claude Code, stopped exactly, `admitted` in 28 s; 6 requests, $0.069 of $5 | 6 of 6 checks, 33 s |
+
+The budget did not interrupt the turn, and no request was left reserved. The host checkout stayed on unchanged `main`, the feature branch stayed at the baseline, and production stayed disabled. Reaching this pass needed:
+
+- accepting Console personal API keys (`sk-ant-usr-`), which the key check had refused;
+- an auth directory outside the CLI's default state directory (`$HOME/.developer-os-auth`);
+- a budget above Claude Code's first reservation. With a $1 budget the first request, which asks for 128,000 output tokens and so reserves $2.66, was refused before it was sent.
+
+### Native results on Codex (1 November 2026)
+
+Before the move to Claude Code, the offline Codex version of this run passed with outcome `observed-offline-cli-delivery-acceptance`, from clean `main` at `84b80d7`:
 
 | Host                         | Baseline            | Coding turn                                                                | Candidate           |
 | ---------------------------- | ------------------- | -------------------------------------------------------------------------- | ------------------- |
@@ -78,7 +91,7 @@ The turn was not routed and admitted no candidate. The host checkout stayed on u
 - the pinned `codex` for usage (PR 165);
 - a 5-second wait for the usage reader's `codex` to exit (PR 181). Before it, a slow exit meant the read was discarded as `stop`, usage read as unknown and the turn never dispatched.
 
-A validated candidate still needs a routed live turn, which stays under the owner's one-shot approval.
+At the time, a validated candidate needed a routed live Codex turn under the owner's one-shot approval.
 
 ## Owner-run routed live turn
 

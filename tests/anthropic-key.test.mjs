@@ -131,7 +131,10 @@ test("malformed and admin keys are refused before any request or write", async (
     "",
     "not-a-key",
     synthetic("admin01"),
+    synthetic("oat01"),
+    synthetic("usrx"),
     "sk-ant-api03-short",
+    "sk-ant-usr-short",
     key + " trailing",
   ]) {
     const d = directory(t),
@@ -144,13 +147,15 @@ test("malformed and admin keys are refused before any request or write", async (
         vault: () => vault,
         fetch,
       }),
-      /not a standard Anthropic API key/,
+      /not an Anthropic API key/,
     );
     assert.equal(fetch.calls.length, 0);
     assert.equal(vault.writes.length, 0);
     assert.equal(existsSync(join(d, anthropicAccountRecord)), false);
   }
-  assert.equal(validAnthropicApiKey(key), true);
+  // Organization, Console personal and service account keys.
+  for (const tier of ["api03", "usr", "usr01", "svc", "svc01"])
+    assert.equal(validAnthropicApiKey(synthetic(tier)), true, tier);
 });
 
 test("a key Anthropic refuses, or an answer without an organization, stores nothing and never echoes the key", async (t) => {
@@ -326,7 +331,10 @@ test("the account record is refused when tampered with or bound to another host"
 
 test("verification refuses a malformed key without a request", async () => {
   const fetch = fakeFetch();
-  await assert.rejects(verifyAnthropicKey("nope", fetch), /not a standard/);
+  await assert.rejects(
+    verifyAnthropicKey("nope", fetch),
+    /not an Anthropic API key/,
+  );
   assert.equal(fetch.calls.length, 0);
 });
 
@@ -341,7 +349,7 @@ test("the CLI reads the key from standard input and refuses before any network o
     "not-a-key\n",
   );
   assert.equal(bad.status, 1);
-  assert.match(bad.stderr + bad.stdout, /not a standard Anthropic API key/);
+  assert.match(bad.stderr + bad.stdout, /not an Anthropic API key/);
   const missing = directory(t, false);
   const none = run(["store-anthropic-key", "--auth-directory", missing], key);
   assert.equal(none.status, 1);
