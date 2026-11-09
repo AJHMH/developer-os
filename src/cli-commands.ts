@@ -352,18 +352,34 @@ export function validateCliCommand(
     !/^[a-f0-9]{64}$/.test(values["auth-account"])
   )
     return { error: "account" };
+  // A metered Claude Code turn names only the auth directory holding the
+  // owner's Anthropic key (ADR 0008), on the owner-admitted coding runtime.
+  // Its authority is the delivery's spend budget, so it takes no account,
+  // routed-run approval or usage reader.
+  const metered =
+    command.kind === "delivery" &&
+    values["auth-directory"] !== undefined &&
+    values["auth-account"] === undefined;
+  if (
+    metered &&
+    (!values["coding-admission"] ||
+      values["approve-run"] !== undefined ||
+      values["approve-turns"] !== undefined ||
+      values["codex-executable"] !== undefined)
+  )
+    return { error: "arguments" };
   // Routed coding names the owner's auth directory and account together.
   if (
     command.kind === "delivery" &&
-    (values["auth-directory"] !== undefined ||
-      values["auth-account"] !== undefined) &&
-    (!values["auth-directory"] || !values["auth-account"])
+    values["auth-account"] !== undefined &&
+    !values["auth-directory"]
   )
     return { error: "arguments" };
   // A routed turn spends the owner's one-shot approval for its run, on the
   // owner-admitted coding runtime (ADR 0002): 1 or 2 turns, never more.
   if (
     command.kind === "delivery" &&
+    !metered &&
     (values["auth-directory"] !== undefined ||
       values["approve-run"] !== undefined ||
       values["approve-turns"] !== undefined) &&

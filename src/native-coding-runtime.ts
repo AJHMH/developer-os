@@ -6,7 +6,11 @@ import {
   ownerCodingAdmission,
   readOwnerRecord,
 } from "./coding-admission.js";
-import { PinnedCodingRuntime } from "./feature-candidate.js";
+import {
+  PinnedCodingRuntime,
+  claudeAgent,
+  codexAgent,
+} from "./feature-candidate.js";
 import { NativePodmanCodingTransport, claudeGuest } from "./podman-coding.js";
 
 /** The authority a machine's native coding sessions are labelled with; the
@@ -18,7 +22,8 @@ export function nativeCodingAuthority(machine: string): string {
     .digest("hex");
 }
 
-/** The owner-admitted native coding runtime for `machine`. Its pins are the
+/** The owner-admitted native coding runtime for `machine`, on the worker
+ * the owner's record names (`ownerCodingWorker`). Its pins are the
  * owner's record, re-measured against the guest at every effect, so a changed
  * machine still gets its exact-session stop attempted but never trusted.
  * Production delivery stays disabled. */
@@ -26,11 +31,12 @@ export function nativeCodingRuntime(
   machine: string,
   admissionPath: string,
 ): PinnedCodingRuntime {
-  const admission = ownerCodingAdmission(admissionPath);
+  const worker = ownerCodingWorker(machine, admissionPath);
   return new PinnedCodingRuntime(
-    admission.pins(),
-    new NativePodmanCodingTransport(machine, nativeCodingAuthority(machine)),
-    admission,
+    worker.admission.pins(),
+    worker.transport,
+    worker.admission,
+    worker.agent === "claude" ? claudeAgent : codexAgent,
   );
 }
 

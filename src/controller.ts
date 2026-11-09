@@ -51,6 +51,7 @@ import {
   unrestartedInterruption,
   featurePlan,
   validCodingPins,
+  validClaudeCodingPins,
   recordedProvider,
   sessionProvider,
   type CodingResult,
@@ -175,6 +176,11 @@ import {
 } from "./general-session-gateway.js";
 import type { SessionGateway } from "./session-relay.js";
 import {
+  deliveryMessagesBudget,
+  messagesLimits,
+  type MessagesBudget,
+} from "./messages-gateway.js";
+import {
   syntheticSiteInput,
   syntheticSiteOutput,
   syntheticSiteValidator,
@@ -259,6 +265,36 @@ export type GeneralSessionFactory = ((
   turnsRemain?: (deliveryId: string) => boolean;
 };
 
+/** One metered Claude Code turn's Messages session (ADR 0008). */
+export interface MessagesSessionTurn {
+  deliveryId: string;
+  /** The coding operation the turn runs as. */
+  sessionId: string;
+  expiresAt: number;
+}
+/** Opens the host side of a metered Claude Code turn, whose only model
+ * authority is the delivery's spend `budget`. The real factory, holding the
+ * owner's Anthropic key, is `meteredMessagesSessions`. */
+export type MessagesSessionFactory = (
+  turn: MessagesSessionTurn,
+  budget: MessagesBudget,
+) => SessionGateway;
+
+/** The route a metered Claude Code turn records. Its authority is the
+ * delivery's spend budget, not a mediation decision, so the digest names the
+ * delivery's budget: every turn of a delivery shares it, and a resume keeps
+ * it. */
+export function budgetRouteSha256(deliveryId: string): string {
+  return sha256("aios-spend-budget-route-v1:" + deliveryId);
+}
+
+/** Whether a runtime's pins are valid for its own coding agent. */
+function validRuntimePins(runtime: FeatureRuntime): boolean {
+  return runtime.agent?.provider === "claude"
+    ? validClaudeCodingPins(runtime.pins)
+    : validCodingPins(runtime.pins);
+}
+
 export interface CoordinationOptions {
   branchCleanupRuntime?: BranchCleanupRuntime;
   mainSyncRuntime?: MainSyncRuntime;
@@ -282,6 +318,8 @@ export interface CoordinationOptions {
   codingUsagePollMs?: number;
   /** Routes a mediated delivery's coding turns (slice 4a). */
   generalSessions?: GeneralSessionFactory;
+  /** Meters Claude Code coding turns against the spend budget (ADR 0008). */
+  messagesSessions?: MessagesSessionFactory;
 }
 
 export interface Delivery {
@@ -364,8 +402,23 @@ const approvedTurnsSpent =
   "The owner's approved turns are spent; prepare and approve a new routed run before repairing. Production remains disabled.";
 const usageAuthorityRequired =
   "Fresh model-only subscription usage authority is required before coding; exhaustion cannot be overridden.";
+const budgetExtensionRequired =
+  "Coding was interrupted by the spend budget; extend it with extend-budget --id ID --dollars N before coding continues. Work is preserved.";
 const restartRequired =
   "Coding was interrupted by usage; record the owner's restart approval before re-dispatch.";
+
+/** The blocker for a budget interruption (ADR 0008). */
+function budgetBlocker(i: {
+  needed: number;
+  remaining: number;
+}): Delivery["blocker"] {
+  return {
+    code: "DELIVERY_NOT_ENABLED",
+    message: `Budget interruption: the next model request could cost up to ${picodollarsToDollars(i.needed)}, and ${picodollarsToDollars(Math.max(0, i.remaining))} of the spend budget remains. Work is preserved.`,
+    nextAction:
+      "Extend this delivery's spend budget with extend-budget --id ID --dollars N before coding continues.",
+  };
+}
 
 /** The unspent owner approval to restart past the latest interruption. */
 function pendingRestart(feature: FeatureEvidence | undefined) {
@@ -2406,7 +2459,7 @@ export class DeliveryController {
       checks = this.coordination.validationRuntime;
     if (
       coding?.mode !== "controlled" ||
-      !validCodingPins(coding.pins) ||
+      !validRuntimePins(coding) ||
       checks?.mode !== "controlled"
     )
       throw new DeliveryError(
@@ -2633,7 +2686,7 @@ export class DeliveryController {
       snapshot.blocker.code === "UNCERTAIN_SESSION" ||
       !runtime ||
       runtime.mode !== "controlled" ||
-      !validCodingPins(runtime.pins) ||
+      !validRuntimePins(runtime) ||
       !feature ||
       feature.ambiguity ||
       !snapshot.ownership.held ||
@@ -2754,6 +2807,37 @@ export class DeliveryController {
       throw new DeliveryError(
         "Coding pins changed; requalification is required.",
       );
+    // ADR 0008: a Claude Code turn is metered, and the delivery's spend
+    // budget is its only model authority. No subscription usage, usage
+    // approval, mediation decision or restart approval applies to it.
+    const metered = agent.provider === "claude";
+    if (metered) {
+      if (!this.coordination.messagesSessions)
+        throw new DeliveryError(
+          "Claude Code coding needs the owner's stored Anthropic key; supply --auth-directory. Production remains disabled.",
+        );
+      this.settleStaleReservation(id);
+      if (this.status(id).spend?.interruption)
+        throw new DeliveryError(budgetExtensionRequired);
+      const decisionSha256 = budgetRouteSha256(id);
+      return {
+        runtime,
+        agent,
+        snapshot,
+        feature,
+        source,
+        mayMove,
+        input,
+        minutes,
+        validationRuntime,
+        usage: undefined,
+        account: undefined,
+        mediation: undefined,
+        metered,
+        decisionSha256,
+        route: { deliveryId: id, decisionSha256 } satisfies SessionRoute,
+      };
+    }
     // Each coding launch, resume or repair needs fresh model-only usage
     // authority: a low allowance needs owner approval, exhaustion is never
     // overridden, and every approval binds to exactly one operation.
@@ -2826,6 +2910,7 @@ export class DeliveryController {
       usage,
       account,
       mediation,
+      metered,
       decisionSha256,
       route,
     };
@@ -2850,6 +2935,7 @@ export class DeliveryController {
       usage,
       account,
       mediation,
+      metered,
       decisionSha256,
       route,
     } = preflight ?? (await this.codingPreflight(id, options, repairId));
@@ -2947,22 +3033,26 @@ export class DeliveryController {
           by: f.session.operationId,
           session: codingBinding(predecessor!),
         });
-      // Bind fresh authority from exactly this check to this operation; the
-      // gate refuses stale, unapproved or exhausted usage.
-      const bound =
-        delivery.usage?.checkId === usage.checkId &&
-        this.usageGate.bind(delivery.usage, f.session.operationId);
-      if (!bound) throw new DeliveryError(usageAuthorityRequired);
-      delivery.usage = bound;
-      // Bind the owner's restart approval to this re-dispatch; reaching
-      // dispatch spends it, so a refusal before then leaves it usable.
-      if (unrestartedInterruption(f)) {
-        const approval = pendingRestart(f);
-        if (!approval) throw new DeliveryError(restartRequired);
-        approval.operationId = f.session.operationId;
+      // A metered turn's authority is the spend budget, checked at each
+      // model request; nothing is bound to it here.
+      if (!metered) {
+        // Bind fresh authority from exactly this check to this operation;
+        // the gate refuses stale, unapproved or exhausted usage.
+        const bound =
+          delivery.usage?.checkId === usage!.checkId &&
+          this.usageGate.bind(delivery.usage, f.session.operationId);
+        if (!bound) throw new DeliveryError(usageAuthorityRequired);
+        delivery.usage = bound;
+        // Bind the owner's restart approval to this re-dispatch; reaching
+        // dispatch spends it, so a refusal before then leaves it usable.
+        if (unrestartedInterruption(f)) {
+          const approval = pendingRestart(f);
+          if (!approval) throw new DeliveryError(restartRequired);
+          approval.operationId = f.session.operationId;
+        }
+        f.usageAccountId = account;
+        if (mediation) f.mediationUsageAccountId = account;
       }
-      f.usageAccountId = account;
-      if (mediation) f.mediationUsageAccountId = account;
       f.activeCheckpoint = {
         at: (this.coordination.clock ?? Date.now)(),
         runnerId: this.runnerId,
@@ -2983,7 +3073,9 @@ export class DeliveryController {
       pins = JSON.stringify(runtime.pins),
       clock = this.coordination.clock ?? Date.now;
     let result: CodingResult | undefined,
-      completed = false;
+      completed = false,
+      // A metered turn the spend budget refused (ADR 0008).
+      budgetStopped = false;
     const checkpoint = () => {
       const now = clock();
       if (!Number.isSafeInteger(now)) return false;
@@ -2993,6 +3085,8 @@ export class DeliveryController {
       });
       return (
         lapse === undefined &&
+        !budgetStopped &&
+        (!metered || !d.spend?.interruption) &&
         runtime.mode === "controlled" &&
         d.phase === "implementing" &&
         (!repairId || this.repairActive(d, repairId)) &&
@@ -3015,7 +3109,7 @@ export class DeliveryController {
       usage?.remainingPercent !== null &&
       this.usageGate.permits(usage, {
         operationId: session.operationId,
-        accountId: account,
+        accountId: account!,
         dispatchedTurn,
       });
     // Why authority observed now no longer permits this turn, or null while
@@ -3088,8 +3182,10 @@ export class DeliveryController {
       } catch {}
       interrupt(undefined);
     };
+    // A metered turn has no subscription usage to observe: the gateway
+    // admits each model request against the spend budget instead.
     const usageMonitor = setInterval(() => {
-      if (polling) return;
+      if (polling || metered) return;
       polling = true;
       void observedLapse().then((observed) => {
         polling = false;
@@ -3141,12 +3237,43 @@ export class DeliveryController {
       // refusal here stops the session before any turn, so no interruption
       // is recorded and no restart approval is needed.
       if (
-        !usagePermitsTurn((await this.checkUsage(id)).usage, false) ||
+        (metered
+          ? this.status(id).spend?.interruption
+          : !usagePermitsTurn((await this.checkUsage(id)).usage, false)) ||
         !checkpoint()
       )
         throw Error();
       // Opened inside the guarded turn, so a refusal still stops the session.
-      if (route)
+      if (metered) {
+        const ledger = deliveryMessagesBudget(this, id);
+        gateway = this.coordination.messagesSessions!(
+          {
+            deliveryId: id,
+            sessionId: session.operationId,
+            expiresAt:
+              clock() +
+              Math.min(
+                messagesLimits.sessionMs,
+                this.featureBudget(prepared).allowanceMs -
+                  this.featureBudget(prepared).activeMs +
+                  sessionGraceMs,
+              ),
+          },
+          {
+            ...ledger,
+            // A refused request is a budget interruption: the turn stops at
+            // once, its thread resumable after the owner extends the budget.
+            admit: (operationId, reserve) => {
+              const admitted = ledger.admit(operationId, reserve);
+              if (!admitted && monitoring) {
+                budgetStopped = true;
+                interrupt(undefined);
+              }
+              return admitted;
+            },
+          },
+        );
+      } else if (route)
         gateway = this.coordination.generalSessions!(
           {
             deliveryId: id,
@@ -3237,9 +3364,10 @@ export class DeliveryController {
             mayDispatch: () => {
               const permitted =
                 checkpoint() &&
-                this.usageGate.permits(this.status(id).usage, {
-                  operationId: session.operationId,
-                });
+                (metered ||
+                  this.usageGate.permits(this.status(id).usage, {
+                    operationId: session.operationId,
+                  }));
               if (permitted)
                 this.change(id, (delivery) =>
                   reachedDispatch(delivery, session.operationId),
@@ -3287,11 +3415,22 @@ export class DeliveryController {
     let stopped = await this.stopFeature(id, session.operationId);
     // Output is collected only under authority that still holds afterwards;
     // exhaustion is never overridden, and the stopped thread stays resumable.
-    if (!lapse && completed) lapse = (await observedLapse()) ?? undefined;
+    if (!lapse && completed && !metered)
+      lapse = (await observedLapse()) ?? undefined;
     if (lapse)
       stopped = this.change(id, (delivery) =>
         recordInterruption(delivery, session, lapse!),
       );
+    // A budget interruption needs no restart approval: extending the budget
+    // is the owner's authority to continue (ADR 0008). Stopping may have
+    // replaced its blocker, so it is restored.
+    const halted = lapse !== undefined || budgetStopped;
+    if (budgetStopped)
+      stopped = this.change(id, (delivery) => {
+        const interruption = delivery.spend?.interruption;
+        if (interruption && delivery.blocker.code !== "UNCERTAIN_SESSION")
+          delivery.blocker = budgetBlocker(interruption);
+      });
     if (
       stopped.feature?.session?.operationId === session.operationId &&
       needsResumeRecovery(stopped.feature.session)
@@ -3300,7 +3439,7 @@ export class DeliveryController {
     // A lapsed turn's workspace is kept as evidence only, never as a
     // candidate (decision G); a refused collection leaves the interruption.
     if (
-      lapse &&
+      halted &&
       stopped.feature?.session?.operationId === session.operationId &&
       stopped.feature.session.state === "stopped" &&
       stopped.ownership.fence === session.fence &&
@@ -3330,7 +3469,7 @@ export class DeliveryController {
       } catch {}
     if (
       !completed ||
-      lapse ||
+      halted ||
       stopped.feature?.session?.state !== "stopped" ||
       stopped.phase === "paused" ||
       stopped.phase === "cancelled" ||
@@ -3520,15 +3659,26 @@ export class DeliveryController {
         );
       const result = admitRequest(this.ledgerOf(d), operationId, reserve);
       admitted = result.admitted;
-      if (!result.admitted)
-        d.blocker = {
-          code: "DELIVERY_NOT_ENABLED",
-          message: `Budget interruption: the next model request could cost up to ${picodollarsToDollars(result.needed)}, and ${picodollarsToDollars(Math.max(0, result.remaining))} of the spend budget remains. Work is preserved.`,
-          nextAction:
-            "Extend this delivery's spend budget with extend-budget --id ID --dollars N before coding continues.",
-        };
+      if (!result.admitted) d.blocker = budgetBlocker(result);
     });
     return { admitted, delivery };
+  }
+
+  /** A model request left reserved by a stopped coding session never
+   * settles itself, and would refuse every later request; its whole
+   * reservation is charged, as for usage that cannot be verified. */
+  private settleStaleReservation(id: string): void {
+    const reserved = this.status(id).spend?.reserved;
+    if (!reserved) return;
+    this.change(id, (d) => {
+      const session = d.feature?.session;
+      if (
+        d.spend?.reserved?.operationId === reserved.operationId &&
+        session?.state === "stopped" &&
+        reserved.operationId.startsWith(`${session.operationId}-`)
+      )
+        chargeReservation(d.spend, reserved.operationId);
+    });
   }
 
   /** Charges an admitted request's actual cost from the provider's usage. */

@@ -2,8 +2,10 @@
 // Owner-run offline acceptance of owner coding admission on a real dedicated
 // VM. The delivery controller drives one coding turn through the real native
 // transport, admitted only by the owner's per-host record naming its fresh
-// pins. Planning, validation, onboarding facts and usage observations are
-// synthetic stand-ins. A passing run then removes its session; a blocked one
+// pins. Planning, validation and onboarding facts are synthetic stand-ins.
+// On Codex, so are the usage observations. On Claude Code (ADR 0008) the turn
+// is metered through a real Messages gateway against the delivery's real
+// spend budget, and only the model provider is a stand-in. A passing run then removes its session; a blocked one
 // keeps it for diagnosis. It never provisions or starts the VM, opens
 // credentials or authorizes inference, and it never enables production or
 // claims qualification. Run it through scripts/run-native-acceptance.mjs.
@@ -28,27 +30,36 @@ const usage =
   "Usage: node scripts/run-native-coding-admission-acceptance.mjs <aios-machine> <owner-admission.json> <new-report.json> --approve-offline-native-run";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
-const pinFields = [
-  "cliVersion",
-  "cliSha256",
-  "codeModeHostSha256",
-  "policySha256",
-  "bindingSha256",
-];
-const samePins = (a, b) => pinFields.every((field) => a[field] === b[field]);
 
 /** Drive one controller coding turn through `transport` under `admission`;
- * `persist` receives the report after every stage. */
+ * `persist` receives the report after every stage. `agent: "claude"` runs a
+ * metered Claude Code turn. */
 export async function admissionAcceptance(transport, admission, options = {}) {
   const persist = options.persist ?? (() => {});
+  const claude = options.agent === "claude";
   const { DeliveryController } = await import("../dist/controller.js");
-  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const {
+    PinnedCodingRuntime,
+    claudeAgent,
+    claudeCodingPinFields,
+    codexAgent,
+    codingPinFields,
+  } = await import("../dist/feature-candidate.js");
+  const pinFields = claude ? claudeCodingPinFields : codingPinFields;
+  const samePins = (a, b) => pinFields.every((field) => a[field] === b[field]);
+  const agent = claude ? claudeAgent : codexAgent;
   const report = {
     scope: "native-coding-offline-admission-acceptance",
+    agent: agent.provider,
     productionEnabled: false,
     qualified: false,
     inferenceAuthorized: false,
-    synthetic: ["planning", "validation", "onboarding", "usage"],
+    synthetic: [
+      "planning",
+      "validation",
+      "onboarding",
+      claude ? "model-provider" : "usage",
+    ],
     outcome: "running",
     stages: [],
   };
@@ -79,7 +90,7 @@ export async function admissionAcceptance(transport, admission, options = {}) {
     mkdtempSync(join(tmpdir(), "aios-coding-admission-acceptance-")),
   );
   // The controller and delivery, so a failed turn can still be settled.
-  let session, controller, deliveryId;
+  let session, controller, deliveryId, provider;
   try {
     report.pins = await stage("fresh-pins", () =>
       transport.inspect({
@@ -103,13 +114,14 @@ export async function admissionAcceptance(transport, admission, options = {}) {
             { ...report.pins, [field]: "0".repeat(64) },
             transport,
             admission,
+            agent,
           );
         } catch {
           refused = true;
         }
         check(refused, `A changed ${field} was admitted`);
       }
-      return new PinnedCodingRuntime(report.pins, transport, admission);
+      return new PinnedCodingRuntime(report.pins, transport, admission, agent);
     });
     const delivery = await stage("controller-coding-turn", async () => {
       const synthetic = syntheticDelivery(root);
@@ -120,14 +132,17 @@ export async function admissionAcceptance(transport, admission, options = {}) {
           featurePlanner: synthetic.planner,
           featureRuntime: runtime,
           validationRuntime: synthetic.validation,
-          subscription: synthetic.subscription,
+          ...(claude
+            ? { messagesSessions: await meteredStandIn((p) => (provider = p)) }
+            : { subscription: synthetic.subscription }),
         },
       );
       // Offline, Codex retries the provider until the turn allowance ends.
+      // Claude Code's metered turn ends when the stand-in's work is done.
       const started = controller.start({
         repository: synthetic.repository,
         request: "Add a visible contact hint.",
-        codingMinutes: 1,
+        codingMinutes: claude ? 5 : 1,
       });
       deliveryId = started.id;
       await controller.planFeature(started.id);
@@ -152,6 +167,27 @@ export async function admissionAcceptance(transport, admission, options = {}) {
         "Coding session is uncertain",
       );
     });
+    if (claude)
+      await stage("controller-metered-turn", () => {
+        const observed = provider.observation;
+        check(
+          observed.unexpected === 0,
+          "The provider saw an unexpected request",
+        );
+        check(observed.toolsWorked, "Claude Code's tools did not run");
+        check(observed.finalAnswered, "The turn did not reach its answer");
+        check(
+          delivery.spend?.spent > 0,
+          "The turn's requests were not charged",
+        );
+        check(!delivery.spend.reserved, "A request was left reserved");
+        check(!delivery.spend.interruption, "The budget interrupted the turn");
+        report.spend = {
+          requests: observed.requests,
+          charges: delivery.spend.charges,
+          spent: delivery.spend.spent,
+        };
+      });
     await stage("session-cleanup", async () => {
       const receipt = await transport.cleanupSupersededLineage(session);
       check(receipt.cleaned === 1, "Expected one cleaned session");
@@ -188,6 +224,31 @@ export async function admissionAcceptance(transport, admission, options = {}) {
   return report;
 }
 
+/** Real Messages gateways for metered turns, with a stand-in provider that
+ * calls Claude Code's own Write and Bash tools and a synthetic key. */
+async function meteredStandIn(observe) {
+  const { MessagesGateway } = await import("../dist/messages-gateway.js");
+  const { messagesSession } = await import("../dist/messages-sessions.js");
+  const { pinnedModelPrices } = await import("../dist/spend-budget.js");
+  const { fakeMessagesProvider } = await import("./routed-provider.mjs");
+  return (turn, budget) => {
+    const fake = fakeMessagesProvider(
+      "admission",
+      () => true,
+      pinnedModelPrices.model,
+    );
+    observe(fake);
+    return messagesSession(
+      new MessagesGateway(
+        { ...turn, maxRequests: 64 },
+        () => "synthetic-admission-key",
+        budget,
+        fake.provider,
+      ),
+    );
+  };
+}
+
 function sourceEvidence(root) {
   const git = (...args) =>
     spawnSync("git", ["-C", root, ...args], {
@@ -206,6 +267,7 @@ function sourceEvidence(root) {
         "feature-candidate",
         "coding-admission",
         "controller",
+        "messages-gateway",
       ].map((name) => [
         name,
         sha256(readFileSync(new URL(`../dist/${name}.js`, import.meta.url))),
@@ -231,16 +293,18 @@ async function main() {
   // The build must be what this source compiles to, before anything from it
   // runs or any evidence, record or VM is touched.
   const source = sourceEvidence(fileURLToPath(new URL("..", import.meta.url)));
-  const { NativePodmanCodingTransport } = await import(
-    "../dist/podman-coding.js"
+  const { nativeCodingAuthority, ownerCodingWorker } = await import(
+    "../dist/native-coding-runtime.js"
   );
-  const { ownerCodingAdmission } = await import("../dist/coding-admission.js");
-  // The coding authority this VM's management state already belongs to.
-  const authority = sha256("issue04-native-offline-lifecycle-v1:" + machine);
-  const transport = new NativePodmanCodingTransport(machine, authority);
+  // The coding authority this VM's management state already belongs to, and
+  // the worker the owner's record names.
+  const authority = nativeCodingAuthority(machine);
+  const { agent, transport, admission } = ownerCodingWorker(
+    machine,
+    admissionPath,
+  );
   if (transport.mode !== "live" || transport.productionEnabled !== false)
     throw Error("Expected the live transport with production disabled");
-  const admission = ownerCodingAdmission(admissionPath);
   // Refuse overwriting retained evidence before any worker effect.
   closeSync(openSync(reportPath, "wx", 0o600));
   const context = {
@@ -255,6 +319,7 @@ async function main() {
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", interrupt);
   const report = await admissionAcceptance(transport, admission, {
+    agent,
     persist: (r) =>
       writeFileSync(
         reportPath,

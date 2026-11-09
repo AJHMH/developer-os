@@ -343,6 +343,15 @@ node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state"
   --approve-offline-native-run
 ```
 
+With the Claude Code record (`claude-coding-admission.json`, scope
+`aios-claude-coding-admission-v1`), the same command runs a metered Claude Code
+turn instead (ADR 0008). The controller opens a real Messages gateway for it,
+and every model request is admitted and charged against the delivery's real
+spend budget. No usage is read. Only the model provider is a stand-in, which
+has Claude Code write and read back one file. The extra stage
+`controller-metered-turn` checks that the requests were charged and that no
+request was left reserved or interrupted by the budget.
+
 ## Authentication capability
 
 The official `@openai/codex@0.161.0-darwin-arm64` package was downloaded without
