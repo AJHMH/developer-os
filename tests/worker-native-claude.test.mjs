@@ -138,6 +138,13 @@ test("an offline Claude Code turn runs the pinned binary and only a summary leav
     worker.Config.Env.includes("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"),
   );
   assert.ok(!worker.Config.Env.some((e) => e.startsWith("CODEX_HOME=")));
+  // Claude Code's Bash tool needs bash: the worker runs the pinned official
+  // bash image, with its entrypoint cleared and SHELL naming its bash.
+  assert.ok(worker.Config.Env.includes("SHELL=/usr/local/bin/bash"));
+  const create = read().commands.find((args) => args[1] === "create");
+  assert.ok(create.includes(hostTargets.darwin.claudeCode.template));
+  assert.ok(!create.includes(hostTargets.darwin.offlineTemplate));
+  assert.ok(create.includes("--entrypoint="));
   assert.equal(worker.HostConfig.NetworkMode, "none");
   const collected = await transport.collect({ ...session, state: "stopped" });
   assert.equal(collected.files[0].bytes.toString(), "after\n");
@@ -334,3 +341,34 @@ for (const [name, claudeLogs] of [
     // The worker is still stopped.
     assert.equal(read().container.State.Running, false);
   });
+
+test("the Claude Code guest runs only the pinned bash image with its exact environment", async (t) => {
+  assert.match(
+    hostTargets.darwin.claudeCode.template,
+    /^docker\.io\/library\/bash@sha256:[a-f0-9]{64}$/,
+  );
+  assert.equal(
+    claudeGuest.template({
+      ...hostTargets.darwin,
+      platform: "darwin",
+      arch: "arm64",
+    }),
+    hostTargets.darwin.claudeCode.template,
+  );
+  // Codex keeps the shared Alpine template.
+  assert.equal(
+    codexGuest.template(hostTargets.darwin),
+    hostTargets.darwin.offlineTemplate,
+  );
+  // An image whose environment is not exactly the pinned one is refused
+  // before any worker exists.
+  const { transport, read } = claudeFixture(t, { imageEnvDrift: true });
+  await assert.rejects(
+    async () => transport.run(await start(transport), () => {}),
+    /inspect observation unavailable/,
+  );
+  assert.equal(
+    (read().commands ?? []).filter((args) => args[1] === "create").length,
+    0,
+  );
+});
