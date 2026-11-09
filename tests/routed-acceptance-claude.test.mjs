@@ -178,6 +178,9 @@ function vm(faults = {}) {
               ...(await runTool(block, files, faults)),
             });
           messages.push({ role: "user", content: results });
+          // As Claude Code 2.1.309 does: its environment follows the results.
+          if (!faults.noTrailingSystem)
+            messages.push({ role: "system", content: "# Environment" });
           await tick();
         }
         histories.set(id, messages);
@@ -431,4 +434,79 @@ test("the fake Messages provider stops keeping the turn alive at its cap", async
   }
   assert.equal(fake.observation.keepalives, maxKeepalives);
   assert.match(id, new RegExp(`_${maxKeepalives}$`));
+});
+
+test("the fake Messages provider finds tool results before a trailing system message", async () => {
+  const fake = fakeMessagesProvider("t", () => true, model);
+  const ids = [];
+  const send = async (messages) => {
+    let text = "";
+    for await (const chunk of fake.provider(
+      "unused",
+      JSON.stringify({ messages }),
+    ))
+      text += Buffer.from(chunk).toString();
+    const start = text
+      .split("\n")
+      .filter((l) => l.startsWith("data: "))
+      .map((l) => JSON.parse(l.slice(6)))
+      .find((e) => e.type === "content_block_start");
+    ids.push(start.content_block.id);
+  };
+  const turn = (id, content) => [
+    { role: "user", content: "go" },
+    { role: "system", content: "# Environment" },
+    {
+      role: "assistant",
+      content: [{ type: "tool_use", id, name: "Bash", input: {} }],
+    },
+    {
+      role: "user",
+      content: [{ type: "tool_result", tool_use_id: id, content }],
+    },
+    { role: "system", content: "# Environment" },
+  ];
+  await send([
+    { role: "user", content: "go" },
+    { role: "system", content: "x" },
+  ]);
+  await send(turn(ids[0], "ok"));
+  await send(turn(ids[1], [{ type: "text", text: "routed t\n" }]));
+  assert.equal(fake.observation.unexpected, 0);
+  assert.equal(fake.observation.toolsWorked, true);
+  assert.equal(fake.observation.finalAnswered, true);
+  // A result from before the last assistant turn does not count.
+  const stale = fakeMessagesProvider("t", () => true, model);
+  for await (const _ of stale.provider(
+    "unused",
+    JSON.stringify({
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "x", content: "" }],
+        },
+        { role: "assistant", content: [{ type: "text", text: "hi" }] },
+        { role: "system", content: "x" },
+      ],
+    }),
+  ));
+  for await (const _ of stale.provider(
+    "unused",
+    JSON.stringify({
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "x", content: "" }],
+        },
+        { role: "assistant", content: [{ type: "text", text: "hi" }] },
+        { role: "system", content: "x" },
+      ],
+    }),
+  ));
+  assert.equal(stale.observation.unexpected, 1);
+});
+
+test("a lineage passes whether or not Claude Code sends a trailing system message", async () => {
+  const { report } = await accept({ noTrailingSystem: true });
+  assert.equal(report.outcome, passingOutcome, report.error);
 });
