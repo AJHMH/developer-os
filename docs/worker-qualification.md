@@ -174,6 +174,10 @@ The Claude Code guest differs from the Codex guest in these ways:
 
 - **Image:** it runs the pinned bash image, not the Alpine template, with
   `SHELL=/usr/local/bin/bash` and its entrypoint cleared.
+- **End of turn:** Claude Code exits on its own when its turn ends. Podman can
+  still report the worker running, with its old pid, for a moment after the
+  process has gone. If a poll then can't read the process, it inspects the
+  container again and goes on only if it has stopped.
 - **Mounts:** it mounts only the `claude` binary, read-only, beside the
   workspace and the session home.
 - **Session home:** `CLAUDE_CONFIG_DIR` is the session home. A resume refuses a

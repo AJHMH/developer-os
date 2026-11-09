@@ -221,6 +221,11 @@ def run(args, **kwargs):
             if state.get('unsafeNetwork'): state['container']['HostConfig']['NetworkMode'] = 'bridge'
             state.setdefault('containers', {})[request['name']] = state['container']
         elif action == 'inspect':
+            # The worker's process has exited, but Podman still reports it
+            # running, with its old pid, for one more inspection.
+            if c and state.get('exitRace') and (root / 'codex-exit').exists() and c['State'].get('Running'):
+                if not state.get('raced'): set_alive(c, False); state['raced'] = True
+                elif not state.get('exitRaceStuck'): c['State'].update(Running=False, Pid=0, Status='exited', ExitCode=0)
             if not c: code = 1
             else: output = json.dumps([c]).encode()
         elif action == 'start' and state.get('startUnavailable'): code = 1  # external engine fails to start
