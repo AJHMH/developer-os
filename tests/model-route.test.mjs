@@ -1,12 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  PinnedCodingRuntime,
+  PinnedCodingRuntime as PinnedRuntime,
+  codexAgent,
   lockedCodingArgv,
   modelRoutePort,
   modelRouteVariable,
   validModelRoute,
 } from "../dist/feature-candidate.js";
+// Codex's own runtime, which these tests cover until Codex is removed (#222).
+class PinnedCodingRuntime extends PinnedRuntime {
+  constructor(pins, transport, admission, agent = codexAgent) {
+    super(pins, transport, admission, agent);
+  }
+}
 
 const route = Object.freeze({
   deliveryId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",

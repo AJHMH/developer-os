@@ -349,7 +349,7 @@ const controllerFor = (f, featureRuntime = f.runtime) =>
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
 // A controlled transport that streams the turn `run` returns as CLI JSON.

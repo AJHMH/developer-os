@@ -8,7 +8,10 @@ import { test } from "node:test";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
-import { failedTurn, firstThread } from "./helpers/coding-turns.mjs";
+import {
+  codexFailedTurn as failedTurn,
+  firstThread,
+} from "./helpers/coding-turns.mjs";
 import { authorizedCoding, interruptions } from "./helpers/routed-coding.mjs";
 
 for (const [name, arrange, approvable] of [
@@ -69,7 +72,7 @@ test(
   "an approved low-usage turn keeps its approval while it runs past 60 s",
   { timeout: 10_000 },
   async (t) => {
-    const f = codingFixture(t),
+    const f = codingFixture(t, undefined, { agent: "codex" }),
       healthy = f.subscription;
     // One allowance window throughout, so re-reads carry the approval.
     const resetsAt = Math.floor(f.now / 1000) + 3600;
@@ -142,7 +145,7 @@ test("a resumed coding turn refuses usage from a different account than its firs
 // A coding turn held open after its thread starts, until its worker is
 // stopped; usage is re-observed every few milliseconds while it runs.
 async function monitoredTurn(t, duringTurn) {
-  const f = codingFixture(t),
+  const f = codingFixture(t, undefined, { agent: "codex" }),
     normal = f.runtime.execute.bind(f.runtime),
     stop = f.runtime.stop.bind(f.runtime),
     dispatched = [];
@@ -388,7 +391,7 @@ test("a restart that reaches dispatch spends its approval even if the turn then 
 });
 
 test("a coding restart approval needs an owned delivery stopped by a usage interruption", async (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   await planAndValidate(f);
   assert.throws(
     () => f.controller.approveCodingRestart(f.delivery.id),
@@ -416,7 +419,7 @@ test("a coding restart approval needs an owned delivery stopped by a usage inter
 });
 
 test("monitoring keeps a healthy, approved coding turn running across polls", async (t) => {
-  const f = codingFixture(t),
+  const f = codingFixture(t, undefined, { agent: "codex" }),
     normal = f.runtime.execute.bind(f.runtime);
   let polls = 0;
   const healthy = f.subscription;
@@ -453,7 +456,7 @@ test("monitoring keeps a healthy, approved coding turn running across polls", as
 });
 
 test("the coding usage poll interval must be a bounded whole number of milliseconds", (t) => {
-  const f = codingFixture(t);
+  const f = codingFixture(t, undefined, { agent: "codex" });
   for (const codingUsagePollMs of [0, 1.5, 60_001, Number.NaN])
     assert.throws(
       () => new DeliveryController(f.state, f.options, { codingUsagePollMs }),
@@ -464,7 +467,7 @@ test("the coding usage poll interval must be a bounded whole number of milliseco
 });
 
 test("a turn that completes after usage was exhausted is stopped, not admitted", async (t) => {
-  const f = codingFixture(t),
+  const f = codingFixture(t, undefined, { agent: "codex" }),
     normal = f.runtime.execute.bind(f.runtime);
   let operationId;
   f.runtime.execute = async (request) => {
@@ -494,7 +497,7 @@ test("a turn that completes after usage was exhausted is stopped, not admitted",
 });
 
 test("a slow usage observation is never polled concurrently during a coding turn", async (t) => {
-  const f = codingFixture(t),
+  const f = codingFixture(t, undefined, { agent: "codex" }),
     normal = f.runtime.execute.bind(f.runtime),
     healthy = f.subscription;
   let active = 0,

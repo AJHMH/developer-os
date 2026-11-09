@@ -56,7 +56,7 @@ test("the owner hosts table names the current guest program digests", async () =
       validation: admitted("Validation"),
     },
     {
-      coding: coding.managementPolicySha256,
+      coding: coding.claudeManagementPolicySha256,
       validation: validation.managementPolicySha256,
     },
     "A guest program changed: the owner must re-pin that admission record on the Mac; then update docs/owner-hosts.md",

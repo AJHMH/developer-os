@@ -4,12 +4,12 @@ import { randomUUID } from "node:crypto";
 import { codingFixture } from "./feature-fixture.mjs";
 import { mediatedCoding } from "./mediation-fixture.mjs";
 import { planAndValidate } from "./validation-fixture.mjs";
-import { failedTurn } from "./coding-turns.mjs";
+import { codexFailedTurn as failedTurn } from "./coding-turns.mjs";
 
 // Coding records every dispatch attempt; a launch never reaches the runtime
 // without fresh model-only usage authority bound to its exact operation.
 export async function authorizedCoding(t) {
-  const f = codingFixture(t),
+  const f = codingFixture(t, undefined, { agent: "codex" }),
     normal = f.runtime.execute.bind(f.runtime),
     dispatched = [];
   f.runtime.execute = async (request) => {

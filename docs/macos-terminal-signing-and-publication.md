@@ -13,13 +13,13 @@ personal identity. Use this personal route only for commits you author yourself.
 
 Read-only inspection on October 18, 2026 found:
 
-| Setting | Observed value |
-| --- | --- |
-| `gpg.format` | `ssh` |
-| `user.signingkey` | `~/.ssh/id_ed25519.pub` |
-| `commit.gpgsign` | `true` |
-| `tag.gpgsign` | `true` |
-| GPG executable | `/opt/homebrew/bin/gpg` |
+| Setting           | Observed value                              |
+| ----------------- | ------------------------------------------- |
+| `gpg.format`      | `ssh`                                       |
+| `user.signingkey` | `~/.ssh/id_ed25519.pub`                     |
+| `commit.gpgsign`  | `true`                                      |
+| `tag.gpgsign`     | `true`                                      |
+| GPG executable    | `/opt/homebrew/bin/gpg`                     |
 | Repository origin | `https://github.com/AJHMH/developer-os.git` |
 
 The effective name/email were the operator's personal identity. No private key

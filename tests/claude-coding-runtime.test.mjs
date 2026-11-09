@@ -7,6 +7,7 @@ import {
   PinnedCodingRuntime,
   claudeAgent,
   claudeCodingPinFields,
+  codexAgent,
 } from "../dist/feature-candidate.js";
 import {
   claudeCodingAdmissionScope,
@@ -122,11 +123,12 @@ test("Claude Code pins never carry a code-mode host, and Codex pins always do", 
     record(t, "aios-native-coding-admission-v1", codexPins).path,
   );
   assert.throws(
-    () => new PinnedCodingRuntime(claudePins, live(claudePins), codex),
+    () =>
+      new PinnedCodingRuntime(claudePins, live(claudePins), codex, codexAgent),
     /Unqualified coding transport/,
   );
   assert.deepEqual(
-    new PinnedCodingRuntime(codexPins, live(codexPins), codex).pins,
+    new PinnedCodingRuntime(codexPins, live(codexPins), codex, codexAgent).pins,
     codexPins,
   );
   // A Codex record never admits a Claude Code runtime.

@@ -9,13 +9,13 @@ an App-authored commit and PR with a GitHub-verified commit signature.
 
 The publisher currently defaults to:
 
-| Setting | Value |
-| --- | --- |
-| Repository for this guide | `AJHMH/developer-os` |
+| Setting                   | Value                         |
+| ------------------------- | ----------------------------- |
+| Repository for this guide | `AJHMH/developer-os`          |
 | Bot author and PR creator | `ajhmh-software-factory[bot]` |
-| GitHub App ID | `5180250` |
-| Installation ID | `167664341` |
-| Verified commit committer | `GitHub/web-flow` |
+| GitHub App ID             | `5180250`                     |
+| Installation ID           | `167664341`                   |
+| Verified commit committer | `GitHub/web-flow`             |
 
 These defaults are in [`publisher.mjs`](../scripts/operator/publisher.mjs).
 The publisher checks the actual App and repository installation against the

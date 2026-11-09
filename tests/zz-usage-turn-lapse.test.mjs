@@ -5,7 +5,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { failedTurn, firstThread } from "./helpers/coding-turns.mjs";
+import {
+  codexFailedTurn as failedTurn,
+  firstThread,
+} from "./helpers/coding-turns.mjs";
 import {
   observeAccount,
   routedCoding,

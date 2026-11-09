@@ -50,7 +50,7 @@ export async function reviewed(t, configurePolicy) {
     new DeliveryController(f.state, f.options, {
       featurePlanner: f.criteria,
       featureRuntime: f.runtime,
-      subscription: () => f.subscription(f.time),
+      messagesSessions: f.messagesSessions,
       validationRuntime: f.validation,
       publicationRuntime: f.runtimePublication,
       prChecksRuntime: f.checks,

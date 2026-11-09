@@ -88,21 +88,7 @@ export function accountEligibility(
       Boolean(account.accessToken),
   };
 }
-export interface HostRegistration {
-  schema: 1;
-  hostId: string;
-  agentName: "Developer OS";
-}
-export function validHostRegistration(
-  value: unknown,
-): value is HostRegistration {
-  if (!value || typeof value !== "object") return false;
-  const record = value as Record<string, unknown>;
-  return (
-    record.schema === 1 &&
-    record.agentName === "Developer OS" &&
-    typeof record.hostId === "string" &&
-    /^urn:uuid:[a-f0-9-]{36}$/.test(record.hostId) &&
-    Object.keys(record).sort().join(",") === "agentName,hostId,schema"
-  );
-}
+export {
+  validHostRegistration,
+  type HostRegistration,
+} from "./host-registration.js";

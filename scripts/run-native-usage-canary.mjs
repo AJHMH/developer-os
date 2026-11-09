@@ -73,7 +73,9 @@ export async function usageCanary({ transport, admission }, options = {}) {
   const persist = options.persist ?? (() => {});
   const interrupted = options.interrupted ?? (() => false);
   const { DeliveryController } = await import("../dist/controller.js");
-  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const { PinnedCodingRuntime, codexAgent } = await import(
+    "../dist/feature-candidate.js"
+  );
   const { GeneralSessionGateway } = await import(
     "../dist/general-session-gateway.js"
   );
@@ -294,7 +296,8 @@ export async function usageCanary({ transport, admission }, options = {}) {
     );
     const runtime = await stage(
       "admitted-runtime",
-      () => new PinnedCodingRuntime(report.pins, transport, admission),
+      () =>
+        new PinnedCodingRuntime(report.pins, transport, admission, codexAgent),
     );
     await stage("synthetic-decision-qualified", async () => {
       const synthetic = syntheticDelivery(root);

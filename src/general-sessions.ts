@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { GeneralSessionFactory } from "./controller.js";
 import {
   hostCredentialVault,
@@ -11,25 +9,10 @@ import {
   generalSessionResponses,
   type GeneralSessionProvider,
 } from "./general-session-gateway.js";
-import { assertPrivateAuthStorage } from "./private-storage.js";
-import {
-  decodeSubscriptionAccount,
-  validHostRegistration,
-  type HostRegistration,
-} from "./subscription-account.js";
+import { decodeSubscriptionAccount } from "./subscription-account.js";
 import type { GatewayAccount } from "./subscription-gateway.js";
-
-/** The host registration in the owner's private auth directory, read as
- * `inspectSubscriptionAuth` reads it. */
-export function hostRegistration(directory: string): HostRegistration {
-  const file = join(directory, "registration.json");
-  assertPrivateAuthStorage(directory, "directory");
-  assertPrivateAuthStorage(file, "file");
-  const record = JSON.parse(readFileSync(file, "utf8"));
-  if (!validHostRegistration(record))
-    throw Error("The host registration is invalid");
-  return record;
-}
+import { hostRegistration } from "./host-registration.js";
+export { hostRegistration };
 
 /** The owner's account from the host vault. Read at each model request, so a
  * changed or expired account is seen. */

@@ -9,7 +9,10 @@ import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { unlinkSync } from "node:fs";
 import { codexAgent } from "../dist/coding-agent.js";
-import { failedTurn, firstThread } from "./helpers/coding-turns.mjs";
+import {
+  codexFailedTurn as failedTurn,
+  firstThread,
+} from "./helpers/coding-turns.mjs";
 import { mediatedCoding } from "./helpers/mediation-fixture.mjs";
 import {
   authorizedCoding,
@@ -376,7 +379,14 @@ test("superseded lineage cleanup needs an owned delivery, a recorded lineage and
 
 test("the pinned adapter trusts a superseded cleanup receipt only for the exact session and pins", async (t) => {
   const { f } = await scripted(t);
-  const { PinnedCodingRuntime } = await import("../dist/feature-candidate.js");
+  const { PinnedCodingRuntime: PinnedRuntime } = await import(
+    "../dist/feature-candidate.js"
+  );
+  const PinnedCodingRuntime = class extends PinnedRuntime {
+    constructor(pins, transport) {
+      super(pins, transport, undefined, codexAgent);
+    }
+  };
   const head = {
     operationId: randomUUID(),
     fence: 1,
