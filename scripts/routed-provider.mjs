@@ -219,10 +219,17 @@ export function fakeMessagesProvider(tag, released, model) {
   async function* provider(_key, body) {
     const n = observation.requests++;
     const messages = JSON.parse(body).messages ?? [];
-    const last = messages.at(-1);
-    const results = Array.isArray(last?.content)
-      ? last.content.filter((b) => b?.type === "tool_result")
-      : [];
+    // The tool results answering the last assistant turn. Claude Code 2.1.309
+    // and later may follow them with a system message (its environment), so
+    // they are not always in the last message.
+    const turnStart = messages.findLastIndex((m) => m?.role === "assistant");
+    const results = messages
+      .slice(turnStart + 1)
+      .flatMap((m) =>
+        Array.isArray(m?.content)
+          ? m.content.filter((b) => b?.type === "tool_result")
+          : [],
+      );
     const answered = (id) => results.find((b) => b.tool_use_id === id);
     // Every request after the first follows one of this turn's tool calls.
     if (n > 0 && !results.length) {

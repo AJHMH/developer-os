@@ -3,7 +3,10 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { claudeCodingAdmissionScope } from "../dist/coding-admission.js";
+import {
+  claudeCodingAdmissionScope,
+  readOwnerRecord,
+} from "../dist/coding-admission.js";
 import {
   nativeCodingAuthority,
   ownerCodingWorker,
@@ -96,4 +99,19 @@ test("a record in a folder that does not exist is refused, never admitted", () =
   const worker = ownerCodingWorker("aios-test", path);
   assert.equal(worker.agent, "codex");
   assert.throws(() => worker.admission.pins(), /missing or invalid/);
+});
+
+test("an owner record is read only from an absolute path outside every repository", () => {
+  assert.throws(
+    () => readOwnerRecord("coding-admission.json"),
+    /must be absolute/,
+  );
+  // This checkout is a repository: no owner record may live in it.
+  assert.throws(
+    () =>
+      readOwnerRecord(
+        join(process.cwd(), "tests", "fixtures", "coding-admission.json"),
+      ),
+    /never live in a repository/,
+  );
 });

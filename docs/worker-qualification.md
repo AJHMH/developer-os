@@ -410,6 +410,9 @@ same, with these differences:
   - **Work:** `Write` adds `routed-<turn>.txt`, then `Bash` reads it back with
     `cat`. Only a successful read that returns the file's content counts.
   - **Final message:** then the turn ends.
+  - **Tool results:** it reads them from every message after the last
+    assistant message. Claude Code 2.1.309 and later can follow the results
+    with a `system` message carrying its environment.
 - **Thread:** a turn's conversation is the session id in Claude Code's `init`
   event. The resume must report the same one.
 - **Unexpected requests:** any request that isn't the turn's next step, such as

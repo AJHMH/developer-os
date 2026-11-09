@@ -359,3 +359,16 @@ test("the CLI reads the key from standard input and refuses before any network o
   }
   assert.deepEqual(readdirSync(d), ["registration.json"]);
 });
+
+test("a vault entry that is base64 but not JSON is refused", () => {
+  for (const text of ["not json", "{", "\u0000"])
+    assert.equal(
+      decodeAnthropicAccount(
+        Buffer.from(text, "utf8").toString("base64"),
+        "a".repeat(64),
+        "b".repeat(64),
+      ),
+      undefined,
+      text,
+    );
+});
