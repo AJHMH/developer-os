@@ -36,11 +36,16 @@ const hostIdentity = (value: unknown): value is string =>
 const organization = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9_-]{8,128}$/.test(value);
 
-/** A standard (not admin) Anthropic API key. */
+/** An Anthropic API key for model requests: an organization key
+ * (`sk-ant-api03-`), a Console personal key (`sk-ant-usr-`) or a service
+ * account key (`sk-ant-svc-`). Admin keys and Claude subscription tokens
+ * (`sk-ant-oat`) are refused. */
 export function validAnthropicApiKey(value: unknown): value is string {
   return (
     typeof value === "string" &&
-    /^sk-ant-api[0-9]{2}-[A-Za-z0-9_-]{20,256}$/.test(value)
+    /^sk-ant-(?:api[0-9]{2}|usr[0-9]{0,2}|svc[0-9]{0,2})-[A-Za-z0-9_-]{20,256}$/.test(
+      value,
+    )
   );
 }
 
@@ -126,7 +131,7 @@ export async function verifyAnthropicKey(
 ): Promise<{ organizationId: string }> {
   if (!validAnthropicApiKey(apiKey))
     throw new DeliveryError(
-      "That is not a standard Anthropic API key (sk-ant-api…). Admin keys are refused.",
+      "That is not an Anthropic API key (sk-ant-api…, sk-ant-usr… or sk-ant-svc…). Admin keys and subscription tokens are refused.",
     );
   let response;
   try {

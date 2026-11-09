@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// Owner-run offline acceptance of one delivery through the real CLI on a real
-// dedicated VM (ADR 0004 slice 6). Every step is a `dist/cli.js` process with
-// only the owner inputs the CLI names: `start`, `plan-feature`,
-// `validate-baseline` and `code-feature` on the owner-admitted coding and
-// validation runtimes, then `validate-candidate`. The repository, owner
-// policy, onboarding attestation and criteria file are synthetic and written
-// here, private and outside every repository. The coding turn is offline: with
-// no model access it never completes, so it proves the delivery mechanics (an
-// exact launch and stop) and admits no candidate; `validate-candidate` must
-// refuse. A passing run then removes its coding session, because no CLI step
-// can reach a finished turn's session; a blocked run keeps it for diagnosis.
-// It never provisions or starts the VM, loads images, opens
-// credentials or authorizes inference, and it never enables production or
-// claims qualification. It reads usage through the owner's codex executable,
-// as every coding turn does. Run it through scripts/run-native-acceptance.mjs.
+// Owner-run acceptance of one metered delivery through the real CLI on a real
+// dedicated VM (ADR 0004 slice 6, ADR 0008). Every step is a `dist/cli.js`
+// process with only the owner inputs the CLI names: `start` with a $5 spend
+// budget, `plan-feature`, `validate-baseline` and `code-feature` on the
+// owner-admitted Claude Code and validation runtimes, then
+// `validate-candidate`. The repository, owner policy, onboarding attestation
+// and criteria file are synthetic and written here, private and outside every
+// repository. The coding turn is Claude Code's, metered through the owner's
+// Anthropic key against the delivery's spend budget, so it sends real, paid
+// model requests and spends at most the budget. It must admit a candidate that
+// passes validation. A passing run then removes its coding session, because no
+// CLI step can reach a finished turn's session; a blocked run keeps it for
+// diagnosis. It never provisions or starts the VM, loads images or reads the
+// key itself, and it never enables production or claims qualification. Run it
+// through scripts/run-native-acceptance.mjs.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -33,13 +33,16 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <pinned-codex-executable> <new-report.json> --approve-offline-native-run";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
-export const passingOutcome = "observed-offline-cli-delivery-acceptance";
+export const passingOutcome = "observed-metered-cli-delivery-acceptance";
 export const request = "Add a visible contact hint.";
-/** Enough for an offline turn to launch, fail and stop. */
-export const codingMinutes = 5;
+/** Enough for Claude Code to make the one-line change. */
+export const codingMinutes = 10;
+/** The delivery's spend budget: the most the run may spend on the model. */
+export const budgetDollars = 5;
+const budgetPicodollars = budgetDollars * 1e12;
 /** Every stage, in order. */
 export const stageNames = Object.freeze([
   "owner-records-name-fresh-pins",
@@ -48,19 +51,13 @@ export const stageNames = Object.freeze([
   "cli-plan-feature",
   "cli-validate-baseline",
   "cli-code-feature",
-  "cli-candidate-refused",
+  "cli-validate-candidate",
   "host-checkout-unchanged",
   "coding-session-cleanup",
 ]);
 
 const pinFields = {
-  coding: [
-    "cliVersion",
-    "cliSha256",
-    "codeModeHostSha256",
-    "policySha256",
-    "bindingSha256",
-  ],
+  coding: ["cliVersion", "cliSha256", "policySha256", "bindingSha256"],
   validation: ["imageSha256", "policySha256", "bindingSha256"],
 };
 
@@ -202,8 +199,9 @@ export function cliRunner(state) {
 }
 
 /** Run the delivery through `cli` (one CLI process per call, from
- * `cliRunner`) on `machine`, with the owner's admission records, `codex` for
- * usage and the validation image `imageSha256`. `pins` holds, for coding and
+ * `cliRunner`) on `machine`, with the owner's admission records, the auth
+ * directory holding the owner's Anthropic key and the validation image
+ * `imageSha256`. `pins` holds, for coding and
  * validation, the record's `admitted` pins and `fresh()`, the VM's own; a
  * record that does not name them stops the run before any CLI step.
  * `cleanupCodingSession` removes the stopped session it is given from the VM.
@@ -215,7 +213,7 @@ export async function cliDeliveryAcceptance(
     machine,
     codingAdmission,
     validationAdmission,
-    codex,
+    authDirectory,
     imageSha256,
     cleanupCodingSession,
   },
@@ -227,10 +225,12 @@ export async function cliDeliveryAcceptance(
     "../dist/native-validation.js"
   );
   const report = {
-    scope: "native-cli-offline-delivery-acceptance",
+    scope: "native-cli-metered-delivery-acceptance",
     productionEnabled: false,
     qualified: false,
-    inferenceAuthorized: false,
+    // Paid inference, bounded by the delivery's spend budget.
+    inferenceAuthorized: true,
+    budgetDollars,
     synthetic: ["repository", "owner-policy", "attestation", "criteria"],
     outcome: "running",
     stages: [],
@@ -313,8 +313,14 @@ export async function cliDeliveryAcceptance(
         ...owner,
         "--coding-minutes",
         String(codingMinutes),
+        "--budget-dollars",
+        String(budgetDollars),
       );
       check(uuid.test(started.id ?? ""), "The CLI started no delivery");
+      check(
+        started.blocker?.code === "DELIVERY_NOT_ENABLED",
+        "Production delivery is not disabled",
+      );
       check(
         started.onboarding?.ready === true &&
           started.onboarding.attestation?.source === "owner-attested",
@@ -375,61 +381,96 @@ export async function cliDeliveryAcceptance(
         ...validation,
         "--coding-admission",
         codingAdmission,
-        "--codex-executable",
-        codex,
+        "--auth-directory",
+        authDirectory,
         "--coding-minutes",
         String(codingMinutes),
       );
       const feature = coded.feature,
-        session = feature?.session;
+        session = feature?.session,
+        spend = coded.spend;
       report.coding = {
         outcome: feature?.outcome ?? null,
         state: session?.state ?? null,
+        provider: session?.provider ?? null,
         threadStarted: session?.threadStarted === true,
-        routed: Boolean(session?.route),
+        budgetRouted:
+          session?.route?.deliveryId === id &&
+          session.route.decisionSha256 ===
+            sha256("aios-spend-budget-route-v1:" + id),
         candidate: Boolean(feature?.candidate),
         branch: feature?.branch ?? null,
         blocker: coded.blocker?.code ?? null,
+      };
+      report.spend = spend && {
+        model: spend.model,
+        budget: spend.budget,
+        spent: spend.spent,
+        charges: spend.charges,
+        interrupted: Boolean(spend.interruption),
       };
       check(
         session?.state === "stopped",
         "The coding session was not stopped exactly",
       );
       check(
+        report.coding.provider === "claude",
+        "The turn was not Claude Code",
+      );
+      // A request the budget can't cover is refused before it is sent, so an
+      // interruption explains whatever else the turn is missing.
+      check(
+        !spend?.interruption,
+        `The $${budgetDollars} budget interrupted the turn: one request could cost up to $${(spend?.interruption?.needed / 1e12).toFixed(2)}`,
+      );
+      check(
         report.coding.threadStarted && uuid.test(session.threadId ?? ""),
-        "The offline turn reported no thread",
-      );
-      check(!report.coding.routed, "The offline turn was routed");
-      check(
-        ["failed", "exhausted"].includes(feature.outcome) &&
-          !report.coding.candidate,
-        "An offline turn admitted a candidate",
+        "The turn reported no session",
       );
       check(
-        coded.blocker?.code === "DELIVERY_NOT_ENABLED",
-        "Production delivery is not disabled",
+        report.coding.budgetRouted,
+        "The turn was not authorized by the delivery's spend budget",
+      );
+      check(
+        spend?.budget === budgetPicodollars &&
+          spend.spent > 0 &&
+          spend.spent <= spend.budget &&
+          spend.charges > 0,
+        "The turn's requests were not charged within the budget",
+      );
+      check(!spend.reserved, "A model request was left reserved");
+      check(
+        feature.outcome === "admitted" && report.coding.candidate,
+        "The turn admitted no candidate",
       );
       return coded;
     });
-    await stage("cli-candidate-refused", async () => {
-      const attempts = last.validation.attempts.length;
-      const result = await cli([
+    last = await stage("cli-validate-candidate", async () => {
+      const validated = await run(
         "validate-candidate",
         "--id",
         id,
         ...owner,
         ...validation,
-      ]);
-      report.candidateRefusal = result.status === 0 ? null : refusal(result);
-      check(
-        result.status !== 0,
-        "Candidate validation ran without a candidate",
       );
-      last = await run("status", "--id", id);
+      const attempt = validated.validation?.attempts.at(-1);
+      report.candidate = attempt && {
+        stage: attempt.stage,
+        state: attempt.state,
+        outcome: attempt.outcome,
+        results: attempt.results.map((r) => ({
+          checkId: r.checkId,
+          status: r.status,
+        })),
+      };
       check(
-        last.validation.attempts.length === attempts,
-        "A refused candidate validation left an attempt",
+        attempt?.stage === "candidate" &&
+          attempt.state === "stopped" &&
+          attempt.outcome === "passed" &&
+          validated.feature?.candidate?.validation === "passed",
+        "The candidate did not pass on the admitted validation runtime",
       );
+      return validated;
     });
     await stage("host-checkout-unchanged", () => {
       check(
@@ -441,7 +482,7 @@ export async function cliDeliveryAcceptance(
       check(
         inputs.git("rev-parse", `refs/heads/${last.feature.branch}`) ===
           inputs.revision,
-        "The feature branch is not at the baseline revision",
+        "The feature branch moved from the baseline revision",
       );
     });
     await stage("coding-session-cleanup", async () => {
@@ -517,7 +558,7 @@ async function main() {
     machine,
     codingAdmission,
     validationAdmission,
-    codex,
+    authDirectory,
     reportPath,
     approval,
     ...extra
@@ -526,9 +567,9 @@ async function main() {
     !/^aios-[a-z0-9-]+$/.test(machine ?? "") ||
     !codingAdmission ||
     !validationAdmission ||
-    !codex ||
+    !authDirectory ||
     !reportPath ||
-    approval !== "--approve-offline-native-run" ||
+    approval !== "--approve-metered-native-run" ||
     extra.length
   ) {
     console.error(usage);
@@ -541,40 +582,44 @@ async function main() {
   const { ownerValidationAdmission } = await import(
     "../dist/native-validation.js"
   );
-  const { ownerCodingAdmission } = await import("../dist/coding-admission.js");
-  const { hostTarget } = await import("../dist/host-target.js");
-  // Usage is read only through the pinned native codex; any other executable
-  // reads as unknown usage, which coding refuses.
-  const pinned = hostTarget(process.platform, process.arch)?.nativeCodexSha256;
-  if (!pinned || sha256(readFileSync(codex)) !== pinned)
-    throw Error(
-      `The codex executable is not the pinned native codex 0.161.0 (SHA-256 ${pinned ?? "unknown for this host"})`,
-    );
+  const { ownerCodingWorker } = await import(
+    "../dist/native-coding-runtime.js"
+  );
+  // The worker the owner's record names, which must be Claude Code's.
+  const codingTransport = () => {
+    const worker = ownerCodingWorker(machine, codingAdmission);
+    if (worker.agent !== "claude")
+      throw Error("The coding admission is not the owner's Claude Code record");
+    return worker;
+  };
   // Both records must admit pins before any worker effect; the CLI re-reads
   // them at each step.
-  const codingPins = ownerCodingAdmission(codingAdmission).pins();
+  const codingPins = codingTransport().admission.pins();
   const validationPins = ownerValidationAdmission(validationAdmission).pins();
+  // The stored key's non-secret account record, so a missing key stops the
+  // run before any VM effect. The key itself is read only by the CLI.
+  const { anthropicAccount } = await import("../dist/anthropic-key.js");
+  let account;
+  try {
+    account = anthropicAccount(authDirectory);
+  } catch {}
+  if (!account)
+    throw Error(
+      "No Anthropic key is stored in the auth directory: run prepare-auth, then store-anthropic-key, with that --auth-directory",
+    );
   const { imageSha256 } = validationPins;
-  const { NativePodmanCodingTransport } = await import(
-    "../dist/podman-coding.js"
-  );
   const { NativePodmanValidationTransport } = await import(
     "../dist/podman-validation.js"
-  );
-  const { nativeCodingAuthority } = await import(
-    "../dist/native-coding-runtime.js"
   );
   const { nativeValidationAuthority } = await import(
     "../dist/native-validation-runtime.js"
   );
-  const codingTransport = () =>
-    new NativePodmanCodingTransport(machine, nativeCodingAuthority(machine));
   // The VM's own pins, read without starting any session or check.
   const pins = {
     coding: {
       admitted: codingPins,
       fresh: () =>
-        codingTransport().inspect({
+        codingTransport().transport.inspect({
           operationId: randomUUID(),
           fence: 1,
           state: "running",
@@ -612,10 +657,10 @@ async function main() {
       machine,
       codingAdmission,
       validationAdmission,
-      codex,
+      authDirectory,
       imageSha256,
       cleanupCodingSession: (session) =>
-        codingTransport().cleanupSupersededLineage(session),
+        codingTransport().transport.cleanupSupersededLineage(session),
     },
     {
       interrupted: () => interrupted,

@@ -4,13 +4,14 @@ import "./helpers/owner-host-stand-in.mjs";
 // changes shard.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { offlineValidationEnvironment } from "../dist/native-validation.js";
 import {
+  budgetDollars,
   cliDeliveryAcceptance,
   cliRunner,
   codingMinutes,
@@ -24,9 +25,8 @@ import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
 
 const imageSha256 = "a".repeat(64);
 const codingPins = {
-  cliVersion: "0.161.0",
+  cliVersion: "2.1.311",
   cliSha256: "1".repeat(64),
-  codeModeHostSha256: "2".repeat(64),
   policySha256: "3".repeat(64),
   bindingSha256: "4".repeat(64),
 };
@@ -51,11 +51,17 @@ const host = {
   machine: "aios-test",
   codingAdmission: "/owner/coding-admission.json",
   validationAdmission: "/owner/validation-admission.json",
-  codex: "/owner/codex",
+  authDirectory: "/owner/auth",
   imageSha256,
   cleanupCodingSession: async () => ({ cleaned: 1 }),
 };
 const option = (args, name) => args[args.indexOf(name) + 1];
+const budgetRoute = (id) => ({
+  deliveryId: id,
+  decisionSha256: createHash("sha256")
+    .update("aios-spend-budget-route-v1:" + id)
+    .digest("hex"),
+});
 
 test("the synthetic owner inputs start and plan a delivery through the real CLI", async (t) => {
   const root = await privateRoot("aios-cli-owner-");
@@ -134,6 +140,7 @@ function simulatedCli(faults = {}) {
         phase: "blocked",
         onboarding: { ready: true, attestation: { source: "owner-attested" } },
         blocker: { code: "DELIVERY_NOT_ENABLED" },
+        ...faults.start,
       };
       return ok(delivery);
     },
@@ -164,24 +171,50 @@ function simulatedCli(faults = {}) {
       const branch = `aios/feature-${delivery.id}`;
       spawnSync("git", ["-C", repository, "branch", branch, "main"]);
       Object.assign(delivery.feature, {
-        outcome: "failed",
+        outcome: "admitted",
         branch,
+        candidate: {
+          path: "/state/candidate",
+          sha256: "c".repeat(64),
+          inputSha256: "d".repeat(64),
+          validation: "not-run",
+        },
         session: {
           operationId: randomUUID(),
           fence: 1,
           intent: "start",
           state: "stopped",
+          provider: "claude",
           threadStarted: true,
           threadId: randomUUID(),
+          route: budgetRoute(delivery.id),
         },
         ...faults.feature,
       });
+      delivery.spend = {
+        model: "claude-opus-5-5",
+        budget: budgetDollars * 1e12,
+        spent: 72000000,
+        charges: 3,
+        extensions: [],
+        ...faults.spend,
+      };
       return ok(delivery);
     },
     "validate-candidate"() {
-      return faults.candidateValidates
-        ? ok(delivery)
-        : refuse("Validation requires an admitted candidate.");
+      if (faults.candidateRefused)
+        return refuse("Validation requires an admitted candidate.");
+      const outcome = faults.candidate ?? "passed";
+      delivery.validation.attempts.push({
+        stage: "candidate",
+        state: "stopped",
+        outcome,
+        bindingSha256: "b".repeat(64),
+        results: [{ checkId: "acceptance", status: "success" }],
+      });
+      if (outcome === "passed")
+        delivery.feature.candidate.validation = "passed";
+      return ok(delivery);
     },
     status() {
       return ok(delivery);
@@ -198,7 +231,7 @@ function simulatedCli(faults = {}) {
   return { cli, calls };
 }
 
-test("the CLI acceptance passes on an offline turn that stops exactly, with each step given only its owner inputs", async () => {
+test("the CLI acceptance passes on a metered Claude Code turn whose candidate validates, with each step given only its owner inputs", async () => {
   const { cli, calls } = simulatedCli();
   const report = await cliDeliveryAcceptance({ cli, ...host });
   assert.equal(report.outcome, passingOutcome, report.error);
@@ -207,17 +240,31 @@ test("the CLI acceptance passes on an offline turn that stops exactly, with each
     stageNames.map((name) => [name, "passed"]),
   );
   assert.equal(report.productionEnabled, false);
-  assert.equal(report.inferenceAuthorized, false);
+  assert.equal(report.inferenceAuthorized, true);
+  assert.equal(report.budgetDollars, 5);
   assert.deepEqual(report.coding, {
-    outcome: "failed",
+    outcome: "admitted",
     state: "stopped",
+    provider: "claude",
     threadStarted: true,
-    routed: false,
-    candidate: false,
+    budgetRouted: true,
+    candidate: true,
     branch: `aios/feature-${report.deliveryId}`,
     blocker: "DELIVERY_NOT_ENABLED",
   });
-  assert.match(report.candidateRefusal, /admitted candidate/);
+  assert.deepEqual(report.spend, {
+    model: "claude-opus-5-5",
+    budget: 5e12,
+    spent: 72000000,
+    charges: 3,
+    interrupted: false,
+  });
+  assert.deepEqual(report.candidate, {
+    stage: "candidate",
+    state: "stopped",
+    outcome: "passed",
+    results: [{ checkId: "acceptance", status: "success" }],
+  });
   const byCommand = Object.fromEntries(calls.map((args) => [args[0], args]));
   assert.deepEqual(
     calls.map((args) => args[0]),
@@ -228,9 +275,10 @@ test("the CLI acceptance passes on an offline turn that stops exactly, with each
       "code-feature",
       "validate-candidate",
       "status",
-      "status",
     ],
   );
+  // The delivery's budget is the run's whole spend authority.
+  assert.equal(option(byCommand["start"], "--budget-dollars"), "5");
   const coding = byCommand["code-feature"];
   assert.equal(option(coding, "--podman-machine"), host.machine);
   assert.equal(option(coding, "--coding-admission"), host.codingAdmission);
@@ -238,41 +286,77 @@ test("the CLI acceptance passes on an offline turn that stops exactly, with each
     option(coding, "--validation-admission"),
     host.validationAdmission,
   );
-  assert.equal(option(coding, "--codex-executable"), host.codex);
+  assert.equal(option(coding, "--auth-directory"), host.authDirectory);
   assert.equal(option(coding, "--coding-minutes"), String(codingMinutes));
   assert.ok(coding.includes("--owner-policy"));
   assert.ok(coding.includes("--onboarding-attestation"));
-  // Offline: the turn is never given the owner's account.
-  assert.ok(!calls.flat().some((arg) => arg.startsWith("--auth-")));
+  // Metered: only the coding turn names the key, and nothing names an
+  // account, a routed-run approval or a usage reader.
+  assert.deepEqual(
+    calls.filter((args) => args.includes("--auth-directory")),
+    [coding],
+  );
+  for (const flag of [
+    "--auth-account",
+    "--approve-run",
+    "--approve-turns",
+    "--codex-executable",
+  ])
+    assert.ok(!calls.flat().includes(flag), flag);
   assert.ok(!byCommand["validate-baseline"].includes("--coding-admission"));
   assert.ok(!byCommand["start"].includes("--podman-machine"));
 });
 
-test("the CLI acceptance blocks on a failed baseline, an admitted or routed offline turn, or a candidate validated without one", async () => {
-  for (const [faults, blocked] of [
-    [{ baseline: "failed" }, "cli-validate-baseline"],
-    [
-      { feature: { outcome: "admitted", candidate: { path: "/x" } } },
-      "cli-code-feature",
-    ],
-    [
-      {
-        feature: {
-          session: {
-            state: "stopped",
-            threadStarted: true,
-            threadId: randomUUID(),
-            route: { deliveryId: "d", decisionSha256: "e".repeat(64) },
-          },
-        },
+test("the CLI acceptance blocks on a failed baseline, a turn that is not metered Claude Code, a spend beyond its budget, no candidate, or a candidate that fails", async () => {
+  const session = (changes) => ({
+    feature: {
+      session: {
+        state: "stopped",
+        provider: "claude",
+        threadStarted: true,
+        threadId: randomUUID(),
+        ...changes,
       },
+    },
+  });
+  for (const [faults, blocked, error] of [
+    [{ baseline: "failed" }, "cli-validate-baseline", /baseline/],
+    [
+      { start: { blocker: { code: "UNCERTAIN_SESSION" } } },
+      "cli-start",
+      /disabled/,
+    ],
+    [session({ provider: undefined }), "cli-code-feature", /Claude Code/],
+    [session({ threadStarted: false }), "cli-code-feature", /no session/],
+    [
+      session({ route: { deliveryId: "d", decisionSha256: "e".repeat(64) } }),
       "cli-code-feature",
+      /spend budget/,
+    ],
+    [{ spend: { budget: 1e12 } }, "cli-code-feature", /within the budget/],
+    [{ spend: { spent: 0 } }, "cli-code-feature", /within the budget/],
+    [{ spend: { spent: 6e12 } }, "cli-code-feature", /within the budget/],
+    [
+      { spend: { reserved: { operationId: "o", amount: 1 } } },
+      "cli-code-feature",
+      /reserved/,
     ],
     [
-      { feature: { session: { state: "stopped", threadStarted: false } } },
+      { spend: { interruption: { at: "t", needed: 2, remaining: 1 } } },
       "cli-code-feature",
+      /\$5 budget interrupted the turn: one request could cost up to \$0.00/,
     ],
-    [{ candidateValidates: true }, "cli-candidate-refused"],
+    [
+      { feature: { outcome: "failed", candidate: undefined } },
+      "cli-code-feature",
+      /no candidate/,
+    ],
+    [{ candidate: "failed" }, "cli-validate-candidate", /did not pass/],
+    [
+      { candidateRefused: true },
+      "cli-validate-candidate",
+      /admitted candidate/,
+    ],
   ]) {
     const { cli } = simulatedCli(faults);
     const report = await cliDeliveryAcceptance({ cli, ...host });
@@ -281,12 +365,15 @@ test("the CLI acceptance blocks on a failed baseline, an admitted or routed offl
       report.stages.find((s) => s.outcome === "blocked")?.name,
       blocked,
     );
+    assert.match(report.error, error);
   }
 });
 
 test("an open coding session is stopped exactly at the end, and an unverified stop leaves the run uncertain", async () => {
   const running = () => ({
-    feature: { session: { state: "uncertain", threadStarted: true } },
+    feature: {
+      session: { state: "uncertain", provider: "claude", threadStarted: true },
+    },
   });
   const stopped = simulatedCli(running());
   const report = await cliDeliveryAcceptance({ cli: stopped.cli, ...host });

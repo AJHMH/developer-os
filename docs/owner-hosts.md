@@ -13,6 +13,7 @@ unless noted.
 | Validation admission record   | `$HOME/.developer-os/admission/validation-admission.json` |
 | Pinned native `codex` 0.161.0 | `$HOME/.developer-os/ticket4-macos/runtime/codex-0.161.0` |
 | Acceptance state              | `$HOME/.developer-os/ticket4-macos/state`                 |
+| Auth directory                | `$HOME/.developer-os-auth` (outside the delivery state)   |
 
 The pinned `codex` hash is `nativeCodexSha256` in `src/host-target.ts`. A
 usage read through any other `codex`, such as the Codex app's, is refused.
