@@ -71,6 +71,8 @@ interface GuestParts {
   imageEnv: string;
   /** True for a container whose entrypoint is not this guest's. */
   entrypoint: string;
+  /** Poll's checks of a running worker, and its lease renewal. */
+  pollLive: string;
   createRouteEnv: string;
   routeEnvCheck: string;
   relaySource: string;
@@ -98,6 +100,11 @@ const codexGuestParts: GuestParts = {
   probe: JSON.stringify(codingBoundaryProbe),
   imageEnv: String.raw`['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']`,
   entrypoint: String.raw`c['Config'].get('Entrypoint') not in [None,[]]`,
+  pollLive: String.raw`    if c['State'].get('Running'):
+     if group(c['State']['Pid'])!=record['group']: fail()
+     effective(c,True);record['pids'].update(census(record['group']));save(recordPath,record)
+     lease()
+`,
   createRouteEnv: String.raw`*(['--env','${modelRouteVariable}='+route['capability']] if route else [])`,
   routeEnvCheck: String.raw`  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
   env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}`,
@@ -782,11 +789,7 @@ ${g.launchHost}    effective(container(),False)
     # A released routed session needs its relay for as long as it runs.
     if record['admission'].get('modelRoute') and record.get('released') and not relay_alive(record.get('relay')): fail()
     c=container()
-    if c['State'].get('Running'):
-     if group(c['State']['Pid'])!=record['group']: fail()
-     effective(c,True);record['pids'].update(census(record['group']));save(recordPath,record)
-     lease()
-${g.poll}   elif R['action']=='probe-boundary':
+${g.pollLive}${g.poll}   elif R['action']=='probe-boundary':
     # Qualification only: the fixed probe in the exact live session, then a
     # detached descendant that only this session's exact stop may remove.
     if record['phase']!='running' or not isinstance(R.get('admittedPath'),str) or not path_ok(R['admittedPath']): fail()
@@ -934,6 +937,18 @@ const claudeGuestParts: GuestParts = {
   // The bash image has its own entrypoint, which --entrypoint= clears: Podman
   // records that as [""] and runs the command alone. Nothing else is accepted.
   entrypoint: String.raw`c['Config'].get('Entrypoint')!=['']`,
+  // Claude Code exits on its own at the end of a turn. Podman can still report
+  // the worker running, with its old pid, just after its process has gone:
+  // then look again, and go on only if it has stopped.
+  pollLive: String.raw`    if c['State'].get('Running'):
+     try:
+      if group(c['State']['Pid'])!=record['group']: fail()
+      effective(c,True);record['pids'].update(census(record['group']));save(recordPath,record)
+     except FileNotFoundError:
+      c=container()
+      if c['State'].get('Running'): fail()
+     else: lease()
+`,
   // The route reaches Claude Code only through its environment
   // (claudeCodeRelayEnvironment in src/messages-gateway.ts).
   createRouteEnv: String.raw`*([x for k,v in route_env(route).items() for x in ['--env',k+'='+v]] if route else [])`,

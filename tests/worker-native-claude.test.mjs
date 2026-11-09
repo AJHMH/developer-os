@@ -385,3 +385,30 @@ for (const entrypoint of [null, [], ["docker-entrypoint.sh"], ["/bin/sh"]])
       0,
     );
   });
+
+test("a Claude Code worker that exits as it is polled ends its turn, never a refusal", async (t) => {
+  // Podman reports the worker running, with its old pid, for one more
+  // inspection after Claude Code has exited at the end of its turn.
+  const { transport, root } = claudeFixture(t, {
+    keepRunning: true,
+    exitRace: true,
+  });
+  const running = transport.run(await start(transport), () => {});
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  realWriteFileSync(`${root}/codex-exit`, "");
+  const result = await running;
+  assert.equal(result.exitCode, 0);
+});
+
+test("a Claude Code worker still reported running after its process is gone is refused", async (t) => {
+  const { transport, root } = claudeFixture(t, {
+    keepRunning: true,
+    exitRace: true,
+    exitRaceStuck: true,
+  });
+  const running = transport.run(await start(transport), () => {});
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  realWriteFileSync(`${root}/codex-exit`, "");
+  // Refused, and its cleanup cannot confirm a stop either.
+  await assert.rejects(running, /(poll|stop) observation unavailable/);
+});
