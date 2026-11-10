@@ -7,23 +7,16 @@ import { meteredMessagesSessions } from "./messages-sessions.js";
 import { hostCredentialVault } from "./credential-vault.js";
 import { readSecret } from "./secret-input.js";
 import { cliOptions, validateCliCommand } from "./cli-commands.js";
-import { codexSubscriptionReader } from "./codex-usage.js";
 import { DeliveryController, DeliveryError } from "./controller.js";
 import { ownerHostRefusal, supportsOwnerHost } from "./host-target.js";
-import { NativeHostControls } from "./host-controls-exercise.js";
-import { NpmArtifactRuntime } from "./npm-artifact.js";
 import { inspectLocalRepository } from "./onboarding.js";
-import { NativeOnlineAccess } from "./online-native.js";
-import { PodmanHostAdapter } from "./podman-host.js";
-import { NativePodmanDriver } from "./podman-native.js";
 import { prepareHostRegistration } from "./host-registration.js";
-import { NativeSyntheticTask } from "./synthetic-task.js";
 import { nativeCodingRuntime } from "./native-coding-runtime.js";
 import { nativeValidationRuntime } from "./native-validation-runtime.js";
 import { ownerCriteriaPlanner } from "./feature-criteria.js";
 
 const usage =
-  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], qualification-report --id <delivery-id>, qualify/offline-canary/check-usage/poll-usage/pause/resume/cancel/recover/release --id <delivery-id>, or approve-usage --id <delivery-id> --check-id <usage-check-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, validate-baseline, validate-candidate, code-feature and repair-feature, with optional --onboarding-attestation <owner-record> for the onboarding facts the CLI cannot observe (attested, never live verification; ADR 0004), --codex-executable <absolute-host-executable> for usage checks. Enroll observed offline bindings with pin-offline --repo <absolute-directory> --podman-machine <aios-name> --worker-policy <new-external-file>. Supply the same machine/policy for native qualify/offline-canary/pause/cancel/recover. Add --coding-admission <owner-record> to pause/cancel/recover to also stop or recover the exact native coding session through the owner-admitted pins. Add --validation-admission <owner-record> with --podman-machine to validate-baseline/validate-candidate to run checks offline on the owner-admitted native validation runtime, or to pause/cancel/recover to also stop the exact native validation attempt. Use qualify-macos-controls --adversarial with the same machine/policy for signing/publication exclusion, mounts, descendant stopping and controller crash recovery. Use qualify --adversarial for disposable synthetic host/MCP and escape probes. --codex-executable also enables credential-free mediation inspection during qualify. Prepare the non-secret host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; the auth directory must sit outside the repository and the state directory. Store the owner's Anthropic API key for metered model access with store-anthropic-key --auth-directory <external-directory> [--replace]: it prompts with hidden input (or reads standard input), verifies the key with one free model-list request and keeps it only in the protected macOS Keychain (ADR 0006). Use online-canary with the same machine/policy for fixed synthetic model/dependency access checks after positive mediation and usage approval. Add --dependency-policy <external-private-file> to admit one exact digest/size-pinned npm registry tarball; redirects, installs and host scripts are forbidden. qualification-report emits a read-only version-bound Mac worker report and never enables production. Use synthetic-task with the same machine/policy and --adversarial to edit the fixed admitted HTML fixture and validate inside isolation after independent host authentication qualification. Use --coding-minutes <1..1440> on start for the initial coding allowance (default 120). Use --budget-dollars <amount> on start for the delivery's spend budget for metered model access (default 10, whole cents up to 1000; ADR 0008), and extend-budget --id <id> --dollars <amount> to add to it after a budget interruption. plan-feature/code-feature address an explicit --id. plan-feature and clarify-feature take --feature-criteria <owner-file>: the owner's private criteria for this delivery's exact request and clarifications (ADR 0004); without it planning refuses. code-feature --id <id> takes --owner-policy (with optional --onboarding-attestation), --podman-machine with the owner's Claude Code --coding-admission and --validation-admission, --auth-directory <external-directory> holding the owner's stored Anthropic key, and optional --coding-minutes <1..1440>: it runs one Claude Code turn on the owner-admitted native runtimes to a candidate (ADR 0004). The turn is metered through the key, and the delivery's spend budget is its only model authority (ADR 0008); a budget interruption stops it until extend-budget. Production delivery stays disabled. clarify-feature --id <id> --clarification <text> retains an explicit owner answer to material planning ambiguity. extend-coding --id <id> --minutes <1..1440> records an owner extension for stopped exhausted work. validate-baseline/validate-candidate --id <id> require an owner validation contract and, from the CLI, --validation-admission. repair-feature --id <id> repairs a failed candidate within three cycles or 60 active minutes, including local revalidation. It takes code-feature's options except --coding-minutes, on the same owner-admitted native runtimes; without them it refuses without recording a repair. extend-repair --id <id> [--cycles <0..100>] [--minutes <0..1440>] records an explicit owner extension for stopped exhausted repairs. publish-feature/reconcile-publication --id <id> require qualified controlled signing/publication and separate App PR adapters; no native publisher is installed. monitor-pr-checks/repair-pr-checks --id <id> and rerun-pr-check --id <id> --check-id <id> require a trusted controlled PR check adapter; no native monitor is installed. monitor-review/repair-review --id <id> and resolve-review-thread --id <id> --thread-id <id> require a trusted controlled review adapter; no native reviewer is installed. merge-feature/reconcile-merge/refresh-merge-base --id <id> require controlled conditional merge authority; no native merge adapter is installed. monitor-main-checks --id <id> observes trusted checks for the confirmed merged/main revision; no native main observer is installed. sync-main/reconcile-main-sync --id <id> require fresh trusted main checks and a controlled conditional Git adapter; no native synchronization adapter is installed. cleanup-branches/reconcile-cleanup --id <id> require synchronized verified main and controlled conditional branch authority; no native cleanup adapter is installed. Native execution is limited to fixed synthetic canaries and this disposable site task; production delivery remains disabled.";
+  "Use start --repo <absolute-directory> --request <text>, status [--id <delivery-id>], or pause/resume/cancel/recover/release --id <delivery-id>. Options: --state-dir <absolute-directory>, --owner-policy <external-file> for start, validate-baseline, validate-candidate, code-feature and repair-feature, with optional --onboarding-attestation <owner-record> for the onboarding facts the CLI cannot observe (attested, never live verification; ADR 0004). Add --podman-machine <aios-name> with --coding-admission <owner-record> to pause/cancel/recover to stop or recover the exact native coding session through the owner-admitted pins. Add --validation-admission <owner-record> with --podman-machine to validate-baseline/validate-candidate to run checks offline on the owner-admitted native validation runtime, or to pause/cancel/recover to also stop the exact native validation attempt. Prepare the non-secret host registration with prepare-auth --repo <absolute-directory> --auth-directory <external-directory> [--state-dir <absolute-directory>]; the auth directory must sit outside the repository and the state directory. Store the owner's Anthropic API key for metered model access with store-anthropic-key --auth-directory <external-directory> [--replace]: it prompts with hidden input (or reads standard input), verifies the key with one free model-list request and keeps it only in the protected macOS Keychain (ADR 0006). Use --coding-minutes <1..1440> on start for the initial coding allowance (default 120). Use --budget-dollars <amount> on start for the delivery's spend budget for metered model access (default 10, whole cents up to 1000; ADR 0008), and extend-budget --id <id> --dollars <amount> to add to it after a budget interruption. plan-feature/code-feature address an explicit --id. plan-feature and clarify-feature take --feature-criteria <owner-file>: the owner's private criteria for this delivery's exact request and clarifications (ADR 0004); without it planning refuses. code-feature --id <id> takes --owner-policy (with optional --onboarding-attestation), --podman-machine with the owner's Claude Code --coding-admission and --validation-admission, --auth-directory <external-directory> holding the owner's stored Anthropic key, and optional --coding-minutes <1..1440>: it runs one Claude Code turn on the owner-admitted native runtimes to a candidate (ADR 0004). The turn is metered through the key, and the delivery's spend budget is its only model authority (ADR 0008); a budget interruption stops it until extend-budget. Production delivery stays disabled. clarify-feature --id <id> --clarification <text> retains an explicit owner answer to material planning ambiguity. extend-coding --id <id> --minutes <1..1440> records an owner extension for stopped exhausted work. validate-baseline/validate-candidate --id <id> require an owner validation contract and, from the CLI, --validation-admission. repair-feature --id <id> repairs a failed candidate within three cycles or 60 active minutes, including local revalidation. It takes code-feature's options except --coding-minutes, on the same owner-admitted native runtimes; without them it refuses without recording a repair. extend-repair --id <id> [--cycles <0..100>] [--minutes <0..1440>] records an explicit owner extension for stopped exhausted repairs. publish-feature/reconcile-publication --id <id> require qualified controlled signing/publication and separate App PR adapters; no native publisher is installed. monitor-pr-checks/repair-pr-checks --id <id> and rerun-pr-check --id <id> --check-id <id> require a trusted controlled PR check adapter; no native monitor is installed. monitor-review/repair-review --id <id> and resolve-review-thread --id <id> --thread-id <id> require a trusted controlled review adapter; no native reviewer is installed. merge-feature/reconcile-merge/refresh-merge-base --id <id> require controlled conditional merge authority; no native merge adapter is installed. monitor-main-checks --id <id> observes trusted checks for the confirmed merged/main revision; no native main observer is installed. sync-main/reconcile-main-sync --id <id> require fresh trusted main checks and a controlled conditional Git adapter; no native synchronization adapter is installed. cleanup-branches/reconcile-cleanup --id <id> require synchronized verified main and controlled conditional branch authority; no native cleanup adapter is installed. Production delivery remains disabled.";
 
 function argumentsForCommand() {
   try {
@@ -72,20 +65,6 @@ try {
     };
     result = await actions[command.authAction!]();
   } else {
-    const native =
-      command.runtimes.includes("native") &&
-      values["podman-machine"] &&
-      values["worker-policy"]
-        ? new NativePodmanDriver(
-            values["podman-machine"],
-            stateDirectory,
-            values["worker-policy"],
-          )
-        : undefined;
-    const synthetic =
-      command.runtimes.includes("synthetic") && native
-        ? new NativeSyntheticTask(native)
-        : undefined;
     let featureRuntime;
     if (values["coding-admission"])
       try {
@@ -131,36 +110,6 @@ try {
           : { attestationPath: values["onboarding-attestation"] }),
       },
       {
-        ...(values["podman-machine"]
-          ? {
-              worker: new PodmanHostAdapter({
-                ...(values.adversarial ? { adversarial: true } : {}),
-                ...(values["codex-executable"]
-                  ? { codexExecutable: values["codex-executable"] }
-                  : {}),
-                machine: values["podman-machine"],
-                ...(native ? { native } : {}),
-                ...(values["worker-policy"]
-                  ? { policyPath: values["worker-policy"] }
-                  : {}),
-              }),
-            }
-          : {}),
-        ...(native
-          ? {
-              offline: synthetic ?? native,
-              ...(command.runtimes.includes("controls")
-                ? { hostControls: new NativeHostControls(native) }
-                : {}),
-              ...(synthetic ? { synthetic } : {}),
-              online: values["dependency-policy"]
-                ? new NpmArtifactRuntime(
-                    new NativeOnlineAccess(native),
-                    values["dependency-policy"],
-                  )
-                : new NativeOnlineAccess(native),
-            }
-          : {}),
         ...(featureRuntime ? { featureRuntime } : {}),
         ...(validationRuntime ? { validationRuntime } : {}),
         ...(messagesSessions ? { messagesSessions } : {}),
@@ -172,21 +121,10 @@ try {
               ),
             }
           : {}),
-        ...(command.runtimes.includes("subscription") &&
-        values["codex-executable"]
-          ? {
-              subscription: codexSubscriptionReader(values["codex-executable"]),
-            }
-          : {}),
       },
     );
-    if (command.kind === "pin") {
-      if (!native) throw new DeliveryError(usage);
-      result = native.pin(values.repo!);
-    } else {
-      if (!command.invoke) throw new DeliveryError(usage);
-      result = await command.invoke(controller, values);
-    }
+    if (!command.invoke) throw new DeliveryError(usage);
+    result = await command.invoke(controller, values);
   }
   process.stdout.write(`${JSON.stringify(result)}\n`);
 } catch (error) {

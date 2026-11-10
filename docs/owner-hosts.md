@@ -5,18 +5,14 @@ Native runs are the owner's, on the owner host: the owner's Mac
 use these values; each is private to the Mac and outside every repository
 unless noted.
 
-| Fact                          | macOS (Terminal, zsh)                                     |
-| ----------------------------- | --------------------------------------------------------- |
-| Checkout                      | `~/Repos/developer-os` (keeps `main` checked out)         |
-| VM                            | `aios-macos-noshare`                                      |
-| Coding admission record       | `$HOME/.developer-os/admission/coding-admission.json`     |
-| Validation admission record   | `$HOME/.developer-os/admission/validation-admission.json` |
-| Pinned native `codex` 0.161.0 | `$HOME/.developer-os/ticket4-macos/runtime/codex-0.161.0` |
-| Acceptance state              | `$HOME/.developer-os/ticket4-macos/state`                 |
-| Auth directory                | `$HOME/.developer-os-auth` (outside the delivery state)   |
-
-The pinned `codex` hash is `nativeCodexSha256` in `src/host-target.ts`. A
-usage read through any other `codex`, such as the Codex app's, is refused.
+| Fact                        | macOS (Terminal, zsh)                                     |
+| --------------------------- | --------------------------------------------------------- |
+| Checkout                    | `~/Repos/developer-os` (keeps `main` checked out)         |
+| VM                          | `aios-macos-noshare`                                      |
+| Coding admission record     | `$HOME/.developer-os/admission/coding-admission.json`     |
+| Validation admission record | `$HOME/.developer-os/admission/validation-admission.json` |
+| Acceptance state            | `$HOME/.developer-os/ticket4-macos/state`                 |
+| Auth directory              | `$HOME/.developer-os-auth` (outside the delivery state)   |
 
 ## Anthropic API key
 
@@ -70,20 +66,6 @@ this table once the owner has re-pinned.
 Before changing a guest program to deal with what is in a VM, ask the owner for
 the [coding container census](worker-qualification.md#coding-container-census),
 so the change is sized against the real counts.
-
-## Fixed worker's offline pins
-
-The offline pins that `pin-offline` writes, and `qualify`, `offline-canary`
-and the routed runner read through `--worker-policy`, include a
-`policyVersion`. It hashes the VM management program (`src/vm-management.ts`,
-through `vmManagementVersion`) and the host canary. A change to either moves
-it, and `qualify` then refuses offline admission at `observation` until the
-owner enrolls new pins with `pin-offline` into a new file on the Mac. Say so
-in the PR's "Pin impact", as for a guest program.
-
-PR 198 moved it without saying so. The Mac was re-pinned on 7 November to
-`$HOME/.developer-os/ticket4-macos/pins-routed-20261107a.json`
-([receipt](../.scratch/aios-v1-implementation/ticket04-macos-routed-run-repinned-receipt.md)).
 
 ## Next coding guest change
 

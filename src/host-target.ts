@@ -85,50 +85,6 @@ export function supportsHostOS(
         : target.minimumProductMajor)
   );
 }
-const sha256 = (value: unknown): value is string =>
-  typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-export function validHostBinding(
-  value: unknown,
-  expected?: HostPlatform,
-): boolean {
-  if (!value || typeof value !== "object") return false;
-  const binding = value as Record<string, unknown>,
-    target = hostTarget(binding.platform, binding.arch);
-  return Boolean(
-    target &&
-      (!expected || target.platform === expected) &&
-      binding.provider === target.provider &&
-      supportsHostOS(target, binding.osVersion) &&
-      typeof binding.machine === "string" &&
-      /^aios-[a-z0-9-]+$/.test(binding.machine) &&
-      sha256(binding.hostId) &&
-      sha256(binding.vmImageSha256) &&
-      typeof binding.template === "string" &&
-      /^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(binding.template) &&
-      typeof binding.engineVersion === "string" &&
-      /^\d+\.\d+\.\d+$/.test(binding.engineVersion) &&
-      typeof binding.workerVersion === "string" &&
-      /^\d+\.\d+\.\d+$/.test(binding.workerVersion),
-  );
-}
-export function validEffectiveControls(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  const controls = value as Record<string, unknown>;
-  return (
-    controls.hypervisor === true &&
-    controls.dedicated === true &&
-    controls.managementExposed === false &&
-    controls.rootful === false &&
-    controls.network === "none" &&
-    controls.readOnly === true &&
-    controls.user === "65534:65534" &&
-    controls.noNewPrivileges === true &&
-    Array.isArray(controls.mounts) &&
-    controls.mounts.length === 0 &&
-    Array.isArray(controls.capabilities) &&
-    controls.capabilities.length === 0
-  );
-}
 export function codexWorkerSha256(
   platform: string,
   arch: string,
@@ -155,14 +111,3 @@ export function claudeCodePin(
 ): HostTarget["claudeCode"] | undefined {
   return hostTarget(platform, arch)?.claudeCode;
 }
-export const qualificationCheckNames = [
-  "hostBinding",
-  "offlineTransfer",
-  "adversarialIsolation",
-  "onlinePolicy",
-  "authentication",
-  "usageGate",
-  "fencingRecovery",
-  "syntheticTask",
-  "isolatedValidation",
-] as const;

@@ -22,7 +22,7 @@ import {
 } from "./native-management.js";
 import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
-import { codexWorkerSha256 } from "./podman-native.js";
+import { codexWorkerSha256 } from "./host-target.js";
 import {
   claudeCodePin,
   claudeCodeTemplate,

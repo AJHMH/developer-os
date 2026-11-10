@@ -3,11 +3,8 @@
 // stand-in that reports success without executing anything. Shared by the
 // coding admission acceptance and the usage canary.
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 /** A disposable repository with synthetic onboarding facts and policy. */
 export function syntheticDelivery(root) {
@@ -150,22 +147,5 @@ export function syntheticDelivery(root) {
       };
     },
   };
-  // Usage stand-in: a fresh, healthy model-only observation; no account.
-  const subscription = async () => {
-    const at = Date.now();
-    return {
-      observedAt: new Date(at).toISOString(),
-      accountId: sha256("aios-native-coding-admission-acceptance"),
-      authMode: "chatgpt",
-      windows: [
-        {
-          id: "primary",
-          usedPercent: 10,
-          resetsAt: Math.floor(at / 1000) + 3600,
-        },
-      ],
-      exhausted: false,
-    };
-  };
-  return { repository, options, planner, validation, subscription };
+  return { repository, options, planner, validation };
 }
