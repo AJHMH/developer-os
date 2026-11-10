@@ -190,7 +190,8 @@ export function budgetRouteSha256(deliveryId: string): string {
 function validRuntimePins(runtime: FeatureRuntime): boolean {
   return (
     (runtime.agent ?? claudeAgent).provider === "claude" &&
-    validClaudeCodingPins(runtime.pins)
+    validClaudeCodingPins(runtime.pins) &&
+    !("codeModeHostSha256" in runtime.pins)
   );
 }
 

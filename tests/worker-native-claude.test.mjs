@@ -3,8 +3,6 @@ import { test } from "node:test";
 import {
   claudeGuest,
   claudeManagementPolicySha256,
-  codexGuest,
-  managementPolicySha256,
 } from "../dist/podman-coding.js";
 import {
   claudeCodeArgv,
@@ -54,15 +52,13 @@ const events = (output) =>
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 
-test("the Codex guest program is unchanged, and Claude Code's is its own", () => {
-  // The digest the Codex owner coding admission pins today.
+test("the Claude Code guest program is unchanged and holds nothing of Codex's", () => {
+  // The digest the Claude Code owner coding admission pins today.
   assert.equal(
-    managementPolicySha256,
-    "89f2db6033e05941ec94dbb11e0215a1161d469429b85af47ba8fff5442c6a1c",
+    claudeManagementPolicySha256,
+    "0ca38542675e08a9723a0aecc3a9a9f7d4bd949d45645bbb9830aa6f1181dd6b",
   );
-  assert.equal(codexGuest.policySha256, managementPolicySha256);
   assert.equal(claudeGuest.policySha256, claudeManagementPolicySha256);
-  assert.notEqual(claudeManagementPolicySha256, managementPolicySha256);
   assert.equal(claudeGuest.provider, "claude");
   assert.ok(!claudeGuest.program.includes("codex-0.161.0"));
   assert.ok(!claudeGuest.program.includes("CODEX_HOME"));
@@ -143,7 +139,8 @@ test("an offline Claude Code turn runs the pinned binary and only a summary leav
   assert.ok(worker.Config.Env.includes("SHELL=/usr/local/bin/bash"));
   const create = read().commands.find((args) => args[1] === "create");
   assert.ok(create.includes(hostTargets.darwin.claudeCode.template));
-  assert.ok(!create.includes(hostTargets.darwin.offlineTemplate));
+  // No other image: Codex's Alpine template is gone.
+  assert.ok(!create.some((arg) => arg.startsWith("docker.io/library/alpine")));
   assert.ok(create.includes("--entrypoint="));
   assert.deepEqual(worker.Config.Entrypoint, [""]);
   assert.equal(worker.HostConfig.NetworkMode, "none");
@@ -355,11 +352,6 @@ test("the Claude Code guest runs only the pinned bash image with its exact envir
       arch: "arm64",
     }),
     hostTargets.darwin.claudeCode.template,
-  );
-  // Codex keeps the shared Alpine template.
-  assert.equal(
-    codexGuest.template(hostTargets.darwin),
-    hostTargets.darwin.offlineTemplate,
   );
   // An image whose environment is not exactly the pinned one is refused
   // before any worker exists.

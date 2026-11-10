@@ -108,23 +108,15 @@ export function featurePlan(plan: FeaturePlan | undefined): FeatureEvidence {
   };
 }
 
+/** The pins a Claude Code turn runs at (ADR 0008): the CLI's version and
+ * binary, and the guest program and VM binding it runs under. */
 export interface CodingPins {
   cliVersion: string;
   cliSha256: string;
-  /** Codex's code-mode host beside the CLI, from the same package. Claude
-   * Code has none (`ClaudeCodingPins`). */
-  codeModeHostSha256?: string;
   policySha256: string;
   bindingSha256: string;
 }
-/** The pins a Claude Code turn runs at (ADR 0008). There is no code-mode
- * host: the CLI is one binary. */
-export interface ClaudeCodingPins {
-  cliVersion: string;
-  cliSha256: string;
-  policySha256: string;
-  bindingSha256: string;
-}
+export type ClaudeCodingPins = CodingPins;
 export interface CodingSession {
   operationId: string;
   fence: number;
@@ -181,16 +173,19 @@ export function codingBinding(session: CodingSession): CodingSession {
       : {}),
   };
 }
+/** The provider a recorded session ran. Codex appears only in records made
+ * before ADR 0008, which name no provider. */
+export type RecordedProvider = CodingProvider | "codex";
 /** The provider a session (or superseded lineage) ran; one recorded without
  * a provider ran Codex. */
 export function sessionProvider(session: {
   provider?: CodingProvider;
-}): CodingProvider {
+}): RecordedProvider {
   return session.provider ?? "codex";
 }
-/** The `provider` a new session records: omitted for Codex, so Codex evidence
- * stays as it was recorded before ADR 0003. */
-export function recordedProvider(provider: CodingProvider): {
+/** The `provider` a session records: Claude Code by name, and a Codex
+ * lineage, as it was recorded, without one. */
+export function recordedProvider(provider: RecordedProvider): {
   provider?: CodingProvider;
 } {
   return provider === "codex" ? {} : { provider };
@@ -220,7 +215,7 @@ export interface CodingCleanup {
 }
 /** ADR 0002: a coding session's only model route, the session relay on the
  * worker's own loopback. The capability is the relay's revocable value, never
- * the host credential, and reaches Codex only through `modelRouteVariable`. */
+ * the host credential, and reaches Claude Code only through its environment. */
 export interface ModelRoute {
   deliveryId: string;
   capability: string;
@@ -228,13 +223,9 @@ export interface ModelRoute {
 }
 export {
   claudeAgent,
-  codexAgent,
-  codingTurn,
   featureBranchName,
   featureBranchPattern,
-  lockedCodingArgv,
   modelRoutePort,
-  modelRouteVariable,
   type CodingAgent,
   type CodingProvider,
 } from "./coding-agent.js";
@@ -339,13 +330,6 @@ export interface FeatureRuntime {
   collect(session: CodingSession): Promise<CodingCollection>;
 }
 
-export const codingPinFields = Object.freeze([
-  "cliVersion",
-  "cliSha256",
-  "codeModeHostSha256",
-  "policySha256",
-  "bindingSha256",
-] as const);
 export const claudeCodingPinFields = Object.freeze([
   "cliVersion",
   "cliSha256",
@@ -364,19 +348,6 @@ export function validClaudeCodingPins(pins: ClaudeCodingPins): boolean {
 }
 /** While a turn streams, a record read this recently still admits it. */
 const admissionStreamMaxAgeMs = 1000;
-
-export function validCodingPins(pins: CodingPins): boolean {
-  return Boolean(
-    pins &&
-      /^\d+\.\d+\.\d+$/.test(pins.cliVersion) &&
-      [
-        pins.cliSha256,
-        pins.codeModeHostSha256,
-        pins.policySha256,
-        pins.bindingSha256,
-      ].every((x) => typeof x === "string" && /^[a-f0-9]{64}$/.test(x)),
-  );
-}
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -788,13 +759,12 @@ export class PinnedCodingRuntime implements FeatureRuntime {
     readonly agent: CodingAgent = claudeAgent,
   ) {
     this.pins = Object.freeze(structuredClone(pins));
-    // Claude Code's pins have no code-mode host (ADR 0008); Codex's must.
-    const claude = agent.provider === "claude";
-    this.pinFields = claude ? claudeCodingPinFields : codingPinFields;
+    this.pinFields = claudeCodingPinFields;
+    // Exactly Claude Code's pins: a Codex code-mode host pin is refused.
     if (
-      !(claude
-        ? validClaudeCodingPins(pins) && !("codeModeHostSha256" in pins)
-        : validCodingPins(pins)) ||
+      agent.provider !== "claude" ||
+      !validClaudeCodingPins(pins) ||
+      "codeModeHostSha256" in pins ||
       !this.admitted()
     )
       throw Error("Unqualified coding transport");

@@ -172,12 +172,11 @@ test("repair-feature with an invalid coding or validation record refuses before 
   writeFileSync(
     coding,
     JSON.stringify({
-      scope: "aios-native-coding-admission-v1",
+      scope: "aios-claude-coding-admission-v1",
       approvedAt: "2026-10-21T12:00:00.000Z",
       pins: {
         cliSha256: "c".repeat(64),
-        codeModeHostSha256: "b".repeat(64),
-        cliVersion: "0.161.0",
+        cliVersion: "2.1.311",
         policySha256: "d".repeat(64),
         bindingSha256: "e".repeat(64),
       },

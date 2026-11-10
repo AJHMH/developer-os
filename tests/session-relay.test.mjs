@@ -6,16 +6,22 @@ import { PassThrough, Writable } from "node:stream";
 import { test } from "node:test";
 import {
   sessionRelayLimits,
-  sessionRelaySource,
+  sessionRelayProgram,
   openSessionRelay,
 } from "../dist/session-relay.js";
-import { gatewayModel } from "../dist/inference-contract.js";
+import { messagesRelayPaths } from "../dist/messages-gateway.js";
+import { pinnedModelPrices } from "../dist/spend-budget.js";
 import { testPython } from "./helpers/python.mjs";
 
 const deliveryId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const capability = "c".repeat(64);
+const model = pinnedModelPrices.model;
+// The Claude Code guest's relay: only the Messages paths (src/podman-coding.ts).
+const relaySource = sessionRelayProgram(
+  `self.path not in ${JSON.stringify(messagesRelayPaths)}`,
+);
 const body = Buffer.from(
-  JSON.stringify({ model: gatewayModel, stream: true, store: false }),
+  JSON.stringify({ model, stream: true, max_tokens: 1024 }),
 );
 
 /** Newline-delimited JSON frames from a stream, one at a time. */
@@ -39,7 +45,7 @@ function frames(stream) {
 
 /** The relay process alone, outside any namespace, on an ephemeral port. */
 async function relay(t, config = {}) {
-  const child = spawn(testPython, ["-I", "-u", "-c", sessionRelaySource], {
+  const child = spawn(testPython, ["-I", "-u", "-c", relaySource], {
     stdio: ["pipe", "pipe", "ignore"],
   });
   t.after(() => child.kill("SIGKILL"));
@@ -50,7 +56,7 @@ async function relay(t, config = {}) {
       port: 0,
       deliveryId,
       capability,
-      model: gatewayModel,
+      model,
       requestBytes: 4096,
       responseGapMs: 5000,
       ...config,
@@ -90,7 +96,7 @@ const severed = (pending) =>
 /** A request with the session's headers; `null` drops one, an array repeats it. */
 function request({
   method = "POST",
-  path = "/v1/responses",
+  path = "/v1/messages",
   headers = {},
   payload = body,
 } = {}) {
@@ -125,13 +131,15 @@ const deniedEmpty = (response, name) => {
   assert.equal(rest.length, 0, name);
 };
 
-test("the relay refuses anything but the session's exact Responses request with an empty 403", async (t) => {
+test("the relay refuses anything but the session's exact Messages request with an empty 403", async (t) => {
   const r = await relay(t);
   const json = (value) => Buffer.from(JSON.stringify(value));
   for (const [name, changes] of [
     ["another method", { method: "GET" }],
     ["another path", { path: "/v1/models" }],
-    ["a query string", { path: "/v1/responses?stream=1" }],
+    ["Codex's Responses path", { path: "/v1/responses" }],
+    ["the token counter", { path: "/v1/messages/count_tokens" }],
+    ["another query string", { path: "/v1/messages?stream=1" }],
     [
       "another capability",
       { headers: { Authorization: `Bearer ${"0".repeat(64)}` } },
@@ -171,17 +179,17 @@ test("the relay refuses anything but the session's exact Responses request with 
     ["an expectation", { headers: { Expect: "100-continue" } }],
     [
       "a body over the bound",
-      { payload: json({ model: gatewayModel, pad: "x".repeat(5000) }) },
+      { payload: json({ model, pad: "x".repeat(5000) }) },
     ],
-    ["another model", { payload: json({ model: "gpt-other", stream: true }) }],
+    [
+      "another model",
+      { payload: json({ model: "claude-other", stream: true }) },
+    ],
     ["a body that is not JSON", { payload: Buffer.from("{not json") }],
     [
       "a body that is not UTF-8",
       {
-        payload: Buffer.from(
-          JSON.stringify({ model: gatewayModel }),
-          "utf16le",
-        ),
+        payload: Buffer.from(JSON.stringify({ model }), "utf16le"),
       },
     ],
   ])
@@ -193,8 +201,8 @@ test("the relay refuses anything but the session's exact Responses request with 
     body: body.toString("base64"),
   });
   const sse = [
-    'data: {"type":"response.created"}\n\n',
-    'data: {"type":"response.completed"}\n\n',
+    'data: {"type":"message_start"}\n\n',
+    'data: {"type":"message_stop"}\n\n',
   ];
   for (const chunk of sse)
     r.send({ request: 1, chunk: Buffer.from(chunk).toString("base64") });

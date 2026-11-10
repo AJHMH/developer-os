@@ -7,12 +7,10 @@ import {
   PinnedCodingRuntime,
   claudeAgent,
   claudeCodingPinFields,
-  codexAgent,
 } from "../dist/feature-candidate.js";
 import {
   claudeCodingAdmissionScope,
   ownerClaudeCodingAdmission,
-  ownerCodingAdmission,
 } from "../dist/coding-admission.js";
 
 // The pinned coding runtime admits Claude Code turns at Claude Code's own pins
@@ -28,6 +26,7 @@ const codexPins = Object.freeze({
   cliVersion: "0.161.0",
   codeModeHostSha256: "b".repeat(64),
 });
+const codexAgent = Object.freeze({ ...claudeAgent, provider: "codex" });
 const live = (pins) => ({ mode: "live", inspect: async () => ({ ...pins }) });
 
 function record(t, scope, pins) {
@@ -103,7 +102,7 @@ test("a Claude Code runtime is admitted at exactly its owner record's Claude pin
   );
 });
 
-test("Claude Code pins never carry a code-mode host, and Codex pins always do", (t) => {
+test("Claude Code pins never carry a code-mode host, and no Codex runtime or record is admitted", (t) => {
   const claude = ownerClaudeCodingAdmission(
     record(t, claudeCodingAdmissionScope, claudePins).path,
   );
@@ -117,21 +116,16 @@ test("Claude Code pins never carry a code-mode host, and Codex pins always do", 
       ),
     /Unqualified coding transport/,
   );
-  // Claude Code pins never admit a Codex runtime, even under a record that
-  // names them.
-  const codex = ownerCodingAdmission(
-    record(t, "aios-native-coding-admission-v1", codexPins).path,
+  // An agent other than Claude Code is refused at any pins.
+  for (const pins of [claudePins, codexPins])
+    assert.throws(
+      () => new PinnedCodingRuntime(pins, live(pins), claude, codexAgent),
+      /Unqualified coding transport/,
+    );
+  // A Codex-era record never admits a Claude Code runtime.
+  const codex = ownerClaudeCodingAdmission(
+    record(t, "aios-native-coding-admission-v1", claudePins).path,
   );
-  assert.throws(
-    () =>
-      new PinnedCodingRuntime(claudePins, live(claudePins), codex, codexAgent),
-    /Unqualified coding transport/,
-  );
-  assert.deepEqual(
-    new PinnedCodingRuntime(codexPins, live(codexPins), codex, codexAgent).pins,
-    codexPins,
-  );
-  // A Codex record never admits a Claude Code runtime.
   assert.throws(
     () =>
       new PinnedCodingRuntime(claudePins, live(claudePins), codex, claudeAgent),

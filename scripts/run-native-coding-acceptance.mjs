@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Owner-run offline acceptance of native coding sessions on a real dedicated
-// VM. It never provisions or starts the VM, opens credentials or authorizes
+// VM, on the Claude Code guest (ADR 0008). It never provisions or starts the VM, opens credentials or authorizes
 // inference, and it never enables production or claims qualification. Run it
 // through scripts/run-native-acceptance.mjs, which holds the shared acceptance
 // lock and keeps the Mac awake.
@@ -40,7 +40,9 @@ const refusedBy = {
   runGate: /^Native coding run stopped by its gate/,
 };
 
-/** Only complete JSON lines count; a partial final line is not evidence. */
+/** The sessions a turn's summarized transcript names: each Claude Code init
+ * event's. Only complete JSON lines count; a partial final line is not
+ * evidence. */
 function threadsIn(bytes) {
   return bytes
     .toString("utf8")
@@ -49,7 +51,9 @@ function threadsIn(bytes) {
     .flatMap((line) => {
       try {
         const event = JSON.parse(line);
-        return event?.type === "thread.started" ? [event.thread_id] : [];
+        return event?.type === "system" && event.subtype === "init"
+          ? [event.session_id]
+          : [];
       } catch {
         return [];
       }
@@ -71,6 +75,8 @@ function input(text) {
 /** Run the session scenario against `transport` and return the report;
  * `persist` receives it after every stage. */
 export async function sessionAcceptance(transport, options = {}) {
+  // Loaded here, never at import: main checks the build before it runs.
+  const { claudeCodeArgv } = await import("../dist/coding-agent.js");
   const persist = options.persist ?? (() => {});
   const interrupted = options.interrupted ?? (() => false);
   const revisions = {
@@ -81,7 +87,7 @@ export async function sessionAcceptance(transport, options = {}) {
     first: input("AIOS native session acceptance: first main\n"),
     moved: input("AIOS native session acceptance: moved main\n"),
   };
-  const branch = "codex/issue04-native-session-acceptance";
+  const branch = "aios/issue04-native-session-acceptance";
   const report = {
     scope: "native-coding-offline-session-acceptance",
     productionEnabled: false,
@@ -144,9 +150,9 @@ export async function sessionAcceptance(transport, options = {}) {
       "Exact-session stop is uncertain",
     );
   }
-  // Offline, Codex keeps retrying the provider until its turn allowance ends,
-  // so a turn ends once its thread is reported: the run's own gate stops it,
-  // and the transport stops the exact session before returning.
+  // Offline, Claude Code has no model route, so a turn may end on its own
+  // once its session is reported; if not, the run's own gate stops it, and
+  // the transport stops the exact session before returning.
   async function turn(s, { revision, threadId, resumeFrom, baseMove, gates }) {
     attempted.push(s);
     let output = Buffer.alloc(0),
@@ -158,25 +164,7 @@ export async function sessionAcceptance(transport, options = {}) {
           ...(threadId ? { threadId, resumeFrom } : {}),
           ...(baseMove ? { baseMove } : {}),
           pins: report.pins,
-          argv: threadId
-            ? [
-                "exec",
-                "resume",
-                "--json",
-                "--skip-git-repo-check",
-                "-c",
-                'sandbox_mode="workspace-write"',
-                threadId,
-                prompt,
-              ]
-            : [
-                "exec",
-                "--json",
-                "--skip-git-repo-check",
-                "--sandbox",
-                "workspace-write",
-                prompt,
-              ],
+          argv: [...claudeCodeArgv(threadId), prompt],
           branch,
           sourceRevision: revisions[revision],
           ...inputs[revision],
@@ -205,7 +193,7 @@ export async function sessionAcceptance(transport, options = {}) {
     }
     return threads;
   }
-  // A first launch reports exactly one explicit thread.
+  // A first launch reports exactly one explicit session.
   async function firstLaunch(s) {
     let threads = [];
     try {

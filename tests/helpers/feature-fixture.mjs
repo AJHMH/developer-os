@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { DeliveryController } from "../../dist/controller.js";
-import { claudeAgent, codexAgent } from "../../dist/coding-agent.js";
+import { claudeAgent } from "../../dist/coding-agent.js";
 import { claudeEvents, firstThread } from "./coding-turns.mjs";
 
 function fixture(t) {
@@ -67,11 +67,9 @@ function fixture(t) {
   return { root, repository, state, git, criteria, controller, delivery };
 }
 
-/** A controlled coding fixture. Coding runs on Claude Code by default,
- * metered through a stand-in Messages session (ADR 0008); `agent: "codex"`
- * keeps the subscription-authorized Codex path its own tests still cover. */
-function codingFixture(t, configurePolicy = () => {}, options = {}) {
-  const codex = options.agent === "codex";
+/** A controlled coding fixture. Coding runs on Claude Code, metered through
+ * a stand-in Messages session (ADR 0008). */
+function codingFixture(t, configurePolicy = () => {}) {
   const f = fixture(t),
     revision = f.git("rev-parse", "HEAD");
   const policyPath = join(f.root, "owner-policy.json");
@@ -110,21 +108,13 @@ function codingFixture(t, configurePolicy = () => {}, options = {}) {
   f.now = 1000;
   f.runtime = {
     mode: "controlled",
-    agent: codex ? codexAgent : claudeAgent,
-    pins: codex
-      ? {
-          cliSha256: "c".repeat(64),
-          codeModeHostSha256: "b".repeat(64),
-          cliVersion: "0.161.0",
-          policySha256: "d".repeat(64),
-          bindingSha256: "e".repeat(64),
-        }
-      : {
-          cliSha256: "c".repeat(64),
-          cliVersion: "2.1.311",
-          policySha256: "d".repeat(64),
-          bindingSha256: "e".repeat(64),
-        },
+    agent: claudeAgent,
+    pins: {
+      cliSha256: "c".repeat(64),
+      cliVersion: "2.1.311",
+      policySha256: "d".repeat(64),
+      bindingSha256: "e".repeat(64),
+    },
     async execute(request) {
       this.request = request;
       f.now += 50;
@@ -133,16 +123,7 @@ function codingFixture(t, configurePolicy = () => {}, options = {}) {
         operationId: request.operationId,
         fence: request.fence,
         exitCode: 0,
-        events: codex
-          ? [
-              { type: "thread.started", thread_id: firstThread },
-              { type: "turn.started" },
-              {
-                type: "turn.completed",
-                usage: { input_tokens: 1, output_tokens: 1 },
-              },
-            ]
-          : claudeEvents(request.threadId ?? firstThread, true),
+        events: claudeEvents(request.threadId ?? firstThread, true),
       };
     },
     async stop(request) {
@@ -174,22 +155,6 @@ function codingFixture(t, configurePolicy = () => {}, options = {}) {
       };
     },
   };
-  // A fresh, healthy model-only subscription observation at the fixture clock.
-  f.usedPercent = 10;
-  // Stamp it with the observing controller's clock (the fixture clock by default).
-  f.subscription = async (at = f.now) => ({
-    observedAt: new Date(at).toISOString(),
-    accountId: "account-1",
-    authMode: "chatgpt",
-    windows: [
-      {
-        id: "primary",
-        usedPercent: f.usedPercent,
-        resetsAt: Math.floor(at / 1000) + 3600,
-      },
-    ],
-    exhausted: f.usedPercent >= 100,
-  });
   // Each metered turn's stand-in Messages session; a turn that sends a
   // request through it fails.
   f.messagesTurns = [];
@@ -208,9 +173,7 @@ function codingFixture(t, configurePolicy = () => {}, options = {}) {
   f.controller = new DeliveryController(f.state, f.options, {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
-    ...(codex
-      ? { subscription: () => f.subscription() }
-      : { messagesSessions: f.messagesSessions }),
+    messagesSessions: f.messagesSessions,
     validationRuntime: f.validation,
     clock: () => f.now,
   });

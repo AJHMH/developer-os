@@ -839,71 +839,6 @@ for (const drift of ["operation", "policy", "branch", "source", "pause"])
     assert.equal(result.feature.candidate, undefined);
   });
 
-const sessionEvent = {
-  type: "thread.started",
-  thread_id: "11111111-1111-4111-8111-111111111111",
-};
-const turnEvent = { type: "turn.started" };
-const doneEvent = { type: "turn.completed" };
-test("structured CLI events accept supported items and reject malformed or cross-session transcripts", async () => {
-  const { codingTurn } = await import("../dist/feature-candidate.js");
-  const result = (events) => ({
-    operationId: "operation",
-    fence: 1,
-    exitCode: 0,
-    events,
-  });
-  const items = [
-    "agent_message",
-    "reasoning",
-    "command_execution",
-    "file_change",
-    "todo_list",
-  ].map((type) => ({ type: "item.completed", item: { type } }));
-  assert.equal(
-    codingTurn(result([sessionEvent, turnEvent, ...items, doneEvent]))
-      .completed,
-    true,
-  );
-  assert.equal(
-    codingTurn({ ...result([sessionEvent, turnEvent, doneEvent]), exitCode: 1 })
-      .completed,
-    false,
-  );
-  for (const events of [
-    undefined,
-    Array(4097).fill(null),
-    [null],
-    [{ type: "unexpected" }],
-    [turnEvent],
-    [doneEvent],
-    [sessionEvent, sessionEvent],
-    [{ ...sessionEvent, thread_id: "wrong" }],
-    [sessionEvent, turnEvent, turnEvent],
-    [sessionEvent, turnEvent, doneEvent, doneEvent],
-    [sessionEvent, ...items],
-    [
-      sessionEvent,
-      turnEvent,
-      { type: "item.completed", item: { type: "mcp_tool_call" } },
-    ],
-    [sessionEvent, turnEvent, { type: "item.started" }],
-    [
-      sessionEvent,
-      turnEvent,
-      {
-        type: "item.updated",
-        item: { type: "agent_message", text: "x".repeat(66000) },
-      },
-    ],
-  ]) {
-    assert.throws(() => codingTurn(result(events)));
-  }
-  assert.throws(() =>
-    codingTurn(result([sessionEvent]), "22222222-2222-4222-8222-222222222222"),
-  );
-});
-
 test("CLI rejects invalid feature controls and preserves explicit initial budgets", async (t) => {
   const f = fixture(t);
   const cli = (args) =>
@@ -949,6 +884,23 @@ test("CLI rejects invalid feature controls and preserves explicit initial budget
   assert.equal(JSON.parse(started.stdout).initialCodingAllowanceMs, 1800000);
 });
 
+// A Claude Code stream-json turn: its init, one message, then its result.
+const sessionEvent = {
+  type: "system",
+  subtype: "init",
+  session_id: firstThread,
+};
+const turnEvent = {
+  type: "assistant",
+  session_id: firstThread,
+  message: { role: "assistant", content: [{ type: "text", text: "Done" }] },
+};
+const doneEvent = {
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  session_id: firstThread,
+};
 for (const failure of [
   "frame",
   "oversized",

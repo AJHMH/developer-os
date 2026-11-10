@@ -37,13 +37,6 @@ const usage =
   "Usage: node scripts/run-native-worker-qualification.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <image-id> <new-report.json> --approve-offline-native-run";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 export const passingOutcome = "observed-offline-worker-qualification";
-const codingPinFields = [
-  "cliVersion",
-  "cliSha256",
-  "codeModeHostSha256",
-  "policySha256",
-  "bindingSha256",
-];
 const validationPinFields = ["imageSha256", "policySha256", "bindingSha256"];
 const same = (fields, a, b) => fields.every((field) => a[field] === b[field]);
 const prompt =
@@ -98,22 +91,7 @@ export function probeCheck(boundaryProbe, name) {
   };
 }
 
-/** The Codex coding worker's defaults: its pins, argv and branch. Claude Code
- * names its own (`claudeCoding`). */
-const codexCoding = {
-  pinFields: codingPinFields,
-  argv: [
-    "exec",
-    "--json",
-    "--skip-git-repo-check",
-    "--sandbox",
-    "workspace-write",
-    prompt,
-  ],
-  branch: "codex/issue04-worker-qualification",
-};
-
-/** Claude Code's coding worker (ADR 0008). Claude Code reaches a model only
+/** The coding worker: Claude Code (ADR 0008), the only coding agent. Claude Code reaches a model only
  * through the session relay, so its live session is routed: the relay leads
  * to a real MessagesGateway whose provider is a stand-in on the host. It sends
  * no network request, and the key it is given is synthetic and generated per
@@ -196,15 +174,14 @@ export function claudeCoding({
 
 /** Run the qualification and return the report; `persist` receives it after
  * every stage. The workers are `{ transport, admission, Runtime }` pairs; the
- * coding worker may also name its `pinFields`, `argv`, `branch` and a
- * `route()` for a routed session (`claudeCoding`), and is Codex otherwise. */
+ * coding worker also names its `pinFields`, `argv`, `branch` and, for a routed
+ * session, a `route()` (`claudeCoding`). */
 export async function workerQualification(
   { coding, validation, imageSha256, probes },
   options = {},
 ) {
   const persist = options.persist ?? (() => {});
-  const codingWorker = { ...codexCoding, ...coding };
-  const codingPinFields = codingWorker.pinFields;
+  const codingPinFields = coding.pinFields;
   const interrupted = options.interrupted ?? (() => false);
   const pause =
     options.pause ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
@@ -316,15 +293,15 @@ export async function workerQualification(
     await stage("coding-live-boundary-probe", async () => {
       let probed = false;
       codingLaunched = true;
-      const route = codingWorker.route?.();
+      const route = coding.route?.();
       report.coding.mode = route ? "routed" : "offline";
       const running = coding.transport
         .run(
           {
             ...codingSession,
             pins: report.pins.coding,
-            argv: [...codingWorker.argv],
-            branch: codingWorker.branch,
+            argv: [...coding.argv],
+            branch: coding.branch,
             ...(route ? { modelRoute: route.modelRoute } : {}),
             sourceRevision: sha256("aios-native-worker-qualification").slice(
               0,
@@ -638,38 +615,27 @@ async function main() {
   const { ownerValidationAdmission, PinnedValidationRuntime } = await import(
     "../dist/native-validation.js"
   );
-  const {
-    boundaryProbe,
-    boundaryProbeNames,
-    claudeCodingBoundaryProbe,
-    codingBoundaryProbe,
-  } = await import("../dist/worker-probes.js");
-  // The owner's coding record names the agent: a Claude Code record (ADR
-  // 0008) qualifies the Claude Code guest, and any other the Codex guest,
-  // under the authority the VM's coding state already belongs to.
+  const { boundaryProbe, boundaryProbeNames, claudeCodingBoundaryProbe } =
+    await import("../dist/worker-probes.js");
+  // The Claude Code guest (ADR 0008), under the owner's Claude Code record and
+  // the authority the VM's coding state already belongs to. A record of any
+  // other scope is refused when its pins are read.
   const worker = ownerCodingWorker(machine, codingRecord);
-  const claude = worker.agent === "claude";
-  const coding = claude
-    ? {
-        transport: worker.transport,
-        admission: worker.admission,
-        Runtime: class extends PinnedCodingRuntime {
-          constructor(pins, transport, admission) {
-            super(pins, transport, admission, claudeAgent);
-          }
-        },
-        ...claudeCoding({
-          MessagesGateway,
-          claudeCodeArgv,
-          claudeCodingPinFields,
-          model: pinnedModelPrices.model,
-        }),
+  const coding = {
+    transport: worker.transport,
+    admission: worker.admission,
+    Runtime: class extends PinnedCodingRuntime {
+      constructor(pins, transport, admission) {
+        super(pins, transport, admission, claudeAgent);
       }
-    : {
-        transport: worker.transport,
-        admission: worker.admission,
-        Runtime: PinnedCodingRuntime,
-      };
+    },
+    ...claudeCoding({
+      MessagesGateway,
+      claudeCodeArgv,
+      claudeCodingPinFields,
+      model: pinnedModelPrices.model,
+    }),
+  };
   const validation = {
     transport: new NativePodmanValidationTransport(
       machine,
@@ -688,11 +654,9 @@ async function main() {
     host: { platform: platform(), arch: arch(), release: release(), machine },
     imageSha256,
     probeSha256: sha256(boundaryProbe),
-    // The coding worker runs the shared probes plus its own controls.
-    codingAgent: claude ? "claude" : "codex",
-    codingProbeSha256: sha256(
-      claude ? claudeCodingBoundaryProbe : codingBoundaryProbe,
-    ),
+    // The coding worker runs Claude Code's probes plus its own controls.
+    codingAgent: "claude",
+    codingProbeSha256: sha256(claudeCodingBoundaryProbe),
     ...source,
   };
   let interrupted = false;

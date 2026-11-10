@@ -15,7 +15,6 @@ import {
 import {
   claudeCodingAdmissionScope,
   ownerClaudeCodingAdmission,
-  ownerCodingAdmission,
 } from "../dist/coding-admission.js";
 
 const pins = Object.freeze({
@@ -94,11 +93,6 @@ function record(t, fields) {
 test("Claude coding admission has its own scope, apart from Codex-era records", (t) => {
   assert.equal(claudeCodingAdmissionScope, "aios-claude-coding-admission-v1");
   assert.deepEqual(ownerClaudeCodingAdmission(record(t)).pins(), pins);
-  // A Claude record never admits a Codex turn.
-  assert.throws(
-    () => ownerCodingAdmission(record(t)).pins(),
-    /Owner coding admission is missing or invalid/,
-  );
   const refused = {
     "Codex scope": { scope: "aios-native-coding-admission-v1" },
     "code-mode host pin": {

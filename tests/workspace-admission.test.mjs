@@ -54,3 +54,23 @@ test("admission retains the bounded, digest-pinned ordinary file boundary", (t) 
   symlinkSync(repo, join(root, "linked-directory"));
   assert.throws(() => admitFiles(policy, join(root, "linked-directory")));
 });
+
+test("a file inside folders is admitted through each ordinary folder, and a linked folder refuses", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-admission-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const repo = join(root, "repo");
+  mkdirSync(join(repo, "site", "pages"), { recursive: true });
+  writeFileSync(join(repo, "site", "pages", "index.html"), "<h1>Hi</h1>\n");
+  const policy = {
+    files: [{ path: "site/pages/index.html", sha256: digest("<h1>Hi</h1>\n") }],
+  };
+  const [admitted] = admitFiles(policy, repo);
+  assert.equal(admitted.path, "site/pages/index.html");
+  assert.equal(admitted.bytes.toString(), "<h1>Hi</h1>\n");
+  // A folder on the way that is a link is not an ordinary entry.
+  mkdirSync(join(root, "elsewhere"));
+  writeFileSync(join(root, "elsewhere", "index.html"), "<h1>Hi</h1>\n");
+  rmSync(join(repo, "site", "pages"), { recursive: true });
+  symlinkSync(join(root, "elsewhere"), join(repo, "site", "pages"));
+  assert.throws(() => admitFiles(policy, repo), /ordinary/);
+});

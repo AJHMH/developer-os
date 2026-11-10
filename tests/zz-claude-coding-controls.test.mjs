@@ -4,7 +4,7 @@ import "./helpers/owner-host-stand-in.mjs";
 // deadline that stops a running turn, and the controls around it. The name
 // sorts after every other test file, so no other file changes shard.
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -35,7 +35,8 @@ function persisted(f, change) {
 }
 
 test("a coding runtime for any agent but Claude Code is refused before anything is recorded", async (t) => {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
+  f.runtime.agent = { ...f.runtime.agent, provider: "codex" };
   await planAndValidate(f);
   const before = f.controller.status(f.delivery.id);
   await assert.rejects(
@@ -245,4 +246,29 @@ test("resume clears an uncertain blocker once every session is stopped", async (
   assert.equal(resumed.phase, "blocked");
   assert.equal(resumed.blocker.code, "DELIVERY_NOT_ENABLED");
   assert.equal(resumed.controls.at(-1).action, "resume");
+});
+
+test("a coding runtime whose pins still name a Codex code-mode host is refused", async (t) => {
+  const f = codingFixture(t);
+  await planAndValidate(f);
+  f.runtime.pins = { ...f.runtime.pins, codeModeHostSha256: "b".repeat(64) };
+  const before = f.controller.status(f.delivery.id);
+  await assert.rejects(
+    f.controller.codeFeature(f.delivery.id),
+    /stopped controlled coding runtime/,
+  );
+  assert.deepEqual(f.controller.status(f.delivery.id), before);
+});
+
+test("start refuses a repository path that looks like a credential", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-start-path-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const repository = join(root, "ghp_" + "a".repeat(24));
+  mkdirSync(repository);
+  const controller = new DeliveryController(join(root, "state"), {});
+  assert.throws(
+    () => controller.start({ repository, request: "Add a hint." }),
+    /without embedded credentials/,
+  );
+  assert.deepEqual(controller.list().deliveries, []);
 });

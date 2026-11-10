@@ -128,14 +128,6 @@ export const boundaryProbeNames: readonly string[] = Object.freeze(
 );
 export const boundaryProbe = script(probes);
 
-/** The coding worker's probe: the shared probes, then its own controls. Its
- * third argument is the session's mode. */
-export const codingBoundaryProbeNames: readonly string[] = Object.freeze([
-  ...boundaryProbeNames,
-  ...codingProbes.map(([name]) => name),
-]);
-export const codingBoundaryProbe = script([...probes, ...codingProbes]);
-
 /** Claude Code's settings, memory, extensions and tools, as a retained
  * session home (`CLAUDE_CONFIG_DIR`) would carry them, and its managed-settings
  * folder. The Claude guest refuses a resume whose home holds any of these.

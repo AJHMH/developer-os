@@ -9,14 +9,19 @@ import {
   boundaryProbeOutcomes,
   claudeCodingBoundaryProbe,
   claudeCodingBoundaryProbeNames,
-  codingBoundaryProbe,
-  codingBoundaryProbeNames,
 } from "../dist/worker-probes.js";
 
-// Claude Code's boundary probe (ADR 0008): Codex's coding probe with Claude's
-// home, credentials and binary in their place.
+// Claude Code's boundary probe (ADR 0008): the shared probe with Claude's
+// home, credentials and binary in place of Codex's, then the coding worker's
+// own controls.
 const codexHome = ["codex-skills", "mcp-config", "hooks-rules-agents"];
-const codingOnly = codingBoundaryProbeNames.slice(boundaryProbeNames.length);
+const codingOnly = [
+  "relay-listener",
+  "relay-answers",
+  "read-only-binaries",
+  "hardened-process",
+  "writable-only-work",
+];
 
 test("the Claude probe is the shared probe with Claude's home in place of Codex's, plus the coding controls", () => {
   assert.deepEqual(claudeCodingBoundaryProbeNames, [
@@ -32,16 +37,26 @@ test("the Claude probe is the shared probe with Claude's home in place of Codex'
     );
   assert.match(claudeCodingBoundaryProbe, /mode="\$\{3-\}"/);
   assert.doesNotMatch(claudeCodingBoundaryProbe, /\/codex/);
-  // Codex's probe is unchanged, and neither result passes for the other.
-  assert.notEqual(claudeCodingBoundaryProbe, codingBoundaryProbe);
-  assert.throws(
-    () =>
-      boundaryProbeOutcomes(
-        codingBoundaryProbeNames.map((n) => `passed-${n}`).join("\n"),
-        claudeCodingBoundaryProbeNames,
-      ),
-    /malformed/,
+  const passing = claudeCodingBoundaryProbeNames.map((n) => `passed-${n}`);
+  assert.equal(
+    boundaryProbeOutcomes(passing.join("\n"), claudeCodingBoundaryProbeNames)
+      .length,
+    claudeCodingBoundaryProbeNames.length,
   );
+  // Neither the shared list alone nor the removed Codex coding probe's
+  // verdicts is a Claude Code result.
+  for (const names of [
+    boundaryProbeNames,
+    [...boundaryProbeNames, ...codingOnly],
+  ])
+    assert.throws(
+      () =>
+        boundaryProbeOutcomes(
+          names.map((n) => `passed-${n}`).join("\n"),
+          claudeCodingBoundaryProbeNames,
+        ),
+      /malformed/,
+    );
 });
 
 /** Runs the Claude probe with `HOME`, the managed-settings folder and the
