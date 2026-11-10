@@ -25,14 +25,3 @@ export const failedTurn = async (request) => ({
   exitCode: 1,
   events: claudeEvents(request.threadId ?? firstThread, false),
 });
-// The same failure on Codex.
-export const codexFailedTurn = async (request) => ({
-  operationId: request.operationId,
-  fence: request.fence,
-  exitCode: 1,
-  events: [
-    { type: "thread.started", thread_id: firstThread },
-    { type: "turn.started" },
-    { type: "turn.failed", error: { message: "synthetic failure" } },
-  ],
-});

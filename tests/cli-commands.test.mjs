@@ -345,22 +345,16 @@ test("a valid owner validation admission installs the native runtime without any
   assert.equal(JSON.parse(result.stderr).error, "Delivery not found.");
 });
 
-test("code-feature takes the owner's coding and validation inputs and its initial coding minutes", async () => {
+test("code-feature takes the owner's coding and validation inputs, auth directory and initial coding minutes", async () => {
   const values = {
     id: "d",
     "owner-policy": "/owner/policy.json",
     "onboarding-attestation": "/owner/onboarding-attestation.json",
     "podman-machine": "aios-test",
-    "coding-admission": "/owner/coding-admission.json",
+    "coding-admission": "/owner/claude-coding-admission.json",
     "validation-admission": "/owner/validation-admission.json",
-    "codex-executable": "/owner/codex",
-    "coding-minutes": "30",
     "auth-directory": "/owner/auth",
-    "auth-account": "a".repeat(64),
-    "approve-run": "11111111-2222-4333-8444-555555555555",
-    "approve-turns": "2",
-    "worker-policy": "/owner/fixed-worker-pins.json",
-    adversarial: true,
+    "coding-minutes": "30",
   };
   const invocation = validateCliCommand(
     ["code-feature"],
@@ -368,10 +362,7 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     Object.keys(values),
   );
   assert.equal(invocation.name, "code-feature");
-  assert.ok(invocation.command.runtimes.includes("subscription"));
-  // A routed turn re-qualifies the delivery on the fixed worker, as the
-  // decision it uses was qualified (`qualify --adversarial`).
-  assert.ok(invocation.command.runtimes.includes("native"));
+  assert.deepEqual(invocation.command.runtimes, ["native"]);
   const calls = [];
   const controller = { codeFeature: (...args) => calls.push(args) };
   await invocation.command.invoke(controller, values);
@@ -381,59 +372,31 @@ test("code-feature takes the owner's coding and validation inputs and its initia
     ["d", {}],
   ]);
   for (const refused of [
-    { id: "d", "coding-admission": "/owner/coding-admission.json" },
+    { id: "d", "coding-admission": "/owner/claude-coding-admission.json" },
     { id: "d", "podman-machine": "aios-test", "coding-admission": "" },
     { id: "d", "coding-minutes": "0" },
-    { id: "d", "worker-policy": "/owner/worker-policy.json" },
     // A metered turn's auth directory needs the owner's coding record.
     { id: "d", "auth-directory": "/owner/auth" },
-    // Routed coding names the owner's auth directory and account together.
-    { id: "d", "auth-account": "a".repeat(64) },
-    { id: "d", "auth-directory": "", "auth-account": "a".repeat(64) },
-    // A routed turn spends the owner's one-shot approval for this run, on
-    // the owner-admitted coding runtime (ADR 0002).
-    { ...values, "approve-run": undefined, "approve-turns": undefined },
-    { ...values, "approve-turns": undefined },
-    { ...values, "approve-run": "not-a-run" },
-    { ...values, "approve-turns": "3" },
-    { ...values, "coding-admission": undefined },
-    { ...values, "worker-policy": undefined },
-    { ...values, adversarial: undefined },
-    {
-      id: "d",
-      "approve-run": "11111111-2222-4333-8444-555555555555",
-      "approve-turns": "1",
-    },
-  ].map((refused) =>
-    Object.fromEntries(
-      Object.entries(refused).filter(([, value]) => value !== undefined),
-    ),
-  ))
+    // Codex's usage reader and fixed-worker options are no coding inputs.
+    { ...values, "codex-executable": "/owner/codex" },
+    { ...values, "worker-policy": "/owner/fixed-worker-pins.json" },
+    { ...values, adversarial: true },
+  ])
     assert.equal(
       validateCliCommand(["code-feature"], refused, Object.keys(refused)).error,
       "arguments",
     );
-  const malformed = {
-    id: "d",
-    "auth-directory": "/owner/auth",
-    "auth-account": "owner@example.com",
-  };
-  assert.equal(
-    validateCliCommand(["code-feature"], malformed, Object.keys(malformed))
-      .error,
-    "account",
-  );
 });
 
 // ADR 0008: a Claude Code turn names only the auth directory holding the
-// owner's Anthropic key. The spend budget is its authority, so it takes no
-// account, routed-run approval or usage reader.
-test("a metered Claude Code turn takes the auth directory without an account or approval", () => {
+// owner's Anthropic key. The spend budget is its authority, so no account,
+// routed-run approval or usage reader is an option at all.
+test("a metered Claude Code turn takes the auth directory and no account or approval", () => {
   const values = {
     id: "d",
     "owner-policy": "/owner/policy.json",
     "podman-machine": "aios-test",
-    "coding-admission": "/owner/coding-admission.json",
+    "coding-admission": "/owner/claude-coding-admission.json",
     "validation-admission": "/owner/validation-admission.json",
     "auth-directory": "/owner/auth",
   };
@@ -442,40 +405,39 @@ test("a metered Claude Code turn takes the auth directory without an account or 
       validateCliCommand([name], values, Object.keys(values)).name,
       name,
     );
-  for (const refused of [
-    { ...values, "coding-admission": undefined },
-    { ...values, "approve-run": "11111111-2222-4333-8444-555555555555" },
-    { ...values, "approve-turns": "1" },
-    { ...values, "codex-executable": "/owner/codex" },
-  ].map((refused) =>
-    Object.fromEntries(
-      Object.entries(refused).filter(([, value]) => value !== undefined),
-    ),
-  ))
-    assert.equal(
-      validateCliCommand(["code-feature"], refused, Object.keys(refused)).error,
-      "arguments",
-    );
+  for (const option of [
+    "auth-account",
+    "approve-run",
+    "approve-turns",
+    "turns",
+  ]) {
+    assert.equal(cliOptions[option], undefined, option);
+    for (const name of ["code-feature", "repair-feature"])
+      assert.equal(
+        validateCliCommand([name], values, [...Object.keys(values), option])
+          .error,
+        "arguments",
+      );
+  }
+  const { "coding-admission": _, ...unadmitted } = values;
+  assert.equal(
+    validateCliCommand(["code-feature"], unadmitted, Object.keys(unadmitted))
+      .error,
+    "arguments",
+  );
 });
 
-// Slice 1 of the Issue 04 plan, routed from the start (D2): repair-feature
-// takes code-feature's options under the same rules. Its allowance is the
-// repair's own, so it never takes initial coding minutes.
-test("repair-feature takes code-feature's native and routed options, except coding minutes", async () => {
+// repair-feature takes code-feature's options under the same rules. Its
+// allowance is the repair's own, so it never takes initial coding minutes.
+test("repair-feature takes code-feature's options, except coding minutes", async () => {
   const values = {
     id: "d",
     "owner-policy": "/owner/policy.json",
     "onboarding-attestation": "/owner/onboarding-attestation.json",
     "podman-machine": "aios-test",
-    "coding-admission": "/owner/coding-admission.json",
+    "coding-admission": "/owner/claude-coding-admission.json",
     "validation-admission": "/owner/validation-admission.json",
-    "codex-executable": "/owner/codex",
     "auth-directory": "/owner/auth",
-    "auth-account": "a".repeat(64),
-    "approve-run": "11111111-2222-4333-8444-555555555555",
-    "approve-turns": "2",
-    "worker-policy": "/owner/fixed-worker-pins.json",
-    adversarial: true,
   };
   const invocation = validateCliCommand(
     ["repair-feature"],
@@ -501,18 +463,9 @@ test("repair-feature takes code-feature's native and routed options, except codi
   assert.deepEqual(calls, [["d"]]);
   for (const refused of [
     { ...values, "coding-minutes": "30" },
-    { id: "d", "coding-admission": "/owner/coding-admission.json" },
+    { id: "d", "coding-admission": "/owner/claude-coding-admission.json" },
     { id: "d", "auth-directory": "/owner/auth" },
-    { ...values, "approve-run": undefined, "approve-turns": undefined },
-    { ...values, "approve-turns": "3" },
-    { ...values, "coding-admission": undefined },
-    { ...values, "worker-policy": undefined },
-    { ...values, adversarial: undefined },
-  ].map((refused) =>
-    Object.fromEntries(
-      Object.entries(refused).filter(([, value]) => value !== undefined),
-    ),
-  ))
+  ])
     assert.equal(
       validateCliCommand(["repair-feature"], refused, Object.keys(refused))
         .error,
@@ -520,51 +473,9 @@ test("repair-feature takes code-feature's native and routed options, except codi
     );
 });
 
-test("prepare-routed-turns names one delivery, account, VM, coding record and 1 or 2 turns", () => {
-  const values = {
-    id: "d",
-    "podman-machine": "aios-test",
-    "coding-admission": "/owner/coding-admission.json",
-    "auth-account": "a".repeat(64),
-    turns: "2",
-  };
-  assert.equal(
-    validateCliCommand(["prepare-routed-turns"], values, Object.keys(values))
-      .name,
-    "prepare-routed-turns",
-  );
-  for (const refused of [
-    { ...values, turns: "3" },
-    { ...values, turns: "0" },
-    { ...values, "coding-admission": "" },
-    { ...values, "approve-run": "11111111-2222-4333-8444-555555555555" },
-  ])
-    assert.equal(
-      validateCliCommand(
-        ["prepare-routed-turns"],
-        refused,
-        Object.keys(refused),
-      ).error,
-      "arguments",
-    );
-  for (const missing of [
-    "id",
-    "podman-machine",
-    "coding-admission",
-    "auth-account",
-    "turns",
-  ]) {
-    const { [missing]: _, ...partial } = values;
-    assert.equal(
-      validateCliCommand(
-        ["prepare-routed-turns"],
-        partial,
-        Object.keys(partial),
-      ).error,
-      "arguments",
-      missing,
-    );
-  }
+test("ChatGPT sign-in and routed-turn approvals are no commands", () => {
+  for (const name of ["authorize-auth", "auth-status", "prepare-routed-turns"])
+    assert.equal(cliCommands[name], undefined, name);
 });
 
 for (const command of ["code-feature", "repair-feature"])
@@ -572,17 +483,16 @@ for (const command of ["code-feature", "repair-feature"])
     const state = mkdtempSync(join(tmpdir(), "aios-cli-code-feature-"));
     t.after(() => rmSync(state, { recursive: true, force: true }));
     chmodSync(state, 0o700);
-    const coding = join(state, "coding-admission.json"),
+    const coding = join(state, "claude-coding-admission.json"),
       validation = join(state, "validation-admission.json");
     writeFileSync(
       coding,
       JSON.stringify({
-        scope: "aios-native-coding-admission-v1",
+        scope: "aios-claude-coding-admission-v1",
         approvedAt: "2026-10-21T12:00:00.000Z",
         pins: {
+          cliVersion: "2.1.311",
           cliSha256: "c".repeat(64),
-          codeModeHostSha256: "b".repeat(64),
-          cliVersion: "0.161.0",
           policySha256: "d".repeat(64),
           bindingSha256: "e".repeat(64),
         },
@@ -639,8 +549,8 @@ for (const command of ["code-feature", "repair-feature"])
       JSON.parse(missing.stderr).error,
       /owner coding admission record is missing or invalid/,
     );
-    // Routed coding: the general sessions open on the prepared host
-    // registration, and no credential is read before a model request.
+    // A metered turn needs the owner's stored Anthropic key (ADR 0008),
+    // under the prepared host registration.
     const owned = realpathSync(state),
       repo = join(owned, "repo"),
       auth = join(owned, "auth");
@@ -660,38 +570,15 @@ for (const command of ["code-feature", "repair-feature"])
       { encoding: "utf8" },
     );
     assert.equal(prepared.status, 0, prepared.stderr);
-    const routed = (directory, ...approval) =>
-      cli(
-        "--coding-admission",
-        coding,
-        "--validation-admission",
-        validation,
-        "--auth-directory",
-        directory,
-        "--auth-account",
-        "a".repeat(64),
-        "--approve-run",
-        "99999999-2222-4333-8444-555555555555",
-        "--approve-turns",
-        "2",
-        "--worker-policy",
-        join(owned, "fixed-worker-pins.json"),
-        "--adversarial",
-        ...approval,
-      );
-    const unapproved = routed(auth);
-    assert.equal(unapproved.status, 1);
-    assert.match(
-      JSON.parse(unapproved.stderr).error,
-      /routed-turn approval does not match a current plan/,
-    );
-    const unregistered = routed(repo);
-    assert.equal(unregistered.status, 1);
-    assert.match(
-      JSON.parse(unregistered.stderr).error,
-      /owner's host registration is missing or invalid/,
-    );
-    // A metered turn needs the owner's stored Anthropic key (ADR 0008).
+    // The registration alone: no ChatGPT sign-in fields.
+    assert.deepEqual(Object.keys(JSON.parse(prepared.stdout)).sort(), [
+      "agentName",
+      "credentialsStored",
+      "deliveryEnabled",
+      "hostId",
+      "registrationPath",
+      "status",
+    ]);
     const unkeyed = cli(
       "--coding-admission",
       coding,
@@ -704,86 +591,6 @@ for (const command of ["code-feature", "repair-feature"])
     assert.match(
       JSON.parse(unkeyed.stderr).error,
       /owner's Anthropic key is missing or invalid/,
-    );
-    // The owner prepares a plan for an existing delivery; its run ID is what
-    // the one-shot approval names.
-    const run = (...args) =>
-      spawnSync(
-        process.execPath,
-        [
-          fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
-          ...args,
-          "--state-dir",
-          join(owned, "state"),
-        ],
-        { encoding: "utf8" },
-      );
-    const started = run("start", "--repo", repo, "--request", "Add a hint.");
-    assert.equal(started.status, 0, started.stderr);
-    const { id } = JSON.parse(started.stdout);
-    const prepare = (delivery, record = coding) =>
-      run(
-        "prepare-routed-turns",
-        "--id",
-        delivery,
-        "--podman-machine",
-        "aios-test",
-        "--coding-admission",
-        record,
-        "--auth-account",
-        "a".repeat(64),
-        "--turns",
-        "2",
-      );
-    const unknown = prepare("99999999-2222-4333-8444-555555555555");
-    assert.equal(unknown.status, 1);
-    assert.equal(JSON.parse(unknown.stderr).error, "Delivery not found.");
-    assert.match(
-      JSON.parse(prepare(id, join(owned, "missing.json")).stderr).error,
-      /owner coding admission record is missing or invalid/,
-    );
-    const planned = prepare(id);
-    assert.equal(planned.status, 0, planned.stderr);
-    const plan = JSON.parse(planned.stdout);
-    assert.equal(plan.deliveryId, id);
-    assert.equal(plan.turns, 2);
-    const code = (turns) =>
-      run(
-        command,
-        "--id",
-        id,
-        "--podman-machine",
-        "aios-test",
-        "--coding-admission",
-        coding,
-        "--validation-admission",
-        validation,
-        "--auth-directory",
-        auth,
-        "--auth-account",
-        "a".repeat(64),
-        "--approve-run",
-        plan.runId,
-        "--approve-turns",
-        turns,
-        "--worker-policy",
-        join(owned, "fixed-worker-pins.json"),
-        "--adversarial",
-      );
-    assert.match(
-      JSON.parse(code("1").stderr).error,
-      /routed-turn approval does not match a current plan/,
-    );
-    // The matching approval is accepted; the unplanned delivery then refuses
-    // coding or repair, so no turn is spent.
-    const approved = code("2");
-    assert.equal(approved.status, 1);
-    assert.doesNotMatch(JSON.parse(approved.stderr).error, /approval/);
-    assert.equal(
-      readdirSync(join(owned, "state")).filter((name) =>
-        name.endsWith(".consumed"),
-      ).length,
-      0,
     );
   });
 

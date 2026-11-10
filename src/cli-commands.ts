@@ -6,10 +6,6 @@ export const cliOptions = {
   adversarial: { type: "boolean" },
   replace: { type: "boolean" },
   "auth-directory": { type: "string" },
-  "auth-account": { type: "string" },
-  "approve-run": { type: "string" },
-  "approve-turns": { type: "string" },
-  turns: { type: "string" },
   "check-id": { type: "string" },
   "thread-id": { type: "string" },
   "podman-machine": { type: "string" },
@@ -38,7 +34,7 @@ export type CliValues = {
 } & { adversarial?: boolean | undefined; replace?: boolean | undefined };
 type Runtime = "native" | "synthetic" | "controls" | "subscription";
 export interface CliCommand {
-  kind: "delivery" | "auth" | "pin" | "approval";
+  kind: "delivery" | "auth" | "pin";
   required: readonly CliOptionName[];
   optional: readonly CliOptionName[];
   runtimes: readonly Runtime[];
@@ -46,7 +42,7 @@ export interface CliCommand {
     controller: DeliveryController,
     values: CliValues,
   ) => unknown | Promise<unknown>;
-  authAction?: "prepare" | "authorize" | "status" | "store-anthropic-key";
+  authAction?: "prepare" | "store-anthropic-key";
 }
 type IdAction = {
   [Key in keyof DeliveryController]: DeliveryController[Key] extends (
@@ -63,21 +59,14 @@ const validationOptions = [
   "podman-machine",
   "validation-admission",
 ] as const;
-// A coding or repair turn: the owner policy and admissions, host usage and,
-// for a routed turn, the owner's registration and one-shot approval.
+// A coding or repair turn: the owner policy and admissions, and the auth
+// directory holding the owner's Anthropic key (ADR 0008).
 const codingTurnOptions = [
   ...validationOptions,
   "coding-admission",
-  "codex-executable",
   "auth-directory",
-  "auth-account",
-  "approve-run",
-  "approve-turns",
-  "worker-policy",
-  "adversarial",
 ] as const;
-// A routed turn re-qualifies on the fixed worker before it dispatches.
-const codingTurnRuntimes = ["native", "subscription"] as const;
+const codingTurnRuntimes = ["native"] as const;
 function idAction(
   method: IdAction,
   optional: readonly CliOptionName[] = [],
@@ -136,13 +125,6 @@ const commands: Record<string, CliCommand> = {
     optional: [],
     runtimes: [],
   },
-  "authorize-auth": {
-    kind: "auth",
-    authAction: "authorize",
-    required: ["repo", "auth-directory"],
-    optional: ["auth-account"],
-    runtimes: [],
-  },
   // ADR 0006: the owner pastes the key at a hidden prompt; one free request
   // verifies it before it reaches the Keychain.
   "store-anthropic-key": {
@@ -150,26 +132,6 @@ const commands: Record<string, CliCommand> = {
     authAction: "store-anthropic-key",
     required: ["auth-directory"],
     optional: ["replace"],
-    runtimes: [],
-  },
-  "auth-status": {
-    kind: "auth",
-    authAction: "status",
-    required: ["repo", "auth-directory", "auth-account"],
-    optional: [],
-    runtimes: [],
-  },
-  // The owner's plan for one routed run, which a one-shot approval names.
-  "prepare-routed-turns": {
-    kind: "approval",
-    required: [
-      "id",
-      "podman-machine",
-      "coding-admission",
-      "auth-account",
-      "turns",
-    ],
-    optional: [],
     runtimes: [],
   },
   qualify: idAction(
@@ -217,8 +179,8 @@ const commands: Record<string, CliCommand> = {
   release: idAction("release"),
   "plan-feature": idAction("planFeature", ["feature-criteria"]),
   // These re-read the owner policy, and its attestation, at each step. With
-  // owner coding and validation admissions, code-feature runs one offline
-  // turn on the native runtimes; usage comes from the host Codex.
+  // owner coding and validation admissions and the owner's key, code-feature
+  // runs one metered Claude Code turn on the native runtimes.
   "code-feature": {
     kind: "delivery",
     required: ["id"],
@@ -235,8 +197,7 @@ const commands: Record<string, CliCommand> = {
   // With an owner validation admission, these run on the native runtime.
   "validate-baseline": idAction("validateBaseline", validationOptions),
   "validate-candidate": idAction("validateCandidate", validationOptions),
-  // A repair turn runs on the same runtimes and route as a coding turn, and
-  // a routed one spends a turn of the owner's approval (Issue 04 plan, D2).
+  // A repair turn runs on the same runtimes and route as a coding turn.
   // Its allowance is the repair's own, so it takes no coding minutes.
   "repair-feature": idAction(
     "repairFeature",
@@ -326,7 +287,7 @@ export function validateCliCommand(
   positionals: readonly string[],
   values: CliValues,
   names: readonly string[],
-): { command: CliCommand; name: string } | { error: "arguments" | "account" } {
+): { command: CliCommand; name: string } | { error: "arguments" } {
   const name = positionals[0],
     command = name === undefined ? undefined : cliCommands[name];
   if (
@@ -347,55 +308,14 @@ export function validateCliCommand(
     command.required.some((option) => !values[option])
   )
     return { error: "arguments" };
+  // A coding turn is metered through the owner's Anthropic key (ADR 0008)
+  // on the owner-admitted coding runtime; its authority is the delivery's
+  // spend budget.
   if (
-    values["auth-account"] !== undefined &&
-    !/^[a-f0-9]{64}$/.test(values["auth-account"])
-  )
-    return { error: "account" };
-  // A metered Claude Code turn names only the auth directory holding the
-  // owner's Anthropic key (ADR 0008), on the owner-admitted coding runtime.
-  // Its authority is the delivery's spend budget, so it takes no account,
-  // routed-run approval or usage reader.
-  const metered =
     command.kind === "delivery" &&
     values["auth-directory"] !== undefined &&
-    values["auth-account"] === undefined;
-  if (
-    metered &&
-    (!values["coding-admission"] ||
-      values["approve-run"] !== undefined ||
-      values["approve-turns"] !== undefined ||
-      values["codex-executable"] !== undefined)
+    !values["coding-admission"]
   )
-    return { error: "arguments" };
-  // Routed coding names the owner's auth directory and account together.
-  if (
-    command.kind === "delivery" &&
-    values["auth-account"] !== undefined &&
-    !values["auth-directory"]
-  )
-    return { error: "arguments" };
-  // A routed turn spends the owner's one-shot approval for its run, on the
-  // owner-admitted coding runtime (ADR 0002): 1 or 2 turns, never more.
-  if (
-    command.kind === "delivery" &&
-    !metered &&
-    (values["auth-directory"] !== undefined ||
-      values["approve-run"] !== undefined ||
-      values["approve-turns"] !== undefined) &&
-    (!values["auth-directory"] ||
-      !values["coding-admission"] ||
-      // The delivery's decision is re-qualified at dispatch with the same
-      // fixed-worker probe that qualified it (`qualify --adversarial`).
-      !values["worker-policy"] ||
-      values.adversarial !== true ||
-      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-        values["approve-run"] ?? "",
-      ) ||
-      !["1", "2"].includes(values["approve-turns"] ?? ""))
-  )
-    return { error: "arguments" };
-  if (values.turns !== undefined && !["1", "2"].includes(values.turns))
     return { error: "arguments" };
   if (
     (values["podman-machine"] !== undefined ||

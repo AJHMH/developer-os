@@ -1,113 +1,48 @@
-// The warning prepare prints when Podman Desktop is open on macOS, with no
-// real process. The name sorts after every other test file, so no other file
-// changes shard.
+// The warning every owner run prints when Podman Desktop is open on macOS,
+// with no real process. The name sorts after every other test file, so no
+// other file changes shard.
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
-import { rmSync } from "node:fs";
 import { test } from "node:test";
-import { offlineValidationEnvironment } from "../dist/native-validation.js";
-import { privateRoot } from "../scripts/run-native-cli-delivery-acceptance.mjs";
 import {
   podmanDesktopRunning,
   podmanDesktopWarning,
-  prepareRouted,
-} from "../scripts/run-native-routed-delivery.mjs";
+  warnIfPodmanDesktop,
+} from "../scripts/podman-desktop.mjs";
 
-const answers = {
-  start: { id: randomUUID(), onboarding: { ready: true } },
-  "plan-feature": { feature: { outcome: "planned" } },
-  "validate-baseline": {
-    validation: {
-      attempts: [{ stage: "baseline", state: "stopped", outcome: "passed" }],
-    },
-  },
-  qualify: {
-    qualification: {
-      offlineAdmission: { allowed: true },
-      subscriptionMediation: { gatewayIntegration: "passed" },
-    },
-  },
-};
-const host = {
-  state: "/owner/state",
-  machine: "aios-test",
-  workerPolicy: "/owner/fixed-worker-pins.json",
-  codingAdmission: "/owner/coding-admission.json",
-  validationAdmission: "/owner/validation-admission.json",
-  codex: "/owner/codex",
-  authDirectory: "/owner/auth",
-  authAccount: "a".repeat(64),
-};
 const macOS = (probe) => () =>
   podmanDesktopRunning({ platform: "darwin", probe });
-
-/** A whole prepare with the given check. Returns everything it did, in order:
- * each CLI and script process, and each warning. */
-async function prepare(t, podmanDesktop) {
-  const root = await privateRoot("aios-routed-warning-");
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const order = [];
-  const session = await prepareRouted({
-    run: async ([command]) => {
-      order.push(command);
-      return answers[command];
-    },
-    script: async (name) => {
-      order.push(name);
-      return { status: "prepared", runId: randomUUID() };
-    },
-    podmanDesktop,
-    warn: (line) => order.push(`warning: ${line}`),
-    host,
-    root,
-    environment: offlineValidationEnvironment("e".repeat(64)),
-  });
-  assert.equal(session.deliveryId, answers.start.id);
-  return order;
+/** Every warning the check gives. */
+function warnings(podmanDesktop) {
+  const lines = [];
+  warnIfPodmanDesktop({ podmanDesktop, warn: (line) => lines.push(line) });
+  return lines;
 }
-const steps = [
-  "start",
-  "plan-feature",
-  "validate-baseline",
-  "qualify",
-  "record-mediation-decision",
-];
 
-test("prepare warns once before it starts a delivery when Podman Desktop is running, and carries on", async (t) => {
-  assert.deepEqual(
-    await prepare(
-      t,
-      macOS(() => ({ status: 0 })),
-    ),
-    [`warning: ${podmanDesktopWarning}`, ...steps],
-  );
+test("an owner run warns once when Podman Desktop is running, and carries on", () => {
+  assert.deepEqual(warnings(macOS(() => ({ status: 0 }))), [
+    podmanDesktopWarning,
+  ]);
   assert.doesNotMatch(podmanDesktopWarning, /\n/);
 });
 
-test("prepare says nothing when Podman Desktop is not running", async (t) => {
-  assert.deepEqual(
-    await prepare(
-      t,
-      macOS(() => ({ status: 1 })),
-    ),
-    steps,
-  );
+test("it says nothing when Podman Desktop is not running", () => {
+  assert.deepEqual(warnings(macOS(() => ({ status: 1 }))), []);
 });
 
-test("prepare says nothing off macOS, without looking for the app", async (t) => {
+test("it says nothing off macOS, without looking for the app", () => {
   for (const platform of ["linux", "freebsd"])
     assert.deepEqual(
-      await prepare(t, () =>
+      warnings(() =>
         podmanDesktopRunning({
           platform,
           probe: () => assert.fail("The check ran off macOS"),
         }),
       ),
-      steps,
+      [],
     );
 });
 
-test("a check that fails counts as not running", async (t) => {
+test("a check that fails counts as not running", () => {
   const failures = [
     () => {
       throw Error("spawn failed");
@@ -118,11 +53,10 @@ test("a check that fails counts as not running", async (t) => {
     () => ({ status: 2 }),
     () => ({ status: 3 }),
   ];
-  for (const probe of failures)
-    assert.deepEqual(await prepare(t, macOS(probe)), steps);
+  for (const probe of failures) assert.deepEqual(warnings(macOS(probe)), []);
 });
 
-test("the check looks for the app's path among host processes, and can't hang prepare", () => {
+test("the check looks for the app's path among host processes, and can't hang a run", () => {
   const calls = [];
   podmanDesktopRunning({
     platform: "darwin",

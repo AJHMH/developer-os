@@ -1,8 +1,13 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import {
-  generalSessionLimits,
-  type GeneralSessionRevocation,
-} from "./general-session-gateway.js";
+
+/** Why the host ended a turn's model session: the gateway's own limits, or
+ * the controller stopping, pausing or seeing a changed pin. */
+export type SessionRevocation =
+  | "expired"
+  | "response-bound"
+  | "stopped"
+  | "paused"
+  | "pin-changed";
 
 /** What the relay bridge needs from the session's gateway. */
 export interface SessionGateway {
@@ -12,10 +17,14 @@ export interface SessionGateway {
     capability: string,
     raw: string,
   ): Promise<AsyncIterable<Uint8Array>>;
-  revoke(reason: GeneralSessionRevocation): void;
+  revoke(reason: SessionRevocation): void;
 }
 
-const requestBytes = generalSessionLimits.requestBytes;
+/** The largest request body the relay carries, and the longest one model
+ * request may take. Both are part of the guest's relay program, so changing
+ * either moves the guest digest. */
+const requestBytes = 4 * 1024 * 1024,
+  requestMs = 5 * 60_000;
 /** Bounds on the relay channel. A request frame carries one whole body;
  * response bytes cross in chunks of at most `chunkBytes`. */
 export const sessionRelayLimits = Object.freeze({
@@ -27,7 +36,7 @@ export const sessionRelayLimits = Object.freeze({
    * the channel's start and the guest's own checks. */
   readyMs: 30000,
   /** The longest the relay waits between response frames. */
-  responseGapMs: generalSessionLimits.requestMs + 5000,
+  responseGapMs: requestMs + 5000,
 });
 
 /** The session relay (ADR 0002). Guest management runs it inside the

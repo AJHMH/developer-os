@@ -50,42 +50,22 @@ test("CLI rejects misplaced host options and incomplete online artifact configur
   }
 });
 
-test("CLI validates selected auth identity before opening browser or native auth storage", (t) => {
+test("CLI refuses an auth directory on a command that takes none", (t) => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-cli-auth-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const state = join(root, "state");
-  const repository = join(root, "repo");
-  const auth = join(root, "auth");
-  mkdirSync(repository);
   mkdirSync(state);
   const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
-
-  const invalidSelectedAccount = spawnSync(
+  const misplacedAuth = spawnSync(
     process.execPath,
     [
       cli,
-      "authorize-auth",
+      "status",
       "--state-dir",
       state,
-      "--repo",
-      repository,
       "--auth-directory",
-      auth,
-      "--auth-account",
-      "invalid",
+      join(root, "auth"),
     ],
-    { encoding: "utf8" },
-  );
-  assert.equal(invalidSelectedAccount.status, 1);
-  assert.match(invalidSelectedAccount.stderr, /selected account/);
-  assert.equal(
-    invalidSelectedAccount.stderr.includes("authorizationUrl"),
-    false,
-  );
-
-  const misplacedAuth = spawnSync(
-    process.execPath,
-    [cli, "status", "--state-dir", state, "--auth-directory", auth],
     { encoding: "utf8" },
   );
   assert.equal(misplacedAuth.status, 1);
@@ -122,4 +102,41 @@ test("CLI constructs the pinned dependency runtime before refusing a missing del
   );
   assert.equal(result.status, 1);
   assert.match(result.stderr, /not found|unknown/i);
+});
+
+// Each native command installs its own runtimes from the options it names,
+// then refuses the unknown delivery without any VM effect.
+test("CLI installs the synthetic, controls and qualification runtimes before refusing a missing delivery", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "aios-cli-native-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const state = join(root, "state");
+  const policy = join(root, "pins.json");
+  mkdirSync(state);
+  writeFileSync(policy, JSON.stringify({ schema: 1 }), { mode: 0o600 });
+  const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
+  for (const [command, ...extra] of [
+    ["synthetic-task", "--adversarial"],
+    ["qualify-macos-controls", "--adversarial"],
+    ["qualify", "--adversarial", "--codex-executable", join(root, "codex")],
+  ]) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        command,
+        "--state-dir",
+        state,
+        "--podman-machine",
+        "aios-test",
+        "--worker-policy",
+        policy,
+        ...extra,
+        "--id",
+        "00000000-0000-4000-8000-000000000032",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 1, command);
+    assert.match(result.stderr, /not found|unknown/i, command);
+  }
 });

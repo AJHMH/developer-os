@@ -3,10 +3,10 @@
 // VM. The delivery controller drives one coding turn through the real native
 // transport, admitted only by the owner's per-host record naming its fresh
 // pins. Planning, validation and onboarding facts are synthetic stand-ins.
-// On Codex, so are the usage observations. On Claude Code (ADR 0008) the turn
-// is metered through a real Messages gateway against the delivery's real
-// spend budget, and only the model provider is a stand-in. A passing run then removes its session; a blocked one
-// keeps it for diagnosis. It never provisions or starts the VM, opens
+// The Claude Code turn (ADR 0008) is metered through a real Messages gateway
+// against the delivery's real spend budget, and only the model provider is a
+// stand-in. A passing run then removes its session; a blocked one keeps it
+// for diagnosis. It never provisions or starts the VM, opens
 // credentials or authorizes inference, and it never enables production or
 // claims qualification. Run it through scripts/run-native-acceptance.mjs.
 import { spawnSync } from "node:child_process";
@@ -31,35 +31,24 @@ const usage =
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 
-/** Drive one controller coding turn through `transport` under `admission`;
- * `persist` receives the report after every stage. `agent: "claude"` runs a
- * metered Claude Code turn. */
+/** Drive one metered Claude Code turn through the controller, `transport`
+ * and the owner's Claude Code `admission`; `persist` receives the report after
+ * every stage. */
 export async function admissionAcceptance(transport, admission, options = {}) {
   const persist = options.persist ?? (() => {});
-  const claude = options.agent === "claude";
   const { DeliveryController } = await import("../dist/controller.js");
-  const {
-    PinnedCodingRuntime,
-    claudeAgent,
-    claudeCodingPinFields,
-    codexAgent,
-    codingPinFields,
-  } = await import("../dist/feature-candidate.js");
-  const pinFields = claude ? claudeCodingPinFields : codingPinFields;
+  const { PinnedCodingRuntime, claudeAgent, claudeCodingPinFields } =
+    await import("../dist/feature-candidate.js");
+  const pinFields = claudeCodingPinFields;
   const samePins = (a, b) => pinFields.every((field) => a[field] === b[field]);
-  const agent = claude ? claudeAgent : codexAgent;
+  const agent = claudeAgent;
   const report = {
     scope: "native-coding-offline-admission-acceptance",
     agent: agent.provider,
     productionEnabled: false,
     qualified: false,
     inferenceAuthorized: false,
-    synthetic: [
-      "planning",
-      "validation",
-      "onboarding",
-      claude ? "model-provider" : "usage",
-    ],
+    synthetic: ["planning", "validation", "onboarding", "model-provider"],
     outcome: "running",
     stages: [],
   };
@@ -132,17 +121,14 @@ export async function admissionAcceptance(transport, admission, options = {}) {
           featurePlanner: synthetic.planner,
           featureRuntime: runtime,
           validationRuntime: synthetic.validation,
-          ...(claude
-            ? { messagesSessions: await meteredStandIn((p) => (provider = p)) }
-            : { subscription: synthetic.subscription }),
+          messagesSessions: await meteredStandIn((p) => (provider = p)),
         },
       );
-      // Offline, Codex retries the provider until the turn allowance ends.
-      // Claude Code's metered turn ends when the stand-in's work is done.
+      // The metered turn ends when the stand-in's work is done.
       const started = controller.start({
         repository: synthetic.repository,
         request: "Add a visible contact hint.",
-        codingMinutes: claude ? 5 : 1,
+        codingMinutes: 5,
       });
       deliveryId = started.id;
       await controller.planFeature(started.id);
@@ -167,27 +153,23 @@ export async function admissionAcceptance(transport, admission, options = {}) {
         "Coding session is uncertain",
       );
     });
-    if (claude)
-      await stage("controller-metered-turn", () => {
-        const observed = provider.observation;
-        check(
-          observed.unexpected === 0,
-          "The provider saw an unexpected request",
-        );
-        check(observed.toolsWorked, "Claude Code's tools did not run");
-        check(observed.finalAnswered, "The turn did not reach its answer");
-        check(
-          delivery.spend?.spent > 0,
-          "The turn's requests were not charged",
-        );
-        check(!delivery.spend.reserved, "A request was left reserved");
-        check(!delivery.spend.interruption, "The budget interrupted the turn");
-        report.spend = {
-          requests: observed.requests,
-          charges: delivery.spend.charges,
-          spent: delivery.spend.spent,
-        };
-      });
+    await stage("controller-metered-turn", () => {
+      const observed = provider.observation;
+      check(
+        observed.unexpected === 0,
+        "The provider saw an unexpected request",
+      );
+      check(observed.toolsWorked, "Claude Code's tools did not run");
+      check(observed.finalAnswered, "The turn did not reach its answer");
+      check(delivery.spend?.spent > 0, "The turn's requests were not charged");
+      check(!delivery.spend.reserved, "A request was left reserved");
+      check(!delivery.spend.interruption, "The budget interrupted the turn");
+      report.spend = {
+        requests: observed.requests,
+        charges: delivery.spend.charges,
+        spent: delivery.spend.spent,
+      };
+    });
     await stage("session-cleanup", async () => {
       const receipt = await transport.cleanupSupersededLineage(session);
       check(receipt.cleaned === 1, "Expected one cleaned session");
@@ -303,6 +285,8 @@ async function main() {
     machine,
     admissionPath,
   );
+  if (agent !== "claude")
+    throw Error("The admission record is not the owner's Claude Code record");
   if (transport.mode !== "live" || transport.productionEnabled !== false)
     throw Error("Expected the live transport with production disabled");
   // Refuse overwriting retained evidence before any worker effect.
@@ -319,7 +303,6 @@ async function main() {
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", interrupt);
   const report = await admissionAcceptance(transport, admission, {
-    agent,
     persist: (r) =>
       writeFileSync(
         reportPath,
