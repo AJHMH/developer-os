@@ -1,7 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { redact } from "./redaction.js";
-import { sha256 } from "./offline-canary.js";
+
+const sha256 = (bytes: string | Buffer) =>
+  createHash("sha256").update(bytes).digest("hex");
 import type { Delivery } from "./controller.js";
 import type { MainSyncTarget } from "./main-sync.js";
 

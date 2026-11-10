@@ -1,10 +1,9 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   existsSync,
   readFileSync,
   realpathSync,
   statSync,
-  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
@@ -89,26 +88,11 @@ import {
   type MainSyncTarget,
 } from "./main-sync.js";
 import {
-  canaryInput,
-  collectCanary,
-  matchesCanary,
-  sha256,
-  type OfflineCanaryEvidence,
-  type OfflineCanaryRuntime,
-} from "./offline-canary.js";
-import {
   inspectOnboarding,
   type OnboardingOptions,
   type OnboardingReport,
   ownerChangeGate,
 } from "./onboarding.js";
-import {
-  onlinePolicyVersion,
-  type OnlineAccessEvidence,
-  type OnlineAccessRuntime,
-  type OnlineProof,
-  type PreparedOnline,
-} from "./online-access.js";
 import { pathContains } from "./path-containment.js";
 import {
   PRChecksCoordinator,
@@ -121,14 +105,6 @@ import {
   type PublicationInput,
   type PublicationRuntime,
 } from "./publication.js";
-import {
-  qualificationVersionsMatch,
-  stampQualificationVersions,
-} from "./qualification-versions.js";
-import {
-  unavailableQualification,
-  type WorkerQualification,
-} from "./qualification.js";
 import { redact } from "./redaction.js";
 import { repairBudget, repairFindings, type RepairEvidence } from "./repair.js";
 import {
@@ -143,60 +119,13 @@ import {
   type ReviewRuntime,
   type ReviewThread,
 } from "./review.js";
-import {
-  SessionLifecycle,
-  sessionsQuiescent,
-  type WorkerAdapter,
-  type WorkerReceipt,
-  type WorkerSession,
-} from "./session-lifecycle.js";
-import {
-  projectSubscriptionDecision,
-  subscriptionDecisionScope,
-  verifySubscriptionDecision,
-} from "./subscription-decision.js";
-import {
-  gatewayRequest,
-  subscriptionGatewayVersion,
-} from "./subscription-gateway.js";
-import {
-  UsageApprovalGate,
-  type SubscriptionObservation,
-  type SubscriptionRefusal,
-  type SubscriptionReader,
-  type UsageReport,
-} from "./subscription.js";
+import { SessionLifecycle, sessionsQuiescent } from "./session-lifecycle.js";
 import type { SessionGateway, SessionRevocation } from "./session-relay.js";
 import {
   deliveryMessagesBudget,
   messagesLimits,
   type MessagesBudget,
 } from "./messages-gateway.js";
-import {
-  syntheticSiteInput,
-  syntheticSiteOutput,
-  syntheticSiteValidator,
-  syntheticTaskVersion,
-  type SyntheticTaskEvidence,
-  type SyntheticTaskResult,
-  type SyntheticTaskRuntime,
-} from "./synthetic-task.js";
-import {
-  hostControlNames,
-  hostControlsVersion,
-  type HostControlsEvidence,
-  type HostControlsRuntime,
-} from "./host-controls.js";
-import {
-  workerQualificationReport,
-  type HostWorkerQualificationReport,
-} from "./host-qualification.js";
-import { admitFiles } from "./workspace.js";
-export type {
-  WorkerAdapter,
-  WorkerReceipt,
-  WorkerSession,
-} from "./session-lifecycle.js";
 
 /** Only fixed, non-input-derived messages may cross the public error boundary. */
 export { DeliveryError } from "./errors.js";
@@ -214,8 +143,6 @@ function canonicalPath(path: string): string {
   return join(realpathSync(existing), ...missing);
 }
 
-const onlineAuthorizationPollMs = 30_000;
-const workerUsagePollMs = 30_000;
 const defaultObservationTimeoutMs = 30_000;
 function contains(parent: string, child: string): boolean {
   return pathContains(parent, child);
@@ -252,6 +179,8 @@ export type MessagesSessionFactory = (
  * delivery's spend budget, not a mediation decision, so the digest names the
  * delivery's budget: every turn of a delivery shares it, and a resume keeps
  * it. */
+const sha256 = (value: string) =>
+  createHash("sha256").update(value).digest("hex");
 export function budgetRouteSha256(deliveryId: string): string {
   return sha256("aios-spend-budget-route-v1:" + deliveryId);
 }
@@ -277,12 +206,6 @@ export interface CoordinationOptions {
   featurePlanner?: FeaturePlanner;
   featureRuntime?: FeatureRuntime;
   clock?: () => number;
-  hostControls?: HostControlsRuntime;
-  synthetic?: SyntheticTaskRuntime;
-  offline?: OfflineCanaryRuntime;
-  online?: OnlineAccessRuntime;
-  subscription?: SubscriptionReader;
-  worker?: WorkerAdapter;
   observationTimeoutMs?: number;
   /** Meters Claude Code coding turns against the spend budget (ADR 0008). */
   messagesSessions?: MessagesSessionFactory;
@@ -331,8 +254,6 @@ export interface Delivery {
     action: "pause" | "resume" | "cancel" | "release";
     at: string;
   }[];
-  execution?: WorkerSession;
-  sessions?: WorkerSession[];
   recovery?: {
     at: string;
     outcome: "stopped" | "uncertain" | "late-response";
@@ -343,15 +264,6 @@ export interface Delivery {
   issue: string | null;
   createdAt: string;
   onboarding: OnboardingReport;
-  qualification?: WorkerQualification;
-  offlineCanary?: OfflineCanaryEvidence;
-  syntheticTask?: SyntheticTaskEvidence;
-  hostControls?: HostControlsEvidence;
-  onlineAccess?: OnlineAccessEvidence;
-  onlineRuns?: OnlineAccessEvidence[];
-  onlinePlan?: PreparedOnline;
-  onlinePlans?: PreparedOnline[];
-  usage?: UsageReport;
   authorityPolicySha256: string | null;
   blocker: {
     code: "DELIVERY_NOT_ENABLED" | "UNCERTAIN_SESSION";
@@ -405,19 +317,6 @@ function reachedDispatch(delivery: Delivery, operationId: string) {
     });
 }
 
-/** Public durable delivery controls. The CLI supplies no live worker adapter. */
-/** The delivery's owner-endorsed mediation decision, when it is qualified
- * for the delivery's current offline admission binding. */
-function qualifiedDecision(delivery: Delivery) {
-  const qualification = delivery.qualification,
-    decision = qualification?.subscriptionMediation?.mechanismDecision;
-  return decision?.qualified &&
-    decision.scope ===
-      subscriptionDecisionScope(qualification?.offlineAdmission?.binding)
-    ? decision
-    : undefined;
-}
-
 /** A runtime receipt names exactly this coding operation and fence. */
 function sameOperation(
   receipt: { operationId: string; fence: number } | undefined,
@@ -434,15 +333,6 @@ export class DeliveryController {
   private get lifecycle() {
     return new SessionLifecycle({
       read: (id) => this.status(id),
-      change: (id, update) =>
-        this.change(id, (delivery, ownership) =>
-          update(delivery, () => ownership.advanceFence()),
-        ),
-      observe: (pending) => this.observe(pending),
-      runnerId: this.runnerId,
-      clock: () => (this.coordination.clock ?? Date.now)(),
-      runtimes: this.coordination,
-      disabledBlocker: () => this.disabledBlocker(),
       stopValidation: (id) => this.stopValidation(id),
       stopFeature: (id) => this.stopFeature(id),
       finishRepair: (id, repairId) => this.finishRepair(id, repairId),
@@ -452,10 +342,6 @@ export class DeliveryController {
     return new RepositoryLedger(this.stateDirectory);
   }
   private readonly runnerId = randomUUID();
-  private readonly usageGate = new UsageApprovalGate(() =>
-    (this.coordination.clock ?? Date.now)(),
-  );
-
   constructor(
     stateDirectory: string,
     private readonly onboardingOptions: OnboardingOptions = {},
@@ -565,364 +451,11 @@ export class DeliveryController {
   }
 
   status(id: string): Delivery {
-    return verifySubscriptionDecision(this.ledger.read(id));
-  }
-
-  /** Read a version-bound qualification snapshot without running probes. */
-  qualificationReport(id: string): HostWorkerQualificationReport {
-    return workerQualificationReport(this.status(id));
+    return this.ledger.read(id);
   }
 
   list(): { deliveries: Delivery[] } {
-    return {
-      deliveries: this.ledger
-        .list()
-        .map((delivery) => verifySubscriptionDecision(delivery)),
-    };
-  }
-
-  /** Prepare a reviewable fixed supported inference plan without credentials or effects. */
-  async prepareOnline(id: string): Promise<Delivery> {
-    const runtime = this.coordination.online;
-    const before = this.status(id);
-    if (
-      !runtime?.requiresExactApproval ||
-      !runtime.inferenceRequest ||
-      !before.ownership.held ||
-      !["blocked", "preparing"].includes(before.phase) ||
-      (before.onlineAccess && before.onlineAccess.state !== "stopped")
-    )
-      throw new DeliveryError(
-        "Prepare an exact inference plan with the trusted gateway on an owned stopped delivery.",
-      );
-    const qualified = await this.qualify(id),
-      decision = qualifiedDecision(qualified);
-    if (!decision)
-      throw new DeliveryError(
-        "Positive fixed-request authentication mediation is required.",
-      );
-    const checked = await this.checkUsage(id),
-      usage = checked.usage!;
-    if (
-      usage.decision === "exhausted" ||
-      (usage.accountId && usage.accountId !== decision.usageAccountId)
-    )
-      throw new DeliveryError("Account allowance is exhausted or mismatched.");
-    const description = runtime.inferenceRequest(
-      before.repository,
-      this.stateDirectory,
-    );
-    if (
-      description.requestSha256 !== sha256(gatewayRequest) ||
-      description.requestSha256 !== decision.requestSha256 ||
-      description.gatewayVersion !== subscriptionGatewayVersion
-    )
-      throw new DeliveryError(
-        "Inference request exceeds positively qualified scope.",
-      );
-    const dependency = runtime.dependencyPlan?.(before.repository);
-    const plan = {
-      runId: randomUUID(),
-      deliveryId: id,
-      repository: before.repository,
-      fence: before.ownership.fence + 1,
-      accountId: decision.accountId,
-      usageScope: usage.scope,
-      policyVersion: onlinePolicyVersion,
-      runtimeVersion: runtime.version ?? "controlled-observation",
-      bindingSha256: qualified.qualification!.bindingSha256!,
-      hostPolicySha256: qualified.qualification!.policySha256!,
-      ...(dependency ? { dependency } : {}),
-      inference: {
-        ...description,
-        request: gatewayRequest,
-        maxRequests: 1 as const,
-        deadlineSeconds: 30 as const,
-        retries: 0 as const,
-        refresh: false as const,
-        paidFallback: false as const,
-      },
-    };
-    return this.change(id, (delivery) => {
-      if (
-        delivery.ownership.fence !== before.ownership.fence ||
-        delivery.phase !== before.phase ||
-        (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
-      )
-        throw new DeliveryError(
-          "Authority changed while preparing the exact plan.",
-        );
-      if (delivery.onlinePlan)
-        (delivery.onlinePlans ??= []).push(
-          structuredClone(delivery.onlinePlan),
-        );
-      delivery.onlinePlan = {
-        plan,
-        sha256: sha256(JSON.stringify(plan)),
-        expiresAt: Date.now() + 3600000,
-        consumed: false,
-      };
-    });
-  }
-
-  /** Explicit owner action; candidate code has no controller state/command access. */
-  approveOnline(
-    id: string,
-    runId: string,
-    planSha256: string,
-    unknownUsageApproved: boolean,
-  ): Delivery {
-    return this.change(id, (delivery) => {
-      const prepared = delivery.onlinePlan;
-      if (
-        !prepared ||
-        prepared.consumed ||
-        prepared.expiresAt <= Date.now() ||
-        prepared.plan.runId !== runId ||
-        prepared.sha256 !== planSha256 ||
-        prepared.sha256 !== sha256(JSON.stringify(prepared.plan)) ||
-        unknownUsageApproved !== true ||
-        !delivery.ownership.held ||
-        !["blocked", "preparing"].includes(delivery.phase) ||
-        !sessionsQuiescent(delivery)
-      )
-        throw new DeliveryError(
-          "Approve the exact fresh unused inference plan and unknown-usage risk on an owned stopped delivery.",
-        );
-      prepared.approval = { sha256: planSha256, unknownUsageApproved: true };
-    });
-  }
-
-  /** Fixed synthetic model/dependency dispatch only; never live inference. */
-  async onlineCanary(id: string): Promise<Delivery> {
-    const runtime = this.coordination.online;
-    const before = this.status(id);
-    const exact = runtime?.requiresExactApproval
-      ? before.onlinePlan
-      : undefined;
-    if (
-      runtime?.requiresExactApproval &&
-      (!exact ||
-        exact.consumed ||
-        exact.expiresAt <= Date.now() ||
-        exact.approval?.sha256 !== exact.sha256 ||
-        exact.sha256 !== sha256(JSON.stringify(exact.plan)))
-    )
-      throw new DeliveryError(
-        "An exact fresh approved inference plan is required before dispatch.",
-      );
-    if (
-      !runtime ||
-      !before.ownership.held ||
-      !["blocked", "preparing"].includes(before.phase) ||
-      !sessionsQuiescent(before)
-    )
-      throw new DeliveryError(
-        "Online canary requires an owned stopped delivery and trusted runtime; recover uncertain sessions first.",
-      );
-    const qualified = await this.qualify(id);
-    const decision = qualifiedDecision(qualified);
-    if (
-      !decision ||
-      !qualified.qualification?.offlineAdmission?.allowed ||
-      (runtime.mode === "live" && qualified.qualification.mode !== "live")
-    )
-      throw new DeliveryError(
-        "Trusted positive authentication mediation and fresh host admission are required.",
-      );
-    const checked = await this.checkUsage(id);
-    const usage = checked.usage!;
-    if (
-      exact &&
-      (exact.plan.accountId !== decision.accountId ||
-        exact.plan.usageScope !== usage.scope ||
-        exact.plan.fence !== before.ownership.fence + 1 ||
-        exact.plan.bindingSha256 !== qualified.qualification?.bindingSha256 ||
-        exact.plan.hostPolicySha256 !== qualified.qualification?.policySha256 ||
-        exact.plan.policyVersion !== onlinePolicyVersion ||
-        exact.plan.runtimeVersion !==
-          (runtime.version ?? "controlled-observation") ||
-        exact.plan.inference?.request !== gatewayRequest ||
-        exact.plan.inference.requestSha256 !== decision.requestSha256 ||
-        exact.plan.inference.gatewayVersion !== subscriptionGatewayVersion ||
-        JSON.stringify(
-          runtime.inferenceRequest?.(before.repository, this.stateDirectory),
-        ) !==
-          JSON.stringify({
-            requestSha256: exact.plan.inference.requestSha256,
-            gatewayVersion: exact.plan.inference.gatewayVersion,
-            hostId: exact.plan.inference.hostId,
-          }))
-    )
-      throw new DeliveryError(
-        "Exact inference plan authority drifted; prepare and approve a new plan.",
-      );
-    if (exact?.approval && usage.decision === "approval-required") {
-      const approved = this.usageGate.approve(usage, usage.checkId);
-      if (approved) usage.approval = approved.approval!;
-    }
-    if (!this.usageGate.permits(usage, { accountId: decision.usageAccountId }))
-      throw new DeliveryError(
-        "Fresh account-scoped subscription usage approval is required; exhaustion cannot be overridden.",
-      );
-    const dependency = runtime.dependencyPlan?.(before.repository);
-    if (
-      exact &&
-      JSON.stringify(exact.plan.dependency) !== JSON.stringify(dependency)
-    )
-      throw new DeliveryError("Exact artifact plan changed.");
-    const started = this.change(id, (delivery, ownership) => {
-      if (
-        delivery.ownership.fence !== before.ownership.fence ||
-        !delivery.ownership.held ||
-        delivery.phase !== before.phase ||
-        delivery.usage?.checkId !== usage.checkId ||
-        !sessionsQuiescent(delivery)
-      )
-        throw new DeliveryError(
-          "Delivery authority changed before online dispatch.",
-        );
-      if (exact) {
-        if (
-          delivery.onlinePlan?.sha256 !== exact.sha256 ||
-          delivery.onlinePlan.consumed ||
-          delivery.onlinePlan.expiresAt <= Date.now() ||
-          delivery.onlinePlan.sha256 !==
-            sha256(JSON.stringify(delivery.onlinePlan.plan)) ||
-          delivery.onlinePlan.approval?.sha256 !== exact.sha256
-        )
-          throw new DeliveryError(
-            "Exact inference approval changed or consumed.",
-          );
-        delivery.onlinePlan.consumed = true;
-        if (usage.approval) delivery.usage!.approval = usage.approval;
-      }
-      this.lifecycle.dispatchOnline(delivery, () => ownership.advanceFence(), {
-        runId: exact?.plan.runId ?? randomUUID(),
-        ...(exact?.plan.inference ? { inference: exact.plan.inference } : {}),
-        deliveryId: id,
-        repository: before.repository,
-        accountId: decision.accountId,
-        usageAccountId: decision.usageAccountId,
-        usageScope: usage.scope,
-        policyVersion: onlinePolicyVersion,
-        runtimeVersion: runtime.version ?? "controlled-observation",
-        bindingSha256: qualified.qualification!.bindingSha256!,
-        hostPolicySha256: qualified.qualification!.policySha256!,
-        ...(dependency ? { dependency } : {}),
-        mode: runtime.mode,
-        state: "dispatched",
-        outcome: "running",
-        productionEnabled: false,
-      });
-      const boundUsage = this.usageGate.bind(
-        delivery.usage,
-        delivery.onlineAccess!.runId,
-      );
-      if (!boundUsage)
-        throw new DeliveryError(
-          "Usage allowance changed before online dispatch.",
-        );
-      delivery.usage = boundUsage;
-    });
-    const plan = started.onlineAccess!;
-    const authorize = async () => {
-      try {
-        const current = await this.checkUsage(id);
-        const fresh = this.status(id);
-        const u = current.usage!,
-          endorsed =
-            fresh.qualification?.subscriptionMediation?.mechanismDecision;
-        const allowed =
-          fresh.ownership.held &&
-          fresh.ownership.fence === plan.fence &&
-          fresh.phase === before.phase &&
-          fresh.onlineAccess?.runId === plan.runId &&
-          fresh.onlineAccess.state === "dispatched" &&
-          endorsed?.accountId === plan.accountId &&
-          this.usageGate.permits(u, {
-            operationId: plan.runId,
-            accountId: endorsed.usageAccountId,
-            scope: plan.usageScope,
-          });
-        if (!allowed) return false;
-        const authorizedAt = new Date().toISOString();
-        this.change(id, (delivery) => {
-          if (
-            !delivery.ownership.held ||
-            delivery.ownership.fence !== plan.fence ||
-            delivery.phase !== before.phase ||
-            delivery.onlineAccess?.runId !== plan.runId ||
-            delivery.onlineAccess.state !== "dispatched" ||
-            !this.usageGate.permits(delivery.usage, {
-              operationId: plan.runId,
-              accountId: endorsed.usageAccountId,
-              scope: plan.usageScope,
-            })
-          )
-            throw new DeliveryError(
-              "Online authorization changed before recording.",
-            );
-          delivery.onlineAccess.usageAuthorization ??= {
-            authorizedAt,
-            usage: structuredClone(delivery.usage!),
-          };
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    let proof: OnlineProof | undefined;
-    let stopping: Promise<Delivery> | undefined;
-    const timer = setInterval(() => {
-      void authorize()
-        .then((allowed) => {
-          if (!allowed) stopping ??= this.recoverOnline(id);
-        })
-        .catch(() => {
-          stopping ??= this.recoverOnline(id);
-        });
-    }, onlineAuthorizationPollMs);
-    try {
-      proof = await this.observe(runtime.execute(plan, authorize));
-      if (
-        !proof ||
-        proof.runId !== plan.runId ||
-        proof.policyVersion !== onlinePolicyVersion ||
-        proof.model !== "passed" ||
-        proof.dependency !== "passed" ||
-        proof.bypass !== "passed" ||
-        (plan.dependency &&
-          proof.dependencyArtifactSha256 !== plan.dependency.artifactSha256) ||
-        !(await authorize())
-      )
-        proof = undefined;
-    } catch {
-      /* Safe refusal, never provider or worker error text. */
-    } finally {
-      clearInterval(timer);
-    }
-    const stopped = await (stopping ?? this.recoverOnline(id));
-    return this.change(id, (delivery) => {
-      if (
-        delivery.onlineAccess?.runId !== plan.runId ||
-        delivery.onlineAccess.state !== "stopped"
-      )
-        return;
-      if (
-        proof &&
-        stopped.ownership.fence === plan.fence &&
-        stopped.phase === before.phase
-      ) {
-        delivery.onlineAccess.proof = proof;
-        delivery.onlineAccess.outcome = "passed";
-      } else delivery.onlineAccess.outcome = "refused";
-    });
-  }
-
-  private recoverOnline(id: string): Promise<Delivery> {
-    return this.lifecycle.stopOnline(id);
+    return { deliveries: this.ledger.list() };
   }
 
   private mainSyncTarget(id: string): MainSyncTarget {
@@ -3457,676 +2990,6 @@ export class DeliveryController {
     });
   }
 
-  async run(id: string): Promise<Delivery> {
-    const worker = this.coordination.worker;
-    const snapshot = this.status(id);
-    if (snapshot.onlineAccess && snapshot.onlineAccess.state !== "stopped")
-      throw new DeliveryError("Recover online canary shutdown first.");
-    if (!snapshot.ownership.held || snapshot.phase === "queued")
-      throw new DeliveryError(
-        "Only the repository owner delivery may dispatch work.",
-      );
-    if (snapshot.execution && snapshot.execution.state !== "stopped")
-      throw new DeliveryError(
-        "Reconcile the existing running or uncertain session before dispatch.",
-      );
-    if (
-      !["blocked", "preparing"].includes(snapshot.phase) ||
-      snapshot.blocker.code === "UNCERTAIN_SESSION"
-    )
-      throw new DeliveryError(
-        "Resolve delivery controls and blockers before dispatch.",
-      );
-    const onboarding = inspectOnboarding(
-      snapshot.repository,
-      this.onboardingOptions,
-    );
-    const sameAuthority =
-      onboarding.policy?.sha256 === snapshot.authorityPolicySha256 &&
-      repositoryIdentity(snapshot.repository, onboarding) ===
-        snapshot.ownership.key;
-    this.change(id, (delivery) => {
-      if (
-        delivery.ownership.fence !== snapshot.ownership.fence ||
-        delivery.phase !== snapshot.phase
-      )
-        throw new DeliveryError(
-          "Delivery authority changed; inspect status before retrying.",
-        );
-      delivery.onboarding = onboarding;
-      if (!onboarding.ready || !sameAuthority) delivery.phase = "blocked";
-      if (!sameAuthority)
-        delivery.blocker = {
-          code: "DELIVERY_NOT_ENABLED",
-          message:
-            "Onboarding authority differs from the delivery's pinned policy or repository identity.",
-          nextAction:
-            "Safely release ownership and resubmit after the owner verifies the changed authority.",
-        };
-    });
-    snapshot.onboarding = onboarding;
-    let qualified = false;
-    try {
-      qualified =
-        worker?.qualified(structuredClone(snapshot), this.stateDirectory) ===
-        true;
-    } catch {
-      /* Qualification errors cannot carry credentials across the boundary. */
-    }
-    if (!snapshot.onboarding.ready || !sameAuthority || !worker || !qualified)
-      throw new DeliveryError(
-        "Worker dispatch requires current onboarding, unchanged owner policy and trusted host qualification; release and resubmit changed authority.",
-      );
-    const usage = (await this.checkUsage(id)).usage!;
-    if (!this.usageGate.permits(usage))
-      throw new DeliveryError(
-        "Subscription usage requires owner approval or an allowance reset before dispatch.",
-      );
-    const planned = this.change(id, (delivery, ownership) => {
-      if (
-        !sessionsQuiescent(delivery) ||
-        delivery.usage?.checkId !== usage.checkId ||
-        delivery.phase !== snapshot.phase ||
-        delivery.ownership.fence !== snapshot.ownership.fence ||
-        !delivery.ownership.held
-      )
-        throw new DeliveryError(
-          "Delivery authority changed; inspect status before retrying.",
-        );
-      this.lifecycle.proposeWorker(delivery, () => ownership.advanceFence(), {
-        resume: true,
-        state: "proposed",
-      });
-      const boundUsage = this.usageGate.bind(
-        delivery.usage,
-        delivery.execution!.operationId,
-      );
-      if (!boundUsage)
-        throw new DeliveryError(
-          "Usage allowance changed before worker dispatch.",
-        );
-      delivery.usage = boundUsage;
-      delivery.phase = "preparing";
-    });
-    const session = planned.execution!;
-    this.change(id, (delivery) => {
-      if (
-        delivery.ownership.fence !== session.fence ||
-        delivery.phase !== "preparing"
-      )
-        throw new DeliveryError("Delivery authority changed before dispatch.");
-      delivery.execution!.state = "dispatched";
-      delivery.phase = "implementing";
-    });
-    session.state = "dispatched";
-    try {
-      const response = await this.observe(
-        worker.start(structuredClone(session), () => {
-          const current = this.status(id);
-          return (
-            current.phase === "implementing" &&
-            current.ownership.held &&
-            current.ownership.fence === session.fence &&
-            current.execution?.operationId === session.operationId &&
-            this.usageGate.permits(current.usage, {
-              operationId: session.operationId,
-            })
-          );
-        }),
-      );
-      const result = this.recordReceipt(id, session, response, false);
-      if (
-        result.phase === "implementing" &&
-        result.execution?.state === "running"
-      )
-        this.monitorUsage(id, session.operationId);
-      return result;
-    } catch {
-      return this.recordReceipt(id, session, undefined, false);
-    }
-  }
-
-  async checkUsage(id: string): Promise<Delivery> {
-    const snapshot = this.status(id);
-    let observation: SubscriptionObservation | SubscriptionRefusal | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      observation = await Promise.race([
-        this.coordination.subscription?.() ?? Promise.resolve(undefined),
-        new Promise<undefined>((resolve) => {
-          timer = setTimeout(() => resolve(undefined), 5000);
-        }),
-      ]);
-    } catch {
-      /* A missing usage observation requires approval, never raw provider errors. */
-    } finally {
-      clearTimeout(timer);
-    }
-    return this.change(id, (delivery) => {
-      if (
-        delivery.ownership.fence !== snapshot.ownership.fence ||
-        delivery.phase !== snapshot.phase
-      )
-        throw new DeliveryError(
-          "Delivery authority changed during usage inspection.",
-        );
-      delivery.usage = this.usageGate.observe(
-        observation,
-        delivery.usage,
-        delivery.qualification?.subscriptionMediation?.mechanismDecision
-          ?.usageAccountId,
-      );
-    });
-  }
-
-  approveUsage(id: string, checkId: string): Delivery {
-    return this.change(id, (delivery) => {
-      const approved = this.usageGate.approve(delivery.usage, checkId);
-      if (
-        !approved ||
-        !sessionsQuiescent(delivery) ||
-        !delivery.ownership.held ||
-        !["blocked", "preparing", "paused"].includes(delivery.phase)
-      )
-        throw new DeliveryError(
-          "Approve a fresh usage check for an owned stopped delivery; exhaustion cannot be overridden.",
-        );
-      delivery.usage = approved;
-    });
-  }
-
-  async pollUsage(id: string): Promise<Delivery> {
-    const observed = await this.checkUsage(id);
-    const usage = observed.usage!;
-    // Usage identifies the endorsed usage-reader account, never the vault one.
-    // Status re-verifies the protected decision record's pins.
-    const endorsed =
-      this.status(id).qualification?.subscriptionMediation?.mechanismDecision;
-    if (
-      observed.onlineAccess?.state === "dispatched" &&
-      // A dispatched run blocks re-qualification, so only absence can occur.
-      (!endorsed ||
-        !this.usageGate.permits(usage, {
-          operationId: observed.onlineAccess.runId,
-          accountId: endorsed.usageAccountId,
-          scope: observed.onlineAccess.usageScope,
-        }))
-    )
-      return this.recoverOnline(id);
-    if (
-      observed.phase === "implementing" &&
-      !this.usageGate.permits(usage, {
-        operationId: observed.execution!.operationId,
-      })
-    )
-      return this.pause(id);
-    return observed;
-  }
-
-  private monitorUsage(id: string, operationId: string): void {
-    const timer = setInterval(() => {
-      void (async () => {
-        try {
-          const current = this.status(id);
-          if (
-            current.phase !== "implementing" ||
-            current.execution?.operationId !== operationId
-          ) {
-            clearInterval(timer);
-            return;
-          }
-          const observed = await this.pollUsage(id);
-          if (observed.phase !== "implementing") clearInterval(timer);
-        } catch {
-          clearInterval(timer);
-          try {
-            const current = this.status(id);
-            if (
-              current.phase === "implementing" &&
-              current.execution?.operationId === operationId
-            )
-              await this.pause(id);
-          } catch {
-            /* Shutdown uncertainty remains durable. */
-          }
-        }
-      })();
-    }, workerUsagePollMs);
-    timer.unref();
-  }
-
-  async qualify(id: string): Promise<Delivery> {
-    const snapshot = this.status(id);
-    if (snapshot.onlineAccess && snapshot.onlineAccess.state !== "stopped")
-      throw new DeliveryError(
-        "Recover online canary shutdown before qualification.",
-      );
-    if (snapshot.execution && snapshot.execution.state !== "stopped")
-      throw new DeliveryError(
-        "Stop and reconcile the worker before qualification probes.",
-      );
-    let qualification = unavailableQualification();
-    try {
-      qualification =
-        (await this.coordination.worker?.probe?.(
-          structuredClone(snapshot),
-          this.stateDirectory,
-        )) ?? qualification;
-    } catch {
-      /* Retain fixed unknown evidence, never provider error text. */
-    }
-    qualification.runtimeVersions = stampQualificationVersions();
-    if (
-      !qualificationVersionsMatch(qualification.runtimeVersions) &&
-      qualification.offlineAdmission
-    )
-      qualification.offlineAdmission.allowed = false;
-    return this.change(id, (delivery) => {
-      if (
-        delivery.ownership.fence !== snapshot.ownership.fence ||
-        delivery.phase !== snapshot.phase
-      )
-        throw new DeliveryError(
-          "Delivery authority changed during qualification.",
-        );
-      delivery.qualification = qualification;
-      projectSubscriptionDecision(delivery, this.stateDirectory);
-    });
-  }
-
-  async qualifyMacosControls(id: string): Promise<Delivery> {
-    const runtime = this.coordination.hostControls;
-    if (!runtime || runtime.version !== hostControlsVersion)
-      throw new DeliveryError("A trusted host controls runtime is required.");
-    const before = await this.qualify(id);
-    if (
-      !before.ownership.held ||
-      before.phase !== "blocked" ||
-      before.qualification?.offlineAdmission?.binding?.platform !== "darwin" ||
-      !before.qualification.offlineAdmission.allowed ||
-      before.qualification.mode !== runtime.mode
-    )
-      throw new DeliveryError(
-        "Controls require an owned stopped admitted platform binding.",
-      );
-    const evidence = await runtime.qualify(before);
-    const after = await this.qualify(id);
-    if (
-      evidence.version !== runtime.version ||
-      evidence.nativeVersion !==
-        sha256(readFileSync(new URL("./podman-native.js", import.meta.url))) ||
-      evidence.mode !== runtime.mode ||
-      evidence.outcome !== "passed" ||
-      evidence.productionEnabled !== false ||
-      evidence.bindingSha256 !== after.qualification?.bindingSha256 ||
-      evidence.policySha256 !== after.qualification?.policySha256 ||
-      evidence.operationId !== after.execution?.operationId ||
-      after.execution.state !== "stopped" ||
-      !after.ownership.held ||
-      after.phase !== "blocked" ||
-      evidence.checks.length !== hostControlNames.length ||
-      !hostControlNames.every((name) =>
-        evidence.checks.some(
-          (check) =>
-            check.name === name && /^[a-f0-9]{64}$/.test(check.evidenceSha256),
-        ),
-      ) ||
-      evidence.censuses.length < 2 ||
-      !evidence.censuses.every(
-        (c) =>
-          c.observedProcesses >= 8 &&
-          c.remainingProcesses === 0 &&
-          /^[a-f0-9]{64}$/.test(c.censusSha256),
-      )
-    )
-      throw new DeliveryError(
-        "Host controls evidence or ownership did not verify.",
-      );
-    return this.change(id, (d) => {
-      if (
-        d.ownership.fence !== after.ownership.fence ||
-        !d.ownership.held ||
-        d.execution?.operationId !== evidence.operationId ||
-        d.execution.state !== "stopped" ||
-        d.phase !== "blocked"
-      )
-        throw new DeliveryError("Host controls authority changed.");
-      d.hostControls = structuredClone(evidence);
-    });
-  }
-
-  /** Fixed synthetic workload only. Admission never enables feature delivery. */
-  async offlineCanary(
-    id: string,
-    files = [{ path: "canary.txt", sha256: sha256(canaryInput) }],
-  ): Promise<Delivery> {
-    const qualified = await this.qualify(id);
-    const admission = qualified.qualification?.offlineAdmission;
-    const syntheticScope = subscriptionDecisionScope(admission?.binding);
-    const runtime = this.coordination.offline;
-    const pins = {
-      bindingSha256: qualified.qualification?.bindingSha256 ?? "",
-      policySha256: qualified.qualification?.policySha256 ?? "",
-    };
-    const refuse = (message: string) =>
-      this.change(id, (delivery) => {
-        if (delivery.execution && delivery.execution.state !== "stopped")
-          throw new DeliveryError(
-            "Reconcile the existing worker before an offline canary.",
-          );
-        delivery.offlineCanary = {
-          ...pins,
-          mode: runtime?.mode ?? "live",
-          outcome: "refused",
-          message,
-        };
-      });
-    if (
-      !admission?.allowed ||
-      !admission.binding ||
-      !admission.effective ||
-      !/^[a-f0-9]{64}$/.test(pins.bindingSha256) ||
-      !/^[a-f0-9]{64}$/.test(pins.policySha256) ||
-      !runtime ||
-      runtime.mode !== qualified.qualification?.mode ||
-      (runtime === this.coordination.synthetic &&
-        (!syntheticScope ||
-          qualified.qualification?.subscriptionMediation?.mechanismDecision
-            ?.scope !== syntheticScope))
-    )
-      return refuse(
-        "Offline canary refused: matching admitted VM bindings and a trusted offline management driver are required.",
-      );
-    let input: ReturnType<typeof admitFiles>;
-    try {
-      if (!Array.isArray(files) || files.length !== 1)
-        throw Error("Invalid manifest");
-      input = admitFiles({ files }, qualified.repository);
-      if (
-        input[0]?.path !== "canary.txt" ||
-        !input[0].bytes.equals(Buffer.from(canaryInput))
-      )
-        throw Error("Only synthetic input is admitted");
-    } catch {
-      return refuse(
-        "Offline canary refused: provide the fixed synthetic ordinary input without unsafe paths, links, metadata or credentials.",
-      );
-    }
-    const started = this.change(id, (delivery, ownership) => {
-      if (
-        !delivery.ownership.held ||
-        delivery.phase !== "blocked" ||
-        !sessionsQuiescent(delivery) ||
-        delivery.ownership.fence !== qualified.ownership.fence ||
-        delivery.qualification?.bindingSha256 !== pins.bindingSha256 ||
-        delivery.qualification?.policySha256 !== pins.policySha256
-      )
-        throw new DeliveryError(
-          "Offline canary requires unchanged exclusive repository ownership and stopped workers.",
-        );
-      const session = this.lifecycle.proposeWorker(
-        delivery,
-        () => ownership.advanceFence(),
-        { resume: false, state: "dispatched" },
-      );
-      delivery.offlineCanary = {
-        ...pins,
-        mode: runtime.mode,
-        outcome: "running",
-        session: structuredClone(session),
-        inputSha256: sha256(canaryInput),
-        message:
-          "Synthetic offline canary dispatched; collection requires verified stop.",
-      };
-    });
-    const session = started.execution!;
-    let executed = false;
-    try {
-      const response = await this.observe(
-        runtime.execute({
-          ...pins,
-          session: structuredClone(session),
-          files: input.map((file) => ({
-            path: file.path,
-            bytes: Buffer.from(file.bytes),
-            executable: false,
-          })),
-          binding: structuredClone(admission.binding),
-          effective: structuredClone(admission.effective),
-          mayDispatch: () => {
-            const current = this.status(id);
-            return (
-              current.ownership.held &&
-              current.ownership.fence === session.fence &&
-              current.phase === "blocked" &&
-              current.execution?.operationId === session.operationId &&
-              current.execution.state === "dispatched" &&
-              (runtime !== this.coordination.synthetic ||
-                (Boolean(syntheticScope) &&
-                  current.qualification?.subscriptionMediation
-                    ?.mechanismDecision?.scope === syntheticScope))
-            );
-          },
-        }),
-      );
-      const same = (
-        expected: Record<string, unknown>,
-        actual: Record<string, unknown> | undefined,
-      ) =>
-        Boolean(
-          actual &&
-            Object.keys(expected).length === Object.keys(actual).length &&
-            Object.entries(expected).every(
-              ([key, value]) =>
-                JSON.stringify(actual[key]) === JSON.stringify(value),
-            ),
-        );
-      executed = Boolean(
-        matchesCanary(response, session, pins) &&
-          response?.status === "running" &&
-          response.fresh === true &&
-          same(admission.binding, response.binding) &&
-          same(admission.effective, response.effective),
-      );
-    } catch {
-      /* Provider text and uncertain execution never enter durable evidence. */
-    }
-    // Even failed/timed-out dispatches require revocation and independently verified shutdown.
-    let stopped: Delivery;
-    try {
-      stopped = await this.stopSession(id);
-    } catch {
-      try {
-        return this.change(id, (delivery) => {
-          if (
-            delivery.execution?.operationId !== session.operationId ||
-            delivery.execution.state === "stopped"
-          )
-            return;
-          delivery.execution.state = "uncertain";
-          delivery.offlineCanary = {
-            ...started.offlineCanary!,
-            outcome: "uncertain",
-            session: structuredClone(delivery.execution),
-            message:
-              "Worker stop could not be recorded; collection is forbidden until recovery verifies shutdown.",
-          };
-          delivery.blocker = {
-            code: "UNCERTAIN_SESSION",
-            message: "Worker shutdown could not be verified.",
-            nextAction:
-              "Recover the retained session before dispatch, collection or ownership release.",
-          };
-        });
-      } catch {
-        // An unavailable ledger cannot record uncertainty. Its dispatched session
-        // already prevents another launch/release and remains recoverable.
-        throw new DeliveryError(
-          "Offline worker stop could not be recorded; reconcile the durable session before continuing.",
-        );
-      }
-    }
-    const stoppedSession = stopped.execution!;
-    if (
-      stoppedSession.operationId !== session.operationId ||
-      stoppedSession.state !== "stopped" ||
-      stopped.phase !== "blocked" ||
-      !stopped.ownership.held
-    )
-      return this.status(id);
-    let output: ReturnType<typeof collectCanary> | undefined;
-    if (executed && stopped.phase === "blocked") {
-      try {
-        const response = await this.observe(
-          runtime.collect(structuredClone(stoppedSession), { ...pins }),
-        );
-        if (
-          matchesCanary(response, stoppedSession, pins) &&
-          response?.status === "stopped"
-        )
-          output = collectCanary(response);
-      } catch {
-        /* Unsafe, changing or unavailable output is rejected without retaining it. */
-      }
-    }
-    let createdArtifact: string | undefined;
-    try {
-      return this.change(id, (delivery) => {
-        if (
-          delivery.execution?.operationId !== session.operationId ||
-          delivery.execution.state !== "stopped" ||
-          delivery.ownership.fence !== stoppedSession.fence ||
-          !delivery.ownership.held ||
-          delivery.phase !== "blocked"
-        )
-          throw new DeliveryError(
-            "Offline canary authority changed; output was not imported.",
-          );
-        delivery.offlineCanary = {
-          ...started.offlineCanary!,
-          session: structuredClone(delivery.execution),
-          ...(stopped.offlineCanary?.shutdownProof
-            ? { shutdownProof: stopped.offlineCanary.shutdownProof }
-            : {}),
-          outcome: output ? "completed" : "rejected",
-          ...(output ? { outputSha256: output.sha256 } : {}),
-          message: output
-            ? "Synthetic offline round trip completed; production delivery remains disabled."
-            : "Offline canary execution or output could not be verified; no output imported.",
-        };
-        delivery.blocker = this.disabledBlocker();
-        if (output) {
-          const path = join(
-            this.stateDirectory,
-            "artifacts",
-            `${id}-${session.operationId}-offline.json`,
-          );
-          this.ledger.assertArtifacts();
-          writeFileSync(
-            path,
-            JSON.stringify({ ...delivery.offlineCanary, output }),
-            {
-              flag: "wx",
-              mode: 0o600,
-              flush: true,
-            },
-          );
-          createdArtifact = path;
-          delivery.evidence.push({ kind: "offline-canary", path });
-        }
-      });
-    } catch (error) {
-      if (createdArtifact) {
-        try {
-          unlinkSync(createdArtifact);
-        } catch {
-          /* Preserve the original transaction error. */
-        }
-      }
-      throw error;
-    }
-  }
-
-  async syntheticTask(id: string): Promise<Delivery> {
-    const runtime = this.coordination.synthetic;
-    const qualified = await this.qualify(id);
-    const decision = qualifiedDecision(qualified);
-    if (
-      !runtime ||
-      runtime !== this.coordination.offline ||
-      runtime.version !== syntheticTaskVersion ||
-      !decision
-    )
-      throw new DeliveryError(
-        "Synthetic work requires a trusted fixed task runtime and independent positive authentication; no inference is authorized.",
-      );
-    const files = admitFiles(
-      {
-        files: [
-          { path: "index.html", sha256: sha256(syntheticSiteInput) },
-          { path: "validate.sh", sha256: sha256(syntheticSiteValidator) },
-        ],
-      },
-      qualified.repository,
-    );
-    runtime.stage(files);
-    const completed = await this.offlineCanary(id);
-    const canary = completed.offlineCanary;
-    const session = completed.execution;
-    let result: SyntheticTaskResult | undefined;
-    if (
-      canary?.outcome === "completed" &&
-      session?.state === "stopped" &&
-      canary.shutdownProof?.remainingProcesses === 0
-    ) {
-      try {
-        const collected = await this.observe(
-          runtime.collectTask(session, canary),
-        );
-        if (
-          collected?.operationId === session.operationId &&
-          collected.version === runtime.version &&
-          collected.inputSha256 === sha256(syntheticSiteInput) &&
-          collected.output === syntheticSiteOutput &&
-          collected.outputSha256 === sha256(syntheticSiteOutput) &&
-          collected.validation === "passed" &&
-          collected.negativeValidation === "passed" &&
-          collected.httpValidation === "passed" &&
-          /^[a-f0-9]{64}$/.test(collected.collectionSha256)
-        )
-          result = collected;
-      } catch {
-        /* Unverified results cannot become imported task evidence. */
-      }
-    }
-    return this.change(id, (delivery) => {
-      if (
-        !session ||
-        delivery.execution?.operationId !== session.operationId ||
-        delivery.execution.state !== "stopped" ||
-        delivery.ownership.fence !== completed.ownership.fence ||
-        !delivery.ownership.held ||
-        delivery.phase !== "blocked"
-      )
-        throw new DeliveryError(
-          "Synthetic task authority changed; no output imported.",
-        );
-      delivery.syntheticTask = {
-        bindingSha256: canary?.bindingSha256 ?? "",
-        policySha256: canary?.policySha256 ?? "",
-        version: runtime.version,
-        mode: runtime.mode,
-        outcome: result ? "completed" : "refused",
-        session: structuredClone(session),
-        ...(result ? { result } : {}),
-        ...(canary?.shutdownProof
-          ? { shutdownProof: canary.shutdownProof }
-          : {}),
-        productionEnabled: false,
-      };
-    });
-  }
-
   private async observe<T>(
     pending: Promise<T>,
     timeoutMs?: number,
@@ -4149,26 +3012,6 @@ export class DeliveryController {
     } finally {
       clearTimeout(timer);
     }
-  }
-
-  private recordReceipt(
-    id: string,
-    session: WorkerSession,
-    response: WorkerReceipt | undefined,
-    stopping: boolean,
-    shutdownProof?: {
-      observedProcesses: number;
-      remainingProcesses: number;
-      censusSha256: string;
-    },
-  ): Delivery {
-    return this.lifecycle.recordReceipt(
-      id,
-      session,
-      response,
-      stopping,
-      shutdownProof,
-    );
   }
 
   async pause(id: string): Promise<Delivery> {
@@ -4229,10 +3072,6 @@ export class DeliveryController {
         throw new DeliveryError(
           "Recover coding worker shutdown before this control.",
         );
-      if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
-        throw new DeliveryError(
-          "Recover online canary shutdown before resuming.",
-        );
       if (!sessionsQuiescent(delivery))
         throw new DeliveryError(
           "Recover retained session shutdown before resuming.",
@@ -4243,14 +3082,10 @@ export class DeliveryController {
         delivery.phase === "blocked" &&
         delivery.blocker.code === "UNCERTAIN_SESSION"
       ) {
-        if (delivery.execution?.state !== "stopped")
-          throw new DeliveryError("Reconcile worker shutdown before resuming.");
         delivery.blocker = this.disabledBlocker();
         this.controlEvent(delivery, "resume");
       }
       if (delivery.phase === "paused") {
-        if (delivery.execution && delivery.execution.state !== "stopped")
-          throw new DeliveryError("Reconcile worker shutdown before resuming.");
         delivery.phase = delivery.priorPhase ?? "blocked";
         if (!delivery.ownership.held) delivery.phase = "queued";
         if (
@@ -4327,26 +3162,7 @@ export class DeliveryController {
         : stopped;
     }
     if (coding && needsResumeRecovery(coding)) return this.recoverResume(id);
-    let delivery = this.status(id);
-    if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
-      delivery = await this.recoverOnline(id);
-    if (!delivery.execution || delivery.execution.state === "stopped")
-      return delivery;
-    const recovered = await this.stopSession(id);
-    if (
-      delivery.phase === "implementing" &&
-      recovered.phase === "implementing" &&
-      recovered.execution?.state === "stopped"
-    ) {
-      return this.change(id, (current) => {
-        if (
-          current.phase === "implementing" &&
-          current.execution?.state === "stopped"
-        )
-          current.phase = "preparing";
-      });
-    }
-    return recovered;
+    return this.status(id);
   }
 
   /** Return a home an interrupted resume may have moved. Uncertainty blocks
@@ -4578,10 +3394,6 @@ export class DeliveryController {
     };
   }
 
-  private stopSession(id: string): Promise<Delivery> {
-    return this.lifecycle.stopWorker(id);
-  }
-
   private disabledBlocker(): Delivery["blocker"] {
     return {
       code: "DELIVERY_NOT_ENABLED",
@@ -4637,15 +3449,7 @@ export class DeliveryController {
         throw new DeliveryError(
           "Recover coding worker shutdown before this control.",
         );
-      if (delivery.onlineAccess && delivery.onlineAccess.state !== "stopped")
-        throw new DeliveryError(
-          "Recover online canary shutdown before releasing ownership.",
-        );
       if (!delivery.ownership.held) return;
-      if (delivery.execution && delivery.execution.state !== "stopped")
-        throw new DeliveryError(
-          "Reconcile worker shutdown before releasing repository ownership.",
-        );
       if (
         !["paused", "cancelled", "blocked", "completed"].includes(
           delivery.phase,

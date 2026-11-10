@@ -250,14 +250,14 @@ container inside the coding VM, keeping its record as a tombstone. A session
 with a conversation, a stranded or unresolved resume, and a retired or superseded
 lineage are never abandoned.
 
-**Session**: A dispatched worker or online operation whose matching receipt must
+**Session**: A coding session or validation attempt whose matching receipt must
 prove descendant shutdown. Retained uncertain sessions prevent ownership release.
 
 **Fence**: A monotonically advancing repository generation used with an owner
 identity to reject stale session actions and ownership writes.
 
 **Qualification**: Version-bound evidence for a defined runtime boundary. A
-passing fixed canary does not qualify production delivery or another platform.
+passing acceptance does not qualify production delivery or another platform.
 
 **Canary**: A bounded fixed challenge using synthetic inputs, capabilities and
 controlled peers to test a specific boundary without owner credentials/inference.
@@ -266,8 +266,8 @@ controlled peers to test a specific boundary without owner credentials/inference
 session (ADR 0002). It carries a session's Messages requests for the pinned
 Claude model only, within a session grant: one delivery, coding session and
 deadline. The delivery's spend budget must cover each request, and it revokes
-the grant irreversibly on anything else. It is separate from the
-fixed-worker gateway and never lets the credential reach the VM.
+the grant irreversibly on anything else. It never lets the credential reach
+the VM.
 
 **Model route**: A general coding session's only path to the model: the session
 relay on the worker's own loopback, reached through fixed provider overrides

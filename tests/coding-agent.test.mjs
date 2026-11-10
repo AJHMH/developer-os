@@ -7,7 +7,6 @@ import {
   recordedProvider,
   sessionProvider,
 } from "../dist/feature-candidate.js";
-import { assessSubscription } from "../dist/subscription.js";
 
 const thread = "11111111-2222-4333-8444-555555555555";
 
@@ -45,29 +44,4 @@ test("a session without a provider ran Codex, and Codex records none", () => {
   assert.deepEqual(recordedProvider("claude-code"), {
     provider: "claude-code",
   });
-});
-
-test("usage is assessed only for an accepted auth mode", () => {
-  const now = Date.now();
-  const observation = {
-    observedAt: new Date(now).toISOString(),
-    accountId: "account",
-    authMode: "chatgpt",
-    windows: [
-      {
-        id: "primary",
-        usedPercent: 10,
-        resetsAt: Math.floor(now / 1000) + 3600,
-      },
-    ],
-    exhausted: false,
-  };
-  assert.equal(assessSubscription(observation, now).decision, "ready");
-  const refused = assessSubscription(observation, now, []);
-  assert.equal(refused.decision, "approval-required");
-  assert.equal(refused.accountId, undefined);
-  assert.equal(
-    assessSubscription({ ...observation, authMode: "other" }, now).decision,
-    "approval-required",
-  );
 });

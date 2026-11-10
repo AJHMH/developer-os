@@ -49,20 +49,16 @@ node dist/cli.js recover --id "${DELIVERY_ID:?}" --state-dir "/absolute/controll
 node dist/cli.js release --id "${DELIVERY_ID:?}" --state-dir "/absolute/controller-state"
 ```
 
-One configured authority directory coordinates ownership per canonical repository. Queued requests wait for safe release. Pause/cancel/recovery fence sessions and require matching descendant-shutdown evidence; unknown shutdown retains ownership. Cancellation preserves work and does not close PRs, delete branches or roll back effects. For native sessions, supply the same `--podman-machine` and external `--worker-policy` to pause, cancel and recover. Separate state stores do not share ownership.
+One configured authority directory coordinates ownership per canonical repository. Queued requests wait for safe release. Pause/cancel/recovery fence sessions and require matching descendant-shutdown evidence; unknown shutdown retains ownership. Cancellation preserves work and does not close PRs, delete branches or roll back effects. For native sessions, supply `--podman-machine` with the owner's `--coding-admission` and `--validation-admission` to pause, cancel and recover. Separate state stores do not share ownership.
 
-## Subscription and fixed worker qualification
+## Model access and the worker VM
 
-Host-only authentication uses macOS Keychain. Workers receive scoped revocable capabilities rather than reusable owner credentials. Low (20% or less remaining), unknown or stale usage requires a fresh run-bound allowance; exhaustion cannot be overridden. Other account activity can consume usage between observations, so this is not a hard financial cap. There is no paid-provider fallback.
+`prepare-auth` writes the non-secret host registration, and `store-anthropic-key` keeps the owner's Anthropic API key in the macOS Keychain for metered coding turns (ADRs 0006 and 0008). Each delivery's spend budget is the only authority for its model requests; there is no subscription usage reader and no paid fallback beyond the budget.
 
-`check-usage`, `approve-usage` and `poll-usage` address an explicit delivery. An owner-selected absolute `--codex-executable` supplies app-server account/usage observations. `prepare-auth` writes the non-secret host registration, and `store-anthropic-key` keeps the owner's Anthropic API key in the macOS Keychain for metered coding turns (ADRs 0006 and 0008).
+Coding and validation run on the dedicated `aios-macos-noshare` VM, each admitted only by the owner's record naming its fresh pins. Read the runbooks before an owner run:
 
-`pin-offline`, `qualify`, `offline-canary`, `online-canary`, `qualify-macos-controls`, `synthetic-task` and `qualification-report` implement fixed synthetic admission/qualification paths. Enrollment requires an owner-selected `aios-` machine and external pins. Changed host/source/policy bindings require fresh qualification. Read the runbook before using operator fixtures:
-
-- [macOS worker qualification](docs/macos-worker-qualification.md)
+- [macOS worker VM](docs/macos-worker-qualification.md)
 - [Offline general-worker qualification](docs/worker-qualification.md)
-
-The Mac has an independent fixed-worker passing receipt. These are version-bound results; historical approvals authorize no new inference. `qualification-report` never enables production.
 
 ## Controlled delivery stages
 

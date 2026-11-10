@@ -192,10 +192,6 @@ const unsettled = {
   "PR diagnostic rerun": (d) =>
     (d.prChecks = { runs: [{ diagnostic: { state: "uncertain" } }] }),
   "repair cycle": (d) => (d.repair = { attempts: [{ state: "running" }] }),
-  "uncertain worker": (d) => {
-    d.phase = "blocked";
-    d.blocker = { code: "UNCERTAIN_SESSION", message: "", nextAction: "" };
-  },
 };
 for (const [name, change] of Object.entries(unsettled))
   test(`resume refuses while a ${name} is unsettled`, async (t) => {
@@ -237,4 +233,16 @@ test("coding refuses once publication or repair has begun", async (t) => {
     f.controller.codeFeature(f.delivery.id),
     /Use the persisted repair allowance/,
   );
+});
+
+test("resume clears an uncertain blocker once every session is stopped", async (t) => {
+  const f = codingFixture(t);
+  persisted(f, (d) => {
+    d.phase = "blocked";
+    d.blocker = { code: "UNCERTAIN_SESSION", message: "", nextAction: "" };
+  });
+  const resumed = f.controller.resume(f.delivery.id);
+  assert.equal(resumed.phase, "blocked");
+  assert.equal(resumed.blocker.code, "DELIVERY_NOT_ENABLED");
+  assert.equal(resumed.controls.at(-1).action, "resume");
 });

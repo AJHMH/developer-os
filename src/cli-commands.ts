@@ -2,15 +2,11 @@ import type { DeliveryController } from "./controller.js";
 export const cliOptions = {
   "state-dir": { type: "string" },
   "owner-policy": { type: "string" },
-  "codex-executable": { type: "string" },
-  adversarial: { type: "boolean" },
   replace: { type: "boolean" },
   "auth-directory": { type: "string" },
   "check-id": { type: "string" },
   "thread-id": { type: "string" },
   "podman-machine": { type: "string" },
-  "worker-policy": { type: "string" },
-  "dependency-policy": { type: "string" },
   "coding-admission": { type: "string" },
   "validation-admission": { type: "string" },
   "feature-criteria": { type: "string" },
@@ -28,16 +24,12 @@ export const cliOptions = {
 } as const;
 export type CliOptionName = keyof typeof cliOptions;
 export type CliValues = {
-  [Name in Exclude<CliOptionName, "adversarial" | "replace">]?:
-    | string
-    | undefined;
-} & { adversarial?: boolean | undefined; replace?: boolean | undefined };
-type Runtime = "native" | "synthetic" | "controls" | "subscription";
+  [Name in Exclude<CliOptionName, "replace">]?: string | undefined;
+} & { replace?: boolean | undefined };
 export interface CliCommand {
-  kind: "delivery" | "auth" | "pin";
+  kind: "delivery" | "auth";
   required: readonly CliOptionName[];
   optional: readonly CliOptionName[];
-  runtimes: readonly Runtime[];
   invoke?: (
     controller: DeliveryController,
     values: CliValues,
@@ -51,7 +43,7 @@ type IdAction = {
     ? Key
     : never;
 }[keyof DeliveryController];
-const nativeOptions = ["podman-machine", "worker-policy"] as const;
+const nativeOptions = ["podman-machine"] as const;
 const ownerPolicyOptions = ["owner-policy", "onboarding-attestation"] as const;
 const admissionOptions = ["coding-admission", "validation-admission"] as const;
 const validationOptions = [
@@ -66,17 +58,14 @@ const codingTurnOptions = [
   "coding-admission",
   "auth-directory",
 ] as const;
-const codingTurnRuntimes = ["native"] as const;
 function idAction(
   method: IdAction,
   optional: readonly CliOptionName[] = [],
-  runtimes: readonly Runtime[] = [],
 ): CliCommand {
   return {
     kind: "delivery",
     required: ["id"],
     optional,
-    runtimes,
     invoke: (controller, values) => controller[method](values.id!),
   };
 }
@@ -91,7 +80,6 @@ const commands: Record<string, CliCommand> = {
       "owner-policy",
       "onboarding-attestation",
     ],
-    runtimes: [],
     invoke: (c, v) =>
       c.start({
         repository: v.repo!,
@@ -109,21 +97,13 @@ const commands: Record<string, CliCommand> = {
     kind: "delivery",
     required: [],
     optional: ["id"],
-    runtimes: [],
     invoke: (c, v) => (v.id === undefined ? c.list() : c.status(v.id)),
-  },
-  "pin-offline": {
-    kind: "pin",
-    required: ["repo", ...nativeOptions],
-    optional: [],
-    runtimes: ["native"],
   },
   "prepare-auth": {
     kind: "auth",
     authAction: "prepare",
     required: ["repo", "auth-directory"],
     optional: [],
-    runtimes: [],
   },
   // ADR 0006: the owner pastes the key at a hidden prompt; one free request
   // verifies it before it reaches the Keychain.
@@ -132,60 +112,22 @@ const commands: Record<string, CliCommand> = {
     authAction: "store-anthropic-key",
     required: ["auth-directory"],
     optional: ["replace"],
-    runtimes: [],
   },
-  qualify: idAction(
-    "qualify",
-    [...nativeOptions, "codex-executable", "adversarial"],
-    ["native", "subscription"],
-  ),
-  "offline-canary": idAction("offlineCanary", nativeOptions, ["native"]),
-  "online-canary": idAction(
-    "onlineCanary",
-    [...nativeOptions, "codex-executable", "dependency-policy"],
-    ["native", "subscription"],
-  ),
-  "synthetic-task": idAction(
-    "syntheticTask",
-    [...nativeOptions, "adversarial"],
-    ["native", "synthetic"],
-  ),
-  "qualify-macos-controls": idAction(
-    "qualifyMacosControls",
-    [...nativeOptions, "adversarial"],
-    ["native", "controls"],
-  ),
-  "qualification-report": idAction("qualificationReport"),
-  "check-usage": idAction("checkUsage", ["codex-executable"], ["subscription"]),
-  "poll-usage": idAction(
-    "pollUsage",
-    [...nativeOptions, "codex-executable"],
-    ["native", "subscription"],
-  ),
   // With owner coding or validation admissions, these also stop or recover
   // the exact native coding session or validation attempt.
-  pause: idAction("pause", [...nativeOptions, ...admissionOptions], ["native"]),
-  cancel: idAction(
-    "cancel",
-    [...nativeOptions, ...admissionOptions],
-    ["native"],
-  ),
-  recover: idAction(
-    "recover",
-    [...nativeOptions, ...admissionOptions],
-    ["native"],
-  ),
+  pause: idAction("pause", [...nativeOptions, ...admissionOptions]),
+  cancel: idAction("cancel", [...nativeOptions, ...admissionOptions]),
+  recover: idAction("recover", [...nativeOptions, ...admissionOptions]),
   resume: idAction("resume"),
   release: idAction("release"),
   "plan-feature": idAction("planFeature", ["feature-criteria"]),
   // These re-read the owner policy, and its attestation, at each step. With
   // owner coding and validation admissions and the owner's key, code-feature
-  // runs one metered Claude Code turn on the native runtimes.
+  // runs one metered Claude Code turn on the owner-admitted runtimes.
   "code-feature": {
     kind: "delivery",
     required: ["id"],
     optional: [...codingTurnOptions, "coding-minutes"],
-    runtimes: codingTurnRuntimes,
     invoke: (c, v) =>
       c.codeFeature(
         v.id!,
@@ -197,13 +139,10 @@ const commands: Record<string, CliCommand> = {
   // With an owner validation admission, these run on the native runtime.
   "validate-baseline": idAction("validateBaseline", validationOptions),
   "validate-candidate": idAction("validateCandidate", validationOptions),
-  // A repair turn runs on the same runtimes and route as a coding turn.
+  // A repair turn runs on the same admitted runtimes and route as a coding
+  // turn.
   // Its allowance is the repair's own, so it takes no coding minutes.
-  "repair-feature": idAction(
-    "repairFeature",
-    codingTurnOptions,
-    codingTurnRuntimes,
-  ),
+  "repair-feature": idAction("repairFeature", codingTurnOptions),
   "publish-feature": idAction("publishFeature"),
   "reconcile-publication": idAction("reconcilePublication"),
   "monitor-pr-checks": idAction("monitorPRChecks"),
@@ -218,39 +157,28 @@ const commands: Record<string, CliCommand> = {
   "reconcile-main-sync": idAction("reconcileMainSync"),
   "cleanup-branches": idAction("cleanupBranches"),
   "reconcile-cleanup": idAction("reconcileCleanup"),
-  "approve-usage": {
-    kind: "delivery",
-    required: ["id", "check-id"],
-    optional: [],
-    runtimes: [],
-    invoke: (c, v) => c.approveUsage(v.id!, v["check-id"]!),
-  },
   "rerun-pr-check": {
     kind: "delivery",
     required: ["id", "check-id"],
     optional: [],
-    runtimes: [],
     invoke: (c, v) => c.rerunPRCheck(v.id!, v["check-id"]!),
   },
   "resolve-review-thread": {
     kind: "delivery",
     required: ["id", "thread-id"],
     optional: [],
-    runtimes: [],
     invoke: (c, v) => c.resolveReviewThread(v.id!, v["thread-id"]!),
   },
   "clarify-feature": {
     kind: "delivery",
     required: ["id", "clarification"],
     optional: ["feature-criteria"],
-    runtimes: [],
     invoke: (c, v) => c.clarifyFeature(v.id!, v.clarification!),
   },
   "extend-coding": {
     kind: "delivery",
     required: ["id", "minutes"],
     optional: [],
-    runtimes: [],
     invoke: (c, v) => c.extendCoding(v.id!, Number(v.minutes)),
   },
   // ADR 0008: the owner's budget extension after a budget interruption.
@@ -258,14 +186,12 @@ const commands: Record<string, CliCommand> = {
     kind: "delivery",
     required: ["id", "dollars"],
     optional: [],
-    runtimes: [],
     invoke: (c, v) => c.extendBudget(v.id!, Number(v.dollars)),
   },
   "extend-repair": {
     kind: "delivery",
     required: ["id"],
     optional: ["minutes", "cycles"],
-    runtimes: [],
     invoke: (c, v) =>
       c.extendRepair(v.id!, Number(v.cycles ?? 0), Number(v.minutes ?? 0)),
   },
@@ -278,7 +204,6 @@ export const cliCommands = Object.freeze(
         ...command,
         required: Object.freeze([...command.required]),
         optional: Object.freeze([...command.optional]),
-        runtimes: Object.freeze([...command.runtimes]),
       }),
     ]),
   ),
@@ -318,23 +243,8 @@ export function validateCliCommand(
   )
     return { error: "arguments" };
   if (
-    (values["podman-machine"] !== undefined ||
-      values["worker-policy"] !== undefined) &&
-    (!values["podman-machine"] ||
-      !/^aios-[a-z0-9-]+$/.test(values["podman-machine"]) ||
-      values["worker-policy"] === "")
-  )
-    return { error: "arguments" };
-  if (
-    values.adversarial !== undefined &&
-    (!values["podman-machine"] || !values["worker-policy"])
-  )
-    return { error: "arguments" };
-  if (
-    values["dependency-policy"] !== undefined &&
-    (!values["dependency-policy"] ||
-      !values["podman-machine"] ||
-      !values["worker-policy"])
+    values["podman-machine"] !== undefined &&
+    !/^aios-[a-z0-9-]+$/.test(values["podman-machine"])
   )
     return { error: "arguments" };
   if (values["feature-criteria"] === "") return { error: "arguments" };

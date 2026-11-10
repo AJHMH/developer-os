@@ -74,31 +74,28 @@ for (const [name, command] of Object.entries(cliCommands)) {
     );
   });
 }
-test("usage approval and PR rerun dispatch the independently required check identifier", async () => {
+test("a PR rerun dispatches the independently required check identifier", async () => {
   const calls = [];
   const controller = {
-    approveUsage: (...args) => calls.push(["usage", ...args]),
     rerunPRCheck: (...args) => calls.push(["rerun", ...args]),
   };
-  for (const name of ["approve-usage", "rerun-pr-check"]) {
-    const values = { id: "delivery", "check-id": "check" };
-    const invocation = validateCliCommand([name], values, Object.keys(values));
-    assert.equal(invocation.name, name);
-    await invocation.command.invoke(controller, values);
-  }
-  assert.deepEqual(calls, [
-    ["usage", "delivery", "check"],
-    ["rerun", "delivery", "check"],
-  ]);
+  const values = { id: "delivery", "check-id": "check" };
+  const invocation = validateCliCommand(
+    ["rerun-pr-check"],
+    values,
+    Object.keys(values),
+  );
+  assert.equal(invocation.name, "rerun-pr-check");
+  await invocation.command.invoke(controller, values);
+  assert.deepEqual(calls, [["rerun", "delivery", "check"]]);
 });
 test("native prerequisites and numeric extensions remain bounded", () => {
   for (const values of [
-    { id: "d", adversarial: true },
     { id: "d", "podman-machine": "other" },
-    { id: "d", "worker-policy": "" },
+    { id: "d", "podman-machine": "" },
   ]) {
     assert.equal(
-      validateCliCommand(["qualify"], values, Object.keys(values)).error,
+      validateCliCommand(["recover"], values, Object.keys(values)).error,
       "arguments",
     );
   }
@@ -362,7 +359,6 @@ test("code-feature takes the owner's coding and validation inputs, auth director
     Object.keys(values),
   );
   assert.equal(invocation.name, "code-feature");
-  assert.deepEqual(invocation.command.runtimes, ["native"]);
   const calls = [];
   const controller = { codeFeature: (...args) => calls.push(args) };
   await invocation.command.invoke(controller, values);
@@ -450,10 +446,6 @@ test("repair-feature takes code-feature's options, except coding minutes", async
     cliCommands["code-feature"].optional
       .filter((name) => name !== "coding-minutes")
       .sort(),
-  );
-  assert.deepEqual(
-    invocation.command.runtimes,
-    cliCommands["code-feature"].runtimes,
   );
   const calls = [];
   await invocation.command.invoke(
