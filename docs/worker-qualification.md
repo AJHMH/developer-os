@@ -438,16 +438,20 @@ run.
 Count first. This removes nothing and prints what a sweep would do:
 
 ```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json"
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json"
 ```
 
 `abandoned` is what a sweep would remove. `kept` counts the rest: `lineage`
 sessions, `unstopped` ones, `unprepared` ones and `cleaned` tombstones. An
 `unprepared` record names no admission. Usually that session never had a
 container, but a record from an older guest can, and the sweep leaves it. So
-these counts don't add up to the VM's container count. Add `--approve-removal`
+these counts don't add up to the VM's container count. `lineages` names up to
+64 kept lineage sessions by `operationId`, `fence` and `intent`, so lineage
+cleanup can be pointed at one; a session recorded before the guest kept that
+name is only counted. Add `--approve-removal`
 to the same command to remove the `abandoned` sessions.
-It works through 8 at a time until it has tried them all, and moves past any it
+It works through at most 8 at a time, and at most 20 seconds of removals per
+batch, until it has tried them all, and moves past any it
 can't remove. A refused session stays for a later sweep; `refused` says how many,
 and the command then exits non-zero.
 

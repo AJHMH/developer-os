@@ -274,6 +274,8 @@ def run(args, **kwargs):
         elif action == 'container': code = 0 if containers().get(args[-1]) else 1
         elif action == 'rm':
             name = args[-1]
+            # A slow engine: each removal takes this long on the guest's clock.
+            state['timeOffset'] = state.get('timeOffset', 0) + state.get('rmSeconds', 0)
             if not containers().get(name) or containers()[name]['State']['Running'] or state.get('rmRefused') == name: code = 1
             else:
                 state.get('containers', {}).pop(name, None)

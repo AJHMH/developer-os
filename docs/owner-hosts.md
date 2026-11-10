@@ -54,7 +54,7 @@ guest is Claude Code's (`claude-coding-admission.json`, ADR 0008):
 
 | Guest      | `policySha256`                                                     |
 | ---------- | ------------------------------------------------------------------ |
-| Coding     | `0ca38542675e08a9723a0aecc3a9a9f7d4bd949d45645bbb9830aa6f1181dd6b` |
+| Coding     | `c5a7a034ecb603461c99846f68a5b0d5d7c3c75c5b8389a5ac617ba5280b4d8d` |
 | Validation | `585cd02cc6a9eff07e8e4f1f16d96719b3f24f40f0f7f57b349a7c0d1927448f` |
 
 `tests/zzz-docs-commands.test.mjs` fails when a guest program
@@ -69,19 +69,14 @@ so the change is sized against the real counts.
 
 ## Next coding guest change
 
-Each coding guest change costs a re-pin on the Mac, so these wait for one
-that has to happen anyway, and land with it:
+Each coding guest change costs a re-pin on the Mac, so changes that can wait
+are listed here and land with the next one that has to happen anyway. The
+list is empty: the last held changes landed with the final Codex removal
+(#222). That change:
 
-- Add `operationId` and `fence` to the session record. Records hold only a hash
-  of the identity, so lineage cleanup can't be pointed at a session from the
-  guest's own records.
-- Bound the `cleanup-abandoned` batch by time as well as by count. A batch of
-  slow failures can pass the host's 45-second limit, and a re-run starts in the
-  same order.
-- Lower Claude Code's output limit in the guest environment (for example
-  `CLAUDE_CODE_MAX_OUTPUT_TOKENS=32000`). Each request asks for 128,000 output
-  tokens, so its worst case reserves $2.56 of the spend budget before it is
-  sent, and a delivery's first request needs at least about $2.66 of budget.
-- Drop the Codex text the guest program still carries (its comments, the
-  `codex/` branch prefix for old deliveries, and the Codex entries in the
-  boundary probe).
+- records each session's `operationId`, `fence` and `intent` in the clear, and
+  the abandoned-session sweep names every kept lineage by them;
+- bounds a sweep batch by time (20 s of removals) as well as by count (8);
+- sets `CLAUDE_CODE_MAX_OUTPUT_TOKENS=32000` (`claudeCodeMaxOutputTokens`), so
+  a request reserves about $0.64 of the spend budget instead of $2.56;
+- drops the guest program's Codex text and the `codex/` branch prefix.

@@ -851,6 +851,7 @@ test("Claude Code reaches the relay with only the capability", () => {
     ANTHROPIC_MODEL: "claude-opus-5-5",
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
     CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: "1",
+    CLAUDE_CODE_MAX_OUTPUT_TOKENS: "32000",
   });
   assert.equal(env.ANTHROPIC_API_KEY, undefined);
   for (const [port, id, cap] of [

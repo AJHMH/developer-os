@@ -97,51 +97,6 @@ test("each probe is one shell word, so no probe body can break out of it", () =>
     assert.match(boundaryProbe, new RegExp(`; r ${name} '[^']*'(;|$)`));
 });
 
-test("the worker's home may hold only Codex's own bundled skills", (t) => {
-  const outcomes = (layout) => {
-    const home = mkdtempSync(join(tmpdir(), "aios-worker-probe-home-"));
-    t.after(() => rmSync(home, { recursive: true, force: true }));
-    for (const [path, text] of Object.entries(layout)) {
-      mkdirSync(join(home, path, ".."), { recursive: true });
-      if (text === null) mkdirSync(join(home, path), { recursive: true });
-      else writeFileSync(join(home, path), text);
-    }
-    const result = spawnSync(
-      "/bin/sh",
-      ["-c", boundaryProbe, "--", "/nonexistent", "/nonexistent"],
-      { encoding: "utf8", env: { PATH: process.env.PATH, HOME: home } },
-    );
-    return Object.fromEntries(
-      boundaryProbeOutcomes(result.stdout).map((p) => [p.name, p.outcome]),
-    );
-  };
-  const empty = outcomes({});
-  assert.equal(empty["codex-skills"], "passed");
-  assert.equal(empty["mcp-config"], "passed");
-  assert.equal(empty["hooks-rules-agents"], "passed");
-  // What Codex regenerates on every start.
-  assert.equal(outcomes({ "skills/.system": null })["codex-skills"], "passed");
-  assert.equal(
-    outcomes({ "skills/.system": null, "skills/extra": null })["codex-skills"],
-    "failed",
-  );
-  assert.equal(outcomes({ "skills/owner": null })["codex-skills"], "failed");
-  assert.equal(
-    outcomes({ "config.toml": "[mcp_servers.x]\n" })["mcp-config"],
-    "failed",
-  );
-  assert.equal(
-    outcomes({ "config.toml": "model = 'x'\n" })["mcp-config"],
-    "passed",
-  );
-  for (const file of ["hooks.json", "rules", "AGENTS.md", "AGENTS.override.md"])
-    assert.equal(
-      outcomes({ [file]: "x" })["hooks-rules-agents"],
-      "failed",
-      file,
-    );
-});
-
 // The coding worker's own controls, as Claude Code's probe runs them.
 const {
   claudeCodingBoundaryProbe: codingBoundaryProbe,

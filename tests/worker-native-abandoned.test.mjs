@@ -234,6 +234,8 @@ test("the sweep keeps a threaded start and it still resumes", async (t) => {
   assert.equal(swept.removed, 0);
   assert.equal(swept.abandoned, 0);
   assert.equal(swept.kept.lineage, 1);
+  // The kept lineage is named by its recorded session, for lineage cleanup.
+  assert.deepEqual(swept.lineages, [predecessor]);
   assert.equal(containers(fixture).length, 1);
   await fixture.transport.run(await resumeRequest(fixture.transport), () => {});
 });
@@ -244,9 +246,14 @@ test("the sweep keeps a resumed lineage, and superseded cleanup still reaches it
   const swept = await fixture.transport.cleanupAbandonedSessions(true);
   assert.equal(swept.removed, 0);
   assert.equal(swept.kept.lineage, 2);
+  assert.deepEqual(
+    [...swept.lineages].sort((a, b) => a.fence - b.fence),
+    [predecessor, successor],
+  );
   assert.equal(containers(fixture).length, 2);
-  const { cleaned } =
-    await fixture.transport.cleanupSupersededLineage(successor);
+  // Named from the sweep alone, the lineage's head is cleaned up.
+  const head = swept.lineages.find((named) => named.intent === "resume");
+  const { cleaned } = await fixture.transport.cleanupSupersededLineage(head);
   assert.equal(cleaned, 2);
 });
 
@@ -380,6 +387,51 @@ test("a sweep works through a backlog in bounded batches", async (t) => {
   assert.equal(swept.refused, 0);
   assert.deepEqual(containers(fixture), []);
   assert.equal(fixture.requests.length - before, 2, "8, then the last 2");
+});
+
+test("a sweep names a kept lineage only by a well-formed recorded session", async (t) => {
+  for (const [named, outcome] of [
+    // A record from before the guest kept the session's name: counted only.
+    [undefined, "counted"],
+    [{ operationId: "not-a-uuid", fence: 1, intent: "start" }, "uncertain"],
+    [{ ...predecessor, state: undefined, intent: "other" }, "uncertain"],
+    [
+      { operationId: session.operationId, fence: 0, intent: "start" },
+      "uncertain",
+    ],
+  ]) {
+    const fixture = await launchedGuest(t, { threadId: thread });
+    const [entry] = guestState(fixture.root).records;
+    const { session: _, ...rest } = entry;
+    if (named === undefined) edit({ ...rest }, {});
+    else edit(entry, { session: JSON.parse(JSON.stringify(named)) });
+    if (named === undefined) {
+      const swept = await fixture.transport.cleanupAbandonedSessions(false);
+      assert.equal(swept.kept.lineage, 1);
+      assert.deepEqual(swept.lineages, []);
+    } else
+      await assert.rejects(
+        fixture.transport.cleanupAbandonedSessions(false),
+        /sweep is uncertain/,
+        outcome,
+      );
+  }
+});
+
+test("a sweep of slow removals stops starting more after its time budget", async (t) => {
+  const fixture = await preparedStart(t);
+  for (let fence = 2; fence <= 10; fence++)
+    await addPreparedStart(fixture, randomUUID(), fence);
+  // Each removal takes 12 s, so a 20 s budget starts two per batch.
+  const state = fixture.read();
+  state.rmSeconds = 12;
+  fixture.write(state);
+  const before = fixture.requests.length;
+  const swept = await fixture.transport.cleanupAbandonedSessions(true);
+  assert.equal(swept.removed, 10);
+  assert.equal(swept.abandoned, 0);
+  assert.deepEqual(containers(fixture), []);
+  assert.equal(fixture.requests.length - before, 5, "two removals per batch");
 });
 
 test("a sweep moves past sessions that keep refusing and reports them", async (t) => {

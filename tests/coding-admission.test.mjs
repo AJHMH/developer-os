@@ -69,7 +69,9 @@ function liveTransport(f, hooks = {}) {
       const result = await f.runtime.execute(request);
       output(
         Buffer.from(
-          result.events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+          result.events
+            .map((e) => JSON.stringify(e))
+            .join(hooks.separator ?? "\n") + "\n",
         ),
       );
       return {
@@ -140,6 +142,21 @@ test("an owner record naming the exact pins admits a live transport through codi
   assert.equal(transport.effects.runs, 1);
   // Production delivery stays disabled; admission only reaches coding.
   assert.equal(result.blocker.code, "DELIVERY_NOT_ENABLED");
+});
+
+test("blank lines between a live stream's events are skipped", async (t) => {
+  const f = codingFixture(t);
+  const record = ownerRecord(t);
+  // Empty and whitespace-only lines between every event.
+  const transport = liveTransport(f, { separator: "\n\n  \n" });
+  f.controller = admittedController(
+    f,
+    new PinnedCodingRuntime(pins, transport, ownerCodingAdmission(record.path)),
+  );
+  await planAndValidate(f);
+  const result = await f.controller.codeFeature(f.delivery.id);
+  assert.equal(result.feature.outcome, "admitted");
+  assert.equal(transport.effects.runs, 1);
 });
 
 const stoppedObservation = (request) => ({

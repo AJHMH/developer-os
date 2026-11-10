@@ -29,17 +29,6 @@ const probes = [
     "credential-files",
     'for p in .ssh .gnupg .gitconfig .config/gh .netrc .aws; do ! test -e "$HOME/$p" || exit 1; done',
   ],
-  // Codex regenerates its own bundled skills here on every start; the coding
-  // guest admits exactly that folder and nothing else.
-  [
-    "codex-skills",
-    'test ! -e "$HOME/skills" || test "$(ls -A "$HOME/skills")" = .system',
-  ],
-  ["mcp-config", '! grep -qs mcp_servers "$HOME/config.toml"'],
-  [
-    "hooks-rules-agents",
-    'for p in hooks.json rules AGENTS.md AGENTS.override.md; do ! test -e "$HOME/$p" || exit 1; done',
-  ],
   [
     "credential-env",
     'test -z "${SSH_AUTH_SOCK+x}${GPG_AGENT_INFO+x}${GITHUB_TOKEN+x}${GH_TOKEN+x}${OPENAI_API_KEY+x}${CODEX_API_KEY+x}"',
@@ -80,8 +69,8 @@ const relayUrl = `http://127.0.0.1:${modelRoutePort}/`;
  * `offline`, from the guest's own session record. A routed worker has exactly
  * the session relay listening, which answers a plain GET with its empty 403
  * and so never reaches the gateway; an offline worker has nothing listening.
- * Codex runs with `danger-full-access`, so the container itself must keep its
- * binaries read-only, its process unprivileged, and take writes only in the
+ * The agent may run any command inside the worker, so the container itself
+ * must keep its binary read-only, its process unprivileged, and take writes only in the
  * workspace and session. Podman's in-memory tmpfs (`/tmp`, `/var/tmp`, `/run`,
  * `/dev/shm`) stay writable: they are private to the container and gone at
  * stop, and the guest pins the bind mounts to exactly four. */
@@ -101,7 +90,7 @@ const codingProbes = [
     "read-only-binaries",
     // The mount itself must be read-only: a running executable refuses writes
     // anyway, and the container user owns the files.
-    'for p in /codex /codex-code-mode-host; do test -f $p && grep -Eq "^[0-9]+ [0-9]+ [0-9:]+ [^ ]+ $p ro[, ]" /proc/self/mountinfo && ! ( : >> $p ) || exit 1; done',
+    'for p in /claude; do test -f $p && grep -Eq "^[0-9]+ [0-9]+ [0-9:]+ [^ ]+ $p ro[, ]" /proc/self/mountinfo && ! ( : >> $p ) || exit 1; done',
   ],
   [
     "hardened-process",
@@ -150,15 +139,12 @@ const claudeConfig = [
   ".claude",
   ".env",
 ];
-/** Claude Code's probe (ADR 0008): the coding probe with Claude's home, its
- * credentials and its binary in place of Codex's. A routed worker carries the
+/** Claude Code's probe (ADR 0008): the shared probes with Claude's home and its
+ * credentials, then the coding worker's own controls. A routed worker carries the
  * relay capability as `ANTHROPIC_AUTH_TOKEN`, and an offline worker has none;
  * neither ever has an API key or OAuth token. */
 const claudeProbes = [
-  ...probes.filter(
-    ([name]) =>
-      !["codex-skills", "mcp-config", "hooks-rules-agents"].includes(name),
-  ),
+  ...probes,
   [
     "claude-config",
     `for p in ${claudeConfig.join(" ")}; do ! test -e "$HOME/$p" || exit 1; done; ! test -e /etc/claude-code && { test ! -e "$HOME/plugins" || test "$(ls -A "$HOME/plugins")" = store; }`,
@@ -171,20 +157,12 @@ const claudeProbes = [
       ]
     : [name, body],
 ) as readonly (readonly [string, string])[];
-const claudeCodingProbes = codingProbes.map(([name, body]) =>
-  name === "read-only-binaries"
-    ? [
-        name,
-        'for p in /claude; do test -f $p && grep -Eq "^[0-9]+ [0-9]+ [0-9:]+ [^ ]+ $p ro[, ]" /proc/self/mountinfo && ! ( : >> $p ) || exit 1; done',
-      ]
-    : [name, body],
-) as readonly (readonly [string, string])[];
 export const claudeCodingBoundaryProbeNames: readonly string[] = Object.freeze(
-  [...claudeProbes, ...claudeCodingProbes].map(([name]) => name),
+  [...claudeProbes, ...codingProbes].map(([name]) => name),
 );
 export const claudeCodingBoundaryProbe = script([
   ...claudeProbes,
-  ...claudeCodingProbes,
+  ...codingProbes,
 ]);
 
 /** Per-probe outcomes from the probe's output, refusing anything else. */
