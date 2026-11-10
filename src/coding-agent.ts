@@ -27,10 +27,9 @@ export const modelRoutePort = 18091;
 const threadPattern =
   /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 
-/** ADR 0008: delivered feature branches. A delivery that began coding under
- * Codex keeps its `codex/feature-<id>` branch. */
+/** ADR 0008: delivered feature branches. */
 export const featureBranchName = (id: string) => `aios/feature-${id}`;
-export const featureBranchPattern = /^(?:aios|codex)\/feature-[a-f0-9-]+$/;
+export const featureBranchPattern = /^aios\/feature-[a-f0-9-]+$/;
 
 /** The only built-in tools a Claude Code turn has. Each runs inside the
  * worker; none reaches the web, other agents or MCP servers. */

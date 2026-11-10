@@ -276,11 +276,11 @@ test("the init event binds the turn's session", () => {
   );
 });
 
-test("new feature branches are aios/feature-<id>; Codex-era branches stay valid", () => {
+test("feature branches are aios/feature-<id>; Codex-era branches are refused", () => {
   const id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
   assert.equal(featureBranchName(id), `aios/feature-${id}`);
   assert.equal(featureBranchPattern.test(featureBranchName(id)), true);
-  assert.equal(featureBranchPattern.test(`codex/feature-${id}`), true);
+  assert.equal(featureBranchPattern.test(`codex/feature-${id}`), false);
   for (const bad of [
     `main`,
     `aios/feature-`,

@@ -47,6 +47,21 @@ test("a coding runtime for any agent but Claude Code is refused before anything 
   assert.equal(f.runtime.request, undefined);
 });
 
+test("a delivery that began coding under Codex is refused before anything is recorded", async (t) => {
+  const f = codingFixture(t);
+  await planAndValidate(f);
+  persisted(f, (delivery) => {
+    delivery.feature.branch = `codex/feature-${f.delivery.id}`;
+  });
+  const before = f.controller.status(f.delivery.id);
+  await assert.rejects(
+    f.controller.codeFeature(f.delivery.id),
+    /began coding under Codex, which was removed; start a new delivery/,
+  );
+  assert.deepEqual(f.controller.status(f.delivery.id), before);
+  assert.equal(f.runtime.request, undefined);
+});
+
 test("a turn binds only its own conversation, from a session-start event", async (t) => {
   const f = codingFixture(t);
   await planAndValidate(f);
