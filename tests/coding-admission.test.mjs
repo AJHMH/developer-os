@@ -11,31 +11,20 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
-import {
-  PinnedCodingRuntime as PinnedRuntime,
-  codexAgent,
-} from "../dist/feature-candidate.js";
-// Codex's own runtime, which these tests cover until Codex is removed (#222).
-class PinnedCodingRuntime extends PinnedRuntime {
-  constructor(pins, transport, admission, agent = codexAgent) {
-    super(pins, transport, admission, agent);
-  }
-}
-
-import { ownerCodingAdmission } from "../dist/coding-admission.js";
+import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
+// Claude Code's record, the only coding agent's (ADR 0008).
+import { ownerClaudeCodingAdmission as ownerCodingAdmission } from "../dist/coding-admission.js";
 import {
   nativeCodingAuthority,
   nativeCodingRuntime,
 } from "../dist/native-coding-runtime.js";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
-import { guestBackedSessions } from "./helpers/guest-backed-sessions.mjs";
 import { planAndValidate } from "./helpers/validation-fixture.mjs";
 
 const pins = Object.freeze({
   cliSha256: "c".repeat(64),
-  codeModeHostSha256: "b".repeat(64),
-  cliVersion: "0.161.0",
+  cliVersion: "2.1.311",
   policySha256: "d".repeat(64),
   bindingSha256: "e".repeat(64),
 });
@@ -51,7 +40,7 @@ function ownerRecord(t, overrides = {}, folder) {
     writeFileSync(
       path,
       JSON.stringify({
-        scope: "aios-native-coding-admission-v1",
+        scope: "aios-claude-coding-admission-v1",
         approvedAt: "2026-10-21T12:00:00.000Z",
         pins,
         ...overrides,
@@ -129,13 +118,13 @@ function admittedController(f, runtime) {
     featurePlanner: f.criteria,
     validationRuntime: f.validation,
     featureRuntime: runtime,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
 }
 
 test("an owner record naming the exact pins admits a live transport through coding", async (t) => {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t);
   const transport = liveTransport(f);
   const runtime = new PinnedCodingRuntime(
@@ -168,7 +157,7 @@ const stoppedObservation = (request) => ({
 });
 
 test("a live stop is trusted only with an independent observation of the exact stopped session", async (t) => {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t);
   const session = {
     operationId: "11111111-2222-4333-8444-555555555555",
@@ -238,7 +227,7 @@ test("a live stop is trusted only with an independent observation of the exact s
 });
 
 test("an unobserved live stop leaves the coding session uncertain, blocking release", async (t) => {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t);
   const transport = {
     ...liveTransport(f),
@@ -270,7 +259,7 @@ for (const order of [
   ["observed", "unobserved"],
 ])
   test(`a pause racing the turn's own stop ends stopped once either stop is observed (${order.join(", then ")})`, async (t) => {
-    const f = codingFixture(t, undefined, { agent: "codex" });
+    const f = codingFixture(t);
     const record = ownerRecord(t);
     let release;
     const held = new Promise((resolve) => (release = resolve));
@@ -335,7 +324,7 @@ for (const order of [
   });
 
 test("a live transport needs an owner record and a controlled one refuses it", (t) => {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t);
   assert.throws(
     () => new PinnedCodingRuntime(pins, liveTransport(f)),
@@ -362,7 +351,7 @@ test("a live transport needs an owner record and a controlled one refuses it", (
 });
 
 test("a record for any other pin refuses the live transport", async (t) => {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   for (const field of Object.keys(pins))
     await t.test(field, (t) => {
       const record = ownerRecord(t, {
@@ -385,7 +374,7 @@ test("a record for any other pin refuses the live transport", async (t) => {
 
 // Revoke the record once dispatch has passed, `advanceMs` before the stream.
 async function revokedAfterDispatch(t, advanceMs) {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t);
   let now = Date.parse("2026-10-21T13:00:00.000Z");
   const transport = liveTransport(f, {
@@ -402,8 +391,8 @@ async function revokedAfterDispatch(t, advanceMs) {
   // Observe why the runtime refused the turn.
   let refusal;
   const execute = runtime.execute.bind(runtime);
-  runtime.execute = (request) =>
-    execute(request).catch((error) => {
+  runtime.execute = (request, gateway) =>
+    execute(request, gateway).catch((error) => {
       refusal = error.message;
       throw error;
     });
@@ -437,7 +426,7 @@ test("a record revoked within the stream's read interval still refuses the resul
 });
 
 test("a record changed to other pins before coding refuses dispatch", async (t) => {
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t);
   const transport = liveTransport(f);
   f.controller = admittedController(
@@ -476,12 +465,15 @@ test("the owner record must be a strict, approved, absolute private file outside
     "approval not text": (r) => r.write({ approvedAt: 1 }),
     "extra pin": (r) => r.write({ pins: { ...pins, extra: "x" } }),
     "malformed pin": (r) => r.write({ pins: { ...pins, cliSha256: "x" } }),
-    "malformed code-mode host pin": (r) =>
-      r.write({ pins: { ...pins, codeModeHostSha256: "x" } }),
-    "missing code-mode host pin": (r) => {
-      const { codeModeHostSha256: _, ...rest } = pins;
+    "malformed binding pin": (r) =>
+      r.write({ pins: { ...pins, bindingSha256: "x" } }),
+    "missing binding pin": (r) => {
+      const { bindingSha256: _, ...rest } = pins;
       r.write({ pins: rest });
     },
+    // A Codex record's pins are not Claude Code's.
+    "code-mode host pin": (r) =>
+      r.write({ pins: { ...pins, codeModeHostSha256: "b".repeat(64) } }),
     "no pins": (r) => r.write({ pins: null }),
     array: (r) => writeFileSync(r.path, "[]"),
     "not JSON": (r) => writeFileSync(r.path, "{"),
@@ -566,59 +558,13 @@ test("the owner record refuses storage others can read or replace", async (t) =>
   });
 });
 
-test("the admission acceptance drives one controller turn through the admitted transport", async (t) => {
-  const { admissionAcceptance } = await import(
-    "../scripts/run-native-coding-admission-acceptance.mjs"
-  );
-  const f = codingFixture(t, undefined, { agent: "codex" });
-  const record = ownerRecord(t);
-  const transport = liveTransport(f);
-  const persisted = [];
-  const report = await admissionAcceptance(
-    transport,
-    ownerCodingAdmission(record.path),
-    { persist: (r) => persisted.push(r.outcome) },
-  );
-  assert.equal(
-    report.outcome,
-    "observed-offline-admission-acceptance",
-    report.error,
-  );
-  assert.deepEqual(report.pins, pins);
-  assert.equal(transport.effects.runs, 1);
-  assert.equal(report.delivery.sessionState, "stopped");
-  assert.equal(report.delivery.threadStarted, true);
-  assert.equal(report.productionEnabled, false);
-  assert.ok(persisted.length > 4);
-  assert.equal(transport.effects.cleaned.state, "stopped");
-  assert.equal(report.stages.at(-1).name, "session-cleanup");
-});
-
-test("a passing admission acceptance leaves no coding session in the guest", async (t) => {
-  const { admissionAcceptance } = await import(
-    "../scripts/run-native-coding-admission-acceptance.mjs"
-  );
-  const guest = guestBackedSessions(t);
-  const report = await admissionAcceptance(
-    guest.transport(
-      liveTransport(codingFixture(t, undefined, { agent: "codex" })),
-    ),
-    ownerCodingAdmission(ownerRecord(t).path),
-  );
-  assert.equal(
-    report.outcome,
-    "observed-offline-admission-acceptance",
-    report.error,
-  );
-  assert.equal(guest.launched(), 1);
-  assert.deepEqual(guest.left(), { containers: [], folders: [] });
-});
-
+// A passing admission acceptance, which needs a transport that reaches the
+// metered gateway, is in routed-acceptance-claude.test.mjs.
 test("the admission acceptance stops before coding when the record names other pins", async (t) => {
   const { admissionAcceptance } = await import(
     "../scripts/run-native-coding-admission-acceptance.mjs"
   );
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t, {
     pins: { ...pins, bindingSha256: "f".repeat(64) },
   });
@@ -637,7 +583,7 @@ test("the admission acceptance stops an unsettled session by its exact identity"
   const { admissionAcceptance } = await import(
     "../scripts/run-native-coding-admission-acceptance.mjs"
   );
-  const f = codingFixture(t, undefined, { agent: "codex" });
+  const f = codingFixture(t);
   const record = ownerRecord(t);
   // Revoked mid-turn, the controller cannot trust its own stop receipt.
   const transport = liveTransport(f, {
@@ -696,12 +642,41 @@ test("the CLI's native coding runtime takes the owner's record pins and the acce
   const runtime = nativeCodingRuntime("aios-test", record.path);
   assert.equal(runtime.mode, "controlled");
   assert.deepEqual({ ...runtime.pins }, { ...pins });
-  assert.equal(runtime.agent.provider, "codex");
+  assert.equal(runtime.agent.provider, "claude");
   assert.throws(() =>
     nativeCodingRuntime("aios-test", join(record.directory, "missing.json")),
   );
   assert.throws(
     () => nativeCodingRuntime("other", record.path),
     /Invalid native coding authority/,
+  );
+});
+
+test("a superseded lineage is cleaned through the admitted transport, which must support it", async (t) => {
+  const f = codingFixture(t);
+  const record = ownerRecord(t);
+  const transport = liveTransport(f);
+  const session = {
+    operationId: randomUUID(),
+    fence: 1,
+    state: "stopped",
+    intent: "start",
+  };
+  const runtime = new PinnedCodingRuntime(
+    pins,
+    transport,
+    ownerCodingAdmission(record.path),
+  );
+  const receipt = await runtime.cleanupSuperseded(session);
+  assert.equal(receipt.cleaned, 1);
+  assert.equal(transport.effects.cleaned.operationId, session.operationId);
+  delete transport.cleanupSupersededLineage;
+  await assert.rejects(
+    new PinnedCodingRuntime(
+      pins,
+      transport,
+      ownerCodingAdmission(record.path),
+    ).cleanupSuperseded(session),
+    /unsupported by this transport/,
   );
 });

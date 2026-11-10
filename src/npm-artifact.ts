@@ -13,7 +13,7 @@ import { pathContains } from "./path-containment.js";
 import {
   assertOwnerControlledStorage,
   assertPrivateAuthStorage,
-} from "./subscription-auth.js";
+} from "./private-storage.js";
 
 export type ArtifactReader = (
   url: string,

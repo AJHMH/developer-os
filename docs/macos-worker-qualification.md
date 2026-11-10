@@ -240,8 +240,7 @@ what no later evidence reads:
   identity, until `cleanupRetiredLineage` or `cleanupSupersededLineage` removes
   them. A passing owner-run acceptance or qualification removes its own once its
   evidence is written; a failed or blocked run keeps them for diagnosis. The
-  sessions of `scripts/run-native-routed-delivery.mjs` and of any other delivery
-  stay.
+  sessions of any other delivery stay.
 
 Removal never uses `--force`, and only names a container its own record names.
 

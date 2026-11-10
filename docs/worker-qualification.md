@@ -332,98 +332,62 @@ Production delivery stays disabled either way.
 
 `scripts/run-native-routed-acceptance.mjs` is the plan's slice 3 native
 check of a routed coding session, offline and without inference. It runs one
-lineage on the dedicated VM, a launch and then an explicit resume, under the
-owner's coding admission record. The record must name the fresh pins, as for
-the qualification above.
+Claude Code lineage on the dedicated VM, a launch and then an explicit resume,
+under the owner's Claude Code coding admission record
+(`aios-claude-coding-admission-v1`). The record must name the fresh pins, as
+for the qualification above; any other record is refused.
 
-Each turn is routed, with the same route a credentialed turn will use:
+Each turn is routed, with the same route a metered turn uses (ADR 0008):
 
-- Codex reaches the model only through the session relay on 127.0.0.1:18091.
-- The relay reaches only the real `GeneralSessionGateway` on the host.
-- The gateway reaches only a **fake provider** on the host. It sends no
-  network request and never uses the token it is given, which is synthetic.
+- Claude Code reaches the model only through the session relay on
+  127.0.0.1:18091.
+- The relay reaches only a real `MessagesGateway` on the host. It runs under a
+  fresh grant and a synthetic key for that turn, and its budget is a counter,
+  never the owner's spend budget.
+- The gateway reaches only a **fake provider** on the host,
+  `fakeMessagesProvider` in `scripts/routed-provider.mjs`. It sends no network
+  request and never uses the key it is given.
 
-The fake provider answers with fixed code-mode scripts, in this order:
+The fake provider answers in the Messages stream format and calls Claude
+Code's own tools, in this order:
 
-- **Keep-alive scripts:** a five-second `sleep`, until the launch has been
-  probed (at most 24). A resume has none.
-- **Work script:** a script that adds `routed-<turn>.txt` through
-  `apply_patch`, reads it back through `exec_command`, and reports a marker
-  that only a successful read produces.
-- **Final message:** then the turn ends, and Codex exits on its own.
+- **Keep-alives:** a `Bash` `sleep 5` until the launch has been probed (at most
+  24). A resume has none.
+- **Work:** `Write` adds `routed-<turn>.txt`, then `Bash` reads it back with
+  `cat`. Only a successful read that returns the file's content counts.
+- **Final message:** then the turn ends.
+- **Tool results:** it reads them from every message after the last assistant
+  message. Claude Code 2.1.309 and later can follow the results with a
+  `system` message carrying its environment.
+
+Any request that isn't the turn's next step, such as a title or a token count,
+is answered with plain text and counted as `unexpected`, which blocks the run
+at `routed-launch-tools-ran`. A request to a path or model the relay refuses
+never reaches the gateway; it appears only as Claude Code's own handling of a 403.
 
 During the launch, between model requests and before the turn's edit, the
 coding boundary probe runs in the routed session:
 
 - The routed `relay-listener` and `relay-answers` controls show exactly one
   listener, the relay, and that it answers.
-- `only-admitted` still sees the workspace exactly as admitted. Codex's own
-  edit comes after the probe, so it can't fail that control.
+- `only-admitted` still sees the workspace exactly as admitted. Claude Code's
+  own edit comes after the probe, so it can't fail that control.
 
 Every turn must:
 
-- report one thread, the resume continuing the launch's;
+- report one conversation (the session id in Claude Code's `init` event), the
+  resume continuing the launch's;
 - exit 0;
-- show the marker, with no gateway refusal;
+- show the read-back, with no gateway refusal;
 - end its grant with the turn, so a later use is refused as `revoked`;
 - stop exactly;
 - leave its edit in the collected workspace.
 
 Each turn gets a fresh relay capability. The lineage keeps one delivery and
-mediation decision, and the guest enforces that: a resume must keep its
-predecessor's mode (routed or offline), delivery and mediation decision, with
-a new capability, or it is refused before any worker exists. The report keeps
-counts and fixed labels only, never request or response content.
-
-Adding that check changed the coding guest program, so its `policySha256`
-changed (to `77885706…`). The owner coding admission needs one
-re-approval before the next coding run; a record that doesn't match prints
-`freshPins`. A session stopped under the earlier guest can't be resumed after
-the upgrade, because a resume must carry its predecessor's pins; start a new
-lineage instead.
-
-A stopped session keeps its workspace and home, but not its private program
-copies: once the worker is gone, stop removes the session's `codex` (about
-350 MB) and `codex-code-mode-host` copies. A stopped session never runs
-again, and a resume copies its own. This changed the coding guest program
-again, so `policySha256` is now `829e7e1e…` and the coding admission
-needs one more re-approval.
-
-Sessions stopped before that change still hold their copies. To remove them
-once, delete only those two files, and only from sessions whose record says
-`stopped`; a prepared session still needs its copies to launch:
-
-```sh
-podman machine ssh aios-macos-noshare 'for r in ~/.local/state/aios-coding-v1/aios-coding-*.json; do grep -q phase.:..stopped $r && rm -fv ${r%.json}/codex ${r%.json}/codex-code-mode-host; done; true'
-```
-
-### Routed acceptance for Claude Code
-
-As with the worker qualification, a coding record with scope
-`aios-claude-coding-admission-v1` runs the routed acceptance on the Claude Code
-guest. The report's `agent` is `claude`. The lineage, stages and checks are the
-same, with these differences:
-
-- **Gateway:** each turn's requests reach a real `MessagesGateway`. It runs
-  under a fresh grant and a synthetic key for that turn, and its budget is a
-  counter, never the owner's spend budget.
-- **Fake provider:** `fakeMessagesProvider` in `scripts/routed-provider.mjs`
-  answers in the Messages stream format and calls Claude Code's own tools:
-  - **Keep-alives:** a `Bash` `sleep 5` until the launch has been probed (at
-    most 24).
-  - **Work:** `Write` adds `routed-<turn>.txt`, then `Bash` reads it back with
-    `cat`. Only a successful read that returns the file's content counts.
-  - **Final message:** then the turn ends.
-  - **Tool results:** it reads them from every message after the last
-    assistant message. Claude Code 2.1.309 and later can follow the results
-    with a `system` message carrying its environment.
-- **Thread:** a turn's conversation is the session id in Claude Code's `init`
-  event. The resume must report the same one.
-- **Unexpected requests:** any request that isn't the turn's next step, such as
-  a title or a token count, is answered with plain text and counted as
-  `unexpected`, which blocks the run at `routed-launch-tools-ran`. A request to
-  a path or model the relay refuses never reaches the gateway. It appears only
-  as Claude Code's own handling of a 403.
+route, and the guest enforces that: a resume must keep its predecessor's mode,
+delivery and route, with a new capability, or it is refused before any worker
+exists. The report keeps counts and fixed labels only, never request or
+response content.
 
 Run it with the Claude Code record from the worker qualification above:
 
@@ -543,122 +507,3 @@ Limits:
   `tools.exec_command`, as captured. A Codex that yields a script back to the
   model, or calls tools differently, shows up as `unexpected` requests or a
   missing marker.
-
-## Usage canary
-
-`scripts/run-native-usage-canary.mjs` is the plan's slice 4d owner-run
-offline canary (owner decision C). The delivery controller drives routed
-coding turns through the real native transport and a real
-`GeneralSessionGateway`, under the owner's coding admission record. The
-gateway's only provider is the fake one above. Planning, validation,
-onboarding facts, the worker probe, the mediation decision and usage
-observations are synthetic stand-ins, in a disposable folder; the report
-lists them under `synthetic`.
-
-One lineage, in order:
-
-- **Before any turn:** unknown usage is refused, even when approved. Low
-  usage is refused until the owner approves it.
-- **Launch:** usage becomes exhausted once the turn has started. The next
-  model request is refused, the grant is revoked as `exhausted`, the session
-  stops exactly, the interruption is recorded, and the workspace is kept as
-  `interrupted-turn` evidence, never as a candidate.
-- **Restart:** refused without the owner's restart approval, even though
-  usage is healthy again.
-- **Resume:** after approval, the restart resumes the launch's thread under
-  the same route. The decision record is withdrawn once the turn has
-  started, and the resume ends the same way, as `withdrawn`.
-- **New lineage:** a new decision is recorded and the restart approved. The
-  turn starts a new thread under the new decision, supersedes the old
-  lineage, runs the work script through the route and completes.
-
-Every turn must stop exactly. A passing run then removes both lineages: the
-superseded one through the controller's `cleanupSupersededLineage(id,
-operationId)`, which records `cleanedAt`, and the new one by its exact identity
-on the transport, because the controller keeps no route to a lineage it hasn't
-superseded. At the end, every session is stopped again by its exact identity.
-
-From a clean, built checkout with the VM running:
-
-```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-usage-canary.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/issue04-usage-canary-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
-```
-
-Outcomes:
-
-- **`observed-offline-usage-canary`:** every stage passed, and the run left no
-  session.
-- **`blocked`:** at the stage named in the report. Later stages are listed as
-  `not-run`.
-- **`uncertain`:** a session could not be confirmed stopped.
-
-A record that doesn't match prints `freshPins`. No guest code changed, so the
-current coding records apply. No real provider or usage reading is involved;
-those are for slice 5.
-
-## Credentialed qualification
-
-`scripts/run-native-credentialed-qualification.mjs` is the plan's slice 5
-owner-run runner. **It spends subscription usage.** Two routed provider
-turns on the Mac, a launch and its explicit resume, each with a 3-minute
-allowance and a fixed trivial prompt (owner decision B). It drives the real
-native transport directly, as the routed acceptance does: the real
-`GeneralSessionGateway` with the real provider, the owner's vault account
-read at every model request, and a real usage observation at every model
-request. The controller's mediation decision is not used; the usage canary
-covers it offline.
-
-In order:
-
-- **Before the approval is spent:** usage is fresh, measured and healthy.
-  Low, unknown or exhausted usage refuses the run and leaves the approval
-  unspent. Low usage is refused rather than approved mid-run, since no one
-  approves inside an unattended run (decision C met strictly, as H does).
-- **Before any turn:** the coding record names the fresh pins; the vault
-  account is eligible for the run; usage is still healthy.
-- **Launch:** the boundary probe runs in the live session while its first
-  model request waits; the provider answers through the route; the grant
-  ends with the turn and refuses use after it; the session stops exactly and
-  its workspace is collected.
-- **Resume:** the launch's thread, with a fresh relay capability. Its first
-  model request is live; at the next, a synthetic exhaustion stand-in at the
-  gate ends the turn at once, revoking the grant and stopping the session;
-  the workspace is collected as preserved evidence.
-- **Credential:** the access token appears in no byte the sessions sent to
-  the host and no collected file. Every boundary probe must have run and
-  passed, including the credential, endpoint and npm-registry checks.
-- **Restart:** restarting the lapsed thread under the spent approval is
-  refused before any effect, though usage is healthy; only a fresh approval
-  allows more. Usage is observed again at the end.
-- **Cleanup:** a passing run removes the lineage from the VM by its head, once
-  its evidence is written. A rerun starts its own lineage, so nothing resumes
-  this one. A failed or blocked run keeps it for diagnosis.
-
-The report keeps the pinned model, usage before and after, every request
-count, refusal and provider status, and never the token, the usage windows or
-the account email; errors are redacted of the token. Each turn allows at most
-8 model requests.
-
-First, the owner sets `ACCOUNT_ID` (the vault account) and `PRIVATE_STATE` (a
-private state directory), prepares the run and sets `RUN_ID` to the printed run
-ID; the plan expires after an hour:
-
-```sh
-node scripts/run-native-credentialed-qualification.mjs prepare aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "${ACCOUNT_ID:?}" "${PRIVATE_STATE:?}"
-```
-
-Then, from a clean, built checkout with the VM running, with `AUTH_DIR` and
-`CODEX` (the pinned codex executable) set:
-
-```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-credentialed-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "${AUTH_DIR:?}" "${ACCOUNT_ID:?}" "${CODEX:?}" "${PRIVATE_STATE:?}" "$HOME/.developer-os/issue04-credentialed-$(date +%Y%m%d-%H%M%S).json" --approve-run "${RUN_ID:?}" --approve-turns 2
-```
-
-The approval is spent before any credential is read, so a rerun needs a
-fresh `prepare`. Outcomes: `observed-credentialed-qualification`; `failed`
-when a boundary probe failed; `blocked` at the named stage, with later
-stages `not-run`; `uncertain` when a session could not be confirmed stopped.
-`blocked` at `lineage-cleanup` means only the removal failed: every earlier
-stage's evidence stands, and it doesn't call for spending another run.
-A provider refusal is recorded by status: per the plan's header risk, a
-fixed gateway-side header would be a separately reviewed change.

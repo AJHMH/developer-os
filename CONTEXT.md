@@ -228,7 +228,8 @@ candidate exists; an admitted candidate refreshes through repair.
 _Avoid_: Base refresh (that is repair's merge-base refresh)
 
 **Superseded lineage**: A stopped coding lineage left behind because coding
-restarted under another route (a change between offline and routed turns).
+restarted under another route or coding agent (such as a delivery that
+began under Codex continuing on Claude Code).
 It is never resumed again; its conversation and workspace stay as evidence
 until the owner's lineage cleanup.
 _Avoid_: Retired resume lineage (that one never reported its conversation)

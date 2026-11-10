@@ -38,29 +38,6 @@ export interface FeatureEvidence extends FeaturePlan {
     validation: "not-run" | "passed";
   };
   extensions?: { addedMs: number; at: string }[];
-  /** Coding turns stopped because their usage authority lapsed or the
-   * owner's decision was withdrawn. Records before slice 4b have no reason. */
-  usageInterruptions?: {
-    operationId: string;
-    at: string;
-    reason?: GeneralSessionLapse;
-  }[];
-  /** Owner approvals to restart coding after a usage interruption. Each names
-   * the interrupted operation and the feature's account. `operationId` is the
-   * latest re-dispatch bound to it, and `dispatched` marks the one that
-   * reached dispatch, which spends the approval. */
-  restartApprovals?: {
-    interruptedOperationId: string;
-    accountId: string;
-    approvedAt: string;
-    operationId?: string;
-    dispatched?: true;
-  }[];
-  /** The endorsed usage account of the mediation decision this feature's
-   * coding is linked to. */
-  mediationUsageAccountId?: string;
-  /** The model-only subscription account the first coding launch used. */
-  usageAccountId?: string;
   /** Resumes that continued a conversation onto a moved main. */
   baseMoves?: { operationId: string; from: string; to: string; at: string }[];
   /** Lineages left behind when coding restarted under another route (a new
@@ -175,23 +152,10 @@ export interface CodingSession {
   route?: SessionRoute;
 }
 /** A coding session's route as the host records it (ADR 0002): its delivery
- * and the authority it runs under. For Codex that is the mediation decision;
- * for Claude Code, `decisionSha256` names the delivery's spend budget
- * (`budgetRouteSha256`, ADR 0008). A resume keeps its predecessor's route. */
+ * and the authority it runs under: `decisionSha256` names the delivery's
+ * spend budget (`budgetRouteSha256`, ADR 0008). A resume keeps its
+ * predecessor's route. */
 export type SessionRoute = Omit<ModelRoute, "capability">;
-/** The latest usage interruption, unless an owner-approved restart has
- * already dispatched past it. */
-export function unrestartedInterruption(feature: FeatureEvidence | undefined) {
-  const latest = feature?.usageInterruptions?.at(-1);
-  return latest &&
-    !feature!.restartApprovals?.some(
-      (a) =>
-        a.interruptedOperationId === latest.operationId &&
-        a.dispatched === true,
-    )
-    ? latest
-    : undefined;
-}
 
 /** A resume that stopped without observing its thread may have moved the
  * predecessor's retained home and must be recovered before coding continues. */
@@ -419,7 +383,6 @@ import { createHash } from "node:crypto";
 import { admitFiles, admittedPath } from "./workspace.js";
 import { hostGitCwd } from "./host-git.js";
 import type { SessionGateway } from "./session-relay.js";
-import type { GeneralSessionLapse } from "./general-session-gateway.js";
 export const candidateDigest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 /** The ambient environment without any GIT_* input, plus fixed settings. It

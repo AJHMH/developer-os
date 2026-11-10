@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { warnIfPodmanDesktop } from "./podman-desktop.mjs";
 
 const [state, ...rest] = process.argv.slice(2);
 const separator = rest.indexOf("--");
@@ -55,6 +56,8 @@ writeFileSync(
   }),
   { mode: 0o600 },
 );
+// Before any script runs, so the owner sees it first.
+warnIfPodmanDesktop();
 let activeChild;
 let interrupted = false;
 const interrupt = (signal) => {

@@ -4,12 +4,12 @@
 // credentials or authorizes inference, and it never enables production or
 // claims qualification. Run it through scripts/run-native-acceptance.mjs.
 //
-// One lineage, launch then explicit resume, each a routed turn: Codex reaches
-// the model only through the session relay, the relay only through the real
-// `GeneralSessionGateway`, and the gateway only a fake provider on the host.
-// The provider answers with fixed code-mode scripts that edit through
-// `apply_patch` and read back through `exec_command`, so the route and the
-// tools are shown working with no real model, network or credential. During
+// One lineage, launch then explicit resume, each a routed turn: Claude Code
+// reaches the model only through the session relay, the relay only through a
+// real `MessagesGateway`, and the gateway only a fake provider on the host
+// (ADR 0008). The provider answers with fixed calls to Claude Code's own
+// `Write` and `Bash` tools, so the route and the tools are shown working with
+// no real model, network or credential. During
 // the launch, between model requests and before the turn's edit, the coding
 // boundary probe runs in the routed session: one relay listener that answers,
 // no other route, and only the admitted file in the workspace. A passing run
@@ -26,27 +26,14 @@ import {
 import { arch, platform, release } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freshBuild } from "./fresh-build.mjs";
-import {
-  fakeMessagesProvider,
-  fakeProvider,
-  maxKeepalives,
-} from "./routed-provider.mjs";
+import { fakeMessagesProvider, maxKeepalives } from "./routed-provider.mjs";
 
 const usage =
   "Usage: node scripts/run-native-routed-acceptance.mjs <aios-machine> <owner-coding-admission.json> <new-report.json> --approve-offline-native-run";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-offline-routed-acceptance";
-const codingPinFields = [
-  "cliVersion",
-  "cliSha256",
-  "codeModeHostSha256",
-  "policySha256",
-  "bindingSha256",
-];
 const prompt =
-  "Offline routed acceptance only. Run the code-mode scripts you are given.";
-const claudePrompt =
   "Offline routed acceptance only. Run the tool calls you are given.";
 const admittedFile = "canary.txt";
 const admittedBytes = Buffer.from("AIOS native routed acceptance\n");
@@ -88,44 +75,27 @@ function threadsIn(bytes, bound) {
       }
     });
 }
-const codexThread = (event) =>
-  event?.type === "thread.started" ? event.thread_id : undefined;
-
-/** Run the routed lineage against `transport` under the owner's coding
- * `admission`, and return the report; `persist` receives it after every
- * stage. `agent` is `"codex"`, the default, or `"claude"` (ADR 0008): Claude
- * Code's turns reach a real `MessagesGateway` whose provider is a fake that
- * calls Claude Code's own `Write` and `Bash` tools. */
-export async function routedAcceptance(
-  { transport, admission, agent = "codex" },
-  options = {},
-) {
+/** Run the routed lineage against `transport` under the owner's Claude Code
+ * coding `admission`, and return the report; `persist` receives it after
+ * every stage. */
+export async function routedAcceptance({ transport, admission }, options = {}) {
   const persist = options.persist ?? (() => {});
   const interrupted = options.interrupted ?? (() => false);
   const pause =
     options.pause ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
-  const { GeneralSessionGateway, GeneralSessionRefusal } = await import(
-    "../dist/general-session-gateway.js"
-  );
-  const { lockedCodingArgv, claudeAgent, claudeCodingPinFields } = await import(
+  const { claudeAgent, claudeCodingPinFields } = await import(
     "../dist/feature-candidate.js"
   );
-  const claude = agent === "claude";
   const { MessagesGateway, MessagesRefusal } = await import(
     "../dist/messages-gateway.js"
   );
   const { claudeCodeArgv } = await import("../dist/coding-agent.js");
   const { pinnedModelPrices } = await import("../dist/spend-budget.js");
-  const pinFields = claude ? claudeCodingPinFields : codingPinFields;
-  const same = (a, b) => pinFields.every((field) => a[field] === b[field]);
-  const {
-    requiredSubscriptionScopes,
-    subscriptionAccountId,
-    subscriptionIssuer,
-  } = await import("../dist/subscription-account.js");
+  const same = (a, b) =>
+    claudeCodingPinFields.every((field) => a[field] === b[field]);
   const report = {
     scope: "native-coding-offline-routed-acceptance",
-    agent: claude ? "claude" : "codex",
+    agent: "claude",
     productionEnabled: false,
     qualified: false,
     inferenceAuthorized: false,
@@ -157,23 +127,10 @@ export async function routedAcceptance(
     }
   }
 
-  // One delivery and mediation decision for the lineage; each turn gets its
-  // own relay capability and gateway grant.
+  // One delivery and route for the lineage; each turn gets its own relay
+  // capability and gateway grant.
   const deliveryId = randomUUID();
   const decisionSha256 = sha256("aios-native-routed-acceptance:decision");
-  const hostId = `urn:uuid:${randomUUID()}`;
-  // Synthetic and host-only: the fake provider never uses it.
-  const account = () => ({
-    issuer: subscriptionIssuer,
-    clientId: "aios-routed-acceptance",
-    subject: "synthetic",
-    hostId,
-    planUsageAuthorized: true,
-    scopes: [...requiredSubscriptionScopes],
-    expiresAt: Date.now() + 40 * 60_000,
-    accessToken: "aios-routed-acceptance-synthetic",
-  });
-  const accountId = subscriptionAccountId(account());
   const key = `sk-ant-api03-${randomBytes(24).toString("hex")}`;
   const sourceRevision = sha256("aios-native-routed-acceptance").slice(0, 40);
   const attempted = [];
@@ -195,41 +152,25 @@ export async function routedAcceptance(
       decisionSha256,
       capability: randomBytes(32).toString("hex"),
     };
-    const fake = claude
-      ? fakeMessagesProvider(tag, released, pinnedModelPrices.model)
-      : fakeProvider(tag, released);
-    const gateway = claude
-      ? // Synthetic, per turn, and never used by the fake. The budget is a
-        // counter, never the owner's spend budget.
-        new MessagesGateway(
-          {
-            deliveryId,
-            sessionId: s.operationId,
-            expiresAt: Date.now() + allowanceMs + 60_000,
-            maxRequests: maxKeepalives + 8,
-          },
-          () => key,
-          {
-            admit: () => !interrupted(),
-            charge: () => {},
-            chargeReservation: () => {},
-            release: () => {},
-          },
-          fake.provider,
-        )
-      : new GeneralSessionGateway(
-          {
-            deliveryId,
-            sessionId: s.operationId,
-            accountId,
-            hostId,
-            expiresAt: Date.now() + allowanceMs + 60_000,
-            maxRequests: maxKeepalives + 8,
-          },
-          account,
-          async () => (interrupted() ? "withdrawn" : "permitted"),
-          fake.provider,
-        );
+    const fake = fakeMessagesProvider(tag, released, pinnedModelPrices.model);
+    // The key is synthetic, per turn, and never used by the fake. The budget
+    // is a counter, never the owner's spend budget.
+    const gateway = new MessagesGateway(
+      {
+        deliveryId,
+        sessionId: s.operationId,
+        expiresAt: Date.now() + allowanceMs + 60_000,
+        maxRequests: maxKeepalives + 8,
+      },
+      () => key,
+      {
+        admit: () => !interrupted(),
+        charge: () => {},
+        chargeReservation: () => {},
+        release: () => {},
+      },
+      fake.provider,
+    );
     const turn = (report[tag] = {
       fence: s.fence,
       capabilitySha256: sha256(route.capability),
@@ -241,12 +182,8 @@ export async function routedAcceptance(
           ...s,
           ...(threadId ? { threadId, resumeFrom } : {}),
           pins: report.pins,
-          argv: claude
-            ? [...claudeCodeArgv(threadId), claudePrompt]
-            : [...lockedCodingArgv(threadId, route), prompt],
-          branch: claude
-            ? "aios/issue04-native-routed-acceptance"
-            : "codex/issue04-native-routed-acceptance",
+          argv: [...claudeCodeArgv(threadId), prompt],
+          branch: "aios/issue04-native-routed-acceptance",
           sourceRevision,
           files: files(),
           inputSha256,
@@ -272,9 +209,8 @@ export async function routedAcceptance(
     const finish = () => (recorded ??= record());
     async function record() {
       const end = await running;
-      const threads = threadsIn(
-        output,
-        claude ? (event) => claudeAgent.boundThread(event) : codexThread,
+      const threads = threadsIn(output, (event) =>
+        claudeAgent.boundThread(event),
       );
       Object.assign(turn, {
         exitCode: end.result?.exitCode ?? null,
@@ -289,10 +225,7 @@ export async function routedAcceptance(
         turn.refusedAfterStop = null;
       } catch (error) {
         turn.refusedAfterStop =
-          error instanceof GeneralSessionRefusal ||
-          error instanceof MessagesRefusal
-            ? error.reason
-            : "error";
+          error instanceof MessagesRefusal ? error.reason : "error";
       }
       check(
         !end.error,
@@ -309,7 +242,7 @@ export async function routedAcceptance(
   function toolsRan(turn) {
     check(
       turn.provider.toolsWorked && turn.provider.finalAnswered,
-      "The code-mode tools did not run through the route",
+      "Claude Code's tools did not run through the route",
     );
     check(
       turn.provider.unexpected === 0 &&
@@ -373,7 +306,7 @@ export async function routedAcceptance(
       let released = false;
       const launch = startTurn(a1, "launch", { released: () => released });
       try {
-        // Probe once Codex is running and has talked to the provider; the
+        // Probe once Claude Code is running and has talked to the provider; the
         // keep-alive scripts hold the turn between model requests meanwhile.
         let live = false;
         for (let i = 0; i < 120 && !live && !launch.settled(); i++) {
@@ -503,20 +436,17 @@ async function main() {
   const { nativeCodingAuthority, ownerCodingWorker } = await import(
     "../dist/native-coding-runtime.js"
   );
-  const { claudeCodingBoundaryProbe, codingBoundaryProbe } = await import(
+  const { claudeCodingBoundaryProbe } = await import(
     "../dist/worker-probes.js"
   );
   const { messagesGatewayVersion } = await import(
     "../dist/messages-gateway.js"
   );
-  const { generalSessionGatewayVersion } = await import(
-    "../dist/general-session-gateway.js"
-  );
-  // The owner's coding record names the agent: a Claude Code record (ADR
-  // 0008) runs the Claude Code guest, and any other the Codex guest, under
-  // the coding authority this VM's management state already belongs to.
+  // The owner's Claude Code record (ADR 0008) runs the Claude Code guest,
+  // under the coding authority this VM's management state already belongs to.
   const worker = ownerCodingWorker(machine, codingRecord);
-  const claude = worker.agent === "claude";
+  if (worker.agent !== "claude")
+    throw Error("The coding admission is not the owner's Claude Code record");
   const { transport, admission } = worker;
   const authority = nativeCodingAuthority(machine);
   if (transport.mode !== "live" || transport.productionEnabled !== false)
@@ -526,12 +456,8 @@ async function main() {
   const context = {
     host: { platform: platform(), arch: arch(), release: release(), machine },
     authority,
-    codingProbeSha256: sha256(
-      claude ? claudeCodingBoundaryProbe : codingBoundaryProbe,
-    ),
-    gatewayVersion: claude
-      ? messagesGatewayVersion
-      : generalSessionGatewayVersion,
+    codingProbeSha256: sha256(claudeCodingBoundaryProbe),
+    gatewayVersion: messagesGatewayVersion,
     ...source,
   };
   let interrupted = false;
@@ -539,7 +465,7 @@ async function main() {
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", interrupt);
   const report = await routedAcceptance(
-    { transport, admission, agent: claude ? "claude" : "codex" },
+    { transport, admission },
     {
       interrupted: () => interrupted,
       persist: (r) =>

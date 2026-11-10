@@ -55,7 +55,7 @@ One configured authority directory coordinates ownership per canonical repositor
 
 Host-only authentication uses macOS Keychain. Workers receive scoped revocable capabilities rather than reusable owner credentials. Low (20% or less remaining), unknown or stale usage requires a fresh run-bound allowance; exhaustion cannot be overridden. Other account activity can consume usage between observations, so this is not a hard financial cap. There is no paid-provider fallback.
 
-`check-usage`, `approve-usage` and `poll-usage` address an explicit delivery. An owner-selected absolute `--codex-executable` supplies app-server account/usage observations. `prepare-auth`, `authorize-auth` and `auth-status` manage separate external host authentication; sign-in is not approval for inference.
+`check-usage`, `approve-usage` and `poll-usage` address an explicit delivery. An owner-selected absolute `--codex-executable` supplies app-server account/usage observations. `prepare-auth` writes the non-secret host registration, and `store-anthropic-key` keeps the owner's Anthropic API key in the macOS Keychain for metered coding turns (ADRs 0006 and 0008).
 
 `pin-offline`, `qualify`, `offline-canary`, `online-canary`, `qualify-macos-controls`, `synthetic-task` and `qualification-report` implement fixed synthetic admission/qualification paths. Enrollment requires an owner-selected `aios-` machine and external pins. Changed host/source/policy bindings require fresh qualification. Read the runbook before using operator fixtures:
 
