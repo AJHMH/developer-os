@@ -1,16 +1,9 @@
 import { createHash } from "node:crypto";
 import {
   type CodingAdmission,
-  claudeCodingAdmissionScope,
   ownerClaudeCodingAdmission,
-  ownerCodingAdmission,
-  readOwnerRecord,
 } from "./coding-admission.js";
-import {
-  PinnedCodingRuntime,
-  claudeAgent,
-  codexAgent,
-} from "./feature-candidate.js";
+import { PinnedCodingRuntime, claudeAgent } from "./feature-candidate.js";
 import { NativePodmanCodingTransport, claudeGuest } from "./podman-coding.js";
 
 /** The authority a machine's native coding sessions are labelled with; the
@@ -22,11 +15,11 @@ export function nativeCodingAuthority(machine: string): string {
     .digest("hex");
 }
 
-/** The owner-admitted native coding runtime for `machine`, on the worker
- * the owner's record names (`ownerCodingWorker`). Its pins are the
- * owner's record, re-measured against the guest at every effect, so a changed
- * machine still gets its exact-session stop attempted but never trusted.
- * Production delivery stays disabled. */
+/** The owner-admitted native coding runtime for `machine`, on the Claude
+ * Code worker (`ownerCodingWorker`). Its pins are the owner's record,
+ * re-measured against the guest at every effect, so a changed machine still
+ * gets its exact-session stop attempted but never trusted. Production delivery
+ * stays disabled. */
 export function nativeCodingRuntime(
   machine: string,
   admissionPath: string,
@@ -36,41 +29,28 @@ export function nativeCodingRuntime(
     worker.admission.pins(),
     worker.transport,
     worker.admission,
-    worker.agent === "claude" ? claudeAgent : codexAgent,
+    claudeAgent,
   );
 }
 
-/** The coding worker an owner's record names, for the owner-run native
- * scripts: a record with the Claude Code scope (ADR 0008) names the Claude
- * Code guest under its own admission, and any other record the Codex guest.
- * An unreadable record names Codex, whose admission then refuses it. */
+/** The coding worker for the owner-run native scripts: the Claude Code guest
+ * (ADR 0008), under the owner's Claude Code admission record. A record of any
+ * other scope, such as an old Codex record, is refused when it is read. */
 export function ownerCodingWorker(
   machine: string,
   admissionPath: string,
 ): {
-  agent: "claude" | "codex";
+  agent: "claude";
   transport: NativePodmanCodingTransport;
   admission: CodingAdmission;
 } {
-  let claude = false;
-  try {
-    const record = readOwnerRecord(admissionPath) as { scope?: unknown };
-    claude = record?.scope === claudeCodingAdmissionScope;
-  } catch {}
-  const authority = nativeCodingAuthority(machine);
-  return claude
-    ? {
-        agent: "claude",
-        transport: new NativePodmanCodingTransport(
-          machine,
-          authority,
-          claudeGuest,
-        ),
-        admission: ownerClaudeCodingAdmission(admissionPath),
-      }
-    : {
-        agent: "codex",
-        transport: new NativePodmanCodingTransport(machine, authority),
-        admission: ownerCodingAdmission(admissionPath),
-      };
+  return {
+    agent: "claude",
+    transport: new NativePodmanCodingTransport(
+      machine,
+      nativeCodingAuthority(machine),
+      claudeGuest,
+    ),
+    admission: ownerClaudeCodingAdmission(admissionPath),
+  };
 }

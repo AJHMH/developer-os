@@ -1,8 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
-  lockedCodingArgv,
   modelRoutePort,
-  modelRouteVariable,
   resumeReconciliations,
   validModelRoute,
   type CodingPins,
@@ -22,21 +20,16 @@ import {
 } from "./native-management.js";
 import { admittedPath } from "./workspace.js";
 import { redact } from "./redaction.js";
-import { codexWorkerSha256 } from "./host-target.js";
 import {
   claudeCodePin,
   claudeCodeTemplate,
-  codeModeHostSha256,
   hostTargets,
 } from "./host-target.js";
 import { claudeCodeArgv, type CodingProvider } from "./coding-agent.js";
-import { gatewayModel } from "./inference-contract.js";
 import {
   boundaryProbeOutcomes,
   claudeCodingBoundaryProbe,
   claudeCodingBoundaryProbeNames,
-  codingBoundaryProbe,
-  codingBoundaryProbeNames,
 } from "./worker-probes.js";
 import { messagesLimits, messagesRelayPaths } from "./messages-gateway.js";
 import { pinnedModelPrices } from "./spend-budget.js";
@@ -44,7 +37,6 @@ import {
   openSessionRelay,
   sessionRelayLimits,
   sessionRelayProgram,
-  sessionRelaySource,
   type SessionGateway,
   type SessionRelay,
 } from "./session-relay.js";
@@ -94,105 +86,6 @@ interface GuestParts {
   poll: string;
   cli: string;
 }
-/** The coding guest program's Codex parts: its text before Claude Code
- * (ADR 0008), so its digest, and every admission that pins it, is unchanged. */
-const codexGuestParts: GuestParts = {
-  probe: JSON.stringify(codingBoundaryProbe),
-  imageEnv: String.raw`['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin']`,
-  entrypoint: String.raw`c['Config'].get('Entrypoint') not in [None,[]]`,
-  pollLive: String.raw`    if c['State'].get('Running'):
-     if group(c['State']['Pid'])!=record['group']: fail()
-     effective(c,True);record['pids'].update(census(record['group']));save(recordPath,record)
-     lease()
-`,
-  createRouteEnv: String.raw`*(['--env','${modelRouteVariable}='+route['capability']] if route else [])`,
-  routeEnvCheck: String.raw`  if h(env.get('${modelRouteVariable}','').encode())!=route['capabilitySha256']: fail()
-  env={k:v for k,v in env.items() if k!='${modelRouteVariable}'}`,
-  relaySource: sessionRelaySource,
-  relayModel: gatewayModel,
-  relayGapMs: sessionRelayLimits.responseGapMs,
-  hostPin: String.raw`
- provisioned(hostSource,R['codeModeHostSha256'])
-`,
-  retainedHome: String.raw`def retained_home(path):
- # Require existing private state; never synthesize a missing session home.
- s=os.lstat(path)
- if not stat.S_ISDIR(s.st_mode): fail()
- directory(path)
- # Codex recreates these on every start; a prior turn's copies never carry
- # over. Everything else is checked before anything is removed.
- regenerated=['skills','tmp','.tmp']
- skills=path+'/skills'
- if os.path.lexists(skills):
-  if not stat.S_ISDIR(os.lstat(skills).st_mode): fail()
-  with os.scandir(skills) as entries:
-   if [e.name for e in entries]!=['.system']: fail()
- # Codex loads these from CODEX_HOME; a prior turn must not configure the next.
- with os.scandir(path) as entries:
-  if any(e.name not in regenerated and (e.name.lower() in ['hooks.json','agents.md','agents.override.md','skills','rules','prompts','.env'] or e.name.lower().endswith('.toml')) for e in entries): fail()
- pending=[path];count=0;total=0
- while pending:
-  current=pending.pop()
-  with os.scandir(current) as entries:
-   for entry in entries:
-    if current==path and entry.name in regenerated: continue
-    count+=1
-    if count>4096: fail()
-    s=entry.stat(follow_symlinks=False)
-    if s.st_uid!=os.getuid(): fail()
-    if stat.S_ISDIR(s.st_mode): pending.append(entry.path)
-    else:
-     ordinary(entry.path)
-     total+=s.st_size
-     if s.st_size>4194304 or total>16777216: fail()
- for name in regenerated:
-  if os.path.lexists(path+'/'+name): remove_tree(path+'/'+name)
-`,
-  mount: String.raw`/codex`,
-  locked: String.raw`# The locked argv before the prompt (lockedCodingArgv in src/feature-candidate.ts).
-def locked(thread,route):
- sandbox='danger-full-access' if route else 'workspace-write'
- p='model_providers.aios.'
- values=['model_provider="aios"',p+'name="AIOS session relay"',p+'base_url="http://127.0.0.1:${modelRoutePort}/v1"',p+'env_key="${modelRouteVariable}"',p+'wire_api="responses"',p+'requires_openai_auth=false',p+'supports_websockets=false',p+'http_headers.X-AIOS-Delivery="'+route['deliveryId']+'"','model="${gatewayModel}"'] if route else []
- overrides=[x for v in values for x in ['-c',v]]
- return ['exec','resume','--json','--skip-git-repo-check','-c','sandbox_mode="'+sandbox+'"',*overrides,thread] if thread else ['exec','--json','--skip-git-repo-check','--sandbox',sandbox,*overrides]
-`,
-  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CODEX_HOME':'/session','HOSTNAME':'aios-coding'}`,
-  mounts: String.raw` wanted={'/workspace':(work,True),'/session':(home,True),'/codex':(binary,False),'/codex-code-mode-host':(codeModeHost,False)}
- if len(mounts)!=4: fail()`,
-  paths: String.raw`binary=operation+'/codex';codeModeHost=operation+'/codex-code-mode-host'`,
-  branch: String.raw`codex/`,
-  hostCopy: String.raw`   fd=os.open(codeModeHost,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o500)
-   with os.fdopen(fd,'wb') as f:
-    f.write(provisioned(hostSource,R['codeModeHostSha256']));f.flush();os.fsync(f.fileno())
-`,
-  createEnv: String.raw`'--env','CODEX_HOME=/session'`,
-  createMounts: String.raw`'--volume',binary+':/codex:ro,Z,rprivate','--volume',codeModeHost+':/codex-code-mode-host:ro,Z,rprivate'`,
-  copies: String.raw`[binary,codeModeHost]`,
-  launchHost: String.raw`    ordinary(codeModeHost)
-    if h(pathlib.Path(codeModeHost).read_bytes())!=R['codeModeHostSha256']: fail()
-`,
-  poll: String.raw`    logs=pod('logs',R['name'])
-    if len(logs)>65536: fail()
-    # Bind a complete explicit CLI thread event to this durable session. A
-    # partial final line is not evidence and cannot authorize later resume.
-    threads=[]
-    for line in logs.split(b'\n')[:-1]:
-     try: event=json.loads(line)
-     except (ValueError,UnicodeDecodeError): continue
-     if isinstance(event,dict) and event.get('type')=='thread.started':
-      thread=event.get('thread_id')
-      if not isinstance(thread,str) or not re.fullmatch('[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread): fail()
-      threads.append(thread)
-    if len(threads)>1: fail()
-    if threads:
-     if record.get('threadId',threads[0])!=threads[0] or record['admission'].get('threadId',threads[0])!=threads[0]: fail()
-     record['threadId']=threads[0];save(recordPath,record)
-    if not c['State']['Running'] and record['admission'].get('threadId') and not threads: fail()
-    result=dict(running=c['State']['Running'],exitCode=c['State']['ExitCode'],output=base64.b64encode(logs).decode())
-`,
-  cli: String.raw`codex-0.161.0`,
-};
 /** Trusted VM management source. Requests are JSON data, never generated commands.
  * This separate offline scope cannot reuse fixed-worker credentials/qualification. */
 const guestProgram = (g: GuestParts) => String.raw`
@@ -921,7 +814,6 @@ print(json.dumps(dict(session=R['session'],binding=binding,cliSha256=R['cliSha25
 if R['action']=='relay': pump(relayProcess)
 
 `;
-const management = guestProgram(codexGuestParts);
 
 const claudeCli = hostTargets.darwin.claudeCode;
 /** The coding guest program's Claude Code parts (ADR 0008). Claude Code is one
@@ -1061,9 +953,6 @@ def route_env(route):
   cli: `claude-${claudeCli.version}`,
 };
 const claudeManagement = guestProgram(claudeGuestParts);
-/** The coding guest program's digest: the `policySha256` an owner coding
- * admission pins. */
-export const managementPolicySha256 = digest(management);
 /** The Claude Code guest program's digest, which its admission pins. */
 export const claudeManagementPolicySha256 = digest(claudeManagement);
 
@@ -1074,36 +963,15 @@ export interface NativeCodingGuest {
   readonly policySha256: string;
   readonly cliVersion: string;
   /** The guest executable pins for this host, in request order. */
-  pins(host: { platform: string; arch: string }): {
-    cliSha256: string;
-    codeModeHostSha256?: string;
-  };
+  pins(host: { platform: string; arch: string }): { cliSha256: string };
   /** The locked argv before the prompt. */
   argv(threadId: string | undefined, route: ModelRoute | undefined): string[];
   readonly branch: RegExp;
   /** The boundary probe's names, in output order. */
   readonly probeNames: readonly string[];
   /** The worker image for this host, pinned by digest. */
-  template(host: {
-    offlineTemplate: string;
-    platform: string;
-    arch: string;
-  }): string;
+  template(host: { platform: string; arch: string }): string;
 }
-export const codexGuest: NativeCodingGuest = Object.freeze({
-  provider: "codex",
-  program: management,
-  policySha256: managementPolicySha256,
-  cliVersion: "0.161.0",
-  pins: (host: { platform: string; arch: string }) => ({
-    cliSha256: codexWorkerSha256(host.platform, host.arch)!,
-    codeModeHostSha256: codeModeHostSha256(host.platform, host.arch)!,
-  }),
-  argv: lockedCodingArgv,
-  branch: /^codex\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
-  probeNames: codingBoundaryProbeNames,
-  template: (host: { offlineTemplate: string }) => host.offlineTemplate,
-});
 /** Claude Code's guest (ADR 0008). A routed turn reaches the host's
  * MessagesGateway through the session relay. */
 export const claudeGuest: NativeCodingGuest = Object.freeze({
@@ -1167,7 +1035,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
   constructor(
     private readonly machine: string,
     private readonly authority: string,
-    readonly guest: NativeCodingGuest = codexGuest,
+    readonly guest: NativeCodingGuest = claudeGuest,
   ) {
     if (!/^aios-[a-z0-9-]+$/.test(machine) || !/^[a-f0-9]{64}$/.test(authority))
       throw Error("Invalid native coding authority");

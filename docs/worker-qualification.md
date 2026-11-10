@@ -26,10 +26,8 @@ tool exists, so a missing tool fails instead of passing. It checks:
   - no owner home or guest-private management state;
   - no `.ssh`, `.gnupg`, `.gitconfig`, `gh` config, `.netrc` or `.aws` in the
     worker's home;
-  - in the worker's home: no MCP servers in `config.toml`; no `hooks.json`,
-    `rules` or `AGENTS.md`; and a `skills` folder only if its sole entry is
-    `.system`, Codex's own bundled skills, which it regenerates on every
-    start;
+  - in the worker's home, none of Claude Code's settings, memory, extensions
+    or tools (`claude-config`, below);
   - no engine or management sockets;
   - no credential variables.
 - **Mounts and network:** no host-share mounts, loopback-only networking, and
@@ -57,8 +55,7 @@ chooses.
   because the relay serves one request at a time. An offline worker's
   connection must be refused, since any HTTP answer would mean something is
   listening.
-- **`read-only-binaries`:** `/codex` and `/codex-code-mode-host` are mounted
-  read-only, according to `/proc/self/mountinfo`, and refuse writes. The mount
+- **`read-only-binaries`:** `/claude` is mounted read-only, according to `/proc/self/mountinfo`, and refuse writes. The mount
   is the real check: a running executable refuses writes anyway, and the
   container user owns the files.
 - **`hardened-process`:** the process has no effective capabilities, has
@@ -73,9 +70,9 @@ chooses.
   it stops, and bootstrap needs `/tmp/launch`. The guest separately pins the
   container's bind mounts to exactly four.
 
-  Codex runs with `danger-full-access`, so these are the container's own
-  limits, whatever Codex's sandbox would allow. The probe runs as the
-  container user, the same identity Codex has.
+  These are the container's own limits, whatever Claude Code's own
+  permissions would allow. The probe runs as the container user, the same
+  identity Claude Code has.
 
 The coding guest runs the probe inside the exact live session. It passes the
 session's own management record as the private path, confirming first that the
@@ -88,35 +85,9 @@ private path is the guest's validation state directory. The validation guest
 cannot confirm that path to the check, so the owner-home probe is the stronger
 evidence there.
 
-## Provisioning the code-mode host
-
-The coding worker needs the code-mode host beside its CLI (ADR 0002
-amendment). It comes from the same official package as the pinned CLI. The
-guest refuses to inspect, prepare or launch unless the file is in VM
-management storage, private to the guest user, and matches its pin:
-
-| Package                             | `codex-code-mode-host` SHA-256                                     |
-| ----------------------------------- | ------------------------------------------------------------------ |
-| `@openai/codex@0.161.0-linux-arm64` | `64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0` |
-
-Run the block with the VM running. It runs in a subshell in a new temporary
-folder, so your shell stays where it was. The last command prints the guest's
-hash, which must match the table.
-
-```sh
-(D=$(mktemp -d) && cd "$D" && npm pack --ignore-scripts @openai/codex@0.161.0-linux-arm64 && tar -xzf openai-codex-0.161.0-linux-arm64.tgz && shasum -a 256 package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host &&
-/opt/podman/bin/podman machine cp package/vendor/aarch64-unknown-linux-musl/bin/codex-code-mode-host aios-macos-noshare:/var/home/core/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 &&
-/opt/podman/bin/podman machine ssh aios-macos-noshare 'chmod 600 ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0 && sha256sum ~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0')
-```
-
-The owner coding admission record then needs re-approval. The new pin
-`codeModeHostSha256` is part of the record, and the coding guest program,
-and with it `policySha256`, changed.
-
 ## Provisioning the Claude Code CLI
 
-Claude Code replaces Codex as the coding agent (ADR 0008). The coding guest
-runs the native `claude` binary from the official per-platform package for the
+Claude Code is the coding agent (ADR 0008). The coding guest runs the native `claude` binary from the official per-platform package for the
 guest, which is musl Linux on arm64. The binary links only musl's libc, which
 the Alpine offline template provides. The pin is `claudeCode` in
 `src/host-target.ts`:
@@ -127,8 +98,7 @@ the Alpine offline template provides. The pin is `claudeCode` in
 
 The Claude Code guest program (`claudeGuest` in `src/podman-coding.ts`)
 refuses to inspect, prepare or launch unless the file is in VM management
-storage, private to the guest user, and matches the pin. No delivery runs that
-guest yet. Run the block with the VM running. It runs in a subshell in a new
+storage, private to the guest user, and matches the pin. Run the block with the VM running. It runs in a subshell in a new
 temporary folder, so your shell stays where it was. `npm pack` checks the
 registry integrity as it downloads, and `--ignore-scripts` runs nothing from
 the package. The last command prints the guest's hash, which must match the
@@ -161,16 +131,14 @@ check that it reports that digest and `arm64`:
 /opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.RepoDigests}} {{.Architecture}}' docker.io/library/bash@sha256:826e424f395d3d1e10adc155e63f3c69090c5559c5f3914b0d4c9064e767b06a
 ```
 
-The Codex and validation workers keep their images, so their records don't
-change.
+The validation worker keeps its Alpine image.
 
 Claude Code turns are admitted by their own owner record, with scope
 `aios-claude-coding-admission-v1` and pins `cliVersion`, `cliSha256`,
-`policySha256` and `bindingSha256`. There is no code-mode host pin. A
-Codex-era coding admission record never admits a Claude Code turn, and the
-owner writes the new record once the guest program is final.
+`policySha256` and `bindingSha256`. A Codex-era record
+(`aios-native-coding-admission-v1`) is refused.
 
-The Claude Code guest differs from the Codex guest in these ways:
+The Claude Code guest:
 
 - **Image:** it runs the pinned bash image, not the Alpine template, with
   `SHELL=/usr/local/bin/bash` and its entrypoint cleared.
@@ -202,11 +170,10 @@ The Claude Code guest differs from the Codex guest in these ways:
   `POST /v1/messages?beta=true` for the pinned model, under the route's
   capability and delivery header. The worker gets exactly the route's
   environment (`claudeCodeRelayEnvironment`), which holds no API key; its
-  capability is checked by digest. Codex's relay keeps its Responses route.
-- **Boundary probe:** it runs `claudeCodingBoundaryProbe`, which is the coding
-  probe with Claude Code's checks in place of Codex's:
-  - **`claude-config`** replaces `codex-skills`, `mcp-config` and
-    `hooks-rules-agents`. The home must hold none of the names a resume
+  capability is checked by digest.
+- **Boundary probe:** it runs `claudeCodingBoundaryProbe`, the coding probe
+  with Claude Code's own checks:
+  - **`claude-config`:** the home must hold none of the names a resume
     refuses, and `/etc/claude-code`, Claude Code's managed-settings folder,
     must not exist. A `plugins` folder may hold only `store`.
   - **`credential-env`** also refuses `ANTHROPIC_API_KEY`,
@@ -214,11 +181,6 @@ The Claude Code guest differs from the Codex guest in these ways:
     `ANTHROPIC_AUTH_TOKEN`, the relay capability, must be set in a routed
     worker and absent in an offline one.
   - **`read-only-binaries`** checks only `/claude`.
-
-  A Codex probe result is never accepted as a Claude Code one.
-
-The Codex guest program is unchanged, so its `policySha256` and the Codex
-admission record that pins it still match.
 
 ## Running it
 
@@ -230,14 +192,10 @@ to. It takes a few minutes.
 From a clean, built checkout with the VM running:
 
 ```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
 ### Qualifying the Claude Code worker
-
-The coding record's `scope` chooses the coding worker. A record with scope
-`aios-claude-coding-admission-v1` qualifies the Claude Code guest, and any
-other record qualifies Codex. The report's `codingAgent` says which ran.
 
 The Claude Code worker's live session is routed, because Claude Code reaches a
 model only through the session relay:
@@ -395,6 +353,27 @@ Run it with the Claude Code record from the worker qualification above:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-routed-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/issue04-routed-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
+Outcomes:
+
+- **`observed-offline-routed-acceptance`:** every stage passed and every
+  probe passed. The last stage removes the lineage from the VM by its head, so
+  a passing run leaves no session.
+- **`failed`:** every check ran, but a probe failed. The failed probes are
+  listed in `failedProbes`, and the lineage stays in the VM for diagnosis.
+- **`blocked`:** at the stage named in the report. Later stages are listed as
+  `not-run`.
+- **`uncertain`:** a session could not be confirmed stopped.
+
+A record that doesn't match prints `freshPins`.
+
+Limits:
+
+- No real provider is involved. A real reply's size, timing and events are
+  for slice 5.
+- The fake provider assumes Claude Code calls its own `Write` and `Bash`
+  tools as captured. A Claude Code that calls tools differently shows up as
+  `unexpected` requests or a missing read-back.
+
 ## Coding container census
 
 This read-only command counts a VM's `aios-coding-*` containers by what their
@@ -472,38 +451,9 @@ It works through 8 at a time until it has tried them all, and moves past any it
 can't remove. A refused session stays for a later sweep; `refused` says how many,
 and the command then exits non-zero.
 
-The coding record's `scope` chooses the guest, as for the qualification. With
-the Claude Code record, the sweep uses the Claude Code guest and must match its
-pins. The output's `agent` says which guest ran:
+The sweep uses the Claude Code guest under your Claude Code record and must
+match its pins:
 
 ```sh
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/sweep-abandoned-coding-sessions.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json"
 ```
-
-From a clean, built checkout with the VM running:
-
-```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-routed-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/coding-admission.json" "$HOME/.developer-os/issue04-routed-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
-```
-
-Outcomes:
-
-- **`observed-offline-routed-acceptance`:** every stage passed and every
-  probe passed. The last stage removes the lineage from the VM by its head, so
-  a passing run leaves no session.
-- **`failed`:** every check ran, but a probe failed. The failed probes are
-  listed in `failedProbes`, and the lineage stays in the VM for diagnosis.
-- **`blocked`:** at the stage named in the report. Later stages are listed as
-  `not-run`.
-- **`uncertain`:** a session could not be confirmed stopped.
-
-A record that doesn't match prints `freshPins`.
-
-Limits:
-
-- No real provider is involved. A real reply's size, timing and events are
-  for slice 5.
-- The fake provider's scripts assume code mode's `tools.apply_patch` and
-  `tools.exec_command`, as captured. A Codex that yields a script back to the
-  model, or calls tools differently, shows up as `unexpected` requests or a
-  missing marker.

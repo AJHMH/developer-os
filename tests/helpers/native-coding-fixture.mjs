@@ -9,6 +9,7 @@ import { EventEmitter } from "node:events";
 import { Writable } from "node:stream";
 import { resolve } from "node:path";
 import { NativePodmanCodingTransport } from "../../dist/podman-coding.js";
+import { claudeCodeArgv } from "../../dist/coding-agent.js";
 import { testPython } from "./python.mjs";
 
 export const realTemporaryDirectory = fs.realpathSync(os.tmpdir());
@@ -282,15 +283,8 @@ export const observation = {
 export async function launchRequest(transport, overrides = {}) {
   return {
     ...session,
-    argv: [
-      "exec",
-      "--json",
-      "--skip-git-repo-check",
-      "--sandbox",
-      "workspace-write",
-      "Change the title",
-    ],
-    branch: "codex/example",
+    argv: [...claudeCodeArgv(undefined), "Change the title"],
+    branch: "aios/example",
     sourceRevision: "b".repeat(40),
     inputSha256:
       "79e66062117b48d4c618d93d2fba5fbb22250bbf83df8aaa67ed60cc7022a4b4",

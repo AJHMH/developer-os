@@ -13,18 +13,15 @@ import {
   type ClaudeCodingPins,
   type CodingPins,
   claudeCodingPinFields,
-  codingPinFields,
   validClaudeCodingPins,
-  validCodingPins,
 } from "./feature-candidate.js";
 import {
   assertOwnerControlledStorage,
   assertPrivateAuthStorage,
 } from "./private-storage.js";
 
-const scope = "aios-native-coding-admission-v1";
-/** Claude Code turns have their own scope, so no Codex-era record admits
- * them, and a Claude record never admits a Codex turn. */
+/** Claude Code turns have their own scope, so no Codex-era record
+ * (`aios-native-coding-admission-v1`) admits them. */
 export const claudeCodingAdmissionScope = "aios-claude-coding-admission-v1";
 
 /** An owner-written, per-host record that admits one live transport at
@@ -150,22 +147,6 @@ export function ownerAdmission<P>(
     },
   };
   return Object.freeze(admission);
-}
-
-export function ownerCodingAdmission(
-  path: string,
-  options: { clock?: () => number } = {},
-): CodingAdmission {
-  return ownerAdmission(
-    path,
-    {
-      scope,
-      label: "coding",
-      fields: codingPinFields,
-      valid: validCodingPins,
-    },
-    options,
-  );
 }
 
 /** Owner coding admission for Claude Code turns: the Claude pin shape under

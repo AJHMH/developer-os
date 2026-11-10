@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { resolve } from "node:path";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
-import { lockedCodingArgv } from "../dist/feature-candidate.js";
+import { claudeCodeArgv } from "../dist/coding-agent.js";
 import { sessionAcceptance } from "../scripts/run-native-coding-acceptance.mjs";
 import {
   realTemporaryDirectory,
@@ -36,16 +36,7 @@ async function nativeResumeRequest(transport, overrides = {}) {
     intent: "resume",
     threadId: resumeThread,
     resumeFrom: { ...session, state: "stopped" },
-    argv: [
-      "exec",
-      "resume",
-      "--json",
-      "--skip-git-repo-check",
-      "-c",
-      'sandbox_mode="workspace-write"',
-      resumeThread,
-      "Continue the title",
-    ],
+    argv: [...claudeCodeArgv(resumeThread), "Continue the title"],
     allowanceMs: 60000,
     ...overrides,
   });
@@ -77,14 +68,8 @@ test("native explicit resume retains only the named stopped session home under f
     realReadFileSync(`${home}/retained-session`, "utf8"),
     "private thread canary",
   );
-  assert.deepEqual(resumed.Config.Cmd.slice(-8), [
-    "exec",
-    "resume",
-    "--json",
-    "--skip-git-repo-check",
-    "-c",
-    'sandbox_mode="workspace-write"',
-    resumeThread,
+  assert.deepEqual(resumed.Config.Cmd.slice(4), [
+    ...claudeCodeArgv(resumeThread),
     "Continue the title",
   ]);
   assert.equal(resumed.HostConfig.NetworkMode, "none");
@@ -108,94 +93,37 @@ test("native explicit resume retains only the named stopped session home under f
   );
 });
 
-// What Codex 0.161 writes into its home on every start, observed natively.
+// What Claude Code recreates in its home on every start, beside the
+// conversation it carries over (the guest's retained_home).
 function plantRegenerated(home) {
-  const system = `${home}/skills/.system/imagegen`;
-  realMkdirSync(system, { recursive: true });
-  realWriteFileSync(`${system}/SKILL.md`, "built-in skill");
-  realWriteFileSync(`${home}/skills/.system/.codex-system-skills.marker`, "x");
-  const arg0 = `${home}/tmp/arg0/codex-arg0abc`;
-  realMkdirSync(arg0, { recursive: true });
-  realWriteFileSync(`${arg0}/.lock`, "");
-  for (const name of ["apply_patch", "codex-linux-sandbox"])
-    realSpawnSync("ln", ["-s", "/codex", `${arg0}/${name}`]);
+  realMkdirSync(`${home}/shell-snapshots`, { recursive: true });
+  realWriteFileSync(`${home}/shell-snapshots/snapshot-bash.sh`, "snapshot");
+  realMkdirSync(`${home}/plugins/store`, { recursive: true });
+  realWriteFileSync(`${home}/plugins/store/builtin.json`, "{}");
+  realMkdirSync(`${home}/tmp`, { recursive: true });
   realMkdirSync(`${home}/.tmp`, { recursive: true });
-  realWriteFileSync(`${home}/.tmp/plugins.sync.lock`, "");
-  realMkdirSync(`${home}/sessions/2026/10/21`, { recursive: true });
-  realWriteFileSync(`${home}/sessions/2026/10/21/rollout.jsonl`, "{}\n");
-  realWriteFileSync(`${home}/state_5.sqlite`, "conversation state");
+  realMkdirSync(`${home}/projects/-workspace`, { recursive: true });
+  realWriteFileSync(
+    `${home}/projects/-workspace/${resumeThread}.jsonl`,
+    "conversation",
+  );
 }
-
-test("native resume strips what Codex regenerates and carries the conversation over", async (t) => {
-  const { transport, read } = await launchedGuest(t, {
-    threadId: resumeThread,
-  });
-  const originalHome = read().container.Mounts.find(
-    (m) => m.Destination === "/session",
-  ).Source;
-  plantRegenerated(originalHome);
-  await transport.run(await nativeResumeRequest(transport), () => {});
-  const resumedHome = read().container.Mounts.find(
-    (m) => m.Destination === "/session",
-  ).Source;
-  assert.notEqual(resumedHome, originalHome, "the home moved to the successor");
-  const listing = realSpawnSync("find", [resumedHome], { encoding: "utf8" })
-    .stdout.split("\n")
-    .filter(Boolean)
-    .map((path) => path.slice(resumedHome.length))
-    .sort();
-  for (const regenerated of ["/skills", "/tmp", "/.tmp"])
-    assert.ok(
-      !listing.some(
-        (path) => path.startsWith(regenerated + "/") || path === regenerated,
-      ),
-      `${regenerated} was removed before reuse`,
-    );
-  assert.ok(listing.includes("/sessions/2026/10/21/rollout.jsonl"));
-  assert.ok(listing.includes("/state_5.sqlite"));
-});
-
-test("native resume refuses a planted skill beside the built-in ones and removes nothing", async (t) => {
-  const { transport, read } = await launchedGuest(t, {
-    threadId: resumeThread,
-  });
-  const originalHome = read().container.Mounts.find(
-    (m) => m.Destination === "/session",
-  ).Source;
-  plantRegenerated(originalHome);
-  realMkdirSync(`${originalHome}/skills/planted`, { recursive: true });
-  realWriteFileSync(`${originalHome}/skills/planted/SKILL.md`, "planted");
-  await assert.rejects(
-    transport.run(await nativeResumeRequest(transport), () => {}),
-  );
-  assert.equal(
-    realReadFileSync(
-      `${originalHome}/skills/.system/imagegen/SKILL.md`,
-      "utf8",
-    ),
-    "built-in skill",
-    "nothing is removed from a refused home",
-  );
-});
 
 for (const [name, arrange] of [
   [
-    "a configuration file",
-    (home) => realWriteFileSync(`${home}/config.toml`, "x"),
+    "a settings file",
+    (home) => realWriteFileSync(`${home}/settings.json`, "{}"),
   ],
   [
-    "a capitalized skills folder",
-    (home) => realMkdirSync(`${home}/Skills/planted`, { recursive: true }),
+    "a capitalized memory file",
+    (home) => realWriteFileSync(`${home}/Claude.md`, "planted"),
   ],
   [
-    "a skills link",
-    (home) => {
-      realSpawnSync("rm", ["-rf", `${home}/skills`]);
-      realSpawnSync("ln", ["-s", "/etc", `${home}/skills`]);
-    },
+    "a link to a folder outside the home",
+    (home) => realSpawnSync("ln", ["-s", "/etc", `${home}/projects/link`]),
   ],
 ])
-  test(`native resume refuses ${name} beside Codex's regenerated files and removes nothing`, async (t) => {
+  test(`native resume refuses ${name} beside Claude Code's regenerated files and removes nothing`, async (t) => {
     const { transport, read } = await launchedGuest(t, {
       threadId: resumeThread,
     });
@@ -208,9 +136,13 @@ for (const [name, arrange] of [
       transport.run(await nativeResumeRequest(transport), () => {}),
     );
     assert.equal(
-      realSpawnSync("test", ["-e", `${home}/tmp/arg0/codex-arg0abc/.lock`])
-        .status,
-      0,
+      read().commands.filter((args) => args[1] === "create").length,
+      1,
+      "no resumed worker is created",
+    );
+    assert.equal(
+      realReadFileSync(`${home}/shell-snapshots/snapshot-bash.sh`, "utf8"),
+      "snapshot",
       "the regenerated files are still there",
     );
   });
@@ -229,61 +161,17 @@ test("removing a regenerated link never touches its target", async (t) => {
   realSpawnSync("ln", ["-s", outside, `${home}/tmp/outside`]);
   await transport.run(await nativeResumeRequest(transport), () => {});
   assert.equal(realReadFileSync(`${outside}/keep`, "utf8"), "outside the home");
-});
-
-test("native resume still refuses a link outside what Codex regenerates", async (t) => {
-  const { transport, read } = await launchedGuest(t, {
-    threadId: resumeThread,
-  });
-  const originalHome = read().container.Mounts.find(
+  const resumed = read().container.Mounts.find(
     (m) => m.Destination === "/session",
   ).Source;
-  plantRegenerated(originalHome);
-  realSpawnSync("ln", ["-s", "/etc", `${originalHome}/sessions/link`]);
-  await assert.rejects(
-    transport.run(await nativeResumeRequest(transport), () => {}),
-  );
   assert.equal(
-    read().commands.filter((args) => args[1] === "create").length,
-    1,
-    "no resumed worker is created",
+    realReadFileSync(
+      `${resumed}/projects/-workspace/${resumeThread}.jsonl`,
+      "utf8",
+    ),
+    "conversation",
   );
 });
-
-for (const planted of [
-  "config.toml",
-  "hooks.json",
-  "AGENTS.md",
-  "AGENTS.override.md",
-  "skills/planted/SKILL.md",
-  "rules/default.rules",
-  ".env",
-  "managed_config.toml",
-  "prompts/planted.md",
-])
-  test(`native explicit resume refuses retained worker-writable Codex configuration ${planted}`, async (t) => {
-    const { transport, read } = await launchedGuest(t, {
-      threadId: resumeThread,
-    });
-    const originalHome = read().container.Mounts.find(
-      (m) => m.Destination === "/session",
-    ).Source;
-    realMkdirSync(resolve(originalHome, planted, ".."), { recursive: true });
-    realWriteFileSync(`${originalHome}/${planted}`, "planted by a prior turn");
-    await assert.rejects(
-      transport.run(await nativeResumeRequest(transport), () => {}),
-    );
-    assert.equal(
-      read().commands.filter((args) => args[1] === "create").length,
-      1,
-      "no resumed worker is created",
-    );
-    assert.equal(
-      realReadFileSync(`${originalHome}/${planted}`, "utf8"),
-      "planted by a prior turn",
-      "the predecessor home stays retained and unclaimed",
-    );
-  });
 
 test("native explicit resume rejects missing identity and unsafe CLI selection before host effects", async (t) => {
   const fixture = nativeHost(t, (r) => ({
@@ -315,38 +203,19 @@ test("native explicit resume rejects missing identity and unsafe CLI selection b
       },
     },
     { resumeFrom: { ...session, state: "stopped", operationId: "../foreign" } },
+    // Only an explicit resume of the named session selects it.
+    { argv: [...claudeCodeArgv(undefined), "--continue", "prompt"] },
+    { argv: [...claudeCodeArgv(undefined), "Continue the title"] },
     {
       argv: [
-        "exec",
-        "resume",
-        "--json",
-        "--skip-git-repo-check",
-        "-c",
-        'sandbox_mode="workspace-write"',
-        "--last",
-        "prompt",
-      ],
-    },
-    {
-      // A resumed turn must pin the same in-container sandbox as first launch.
-      argv: [
-        "exec",
-        "resume",
-        "--json",
-        "--skip-git-repo-check",
-        resumeThread,
+        ...claudeCodeArgv("bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee"),
         "Continue the title",
       ],
     },
     {
       argv: [
-        "exec",
-        "resume",
-        "--json",
-        "--skip-git-repo-check",
-        "-c",
-        'sandbox_mode="danger-full-access"',
-        resumeThread,
+        ...claudeCodeArgv(resumeThread),
+        "--fork-session",
         "Continue the title",
       ],
     },
@@ -377,19 +246,10 @@ for (const refusal of [
     const changes = {};
     if (refusal === "thread") {
       changes.threadId = "bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee";
-      changes.argv = [
-        "exec",
-        "resume",
-        "--json",
-        "--skip-git-repo-check",
-        "-c",
-        'sandbox_mode="workspace-write"',
-        changes.threadId,
-        "Continue",
-      ];
+      changes.argv = [...claudeCodeArgv(changes.threadId), "Continue"];
     }
     if (refusal === "source") changes.sourceRevision = "f".repeat(40);
-    if (refusal === "branch") changes.branch = "codex/foreign";
+    if (refusal === "branch") changes.branch = "aios/foreign";
     if (refusal === "running") {
       state.container.State.Running = true;
       state.container.State.Pid = 42;
@@ -527,7 +387,8 @@ for (const unsafeHome of ["missing", "hardlink", "symlink", "oversized"])
       fs.linkSync(`${workspace}/index.html`, `${home}/shared-output`);
     else if (unsafeHome === "symlink")
       fs.symlinkSync(`${workspace}/index.html`, `${home}/shared-output`);
-    else realWriteFileSync(`${home}/oversized`, Buffer.alloc(4194305));
+    // One byte over the Claude Code guest's per-file bound for a home.
+    else realWriteFileSync(`${home}/oversized`, Buffer.alloc(33554433));
     await assert.rejects(
       transport.run(await nativeResumeRequest(transport), () => {}),
     );
@@ -751,7 +612,7 @@ for (const refusal of [
       );
       successor = { ...interruptedSuccessor, operationId: resumedOperation };
     } else if (refusal === "launch-attempted-successor") {
-      // Start failed after launch was attempted: Codex may have touched the home.
+      // Start failed after launch was attempted: Claude Code may have touched the home.
       fixture = await launchedGuest(t, { threadId: resumeThread });
       fixture.write({ ...fixture.read(), startUnavailable: true });
       await assert.rejects(
@@ -891,7 +752,7 @@ test("interrupted resume recovery rejects malformed identities before guest effe
 // the controller's exact-session stop then leaves only a revoked record.
 async function unpreparedResume(t) {
   const fixture = await strandedResume(t, (home) =>
-    realWriteFileSync(`${home}/config.toml`, "planted by a prior turn"),
+    realWriteFileSync(`${home}/settings.json`, "planted by a prior turn"),
   );
   await fixture.transport.stop({ ...interruptedSuccessor, state: "running" });
   return fixture;
@@ -1599,7 +1460,8 @@ test("the native session acceptance reports a missing offline thread as blocked 
 });
 
 // A stopped session never runs again, so its private program copies (about
-// 350 MB of Codex each) go with the worker; its workspace and home stay.
+// the Claude Code binary each) go with the worker; its workspace and home
+// stay.
 function programCopies(root) {
   return guestSessions(root).folders.map((folder) => {
     const entries = realSpawnSync(
@@ -1609,7 +1471,7 @@ function programCopies(root) {
     ).stdout;
     const present = (name) => entries.split("\n").includes(`${folder}/${name}`);
     return {
-      programs: ["codex", "codex-code-mode-host"].filter(present),
+      programs: ["claude"].filter(present),
       retained: ["workspace", "home"].filter(present),
     };
   });
@@ -1652,7 +1514,7 @@ async function predecessorUnder(t, route) {
       allowanceMs: 60000,
       ...(route
         ? {
-            argv: [...lockedCodingArgv(undefined, route), "Change it"],
+            argv: [...claudeCodeArgv(undefined), "Change it"],
             modelRoute: route,
           }
         : {}),
@@ -1666,7 +1528,7 @@ async function predecessorUnder(t, route) {
 async function resumeUnder(transport, route, operationId = resumedOperation) {
   const request = await nativeResumeRequest(transport, {
     operationId,
-    argv: [...lockedCodingArgv(resumeThread, route), "Continue the title"],
+    argv: [...claudeCodeArgv(resumeThread), "Continue the title"],
     ...(route ? { modelRoute: route } : {}),
   });
   return transport.run(request, () => {}, route ? sessionGateway() : undefined);

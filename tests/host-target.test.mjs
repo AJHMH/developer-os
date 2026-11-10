@@ -6,14 +6,6 @@ import {
   supportsHostOS,
 } from "../dist/host-target.js";
 
-test("the Mac target pins the code-mode host from the same official package as its worker CLI", () => {
-  // @openai/codex@0.161.0-linux-arm64: bin/codex-code-mode-host.
-  assert.equal(
-    hostTargets.darwin.codeModeHostSha256,
-    "64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0",
-  );
-});
-
 for (const [platform, minimum, previous] of [["darwin", "23.0.0", "22.9.9"]]) {
   test(`${platform} target owns its OS floor and architecture`, () => {
     const target = hostTargets[platform];

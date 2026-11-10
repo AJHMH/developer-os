@@ -4,10 +4,10 @@ import assert from "node:assert/strict";
 import net from "node:net";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
-import { lockedCodingArgv } from "../dist/feature-candidate.js";
+import { claudeCodeArgv } from "../dist/coding-agent.js";
+import { pinnedModelPrices } from "../dist/spend-budget.js";
 import {
   nativeHost,
   observation,
@@ -23,21 +23,30 @@ const modelRoute = Object.freeze({
   capability: "c".repeat(64),
   decisionSha256: "d".repeat(64),
 });
-const routedArgv = [...lockedCodingArgv(undefined, modelRoute), "Change it"];
-/** Codex 0.161.0's captured launch request (tests/fixtures). */
-const captured = readFileSync(
-  new URL("./fixtures/codex-0.161.0-launch-request.json", import.meta.url),
+const sessionId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const routedArgv = [...claudeCodeArgv(undefined), "Change it"];
+/** A Claude Code Messages request, as the relay carries it. */
+const captured = Buffer.from(
+  JSON.stringify({
+    model: pinnedModelPrices.model,
+    messages: [{ role: "user", content: "Change it" }],
+    max_tokens: 1024,
+    stream: true,
+  }),
 );
 const sse = [
-  Buffer.from('data: {"type":"response.created"}\n\n'),
-  Buffer.from('data: {"type":"response.completed"}\n\n'),
+  Buffer.from('event: message_start\ndata: {"type":"message_start"}\n\n'),
+  Buffer.from('event: message_stop\ndata: {"type":"message_stop"}\n\n'),
 ];
+/** The Claude Code guest against the simulator, with its session named. */
+const claudeFixture = (t, engine = {}) =>
+  guestFixture(t, { threadId: sessionId, ...engine });
 
 const gateway = () => sessionGateway(sse);
 
-/** Codex's side: one raw request to the relay, retried until it listens. The
+/** Claude Code's side: one raw request to the relay, retried until it listens. The
  * simulator runs the relay on a free port, reported in `relay-port`. */
-async function codex(root, raw, deadline = Date.now() + 20000) {
+async function claude(root, raw, deadline = Date.now() + 20000) {
   for (;;) {
     try {
       const port = Number(realReadFileSync(`${root}/relay-port`, "utf8"));
@@ -62,7 +71,7 @@ async function codex(root, raw, deadline = Date.now() + 20000) {
 const post = (capability = modelRoute.capability, payload = captured) =>
   Buffer.concat([
     Buffer.from(
-      "POST /v1/responses HTTP/1.1\r\nHost: 127.0.0.1:18091\r\n" +
+      "POST /v1/messages HTTP/1.1\r\nHost: 127.0.0.1:18091\r\n" +
         `Authorization: Bearer ${capability}\r\n` +
         `X-AIOS-Delivery: ${modelRoute.deliveryId}\r\n` +
         "Content-Type: application/json\r\nAccept: text/event-stream\r\n" +
@@ -74,6 +83,7 @@ const routed = async (transport, changes = {}) =>
   launchRequest(transport, {
     allowanceMs: 60000,
     argv: routedArgv,
+    branch: "aios/feature-12345678-1234-4234-8234-123456789abc",
     modelRoute,
     ...changes,
   });
@@ -95,8 +105,8 @@ const alive = (pid) => {
   }
 };
 
-test("a routed turn releases Codex only after its relay is ready, and streams Codex's request through the gateway", async (t) => {
-  const { transport, read, root, requests } = guestFixture(t, {
+test("a routed turn releases Claude Code only after its relay is ready, and streams its request through the gateway", async (t) => {
+  const { transport, read, root, requests } = claudeFixture(t, {
     keepRunning: true,
   });
   const g = gateway();
@@ -107,12 +117,12 @@ test("a routed turn releases Codex only after its relay is ready, and streams Co
   );
   // Another capability is refused, and never reaches the gateway.
   const denied = await Promise.race([
-    codex(root, post("0".repeat(64))),
+    claude(root, post("0".repeat(64))),
     failure,
   ]);
   assert.ok(Buffer.isBuffer(denied), String(denied));
   assert.match(denied.toString(), /^HTTP\/1\.1 403 /);
-  const response = await codex(root, post());
+  const response = await claude(root, post());
   realWriteFileSync(`${root}/codex-exit`, "");
   const result = await running;
   assert.equal(result.exitCode, 1);
@@ -163,7 +173,7 @@ test("a routed turn releases Codex only after its relay is ready, and streams Co
 });
 
 test("an offline turn is released without a relay", async (t) => {
-  const { transport, read, requests } = guestFixture(t);
+  const { transport, read, requests } = claudeFixture(t);
   await transport.run(
     await launchRequest(transport, { allowanceMs: 60000 }),
     () => {},
@@ -180,14 +190,14 @@ test("an offline turn is released without a relay", async (t) => {
 
 for (const [name, at, rejected] of [
   [
-    "releasing Codex",
+    "releasing Claude Code",
     "release",
     /Native coding release observation unavailable/,
   ],
   ["a poll", "poll", /Native coding poll observation unavailable/],
 ])
   test(`the guest refuses ${name} when the session's relay listener is not the one it recorded`, async (t) => {
-    const { transport, read, root, requests } = guestFixture(t, {
+    const { transport, read, root, requests } = claudeFixture(t, {
       keepRunning: true,
       relayForged: at,
     });
@@ -209,7 +219,7 @@ for (const [name, at, rejected] of [
 for (const lost of ["relay", "channel"])
   test(`losing the ${lost === "relay" ? "relay" : "relay's channel"} after release revokes the gateway and stops the exact session`, async (t) => {
     // The guest still sees the relay as alive, so only the host can notice.
-    const { transport, read } = guestFixture(t, {
+    const { transport, read } = claudeFixture(t, {
       keepRunning: true,
       loseRelay: lost,
     });
@@ -225,12 +235,13 @@ for (const lost of ["relay", "channel"])
   });
 
 test("a routed worker that fills the shared disk and exits still has its relay ended at shutdown", async (t) => {
+  // No init event names a session, so no poll needs to write the record.
   const { transport, read, write, root, requests } = guestFixture(t, {
     keepRunning: true,
   });
   let checkpoints = 0;
   const g = gateway();
-  // Codex exits at the first poll, then the disk fills. Stop then finds no
+  // Claude Code exits at the first poll, then the disk fills. Stop then finds no
   // running worker, so only the reserve it releases at the end makes room
   // for the relay's record.
   const request = await routed(transport, {
@@ -251,8 +262,8 @@ test("a routed worker that fills the shared disk and exits still has its relay e
   assert.deepEqual(g.revoked, ["stopped"]);
 });
 
-test("the guest refuses a relay whose capability is not the admitted one, and Codex is never released", async (t) => {
-  const { transport, read } = guestFixture(t, {
+test("the guest refuses a relay whose capability is not the admitted one, and Claude Code is never released", async (t) => {
+  const { transport, read } = claudeFixture(t, {
     keepRunning: true,
     relayCapabilityDrift: true,
   });

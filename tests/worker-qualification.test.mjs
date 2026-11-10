@@ -4,7 +4,7 @@ import { test } from "node:test";
 import {
   boundaryProbe,
   boundaryProbeNames,
-  codingBoundaryProbeNames,
+  claudeCodingBoundaryProbeNames,
 } from "../dist/worker-probes.js";
 import { sessionsLeft } from "./helpers/guest-backed-sessions.mjs";
 import { guestFixture } from "./helpers/native-coding-fixture.mjs";
@@ -18,9 +18,8 @@ import {
 
 const image = "c".repeat(64);
 const codingPins = {
-  cliVersion: "0.161.0",
+  cliVersion: "2.1.311",
   cliSha256: "1".repeat(64),
-  codeModeHostSha256: "6".repeat(64),
   policySha256: "2".repeat(64),
   bindingSha256: "3".repeat(64),
 };
@@ -182,7 +181,21 @@ let request0Tree;
 
 const ran = (report) => report.stages.filter((s) => s.outcome !== "not-run");
 
-async function qualify(faults, codingWorker = {}) {
+// Claude Code's coding worker (ADR 0008): its own pins, argv and branch, and
+// a routed live session whose relay leads to a held, answer-free stand-in.
+const { MessagesGateway } = await import("../dist/messages-gateway.js");
+const { claudeCodeArgv } = await import("../dist/coding-agent.js");
+const { claudeCodingPinFields } = await import("../dist/feature-candidate.js");
+const { pinnedModelPrices } = await import("../dist/spend-budget.js");
+const claudeWorker = () =>
+  claudeCoding({
+    MessagesGateway,
+    claudeCodeArgv,
+    claudeCodingPinFields,
+    model: pinnedModelPrices.model,
+  });
+
+async function qualify(faults, codingWorker = claudeWorker()) {
   const workerSet = workers(faults);
   const { validation, effects } = workerSet;
   const coding = { ...workerSet.coding, ...codingWorker };
@@ -410,7 +423,8 @@ for (const [name, threadId, cleanup] of [
     const fixture = guestFixture(t, {
       keepRunning: true,
       probeOutput:
-        codingBoundaryProbeNames.map((n) => `passed-${n}`).join("\n") + "\n",
+        claudeCodingBoundaryProbeNames.map((n) => `passed-${n}`).join("\n") +
+        "\n",
       ...(threadId ? { threadId } : {}),
     });
     const pins = await fixture.transport.inspect({
@@ -428,6 +442,10 @@ for (const [name, threadId, cleanup] of [
     const report = await workerQualification(
       {
         coding: {
+          // Offline, so the turn is polled after its release and the guest
+          // can record its session before the probe ends the turn.
+          ...claudeWorker(),
+          route: undefined,
           transport: fixture.transport,
           admission: { pins: () => ({ ...pins }) },
           Runtime: runtime(pins),
@@ -449,20 +467,6 @@ for (const [name, threadId, cleanup] of [
       "the session had a container to remove",
     );
     assert.deepEqual(sessionsLeft(fixture), { containers: [], folders: [] });
-  });
-
-// Claude Code's coding worker (ADR 0008): its own pins, argv and branch, and
-// a routed live session whose relay leads to a held, answer-free stand-in.
-const { MessagesGateway } = await import("../dist/messages-gateway.js");
-const { claudeCodeArgv } = await import("../dist/coding-agent.js");
-const { claudeCodingPinFields } = await import("../dist/feature-candidate.js");
-const { pinnedModelPrices } = await import("../dist/spend-budget.js");
-const claudeWorker = () =>
-  claudeCoding({
-    MessagesGateway,
-    claudeCodeArgv,
-    claudeCodingPinFields,
-    model: pinnedModelPrices.model,
   });
 
 test("a Claude Code qualification runs a routed session with Claude's argv, branch and pins", async () => {
@@ -600,7 +604,7 @@ test("a qualification waits on the real clock when it is given no pause", async 
   };
   const started = Date.now();
   const report = await workerQualification({
-    coding,
+    coding: { ...claudeWorker(), ...coding },
     validation,
     imageSha256: image,
     probes: { script: boundaryProbe, names: boundaryProbeNames },

@@ -142,16 +142,11 @@ test("the worker's home may hold only Codex's own bundled skills", (t) => {
     );
 });
 
-const { codingBoundaryProbe, codingBoundaryProbeNames } = await import(
-  "../dist/worker-probes.js"
-);
-const codingOnly = [
-  "relay-listener",
-  "relay-answers",
-  "read-only-binaries",
-  "hardened-process",
-  "writable-only-work",
-];
+// The coding worker's own controls, as Claude Code's probe runs them.
+const {
+  claudeCodingBoundaryProbe: codingBoundaryProbe,
+  claudeCodingBoundaryProbeNames: codingBoundaryProbeNames,
+} = await import("../dist/worker-probes.js");
 
 test("the shared probe also refuses the npm registry, and stays within a check's bounds", () => {
   assert.ok(boundaryProbeNames.includes("npm-registry"));
@@ -159,32 +154,6 @@ test("the shared probe also refuses the npm registry, and stays within a check's
   // A missing TLS client must not make the denial pass for free.
   assert.doesNotMatch(boundaryProbe, /https:\/\/registry/);
   assert.ok(boundaryProbe.length <= 2000);
-});
-
-test("the coding probe is the shared probe plus the coding worker's own controls", () => {
-  assert.deepEqual(codingBoundaryProbeNames, [
-    ...boundaryProbeNames,
-    ...codingOnly,
-  ]);
-  assert.equal(/[\u0000-\u001f\u007f]/.test(codingBoundaryProbe), false);
-  for (const name of codingBoundaryProbeNames)
-    assert.match(codingBoundaryProbe, new RegExp(`; r ${name} '[^']*'(;|$)`));
-  // The mode is the guest's third argument, never caller text.
-  assert.match(codingBoundaryProbe, /mode="\$\{3-\}"/);
-  const passing = codingBoundaryProbeNames.map((n) => `passed-${n}`);
-  assert.equal(
-    boundaryProbeOutcomes(passing.join("\n"), codingBoundaryProbeNames).length,
-    codingBoundaryProbeNames.length,
-  );
-  // The shared list alone is not a coding result.
-  assert.throws(
-    () =>
-      boundaryProbeOutcomes(
-        boundaryProbeNames.map((n) => `passed-${n}`).join("\n"),
-        codingBoundaryProbeNames,
-      ),
-    /malformed/,
-  );
 });
 
 /** Runs the coding probe with its fixed container paths moved into `root`,
@@ -226,14 +195,14 @@ function coding(
   }
   writeFileSync(join(root, "hosts"), "127.0.0.1 localhost\n");
   if (!hostsWritable) spawnSync("chmod", ["0444", join(root, "hosts")]);
-  for (const file of ["codex", "codex-code-mode-host"]) {
+  for (const file of ["claude"]) {
     writeFileSync(join(root, file), "binary");
     spawnSync("chmod", [binaries.toString(8), join(root, file)]);
   }
   // The container's mount table and process status, as the kernel writes them.
   writeFileSync(
     join(root, "mountinfo"),
-    ["codex", "codex-code-mode-host"]
+    ["claude"]
       .map(
         (file, i) =>
           `${40 + i} 30 0:${50 + i} /${file} ${join(root, file)} ${binaryMounts},relatime - ext4 /dev/vda4 rw\n`,
@@ -246,8 +215,7 @@ function coding(
     .replaceAll("/proc/self/status", join(root, "status"))
     .replaceAll("/proc/net/tcp6", join(root, "tcp6"))
     .replaceAll("/proc/net/tcp", join(root, "tcp"))
-    .replaceAll("/codex-code-mode-host", join(root, "codex-code-mode-host"))
-    .replaceAll("/codex ", join(root, "codex") + " ")
+    .replaceAll("/claude;", join(root, "claude") + ";")
     .replaceAll("/workspace", join(root, "workspace"))
     .replaceAll("/session", join(root, "session"))
     .replaceAll("127.0.0.1:18091", `127.0.0.1:${port}`)

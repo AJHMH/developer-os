@@ -81,9 +81,9 @@ Removal never uses `--force`, and only names a container its own record names.
 
 ## General coding session acceptance (Issue 04)
 
-`scripts/run-native-coding-acceptance.mjs` drives the general coding transport
-against the dedicated VM in two synthetic lineages, offline and without
-credentials:
+`scripts/run-native-coding-acceptance.mjs` drives the coding transport on the
+Claude Code guest against the dedicated VM in two synthetic lineages, offline
+and without credentials:
 
 - Lineage A: a first launch, a resume onto a moved main (a named base move), a
   check that the moved main's input was kept, a refused reuse of a
@@ -95,8 +95,8 @@ credentials:
 It uses the VM's existing coding authority, never provisions or starts the VM,
 refuses to overwrite a report, and stops every attempted session at the end.
 Each refusal it expects must happen for the expected reason. The first launch
-must report an offline thread; if it runs but reports none, the outcome is
-`blocked-before-thread`. Run it through the shared runner, which takes the
+must report an offline Claude Code session; if it runs but reports none, the
+outcome is `blocked-before-thread`. Run it through the shared runner, which takes the
 acceptance lock and keeps the Mac awake:
 
 ```sh
@@ -114,74 +114,69 @@ A passing run leaves no session behind: it sweeps the stranded resume (see
 and cleans lineages A and B. A run that stops early leaves its sessions in the
 VM.
 The report is evidence only: `productionEnabled` and `qualified` stay false.
-On 20 October 2026 every stage passed on this Mac; see the
+On 20 October 2026 every stage passed on this Mac on the earlier Codex guest;
+see the
 [native session acceptance receipt](../.scratch/aios-v1-implementation/ticket04-native-session-acceptance-receipt.md).
-Before reusing a session home, the guest removes what Codex regenerates on every
-start (`skills/.system`, `tmp`, `.tmp`) and refuses any other configuration.
+It hasn't been run on the Claude Code guest yet. Before reusing a session home,
+the guest removes what Claude Code regenerates on every start (its shell
+snapshots and `plugins`) and refuses any other configuration.
 
 ## Owner coding admission acceptance (Issue 04)
 
-The delivery controller runs a coding turn on a live VM transport only when an
-owner coding admission record names that transport's exact fresh pins. The
-record is a private file you write yourself, outside any repository, readable
-only by you, in a folder only you can change:
+The delivery controller runs a coding turn on a live VM transport only when
+your Claude Code admission record names that transport's exact fresh pins
+(ADR 0008). The record is a private file you write yourself, outside any
+repository, readable only by you, in a folder only you can change:
 
 ```json
 {
-  "scope": "aios-native-coding-admission-v1",
-  "approvedAt": "2026-10-21T18:00:00.000Z",
+  "scope": "aios-claude-coding-admission-v1",
+  "approvedAt": "2026-11-08T18:00:00.000Z",
   "pins": {
-    "cliVersion": "0.161.0",
+    "cliVersion": "2.1.311",
     "cliSha256": "<64 hex>",
-    "codeModeHostSha256": "<64 hex>",
     "policySha256": "<64 hex>",
     "bindingSha256": "<64 hex>"
   }
 }
 ```
 
-No other fields are accepted. `approvedAt` must be a canonical UTC time that
-is not in the future. The runtime re-reads the record before dispatch, on the
-turn's result, when it trusts a stop or other receipt, and at least once a
-second while a turn streams. Removing or editing it stops further coding. A
-session stopped while its record is missing or different stays uncertain until
-the matching record is restored and the session is recovered. Any pin change,
-such as a new CLI or code-mode host, guest policy, Podman, VM or host, needs
-a new record. The code-mode host must first be provisioned in the VM (see
-`docs/worker-qualification.md`).
-The binding names the VM by its `/etc/machine-id`, not its hardware UUID,
-which Apple's hypervisor changes on every boot. It also leaves out the time
-Podman records for the VM's last start. Restarting the VM keeps the record
-valid; recreating it needs a new one.
-Production delivery stays disabled either way.
+No other fields are accepted, and a Codex-era record
+(`aios-native-coding-admission-v1`) is refused. `approvedAt` must be a
+canonical UTC time that is not in the future. The runtime re-reads the record
+before dispatch, on the turn's result, when it trusts a stop or other receipt,
+and at least once a second while a turn streams. Removing or editing it stops
+further coding. A session stopped while its record is missing or different
+stays uncertain until the matching record is restored and the session is
+recovered. Any pin change, such as a new CLI, guest policy, Podman, VM or host,
+needs a new record. The binding names the VM by its `/etc/machine-id`, not its
+hardware UUID, which Apple's hypervisor changes on every boot. It also leaves
+out the time Podman records for the VM's last start. Restarting the VM keeps
+the record valid; recreating it needs a new one. Production delivery stays
+disabled either way.
 
-The offline acceptance drives one controller turn through the real transport
-under the record. Planning, validation, onboarding facts and usage are
-synthetic stand-ins, and the turn has a one-minute allowance because offline
-Codex never finishes. A passing run then removes the session from the VM by its
-exact identity. If the record is missing or names other pins, the run
-stops before any coding and prints the fresh pins so that you can check or
-write the record. Before anything else, it also refuses unless `dist/` is
-exactly what `src/` compiles to, which `npm run build` fixes:
+The acceptance drives one metered Claude Code turn through the controller and
+the real transport under the record. Planning, validation and onboarding facts
+are synthetic stand-ins. The controller opens a real Messages gateway, and
+every model request is admitted and charged against the delivery's real spend
+budget; only the model provider is a stand-in, which has Claude Code write and
+read back one file. The stage `controller-metered-turn` checks that the
+requests were charged and that no request was left reserved or interrupted by
+the budget. A passing run then removes the session from the VM by its exact
+identity. If the record is missing or names other pins, the run stops before
+any coding and prints the fresh pins so that you can check or write the
+record. Before anything else, it also refuses unless `dist/` is exactly what
+`src/` compiles to, which `npm run build` fixes:
 
 ```sh
 cd ~/Repos/developer-os
 npm ci --ignore-scripts && npm run build
 /opt/podman/bin/podman machine list   # aios-macos-noshare must be running
 mkdir -m 700 -p "$HOME/.developer-os/admission"
-# Write $HOME/.developer-os/admission/coding-admission.json yourself; chmod 600.
+# Write $HOME/.developer-os/admission/claude-coding-admission.json yourself; chmod 600.
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" \
   scripts/run-native-coding-admission-acceptance.mjs -- aios-macos-noshare \
-  "$HOME/.developer-os/admission/coding-admission.json" \
+  "$HOME/.developer-os/admission/claude-coding-admission.json" \
   "$HOME/.developer-os/issue04-admission-acceptance-$(date +%Y%m%d-%H%M%S).json" \
   --approve-offline-native-run
 ```
-
-With the Claude Code record (`claude-coding-admission.json`, scope
-`aios-claude-coding-admission-v1`), the same command runs a metered Claude Code
-turn instead (ADR 0008). The controller opens a real Messages gateway for it,
-and every model request is admitted and charged against the delivery's real
-spend budget. No usage is read. Only the model provider is a stand-in, which
-has Claude Code write and read back one file. The extra stage
-`controller-metered-turn` checks that the requests were charged and that no
-request was left reserved or interrupted by the budget.

@@ -19,12 +19,14 @@ import {
   realWriteFileSync,
 } from "./native-coding-fixture.mjs";
 
-/** The thread a chunk of turn output reports, if any. */
+/** The session a chunk of turn output reports, if any: Claude Code's init
+ * event names it. */
 function threadIn(chunk) {
   for (const line of chunk.toString().split("\n"))
     try {
       const event = JSON.parse(line);
-      if (event?.type === "thread.started") return event.thread_id;
+      if (event?.type === "system" && event.subtype === "init")
+        return event.session_id;
     } catch {}
 }
 

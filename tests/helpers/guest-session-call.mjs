@@ -3,6 +3,7 @@
 // guest-backed-sessions.mjs. It prints `{ result }` or `{ error }`.
 import { createHash } from "node:crypto";
 import { mock } from "node:test";
+import { claudeCodeArgv } from "../../dist/coding-agent.js";
 import { guestFixture } from "./native-coding-fixture.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -35,26 +36,8 @@ async function mirror({ transport, read, write }, request) {
             }
           : {}),
         pins: await transport.inspect(identity),
-        argv: request.threadId
-          ? [
-              "exec",
-              "resume",
-              "--json",
-              "--skip-git-repo-check",
-              "-c",
-              'sandbox_mode="workspace-write"',
-              request.threadId,
-              prompt,
-            ]
-          : [
-              "exec",
-              "--json",
-              "--skip-git-repo-check",
-              "--sandbox",
-              "workspace-write",
-              prompt,
-            ],
-        branch: "codex/guest-backed",
+        argv: [...claudeCodeArgv(request.threadId), prompt],
+        branch: "aios/guest-backed",
         sourceRevision: sha256(prompt).slice(0, 40),
         files: [{ path, bytes, executable: false }],
         inputSha256: sha256(
@@ -62,7 +45,7 @@ async function mirror({ transport, read, write }, request) {
         ),
         allowanceMs: 60000,
         mayDispatch: () => true,
-        // The turn ends once its thread is reported, as offline turns do.
+        // The turn ends once it reports output, as offline turns do.
         checkpoint: () => !seen,
         onEvent: () => true,
       },

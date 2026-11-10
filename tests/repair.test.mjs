@@ -112,12 +112,10 @@ test("failed batches consume three cycles across restart and only an owner exten
   ]);
   assert.equal(exhausted.repair.attempts.length, 3);
   assert.match(exhausted.blocker.nextAction, /exhausted/);
-  // An exhausted allowance reports itself, even when coding would also refuse.
-  f.usedPercent = 100;
+  // An exhausted allowance reports itself.
   const still = await reopen(f).repairFeature(f.delivery.id);
   assert.equal(still.repair.attempts.length, 3);
   assert.match(still.blocker.nextAction, /Repair allowance exhausted/);
-  f.usedPercent = 10;
   await assert.rejects(
     f.controller.codeFeature(f.delivery.id),
     /repair|coding/i,

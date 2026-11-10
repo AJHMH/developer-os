@@ -3,10 +3,6 @@ import net from "node:net";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 import { claudeGuest } from "../dist/podman-coding.js";
-import {
-  sessionRelayProgram,
-  sessionRelaySource,
-} from "../dist/session-relay.js";
 import { claudeCodeArgv, modelRoutePort } from "../dist/coding-agent.js";
 import {
   MessagesGateway,
@@ -16,7 +12,7 @@ import { pinnedModelPrices } from "../dist/spend-budget.js";
 import {
   claudeCodingBoundaryProbe,
   claudeCodingBoundaryProbeNames,
-  codingBoundaryProbeNames,
+  boundaryProbeNames,
 } from "../dist/worker-probes.js";
 import {
   guestFixture,
@@ -120,14 +116,6 @@ const routed = (transport, changes = {}) =>
     ...changes,
   });
 
-test("Codex's relay keeps its Responses route", () => {
-  assert.equal(
-    sessionRelaySource,
-    sessionRelayProgram("self.path!='/v1/responses'"),
-  );
-  assert.ok(sessionRelaySource.includes("self.path!='/v1/responses'"));
-});
-
 test("a routed Claude Code turn reaches the MessagesGateway through the relay, charged to the budget", async (t) => {
   const { transport, read, root } = guestFixture(
     t,
@@ -225,8 +213,8 @@ test("a routed Claude Code session runs Claude's own boundary probe, in routed m
   const m = messagesGateway();
   const request = await routed(transport);
   const running = transport.run(request, () => {}, m.gateway);
-  // Probe only once the launch has run, as the Codex guest's routed probe
-  // does, so the launch's own simulator state never overwrites the probe's.
+  // Probe only once the launch has run, so the launch's own simulator state
+  // never overwrites the probe's.
   for (
     let i = 0;
     i < 400 && !read().commands?.some((a) => a.at(-1) === "/tmp/launch");
@@ -247,15 +235,19 @@ test("a routed Claude Code session runs Claude's own boundary probe, in routed m
   await running;
 });
 
-test("Codex's probe verdicts are never a Claude Code result", async (t) => {
+test("the shared probe's verdicts, as the removed Codex guest gave them, are never a Claude Code result", async (t) => {
+  // The shared probe, then the coding worker's own controls: Codex's order.
+  const shared = [
+    ...boundaryProbeNames,
+    ...claudeCodingBoundaryProbeNames.slice(-5),
+  ];
+  assert.notDeepEqual(shared, claudeCodingBoundaryProbeNames);
   const { transport, read, root } = guestFixture(
     t,
     {
       threadId: sessionId,
       keepRunning: true,
-      probeOutput:
-        codingBoundaryProbeNames.map((name) => `passed-${name}`).join("\n") +
-        "\n",
+      probeOutput: shared.map((name) => `passed-${name}`).join("\n") + "\n",
     },
     undefined,
     claudeGuest,
@@ -263,8 +255,8 @@ test("Codex's probe verdicts are never a Claude Code result", async (t) => {
   const m = messagesGateway();
   const request = await routed(transport);
   const running = transport.run(request, () => {}, m.gateway);
-  // Probe only once the launch has run, as the Codex guest's routed probe
-  // does, so the launch's own simulator state never overwrites the probe's.
+  // Probe only once the launch has run, so the launch's own simulator state
+  // never overwrites the probe's.
   for (
     let i = 0;
     i < 400 && !read().commands?.some((a) => a.at(-1) === "/tmp/launch");

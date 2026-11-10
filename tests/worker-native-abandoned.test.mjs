@@ -13,6 +13,7 @@ import {
   nativeHost,
 } from "./helpers/native-coding-fixture.mjs";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
+import { claudeCodeArgv } from "../dist/coding-agent.js";
 
 // The owner's sweep of coding sessions nothing can ever need again. Each case
 // builds its session through the real transport against the guest simulator,
@@ -33,16 +34,7 @@ function resumeRequest(transport, overrides = {}) {
     intent: "resume",
     threadId: thread,
     resumeFrom: predecessor,
-    argv: [
-      "exec",
-      "resume",
-      "--json",
-      "--skip-git-repo-check",
-      "-c",
-      'sandbox_mode="workspace-write"',
-      thread,
-      "Continue the title",
-    ],
+    argv: [...claudeCodeArgv(thread), "Continue the title"],
     allowanceMs: 60000,
     ...overrides,
   });

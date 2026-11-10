@@ -12,10 +12,10 @@ import {
   nativeCodingRuntime,
   ownerCodingWorker,
 } from "../dist/native-coding-runtime.js";
-import { claudeGuest, codexGuest } from "../dist/podman-coding.js";
+import { claudeGuest } from "../dist/podman-coding.js";
 
-// The owner-run native scripts take their coding worker from the owner's
-// record (ADR 0008): its scope names Claude Code's guest or Codex's.
+// The owner-run native scripts run the Claude Code guest (ADR 0008) under the
+// owner's Claude Code record; a record of any other scope is refused.
 const claudePins = {
   cliVersion: "2.1.311",
   cliSha256: "c".repeat(64),
@@ -52,54 +52,25 @@ test("a Claude Code record names the Claude Code guest under its own admission",
   assert.deepEqual(worker.admission.pins(), claudePins);
 });
 
-test("any other record names the Codex guest, whose admission judges it", (t) => {
-  const codex = ownerCodingWorker(
-    "aios-test",
-    record(t, "aios-native-coding-admission-v1", codexPins),
-  );
-  assert.equal(codex.agent, "codex");
-  assert.equal(codex.transport.guest, codexGuest);
-  assert.deepEqual(codex.admission.pins(), codexPins);
-  // An unreadable or missing record is never Claude Code's, and the Codex
-  // admission refuses it.
+test("any other record still names the Claude Code guest, whose admission refuses it", (t) => {
   for (const path of [
+    record(t, "aios-native-coding-admission-v1", codexPins),
+    // A Codex-scoped record holding Claude pins is refused too.
+    record(t, "aios-native-coding-admission-v1", claudePins),
     record(t, "aios-other-scope", claudePins),
+    record(t, claudeCodingAdmissionScope, codexPins),
     join(tmpdir(), "aios-missing-owner-record.json"),
+    join(tmpdir(), "aios-missing-owner-folder", "coding-admission.json"),
   ]) {
     const worker = ownerCodingWorker("aios-test", path);
-    assert.equal(worker.agent, "codex");
-    assert.throws(() => worker.admission.pins(), /missing or invalid/);
-  }
-  // A Codex-scoped record holding Claude pins is refused too.
-  const mixed = ownerCodingWorker(
-    "aios-test",
-    record(t, "aios-native-coding-admission-v1", claudePins),
-  );
-  assert.throws(() => mixed.admission.pins(), /missing or invalid/);
-});
-
-test("both guests run under the machine's one coding authority", (t) => {
-  for (const [scope, pins] of [
-    [claudeCodingAdmissionScope, claudePins],
-    ["aios-native-coding-admission-v1", codexPins],
-  ]) {
-    const worker = ownerCodingWorker("aios-test", record(t, scope, pins));
+    assert.equal(worker.agent, "claude");
+    assert.equal(worker.transport.guest, claudeGuest);
     assert.equal(
       worker.transport.authority,
       nativeCodingAuthority("aios-test"),
     );
+    assert.throws(() => worker.admission.pins(), /missing or invalid/, path);
   }
-});
-
-test("a record in a folder that does not exist is refused, never admitted", () => {
-  const path = join(
-    tmpdir(),
-    "aios-missing-owner-folder",
-    "coding-admission.json",
-  );
-  const worker = ownerCodingWorker("aios-test", path);
-  assert.equal(worker.agent, "codex");
-  assert.throws(() => worker.admission.pins(), /missing or invalid/);
 });
 
 test("an owner record is read only from an absolute path outside every repository", () => {
@@ -117,17 +88,19 @@ test("an owner record is read only from an absolute path outside every repositor
   );
 });
 
-test("the CLI's coding runtime runs the agent its owner record names", (t) => {
+test("the CLI's coding runtime runs Claude Code at its owner record's pins", (t) => {
   const claude = nativeCodingRuntime(
     "aios-test",
     record(t, claudeCodingAdmissionScope, claudePins),
   );
   assert.equal(claude.agent.provider, "claude");
   assert.deepEqual(claude.pins, claudePins);
-  const codex = nativeCodingRuntime(
-    "aios-test",
-    record(t, "aios-native-coding-admission-v1", codexPins),
+  assert.throws(
+    () =>
+      nativeCodingRuntime(
+        "aios-test",
+        record(t, "aios-native-coding-admission-v1", codexPins),
+      ),
+    /missing or invalid/,
   );
-  assert.equal(codex.agent.provider, "codex");
-  assert.deepEqual(codex.pins, codexPins);
 });

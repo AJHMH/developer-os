@@ -1,94 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  PinnedCodingRuntime as PinnedRuntime,
-  codexAgent,
-  lockedCodingArgv,
+  PinnedCodingRuntime,
   modelRoutePort,
-  modelRouteVariable,
   validModelRoute,
 } from "../dist/feature-candidate.js";
-// Codex's own runtime, which these tests cover until Codex is removed (#222).
-class PinnedCodingRuntime extends PinnedRuntime {
-  constructor(pins, transport, admission, agent = codexAgent) {
-    super(pins, transport, admission, agent);
-  }
-}
+import { claudeCodeArgv } from "../dist/coding-agent.js";
 
 const route = Object.freeze({
   deliveryId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
   capability: "c".repeat(64),
   decisionSha256: "d".repeat(64),
 });
-const thread = "11111111-2222-4333-8444-555555555555";
-// ADR 0002: fixed provider overrides, no config.toml, the pinned model, and
-// the container as the only sandbox.
-const overrides = [
-  "-c",
-  'model_provider="aios"',
-  "-c",
-  'model_providers.aios.name="AIOS session relay"',
-  "-c",
-  'model_providers.aios.base_url="http://127.0.0.1:18091/v1"',
-  "-c",
-  'model_providers.aios.env_key="AIOS_MODEL_ROUTE"',
-  "-c",
-  'model_providers.aios.wire_api="responses"',
-  "-c",
-  "model_providers.aios.requires_openai_auth=false",
-  "-c",
-  "model_providers.aios.supports_websockets=false",
-  "-c",
-  `model_providers.aios.http_headers.X-AIOS-Delivery="${route.deliveryId}"`,
-  "-c",
-  'model="gpt-6.1-sol"',
-];
-
-test("an offline turn keeps the locked workspace-write argv", () => {
-  assert.deepEqual(lockedCodingArgv(undefined), [
-    "exec",
-    "--json",
-    "--skip-git-repo-check",
-    "--sandbox",
-    "workspace-write",
-  ]);
-  assert.deepEqual(lockedCodingArgv(thread), [
-    "exec",
-    "resume",
-    "--json",
-    "--skip-git-repo-check",
-    "-c",
-    'sandbox_mode="workspace-write"',
-    thread,
-  ]);
-});
-
-test("a model route adds only the fixed relay overrides and full access inside the container", () => {
+test("a routed Claude Code turn has the offline argv and the relay's fixed port", () => {
   assert.equal(modelRoutePort, 18091);
-  assert.equal(modelRouteVariable, "AIOS_MODEL_ROUTE");
-  assert.deepEqual(lockedCodingArgv(undefined, route), [
-    "exec",
-    "--json",
-    "--skip-git-repo-check",
-    "--sandbox",
-    "danger-full-access",
-    ...overrides,
-  ]);
-  assert.deepEqual(lockedCodingArgv(thread, route), [
-    "exec",
-    "resume",
-    "--json",
-    "--skip-git-repo-check",
-    "-c",
-    'sandbox_mode="danger-full-access"',
-    ...overrides,
-    thread,
-  ]);
-  // The relay capability travels by environment, never on the command line.
+  // The model route reaches Claude Code by environment, so its argv is the
+  // offline one and never carries the relay capability.
   assert.equal(
-    lockedCodingArgv(undefined, route).some((arg) =>
-      arg.includes(route.capability),
-    ),
+    claudeCodeArgv(undefined).some((arg) => arg.includes(route.capability)),
     false,
   );
 });
@@ -113,9 +42,8 @@ test("only a well-formed route is valid", () => {
 });
 
 const pins = Object.freeze({
-  cliVersion: "0.161.0",
+  cliVersion: "2.1.311",
   cliSha256: "1".repeat(64),
-  codeModeHostSha256: "2".repeat(64),
   policySha256: "3".repeat(64),
   bindingSha256: "4".repeat(64),
 });
@@ -124,8 +52,8 @@ const routedRequest = () => ({
   fence: 1,
   state: "running",
   intent: "start",
-  argv: [...lockedCodingArgv(undefined, route), "{}"],
-  branch: "codex/example",
+  argv: [...claudeCodeArgv(undefined), "{}"],
+  branch: "aios/example",
   sourceRevision: "b".repeat(40),
   inputSha256: "e".repeat(64),
   files: [],
@@ -223,7 +151,6 @@ test("a routed turn without a gateway is refused before the transport runs", asy
 test("an offline turn never carries a gateway", async () => {
   const request = routedRequest();
   delete request.modelRoute;
-  request.argv = [...lockedCodingArgv(undefined), "{}"];
   const runtime = new PinnedCodingRuntime(pins, transport());
   await assert.rejects(
     runtime.execute(request, gateway),

@@ -123,10 +123,6 @@ server=Server(('127.0.0.1',C['port']),Handler)
 emit({'ready':True,'port':server.server_address[1],'pid':os.getpid()})
 server.serve_forever()
 `;
-/** Codex's relay, for its exact Responses route. */
-export const sessionRelaySource = sessionRelayProgram(
-  "self.path!='/v1/responses'",
-);
 
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);

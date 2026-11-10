@@ -4,11 +4,11 @@ import { fileURLToPath } from "node:url";
 import { NativePodmanCodingTransport } from "../dist/podman-coding.js";
 import { PinnedCodingRuntime } from "../dist/feature-candidate.js";
 import {
-  codingBoundaryProbe,
-  codingBoundaryProbeNames,
+  claudeCodingBoundaryProbe as codingBoundaryProbe,
+  claudeCodingBoundaryProbeNames as codingBoundaryProbeNames,
 } from "../dist/worker-probes.js";
 import { hostTargets } from "../dist/host-target.js";
-import { lockedCodingArgv } from "../dist/feature-candidate.js";
+import { claudeCodeArgv } from "../dist/coding-agent.js";
 import {
   realTemporaryDirectory,
   realSpawnSync,
@@ -42,9 +42,8 @@ test("native coding transport stays outside controlled production admission", as
     () =>
       new PinnedCodingRuntime(
         {
-          cliVersion: "0.161.0",
+          cliVersion: "2.1.311",
           cliSha256: "c".repeat(64),
-          codeModeHostSha256: "b".repeat(64),
           policySha256: "d".repeat(64),
           bindingSha256: "e".repeat(64),
         },
@@ -77,9 +76,9 @@ test("native inspection binds the Mac host and the guest executable", async (t) 
     "a".repeat(64),
   );
   const first = await transport.inspect(session);
-  assert.equal(first.cliVersion, "0.161.0");
-  assert.match(first.cliSha256, /^[a-f0-9]{64}$/);
-  assert.equal(first.codeModeHostSha256, hostTargets.darwin.codeModeHostSha256);
+  assert.equal(first.cliVersion, hostTargets.darwin.claudeCode.version);
+  assert.equal(first.cliSha256, hostTargets.darwin.claudeCode.sha256);
+  assert.equal("codeModeHostSha256" in first, false);
   assert.match(first.policySha256, /^[a-f0-9]{64}$/);
   assert.match(first.bindingSha256, /^[a-f0-9]{64}$/);
   assert.equal(fixture.requests[0].action, "inspect");
@@ -232,8 +231,8 @@ test("unsafe native inputs and unsupported authority paths refuse before VM effe
     // The routed argv never carries the capability, so only the route check refuses these.
     { argv: routedArgv, modelRoute: { ...modelRoute, capability: "x" } },
     { argv: routedArgv, modelRoute: { ...modelRoute, extra: true } },
-    // A prompt that Codex would parse as an option is never a prompt.
-    { argv: [...lockedCodingArgv(undefined), '-cmodel="gpt-other"'] },
+    // A prompt that Claude Code would parse as an option is never a prompt.
+    { argv: [...claudeCodeArgv(undefined), "--model=claude-other"] },
     { threadId: "unapproved-thread" },
     { baseRefresh: {} },
     { allowanceMs: 0 },
@@ -246,6 +245,15 @@ test("unsafe native inputs and unsupported authority paths refuse before VM effe
       files: [
         {
           path: ".codex/config.toml",
+          bytes: Buffer.from("x"),
+          executable: false,
+        },
+      ],
+    },
+    {
+      files: [
+        {
+          path: ".claude/settings.json",
           bytes: Buffer.from("x"),
           executable: false,
         },
@@ -281,7 +289,7 @@ test("unsafe native inputs and unsupported authority paths refuse before VM effe
   );
 });
 
-test("revocation during preparation stops the exact session without releasing Codex", async (t) => {
+test("revocation during preparation stops the exact session without releasing Claude Code", async (t) => {
   let allowed = true;
   const fixture = nativeHost(t, (r) => {
     if (r.action === "prepare") allowed = false;
@@ -432,9 +440,8 @@ test("collection refuses unsafe bytes, paths and changed native binding", async 
 function controllerLossFixture(mode = "valid", selectedTimer = "lease") {
   const effects = [];
   const pins = {
-    cliVersion: "0.161.0",
+    cliVersion: "2.1.311",
     cliSha256: "a".repeat(64),
-    codeModeHostSha256: "e".repeat(64),
     policySha256: "b".repeat(64),
     bindingSha256: "c".repeat(64),
   };
@@ -707,97 +714,13 @@ test("native orphan evidence blocks collection until independent exact-session r
   );
 });
 
-test("the pinned code-mode host is copied into the session and mounted read-only beside Codex", async (t) => {
-  const { transport, read } = guestFixture(t);
-  // Read while the worker runs: a stopped session's copies are removed.
-  let copied;
-  await transport.run(
-    await launchRequest(transport, {
-      allowanceMs: 60000,
-      checkpoint: () => {
-        const host = read().container?.Mounts?.find(
-          (m) => m.Destination === "/codex-code-mode-host",
-        );
-        if (host && copied === undefined)
-          copied = realReadFileSync(host.Source, "utf8");
-        return true;
-      },
-    }),
-    () => {},
-  );
-  const mounts = read().container.Mounts;
-  const host = mounts.find((m) => m.Destination === "/codex-code-mode-host");
-  assert.equal(host.RW, false);
-  const codex = mounts.find((m) => m.Destination === "/codex");
-  assert.equal(
-    host.Source.replace(/\/[^/]*$/, ""),
-    codex.Source.replace(/\/[^/]*$/, ""),
-  );
-  assert.equal(copied, "synthetic-code-mode-host");
-  assert.equal(mounts.length, 4);
-});
-
-for (const hostArtifact of ["missing", "foreign", "group-readable"])
-  test(`a ${hostArtifact} code-mode host refuses at inspection, before any worker exists`, async (t) => {
-    const { transport, read } = guestFixture(t, { hostArtifact });
-    await assert.rejects(transport.inspect(session));
-    await assert.rejects(async () =>
-      transport.run(
-        await launchRequest(transport, { allowanceMs: 60000 }),
-        () => {},
-      ),
-    );
-    assert.equal(
-      read().commands.some((args) => args[1] === "create"),
-      false,
-    );
-  });
-
-test("a session copy of the code-mode host changed before launch is refused before start", async (t) => {
-  const { transport, read } = guestFixture(t, { tamperHostCopy: true });
-  const request = await launchRequest(transport, { allowanceMs: 60000 });
-  await assert.rejects(transport.run(request, () => {}));
-  assert.equal(
-    read().commands.some((args) => args[1] === "start"),
-    false,
-  );
-});
-
-test("a worker created without the code-mode host mount is refused before start", async (t) => {
-  const { transport, read } = guestFixture(t, { dropHostMount: true });
-  const request = await launchRequest(transport, { allowanceMs: 60000 });
-  await assert.rejects(transport.run(request, () => {}));
-  assert.equal(
-    read().commands.some((args) => args[1] === "start"),
-    false,
-  );
-});
-
 const modelRoute = Object.freeze({
   deliveryId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
   capability: "c".repeat(64),
   decisionSha256: "d".repeat(64),
 });
-const routedArgv = [...lockedCodingArgv(undefined, modelRoute), "Change it"];
-
-test("a model route launches with the relay overrides and only the route variable added", async (t) => {
-  const { transport, read } = guestFixture(t);
-  await transport.run(
-    await launchRequest(transport, {
-      allowanceMs: 60000,
-      argv: routedArgv,
-      modelRoute,
-    }),
-    () => {},
-    sessionGateway(),
-  );
-  const { Config } = read().container;
-  assert.deepEqual(Config.Cmd.slice(4), routedArgv);
-  assert.deepEqual(
-    Config.Env.filter((e) => e.startsWith("AIOS_")),
-    [`AIOS_MODEL_ROUTE=${modelRoute.capability}`],
-  );
-});
+// A routed Claude Code turn has the offline argv; only its environment differs.
+const routedArgv = [...claudeCodeArgv(undefined), "Change it"];
 
 test("an offline launch carries no route variable", async (t) => {
   const { transport, read } = guestFixture(t);
@@ -806,30 +729,21 @@ test("an offline launch carries no route variable", async (t) => {
     () => {},
   );
   assert.equal(
-    read().container.Config.Env.some((e) => e.startsWith("AIOS_")),
+    read().container.Config.Env.some(
+      (e) => e.startsWith("ANTHROPIC_") || e.startsWith("AIOS_"),
+    ),
     false,
   );
 });
 
 for (const [name, changes] of [
-  ["routed argv without a route", { argv: routedArgv }],
-  [
-    "a route with the offline argv",
-    { modelRoute, argv: [...lockedCodingArgv(undefined), "Change it"] },
-  ],
   [
     "a malformed route",
     { argv: routedArgv, modelRoute: { ...modelRoute, capability: "x" } },
   ],
   [
-    "a route naming another delivery than its argv",
-    {
-      argv: routedArgv,
-      modelRoute: {
-        ...modelRoute,
-        deliveryId: "ffffffff-bbbb-4ccc-8ddd-eeeeeeeeeeee",
-      },
-    },
+    "a route naming a delivery that is not a UUID",
+    { argv: routedArgv, modelRoute: { ...modelRoute, deliveryId: "other" } },
   ],
 ])
   test(`${name} is refused before any worker exists`, async (t) => {
@@ -851,22 +765,21 @@ for (const [name, changes] of [
     );
   });
 
-for (const drift of ["routeDropped", "promptOption"])
-  test(`the guest refuses ${drift === "routeDropped" ? "routed argv whose route was removed" : "an option in the prompt slot"} even past the host`, async (t) => {
-    const { transport, read } = guestFixture(t, { [drift]: true });
-    const request = await launchRequest(transport, {
-      allowanceMs: 60000,
-      argv: routedArgv,
-      modelRoute,
-    });
-    await assert.rejects(transport.run(request, () => {}, sessionGateway()));
-    assert.equal(
-      read().commands.some((args) => args[1] === "create"),
-      false,
-    );
+test("the guest refuses an option in the prompt slot even past the host", async (t) => {
+  const { transport, read } = guestFixture(t, { promptOption: true });
+  const request = await launchRequest(transport, {
+    allowanceMs: 60000,
+    argv: routedArgv,
+    modelRoute,
   });
+  await assert.rejects(transport.run(request, () => {}, sessionGateway()));
+  assert.equal(
+    read().commands.some((args) => args[1] === "create"),
+    false,
+  );
+});
 
-test("the guest's own locked argv matches the shared one, offline and routed, launch and resume", async (t) => {
+test("the guest's own locked argv matches claudeCodeArgv, offline and routed, launch and resume", async (t) => {
   const thread = "11111111-2222-4333-8444-555555555555";
   const guest = guestFixture(t);
   await guest.transport.inspect(session);
@@ -892,11 +805,12 @@ print(json.dumps([scope['locked'](None,None),scope['locked'](thread,None),scope[
     { input: program, encoding: "utf8" },
   );
   assert.equal(result.status, 0, result.stderr);
+  // A route changes only the environment, never the argv.
   assert.deepEqual(JSON.parse(result.stdout), [
-    lockedCodingArgv(undefined),
-    lockedCodingArgv(thread),
-    lockedCodingArgv(undefined, modelRoute),
-    lockedCodingArgv(thread, modelRoute),
+    claudeCodeArgv(undefined),
+    claudeCodeArgv(thread),
+    claudeCodeArgv(undefined),
+    claudeCodeArgv(thread),
   ]);
 });
 
@@ -908,31 +822,6 @@ test("the guest refuses a malformed route even if one reaches it", async (t) => 
     modelRoute,
   });
   await assert.rejects(transport.run(request, () => {}, sessionGateway()));
-  assert.equal(
-    read().commands.some((args) => args[1] === "create"),
-    false,
-  );
-});
-
-test("a route variable that differs from the admitted route is refused before start", async (t) => {
-  const { transport, read } = guestFixture(t, { routeEnvDrift: true });
-  const request = await launchRequest(transport, {
-    allowanceMs: 60000,
-    argv: routedArgv,
-    modelRoute,
-  });
-  await assert.rejects(transport.run(request, () => {}, sessionGateway()));
-  assert.equal(
-    read().commands.some((args) => args[1] === "start"),
-    false,
-  );
-});
-
-test("a code-mode host replaced after inspection refuses before the worker is created", async (t) => {
-  const { transport, read, write } = guestFixture(t);
-  const request = await launchRequest(transport, { allowanceMs: 60000 });
-  write({ ...read(), hostArtifact: "foreign" });
-  await assert.rejects(transport.run(request, () => {}));
   assert.equal(
     read().commands.some((args) => args[1] === "create"),
     false,
@@ -951,7 +840,7 @@ test("stopped native collection refuses linked output and preserves the workspac
   assert.equal(realReadFileSync(`${workspace}/index.html`, "utf8"), "after\n");
 });
 
-test("missing independent native lease refuses Codex release and still stops the worker", async (t) => {
+test("missing independent native lease refuses Claude Code release and still stops the worker", async (t) => {
   const { transport, read } = guestFixture(t, { leaseUnavailable: true });
   const request = await launchRequest(transport, { allowanceMs: 60000 });
   await assert.rejects(transport.run(request, () => {}));
@@ -970,8 +859,9 @@ test("missing independent native lease refuses Codex release and still stops the
 
 test("native polling emits only newly observed bytes across running and unchanged polls", async (t) => {
   let polls = 0;
-  const first = '{"type":"thread.started","thread_id":"synthetic-thread"}\n';
-  const last = '{"type":"turn.failed"}\n';
+  const first =
+    '{"type":"system","subtype":"init","session_id":"synthetic-thread"}\n';
+  const last = '{"type":"result","subtype":"error_during_execution"}\n';
   const fixture = nativeHost(t, (r) => ({
     session: r.session,
     binding: observation,
@@ -1666,15 +1556,15 @@ test("native launch refuses unresolved or unsafe provenance before host observat
     { sourceRevision: "b".repeat(40) + "\n" },
     { sourceRevision: undefined },
     { branch: undefined },
-    { branch: "codex/task\n" },
+    { branch: "aios/task\n" },
     { branch: "main" },
-    { branch: "codex/" + "a".repeat(240) },
-    { branch: "codex/task//nested" },
-    { branch: "codex/task/.private" },
-    { branch: "codex/task." },
-    { branch: "codex/../other" },
-    { branch: "codex/task.lock" },
-    { branch: "codex/task\nother" },
+    { branch: "aios/" + "a".repeat(240) },
+    { branch: "aios/task//nested" },
+    { branch: "aios/task/.private" },
+    { branch: "aios/task." },
+    { branch: "aios/../other" },
+    { branch: "aios/task.lock" },
+    { branch: "aios/task\nother" },
     { inputSha256: undefined },
     { inputSha256: "c".repeat(64) + "\n" },
     { inputSha256: "unknown" },

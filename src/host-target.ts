@@ -10,14 +10,6 @@ export const hostTargets = {
     minimumKernelMajor: 23,
     minimumProductMajor: 14,
     imageReference: "ostree-unverified-registry:quay.io/podman/machine-os:6.1",
-    offlineTemplate:
-      "docker.io/library/alpine@sha256:24bb3511a0db7b5114a4aee033c65a8a4148f39b7b80a398e548546db967a36f",
-    codexWorkerSha256:
-      "0129f94f4f1197bd75f6c4265889061f386ed302bbc50c6e57e3e0660dfb28a7",
-    codeModeHostSha256:
-      "64efe2950af9d8ac9e9b94b0aac5e41f56307422e34e66a4217aaea0a221fed0",
-    nativeCodexSha256:
-      "12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de",
     /** The Claude Code CLI the coding guest runs (ADR 0008): the native
      * binary from the official per-platform package for the guest, which is
      * musl Linux on arm64. `integrity` is the registry's tarball digest;
@@ -85,20 +77,6 @@ export function supportsHostOS(
         : target.minimumProductMajor)
   );
 }
-export function codexWorkerSha256(
-  platform: string,
-  arch: string,
-): string | undefined {
-  return hostTarget(platform, arch)?.codexWorkerSha256;
-}
-export function codeModeHostSha256(
-  platform: string,
-  arch: string,
-): string | undefined {
-  return hostTarget(platform, arch)?.codeModeHostSha256;
-}
-/** The pinned Claude Code CLI for this host's guest, if it has one. */
-/** The Claude Code worker image for a host target, pinned by digest. */
 export function claudeCodeTemplate(
   platform: string,
   arch: string,

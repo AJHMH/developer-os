@@ -5,14 +5,14 @@ Native runs are the owner's, on the owner host: the owner's Mac
 use these values; each is private to the Mac and outside every repository
 unless noted.
 
-| Fact                        | macOS (Terminal, zsh)                                     |
-| --------------------------- | --------------------------------------------------------- |
-| Checkout                    | `~/Repos/developer-os` (keeps `main` checked out)         |
-| VM                          | `aios-macos-noshare`                                      |
-| Coding admission record     | `$HOME/.developer-os/admission/coding-admission.json`     |
-| Validation admission record | `$HOME/.developer-os/admission/validation-admission.json` |
-| Acceptance state            | `$HOME/.developer-os/ticket4-macos/state`                 |
-| Auth directory              | `$HOME/.developer-os-auth` (outside the delivery state)   |
+| Fact                        | macOS (Terminal, zsh)                                        |
+| --------------------------- | ------------------------------------------------------------ |
+| Checkout                    | `~/Repos/developer-os` (keeps `main` checked out)            |
+| VM                          | `aios-macos-noshare`                                         |
+| Coding admission record     | `$HOME/.developer-os/admission/claude-coding-admission.json` |
+| Validation admission record | `$HOME/.developer-os/admission/validation-admission.json`    |
+| Acceptance state            | `$HOME/.developer-os/ticket4-macos/state`                    |
+| Auth directory              | `$HOME/.developer-os-auth` (outside the delivery state)      |
 
 ## Anthropic API key
 
@@ -78,3 +78,10 @@ that has to happen anyway, and land with it:
 - Bound the `cleanup-abandoned` batch by time as well as by count. A batch of
   slow failures can pass the host's 45-second limit, and a re-run starts in the
   same order.
+- Lower Claude Code's output limit in the guest environment (for example
+  `CLAUDE_CODE_MAX_OUTPUT_TOKENS=32000`). Each request asks for 128,000 output
+  tokens, so its worst case reserves $2.56 of the spend budget before it is
+  sent, and a delivery's first request needs at least about $2.66 of budget.
+- Drop the Codex text the guest program still carries (its comments, the
+  `codex/` branch prefix for old deliveries, and the Codex entries in the
+  boundary probe).

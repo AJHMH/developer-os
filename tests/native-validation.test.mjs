@@ -120,7 +120,7 @@ function validationController(f, runtime) {
     featurePlanner: f.criteria,
     featureRuntime: f.runtime,
     validationRuntime: runtime,
-    subscription: () => f.subscription(),
+    messagesSessions: f.messagesSessions,
     clock: () => f.now,
   });
 }
