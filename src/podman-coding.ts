@@ -31,7 +31,11 @@ import {
   claudeCodingBoundaryProbe,
   claudeCodingBoundaryProbeNames,
 } from "./worker-probes.js";
-import { messagesLimits, messagesRelayPaths } from "./messages-gateway.js";
+import {
+  claudeCodeMaxOutputTokens,
+  messagesLimits,
+  messagesRelayPaths,
+} from "./messages-gateway.js";
 import { pinnedModelPrices } from "./spend-budget.js";
 import {
   openSessionRelay,
@@ -86,8 +90,12 @@ interface GuestParts {
   poll: string;
   cli: string;
 }
+/** How long the abandoned-session sweep keeps starting removals in one
+ * action, in seconds. It stays well inside the host's 45-second management
+ * limit, so a batch of slow removals still returns its evidence. */
+const sweepSeconds = 20;
 /** Trusted VM management source. Requests are JSON data, never generated commands.
- * This separate offline scope cannot reuse fixed-worker credentials/qualification. */
+ * It runs the Claude Code worker (ADR 0008) and holds no credential. */
 const guestProgram = (g: GuestParts) => String.raw`
 import os,json,subprocess,hashlib,pathlib,stat,selectors,signal,time,sys,threading,select
 
@@ -132,8 +140,6 @@ def ordinary(path):
  if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_uid!=os.getuid(): fail()
  return s
 
-# The owner provisions the code-mode host beside the CLI, from the same package.
-hostSource=os.path.expanduser('~/.local/state/aios-offline-v1/codex-code-mode-host-0.161.0')
 def provisioned(path,digest):
  if ordinary(path).st_mode&0o077: fail()
  fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
@@ -209,6 +215,11 @@ def reserve(keep):
  except OSError:
   if os.path.lexists(path): os.unlink(path)
   raise
+def sessionNames():
+ # The session's own identity in the clear, so a lineage the sweep keeps can be
+ # named to lineage cleanup from this record alone.
+ s=R['session']
+ return dict(operationId=s['operationId'],fence=s['fence'],intent=s['intent'])
 def predecessor_of(previous):
  # The explicitly named predecessor's record, path, directory name and identity.
  name='aios-coding-'+h((R['authority']+previous['operationId']).encode())[:32]
@@ -504,7 +515,7 @@ else:
     names.add(path.lower());inputs.append((path,data,file['executable']))
     manifest.append(dict(path=path,sha256=h(data),executable=file['executable']))
    if h(json.dumps(manifest,ensure_ascii=False,separators=(',',':')).encode())!=R['inputSha256']: fail()
-   record=dict(identity=identity,binding=binding,pins=R['pins'],admission=admission,argv=R['argv'],phase='preparing',group='',pids={},deadline=time.monotonic()+R['allowanceMs']/1000)
+   record=dict(identity=identity,session=sessionNames(),binding=binding,pins=R['pins'],admission=admission,argv=R['argv'],phase='preparing',group='',pids={},deadline=time.monotonic()+R['allowanceMs']/1000)
    save(recordPath,record)
    directory(operation);directory(work)
    if predecessor:
@@ -529,7 +540,7 @@ ${g.hostCopy}   for path,data,executable in inputs:
    profile['syscalls']=[r for r in profile['syscalls'] if r['names']]
    save(root+'/seccomp.json',profile)
    reserve(True)
-   # Bootstrap waits before any candidate-controlled Codex input is executed.
+   # Bootstrap waits before any candidate-controlled agent input is executed.
    pod('create','--name',R['name'],'--hostname=aios-coding','--pull=never','--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=64','--memory=512m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/bin:/bin','--env','HOME=/session',${g.createEnv},${g.createRouteEnv},'--log-driver=k8s-file','--restart=no','--label','aios.coding.authority='+R['authority'],'--label','aios.coding.session='+identity,'--volume',work+':/workspace:rw,Z,rprivate','--volume',home+':/session:rw,Z,rprivate',${g.createMounts},R['template'],'/bin/sh','-c',bootstrap,'--',*R['argv'])
    effective(container(),False)
    record['phase']='prepared';save(recordPath,record)
@@ -537,7 +548,7 @@ ${g.hostCopy}   for path,data,executable in inputs:
    # The relay goes first; its end is checked below.
    kill_relay()
    if record is None:
-    record=dict(identity=identity,binding={},phase='revoked',group='',pids={})
+    record=dict(identity=identity,session=sessionNames(),binding={},phase='revoked',group='',pids={})
    # Fence when the disk allows; a full disk must never prevent shutdown.
    try: record['phase']='revoked';save(recordPath,record)
    except OSError: pass
@@ -581,13 +592,17 @@ ${g.hostCopy}   for path,data,executable in inputs:
    # guest's own records, since no caller keeps these identities. The snapshot
    # refuses while any container runs. A session is only ever removed under its
    # record's exact name and labels; one that fails stays for a later sweep.
-   # Attempts are bounded, so a backlog drains inside the action's deadline, and
-   # the host names the sessions already refused, so a later batch moves past them.
+   # Attempts are bounded by count and by time, so a backlog drains inside the
+   # action's deadline, and the host names the sessions already refused, so a
+   # later batch moves past them. Kept lineages are named by their recorded
+   # session, so lineage cleanup can be pointed at them.
    binding=snapshot()
+   started=time.monotonic()
    skip=R.get('skip',[])
    if not isinstance(skip,list) or not all(isinstance(x,str) for x in skip): fail()
    refusedSessions=[]
    kept=dict(cleaned=0,unprepared=0,unstopped=0,lineage=0)
+   lineages=[]
    removed=attempted=refused=abandoned=0
    for name in sorted(e.name[:-5] for e in os.scandir(root) if re.fullmatch(r'aios-coding-[a-f0-9]{32}\.json',e.name)):
     path=root+'/'+name+'.json'
@@ -597,11 +612,13 @@ ${g.hostCopy}   for path,data,executable in inputs:
      continue
     if kind!='abandoned':
      kept[kind]+=1
+     named=entry.get('session')
+     if kind=='lineage' and len(lineages)<64 and isinstance(named,dict) and set(named)=={'operationId','fence','intent'}: lineages.append(named)
      continue
     if name in skip:
      refused+=1;abandoned+=1
      continue
-    if R['apply'] is not True or attempted>=8:
+    if R['apply'] is not True or attempted>=8 or (attempted and time.monotonic()-started>=${sweepSeconds}):
      abandoned+=1
      continue
     attempted+=1
@@ -618,7 +635,7 @@ ${g.hostCopy}   for path,data,executable in inputs:
      removed+=1
     except Exception:
      refused+=1;abandoned+=1;refusedSessions.append(name)
-   result=dict(removed=removed,abandoned=abandoned,refused=refused,refusedSessions=refusedSessions,kept=kept)
+   result=dict(removed=removed,abandoned=abandoned,refused=refused,refusedSessions=refusedSessions,kept=kept,lineages=lineages)
   else:
    if not record: fail()
    binding=snapshot()
@@ -638,10 +655,10 @@ ${g.launchHost}    effective(container(),False)
     if not record['pids']: fail()
     effective(c,True)
     lease(True)
-    # Running, but Codex still waits: release is a separate action.
+    # Running, but the agent still waits: release is a separate action.
     record['phase']='running';save(recordPath,record)
    elif R['action']=='relay':
-    # One relay per routed session, started before Codex is released, inside
+    # One relay per routed session, started before the agent is released, inside
     # the worker's network namespace. It is recorded before it can listen.
     route=record['admission'].get('modelRoute')
     if record['phase']!='running' or record.get('released') or 'relay' in record or not route or not isinstance(R.get('capability'),str) or h(R['capability'].encode())!=route['capabilitySha256']: fail()
@@ -666,7 +683,7 @@ ${g.launchHost}    effective(container(),False)
      raise
     result=dict(ready=True)
    elif R['action']=='release':
-    # Codex starts only now. A routed session's relay must be the live one
+    # The agent starts only now. A routed session's relay must be the live one
     # this session started; an offline session has none.
     if record['phase']!='running' or record.get('released'): fail()
     c=container()
@@ -899,14 +916,13 @@ def locked(thread,route):
 def route_env(route):
  return {'ANTHROPIC_BASE_URL':'http://127.0.0.1:${modelRoutePort}','ANTHROPIC_AUTH_TOKEN':route['capability'],'ANTHROPIC_CUSTOM_HEADERS':'X-AIOS-Delivery: '+route['deliveryId'],'ANTHROPIC_MODEL':'${pinnedModelPrices.model}'}
 `,
-  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS':'1','SHELL':'/usr/local/bin/bash','HOSTNAME':'aios-coding'}`,
+  env: String.raw`{'PATH':'/usr/bin:/bin','HOME':'/session','CLAUDE_CONFIG_DIR':'/session','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC':'1','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS':'1','CLAUDE_CODE_MAX_OUTPUT_TOKENS':'${claudeCodeMaxOutputTokens}','SHELL':'/usr/local/bin/bash','HOSTNAME':'aios-coding'}`,
   mounts: String.raw` wanted={'/workspace':(work,True),'/session':(home,True),'/claude':(binary,False)}
  if len(mounts)!=3: fail()`,
   paths: String.raw`binary=operation+'/claude'`,
-  // Deliveries begun under Codex keep their codex/feature-<id> branches.
-  branch: String.raw`(?:aios|codex)/`,
+  branch: String.raw`aios/`,
   hostCopy: "",
-  createEnv: String.raw`'--env','CLAUDE_CONFIG_DIR=/session','--env','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1','--env','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1','--env','SHELL=/usr/local/bin/bash','--entrypoint='`,
+  createEnv: String.raw`'--env','CLAUDE_CONFIG_DIR=/session','--env','CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1','--env','CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1','--env','CLAUDE_CODE_MAX_OUTPUT_TOKENS=${claudeCodeMaxOutputTokens}','--env','SHELL=/usr/local/bin/bash','--entrypoint='`,
   createMounts: String.raw`'--volume',binary+':/claude:ro,Z,rprivate'`,
   copies: "[binary]",
   launchHost: "",
@@ -984,7 +1000,7 @@ export const claudeGuest: NativeCodingGuest = Object.freeze({
   }),
   // A route reaches Claude Code through its environment, not its argv.
   argv: (threadId: string | undefined) => claudeCodeArgv(threadId),
-  branch: /^(?:aios|codex)\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
+  branch: /^aios\/[A-Za-z0-9][A-Za-z0-9._/-]*$/,
   probeNames: claudeCodingBoundaryProbeNames,
   template: (host: { platform: string; arch: string }) =>
     claudeCodeTemplate(host.platform, host.arch)!,
@@ -1116,7 +1132,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     return this.bind(bound, result);
   }
   /** Opens the session relay channel and bridges it to `gateway`. It is
-   * ready, and bound to the same pins, before Codex may be released. */
+   * ready, and bound to the same pins, before the agent may be released. */
   private async relay(
     session: CodingSession,
     route: ModelRoute,
@@ -1218,7 +1234,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
       JSON.stringify(request.argv.slice(0, -1)) !== JSON.stringify(prefix) ||
       typeof request.argv.at(-1) !== "string" ||
       request.argv.at(-1)!.length > 65536 ||
-      // Codex would read a prompt starting with "-" as one of its options.
+      // The CLI would read a prompt starting with "-" as one of its options.
       request.argv.at(-1)!.startsWith("-") ||
       !Number.isSafeInteger(request.allowanceMs) ||
       request.allowanceMs < 1 ||
@@ -1659,12 +1675,16 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
    * guest chooses them from its own records, because no caller keeps their
    * identities. Without `apply` it only counts. With it, batches continue until
    * every abandoned session was tried, moving past any the guest refuses; those
-   * stay for a later sweep. Every other session stays. */
+   * stay for a later sweep. Every other session stays. Kept lineages are named
+   * by their recorded session (up to 64), so `cleanupSupersededLineage` can be
+   * pointed at one; sessions recorded before the guest kept that name are only
+   * counted. */
   async cleanupAbandonedSessions(apply: boolean): Promise<{
     removed: number;
     abandoned: number;
     refused: number;
     kept: Record<"cleaned" | "unprepared" | "unstopped" | "lineage", number>;
+    lineages: CodingSession[];
     pins: CodingPins;
   }> {
     if (typeof apply !== "boolean")
@@ -1689,7 +1709,8 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
         },
         { apply, skip },
       );
-      const { removed, abandoned, refused, refusedSessions, kept } = result;
+      const { removed, abandoned, refused, refusedSessions, kept, lineages } =
+        result;
       if (
         !count(removed) ||
         !count(abandoned) ||
@@ -1706,6 +1727,16 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
             typeof name !== "string" ||
             !/^aios-coding-[a-f0-9]{32}$/.test(name) ||
             skip.includes(name),
+        ) ||
+        !Array.isArray(lineages) ||
+        lineages.length > 64 ||
+        lineages.length > (kept.lineage as number) ||
+        lineages.some(
+          (named) =>
+            !record(named) ||
+            Object.keys(named).sort().join() !== "fence,intent,operationId" ||
+            !sessionIdentity(named as unknown as CodingSession) ||
+            !["start", "resume"].includes(String(named.intent)),
         ) ||
         (!apply && (removed !== 0 || refusedSessions.length !== 0)) ||
         (first !== undefined && JSON.stringify(pins) !== JSON.stringify(first))
@@ -1725,6 +1756,12 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
             unstopped: kept.unstopped,
             lineage: kept.lineage,
           },
+          lineages: (lineages as CodingSession[]).map((named) => ({
+            operationId: named.operationId,
+            fence: named.fence,
+            state: "stopped" as const,
+            intent: named.intent,
+          })),
           pins,
         };
       // Sessions remain untried, so this batch must have tried some.

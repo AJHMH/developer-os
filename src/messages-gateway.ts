@@ -25,6 +25,12 @@ export const messagesRelayPaths = Object.freeze([
   "/v1/messages?beta=true",
 ]);
 
+/** The output limit the coding guest sets for Claude Code. Each request's
+ * worst case reserves its `max_tokens` from the spend budget before it is
+ * sent, so this keeps one request's reservation near $0.64 at the pinned
+ * output price, where the model's own limit would reserve $2.56. */
+export const claudeCodeMaxOutputTokens = 32_000;
+
 export const messagesLimits = Object.freeze({
   requestBytes: 4 * 1024 * 1024,
   responseBytes: 16 * 1024 * 1024,
@@ -713,6 +719,8 @@ export function claudeCodeRelayEnvironment(
     // Beta-only request fields (context management, thinking display,
     // deferred tools) need beta headers the gateway never sends.
     CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: "1",
+    // The guest's own environment sets this too; see claudeCodeMaxOutputTokens.
+    CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(claudeCodeMaxOutputTokens),
   };
 }
 

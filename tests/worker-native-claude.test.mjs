@@ -56,8 +56,18 @@ test("the Claude Code guest program is unchanged and holds nothing of Codex's", 
   // The digest the Claude Code owner coding admission pins today.
   assert.equal(
     claudeManagementPolicySha256,
-    "0ca38542675e08a9723a0aecc3a9a9f7d4bd949d45645bbb9830aa6f1181dd6b",
+    "c5a7a034ecb603461c99846f68a5b0d5d7c3c75c5b8389a5ac617ba5280b4d8d",
   );
+  // No Codex text is left in the program but two refusals that stay: a
+  // `CODEX_API_KEY` in the worker's environment, and a `.codex` folder among
+  // admitted files. It also caps Claude Code's output.
+  assert.doesNotMatch(
+    claudeGuest.program
+      .replace("${CODEX_API_KEY+x}", "")
+      .replace("|\\.codex|", "|"),
+    /codex/i,
+  );
+  assert.match(claudeGuest.program, /CLAUDE_CODE_MAX_OUTPUT_TOKENS=32000/);
   assert.equal(claudeGuest.policySha256, claudeManagementPolicySha256);
   assert.equal(claudeGuest.provider, "claude");
   assert.ok(!claudeGuest.program.includes("codex-0.161.0"));
@@ -302,11 +312,8 @@ test("the Claude Code guest refuses what is not exactly its launch", async (t) =
     read().commands.filter((args) => args[1] === "create").length,
     0,
   );
-  // A Codex-era branch still codes under Claude Code.
-  await transport.run(
-    await start(transport, { branch: "codex/feature-x" }),
-    () => {},
-  );
+  // A Codex-era branch is refused like any other namespace.
+  await refused({ branch: "codex/feature-x" }, undefined, /Unsupported/);
 });
 
 for (const [name, claudeLogs] of [

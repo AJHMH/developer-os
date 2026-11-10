@@ -27,7 +27,7 @@ try {
   const { ownerCodingWorker } = await import(
     "../dist/native-coding-runtime.js"
   );
-  // The owner's record names the guest: Claude Code's or Codex's.
+  // The Claude Code guest, under the owner's Claude Code record.
   const { agent, transport, admission } = ownerCodingWorker(
     machine,
     admissionPath,
@@ -43,10 +43,19 @@ try {
     if (admitted[field] !== observed[field])
       throw Error(`The owner's coding admission does not name ${field}`);
   const apply = approval === "--approve-removal";
-  const { removed, abandoned, refused, kept } =
+  const { removed, abandoned, refused, kept, lineages } =
     await transport.cleanupAbandonedSessions(apply);
+  // Kept lineages by their recorded session, for lineage cleanup.
   console.log(
-    JSON.stringify({ agent, apply, removed, abandoned, refused, kept }),
+    JSON.stringify({
+      agent,
+      apply,
+      removed,
+      abandoned,
+      refused,
+      kept,
+      lineages,
+    }),
   );
   if (apply && (abandoned > 0 || refused > 0)) process.exitCode = 1;
 } catch (error) {
