@@ -2125,9 +2125,9 @@ export class DeliveryController {
     return this.executeFeature(id, options);
   }
 
-  /** Coding's checks before it records a session. They record only a usage
-   * observation and, for a mediated delivery, a re-qualification. A repair
-   * runs them before it records an attempt, so a refusal spends no cycle. */
+  /** Coding's checks before it records a session. They record nothing, and a
+   * repair runs them before it records an attempt, so a refusal spends no
+   * cycle. */
   private async codingPreflight(
     id: string,
     options: { codingMinutes?: number },
@@ -2154,6 +2154,12 @@ export class DeliveryController {
     )
       throw new DeliveryError(
         "Resolve feature criteria, ownership and stopped controlled coding runtime before coding; production remains disabled.",
+      );
+    // A delivery that began coding under Codex (removed, ADR 0008) keeps its
+    // `codex/` branch, which the coding guest refuses.
+    if (feature.branch && !featureBranchPattern.test(feature.branch))
+      throw new DeliveryError(
+        "This delivery began coding under Codex, which was removed; start a new delivery.",
       );
     const onboarding = inspectOnboarding(
       snapshot.repository,
