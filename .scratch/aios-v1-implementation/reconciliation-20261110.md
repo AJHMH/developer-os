@@ -35,7 +35,7 @@ There are 25 tickets, 01 to 25.
 | 03 Ownership, pause and recovery | Completed                                                      | Native pause, cancel and recover reach the exact coding session.                                                                                        |
 | 04 Isolated worker gate | Completed in #277 ([#264](https://github.com/AJHMH/developer-os/issues/264), closed after this reconciliation) | Production admission and ADR 0009 (story 51). The dependency phase moved to #265. |
 | 05 Bounded feature candidate     | Completed                                                      | The last criterion, the pinned CLI adapter with structured events and explicit resume, is met by Claude Code: the session and CLI delivery acceptances. |
-| 06 Isolated validation           | Open, [#265](https://github.com/AJHMH/developer-os/issues/265) | Native baseline and candidate validation, and dependency installs with install scripts (#278, 11 November receipt). E2E on disposable infrastructure remains. |
+| 06 Isolated validation           | Open, [#265](https://github.com/AJHMH/developer-os/issues/265) | Native baseline and candidate validation, dependency installs with install scripts, and a disposable database per E2E check (11 November receipts). Disposable browsers remain. |
 | 07 Validation repair             | Open, [#266](https://github.com/AJHMH/developer-os/issues/266) | Controlled. A native repair acceptance remains.                                                                                                         |
 | 08 Signed App publication        | Open, [#267](https://github.com/AJHMH/developer-os/issues/267) | Controlled; no native publisher.                                                                                                                        |
 | 09 Trusted PR checks             | Open, [#268](https://github.com/AJHMH/developer-os/issues/268) | Controlled; no native monitor.                                                                                                                          |
@@ -86,10 +86,10 @@ There are 56 stories. Their status:
 | 13  | Isolation qualified on both hosts                         | 04, 15, 16, 24, 25 | Done, changed: Mac only (ADR 0007)                                                                                                                  |
 | 14  | Model-only subscription auth and allowance gate           | 04, 21, 22         | Done, changed: metered key, relay only, spend budget (ADRs 0006 and 0008)                                                                           |
 | 15  | Dependency scripts and validation inside isolation        | 04, 19, 22         | Done: offline npm installs from a host-verified cache, install scripts included, run isolated natively (30 October and [11 November](ticket04-macos-install-scripts-acceptance-receipt.md) receipts); the CLI installs when the contract declares `prepared-npm` (#278) |
-| 16  | Synthetic disposable database-backed E2E                  | 06                 | Not done (#265)                                                                                                                                     |
+| 16  | Synthetic disposable database-backed E2E                  | 06                 | Done: a fresh PostgreSQL per E2E check, natively ([11 November receipt](ticket06-macos-database-acceptance-receipt.md)) |
 | 17  | Unchanged-main baseline failures identified               | 06                 | Done                                                                                                                                                |
 | 18  | Format, lint, types, coverage, build run where declared   | 06                 | Done for local validation                                                                                                                           |
-| 19  | Browser and database tests when needed                    | 06                 | Not done (#265)                                                                                                                                     |
+| 19  | Browser and database tests when needed                    | 06                 | Partial: databases are done natively; browsers are #265                                                                                            |
 | 20  | Results tied to revisions and trusted publishers          | 06, 09             | Partial: local results are; PR checks are controlled only (#268)                                                                                    |
 | 21  | Missing, skipped or neutral checks are incomplete         | 06, 09             | Partial: local; PR checks controlled only                                                                                                           |
 | 22  | Failures and reruns preserved                             | 06, 09             | Partial: local; PR checks controlled only                                                                                                           |
@@ -132,11 +132,11 @@ In total:
 
 | Status          | Count | Stories                                                                   |
 | --------------- | ----- | ------------------------------------------------------------------------- |
-| Done            | 20    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 17, 18, 23, 31, 33, 34, 35, 37, 50, 52, 56 |
+| Done            | 21    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 23, 31, 33, 34, 35, 37, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
-| Partial         | 11    | 5, 7, 20, 21, 22, 30, 36, 49, 51, 53, 54                                  |
+| Partial         | 12    | 5, 7, 19, 20, 21, 22, 30, 36, 49, 51, 53, 54                              |
 | Controlled only | 19    | 8, 24, 25, 26, 27, 28, 29, 32, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 |
-| Not done        | 2     | 16, 19                                                                    |
+| Not done        | 0     |                                                                           |
 
 No story is complete end to end until tickets 08 to 14 have native adapters and
 16 and 17 have run.
