@@ -320,7 +320,9 @@ local `e2e` check then gets its own PostgreSQL:
 - **Shared loopback only.** The check container joins the database's network
   namespace and nothing else, so it still has no outside network. It gets
   `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE` and `DATABASE_URL` naming that
-  loopback database, and no password or production credential.
+  loopback server's `postgres` database, the only one `initdb` creates, and no
+  password or production credential. The `aios` user is its superuser, so a
+  test may create its own databases.
 - **Removed with the check.** When the check ends, its database goes; stop
   ends both. The next check starts from an empty database.
 

@@ -244,8 +244,9 @@ def kill_check(entry):
  if not gone(entry): fail()
 BASE_ENV={'PATH':'/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin','HOME':'/tmp','CI':'true'}
 # A check with a database reaches it only on the loopback of the network
-# namespace they share, as a synthetic user with no password.
-DATABASE_ENV={'PGHOST':'127.0.0.1','PGPORT':'5432','PGUSER':'aios','PGDATABASE':'aios','DATABASE_URL':'postgresql://aios@127.0.0.1:5432/aios'}
+# namespace they share, as a synthetic user with no password, in the
+# postgres database initdb creates (it creates no other).
+DATABASE_ENV={'PGHOST':'127.0.0.1','PGPORT':'5432','PGUSER':'aios','PGDATABASE':'postgres','DATABASE_URL':'postgresql://aios@127.0.0.1:5432/postgres'}
 # PostgreSQL, from the owner-admitted image, with its data on the tmpfs and
 # listening only on loopback.
 POSTGRES='set -e; initdb -D /tmp/pgdata -U aios --auth=trust --no-sync >/dev/null; exec postgres -D /tmp/pgdata -k /tmp -h 127.0.0.1 -p 5432 -c fsync=off'
@@ -281,7 +282,7 @@ def ready(name):
  deadline=time.monotonic()+20
  while time.monotonic()<deadline:
   if not check_container(name)['State'].get('Running'): return False
-  r=subprocess.run(['/usr/bin/podman','exec',name,'pg_isready','-q','-h','127.0.0.1','-p','5432','-U','aios','-d','aios'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+  r=subprocess.run(['/usr/bin/podman','exec',name,'pg_isready','-q','-h','127.0.0.1','-p','5432','-U','aios','-d','postgres'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
   if r.returncode==0: return True
   time.sleep(0.25)
  return False
