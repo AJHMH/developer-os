@@ -170,6 +170,12 @@ def podman(args):
         running = [{'Names': [n]} for n, c in state['containers'].items() if c['State']['Running']]
         if state.get('foreignRunning'): running.append({'Names': ['aios-coding-foreign']})
         return json.dumps(running)
+    def image_labels(wanted):
+        # Like Playwright's image, the browser image carries its base image's
+        # label; any image may be given labels of its own.
+        if wanted in state.get('imageLabels', {}): return state['imageLabels'][wanted]
+        if wanted == request.get('browserImageSha256'): return state.get('browserLabels', {'org.opencontainers.image.version': '24.04'})
+        return {}
     if sub == 'image':
         image = state.get('image', {'Id': request['imageSha256'], 'Architecture': 'arm64'})
         if args[2] == request.get('databaseImageSha256') and args[2] != image['Id']:
@@ -177,12 +183,14 @@ def podman(args):
             image = {'Id': args[2], 'Architecture': state.get('databaseArch', 'arm64')}
         elif args[2] == request.get('browserImageSha256') and args[2] != image['Id']:
             if state.get('browserImageMissing'): raise LookupError('no such image')
-            # Like Playwright's image, it carries its base image's own label.
-            image = {'Id': args[2], 'Architecture': state.get('browserArch', 'arm64'), 'Labels': state.get('browserLabels', {'org.opencontainers.image.version': '24.04'})}
+            image = {'Id': args[2], 'Architecture': state.get('browserArch', 'arm64')}
+        elif args[2] != image['Id'] and any(c['Image'] == args[2] for c in state['containers'].values()):
+            # Like the engine, an image stays while a container uses it.
+            image = {'Id': args[2], 'Architecture': 'arm64'}
         if state.get('imageMissing') or args[2] != image['Id']: raise LookupError('no such image')
         # An engine answering for another image than the one asked for.
         if state.get('imageIdDrift'): image = dict(image, Id='8' * 64)
-        return json.dumps([image])
+        return json.dumps([dict(image, Labels=image_labels(args[2]))])
     if sub == 'create':
         rest = args[1:]; config = {'Env': [], 'Labels': {}}; host = {'SecurityOpt': [], 'RestartPolicy': {}, 'CapAdd': []}
         mounts = []; i = 0; name = None
@@ -215,8 +223,9 @@ def podman(args):
         image = rest[i]; config['Cmd'] = rest[i + 1:]
         # Like the engine, a container inherits its image's labels; its own
         # replace any of the same name.
-        if image == request.get('browserImageSha256'):
-            config['Labels'] = {**state.get('browserLabels', {'org.opencontainers.image.version': '24.04'}), **config['Labels']}
+        # The engine keeps an image's labels with the image itself.
+        state.setdefault('imageLabels', {})[image] = image_labels(image)
+        config['Labels'] = {**image_labels(image), **config['Labels']}
         config['Labels'].update(state.get('labelDrift', {}))
         # Like the engine, an image's declared VOLUME becomes an anonymous
         # volume mount unless image volumes are ignored.

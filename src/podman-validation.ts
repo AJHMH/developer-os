@@ -349,11 +349,13 @@ def live(c):
  values={x.split(':',1)[0]:x.split(':',1)[1].strip() for x in pathlib.Path('/proc/'+str(c['State']['Pid'])+'/status').read_text().splitlines() if ':' in x}
  if values.get('NoNewPrivs')!='1' or values.get('Seccomp')!='2' or int(values.get('CapEff','f'),16)!=0: fail()
 def check_container(name):
- # A container carries its admitted image's own labels and ours, nothing
- # else; ours replace any of the same name.
+ # A container carries its image's own labels and ours, nothing else; ours
+ # replace any of the same name. Its image need not be admitted now, so an
+ # attempt created under an earlier record can still be cleaned up; the
+ # engine keeps an image while a container uses it.
  c=obj('inspect',name)[0]
  image=c.get('Image')
- if image not in [R[k] for k in ['imageSha256','databaseImageSha256','browserImageSha256'] if k in R]: fail()
+ if not isinstance(image,str) or not re.fullmatch('[a-f0-9]{64}',image): fail()
  if image not in image_labels: image_labels[image]=obj('image','inspect',image)[0].get('Labels') or {}
  if (c['Config'].get('Labels') or {})!={**image_labels[image],'aios.validation.authority':R['authority'],'aios.validation.attempt':identity}: fail()
  return c

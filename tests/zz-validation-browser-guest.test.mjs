@@ -11,6 +11,7 @@ import {
   runRequest,
   validationGuest,
 } from "./helpers/native-validation-fixture.mjs";
+import { NativePodmanValidationTransport } from "../dist/podman-validation.js";
 
 const browser = "6".repeat(64);
 const database = "5".repeat(64);
@@ -162,7 +163,13 @@ test("a check container carries only its image's own labels and ours", async (t)
   const request = runRequest({ browser: true }, { id: "e2e" });
   assert.equal((await inherited.transport.run(request)).browser, true);
   await inherited.transport.stop(request);
-  // A label from anywhere else is not ours to trust.
+  // The check image may carry labels of its own too.
+  const labelled = guestWith(t, {}, { imageLabels: { [image]: { a: "1" } } });
+  const plain = runRequest({}, { id: "lint" });
+  assert.equal((await labelled.transport.run(plain)).exitCode, 0);
+  await labelled.transport.stop(plain);
+  assert.deepEqual(Object.keys(labelled.read().containers), []);
+  // A label from anywhere else is not ours to trust, even to remove.
   const foreign = guestWith(
     t,
     { browserImageSha256: browser },
@@ -172,4 +179,33 @@ test("a check container carries only its image's own labels and ours", async (t)
     foreign.transport.run(request),
     /Native validation start observation unavailable/,
   );
+  await assert.rejects(
+    foreign.transport.stop(request),
+    /Native validation stop observation unavailable/,
+  );
+  assert.equal(Object.keys(foreign.read().containers).length, 1);
+});
+
+test("an attempt started under an earlier record can still be stopped", async (t) => {
+  // The owner re-approves without the browser image while its check runs.
+  const guest = guestWith(
+    t,
+    { browserImageSha256: browser },
+    { expireAfterStart: 0 },
+  );
+  const request = runRequest(
+    { browser: true },
+    { id: "e2e", command: ["hang"], timeoutMs: 1 },
+  );
+  guest.write({ deadlineLost: true });
+  await assert.rejects(guest.transport.run(request), /outlived its deadline/);
+  assert.equal(Object.keys(guest.read().containers).length, 1);
+  const later = new NativePodmanValidationTransport(
+    "aios-test",
+    "a".repeat(64),
+    image,
+    { pollMs: 1, deadlineGraceMs: 0 },
+  );
+  assert.equal((await later.stop(request)).treeSha256, request.treeSha256);
+  assert.deepEqual(Object.keys(guest.read().containers), []);
 });

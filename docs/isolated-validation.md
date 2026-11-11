@@ -415,7 +415,9 @@ browsers it ships.
 A container inherits its image's own labels. Playwright's image carries
 `org.opencontainers.image.version` from its Ubuntu base, so the guest trusts a
 container whose labels are exactly its admitted image's own plus the two
-`aios.validation.*` labels, ours replacing any of the same name. The first
+`aios.validation.*` labels, ours replacing any of the same name. The image
+need not be admitted by the current record, so a container from an earlier
+record can still be stopped and removed. The first
 native run on 11 November found this: the guest refused the first browser
 container because of that label, and the attempt stopped as uncertain.
 
