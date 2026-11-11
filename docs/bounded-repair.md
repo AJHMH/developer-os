@@ -47,7 +47,10 @@ checks or authorize publication/merge.
 ## Durable accounting and controls
 
 The allowance defaults to three cycles or 3,600,000 active milliseconds, whichever
-is exhausted first. Starting a batch consumes one cycle, including failed and
+is exhausted first. The owner may set either at `start` with `--repair-cycles
+<1..100>` and `--repair-minutes <1..1440>` (#266); the delivery records them
+as `initialRepairAllowance`. A spent allowance is reported before anything
+else, even when nothing is left to repair, and records nothing. Starting a batch consumes one cycle, including failed and
 interrupted attempts. The final permitted cycle may succeed; reaching the time
 limit prevents success even if a late check returns green.
 
@@ -70,6 +73,34 @@ is marked incomplete; its late callback cannot overwrite a later cycle's evidenc
 Once repair starts, direct codeFeature/validateCandidate calls cannot bypass repair
 accounting. Further local repair/revalidation goes through repairFeature. A batch
 that cannot dispatch or verify retains failure and the available evidence.
+
+## Native repair acceptance (#266)
+
+`scripts/run-native-cli-delivery-acceptance.mjs` with `--with-repair` runs the
+metered delivery acceptance ([feature candidate](feature-candidate.md)) with a
+repair:
+
+1. `start` adds `--repair-cycles 1`, and the owner contract adds a
+   candidate-only check, `page-contains-text-aios-repaired`. It needs the text
+   `aios-repaired` in `index.html`, which the coding turn is never told about.
+2. `validate-candidate` must fail exactly that check.
+3. `repair-feature`, on the same owner-admitted runtimes and Anthropic key,
+   must spend the one cycle: a stopped Claude Code turn on the delivery's
+   budget, given the failed check, with active time and spend recorded. The
+   repaired candidate must pass revalidation.
+4. A second `repair-feature` must be reported as exhausted, with no attempt
+   recorded and nothing spent.
+5. `extend-repair --cycles 1` must be recorded.
+
+Both turns' coding sessions are then cleaned up. The run spends at most the
+$5 budget. Its passing outcome is `observed-metered-cli-repair-acceptance`.
+
+In Terminal, from a clean, built `main` with the VM running and both
+records current:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue07-repair-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --with-repair
+```
 
 ## Qualification still required
 

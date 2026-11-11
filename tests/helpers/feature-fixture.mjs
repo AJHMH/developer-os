@@ -69,7 +69,7 @@ function fixture(t) {
 
 /** A controlled coding fixture. Coding runs on Claude Code, metered through
  * a stand-in Messages session (ADR 0008). */
-function codingFixture(t, configurePolicy = () => {}) {
+function codingFixture(t, configurePolicy = () => {}, startOptions = {}) {
   const f = fixture(t),
     revision = f.git("rev-parse", "HEAD");
   const policyPath = join(f.root, "owner-policy.json");
@@ -180,6 +180,7 @@ function codingFixture(t, configurePolicy = () => {}) {
   f.delivery = f.controller.start({
     repository: f.repository,
     request: "Add a visible contact hint.",
+    ...startOptions,
   });
   return f;
 }

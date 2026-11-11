@@ -17,6 +17,8 @@ export const cliOptions = {
   issue: { type: "string" },
   "coding-minutes": { type: "string" },
   "budget-dollars": { type: "string" },
+  "repair-cycles": { type: "string" },
+  "repair-minutes": { type: "string" },
   dollars: { type: "string" },
   minutes: { type: "string" },
   cycles: { type: "string" },
@@ -78,6 +80,8 @@ const commands: Record<string, CliCommand> = {
       "issue",
       "coding-minutes",
       "budget-dollars",
+      "repair-cycles",
+      "repair-minutes",
       "owner-policy",
       "onboarding-attestation",
     ],
@@ -92,6 +96,12 @@ const commands: Record<string, CliCommand> = {
         ...(v["budget-dollars"] === undefined
           ? {}
           : { budgetDollars: Number(v["budget-dollars"]) }),
+        ...(v["repair-cycles"] === undefined
+          ? {}
+          : { repairCycles: Number(v["repair-cycles"]) }),
+        ...(v["repair-minutes"] === undefined
+          ? {}
+          : { repairMinutes: Number(v["repair-minutes"]) }),
       }),
   },
   status: {
@@ -278,12 +288,17 @@ export function validateCliCommand(
       !/^[0-9]{1,4}(\.[0-9]{1,2})?$/.test(values[option]!)
     )
       return { error: "arguments" };
-  if (
-    values["coding-minutes"] !== undefined &&
-    (!/^[1-9][0-9]{0,3}$/.test(values["coding-minutes"]) ||
-      Number(values["coding-minutes"]) > 1440)
-  )
-    return { error: "arguments" };
+  for (const [option, max] of [
+    ["coding-minutes", 1440],
+    ["repair-minutes", 1440],
+    ["repair-cycles", 100],
+  ] as const)
+    if (
+      values[option] !== undefined &&
+      (!/^[1-9][0-9]{0,3}$/.test(values[option]!) ||
+        Number(values[option]) > max)
+    )
+      return { error: "arguments" };
   if (
     values.minutes !== undefined &&
     (!(

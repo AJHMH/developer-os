@@ -14,6 +14,14 @@
 // diagnosis. It never provisions or starts the VM, loads images or reads the
 // key itself, and it never enables production or claims qualification. Run it
 // through scripts/run-native-acceptance.mjs.
+//
+// With --with-repair (#266) the delivery starts with a one-cycle repair
+// allowance, and the owner contract adds a candidate check the first turn
+// can't know about: the page must contain a marker. The candidate must fail
+// exactly that check. One metered `repair-feature` turn, told only the failed
+// check's ID, must then add the marker and pass revalidation, with its cycle,
+// active time and spend recorded. A second `repair-feature` must be refused as
+// exhausted without spending, and `extend-repair` recorded.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -33,10 +41,15 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
+export const repairPassingOutcome = "observed-metered-cli-repair-acceptance";
+/** The text the repair must add, and the candidate check that needs it. Its
+ * ID is all the repair turn is told. */
+export const repairMarker = "aios-repaired";
+export const repairCheckId = "page-contains-text-" + repairMarker;
 export const request = "Add a visible contact hint.";
 /** Enough for Claude Code to make the one-line change. */
 export const codingMinutes = 10;
@@ -55,6 +68,14 @@ export const stageNames = Object.freeze([
   "host-checkout-unchanged",
   "coding-session-cleanup",
 ]);
+/** Every stage of a run with repair, in order. */
+export const repairStageNames = Object.freeze([
+  ...stageNames.slice(0, 7),
+  "cli-repair-feature",
+  "cli-repair-exhausted",
+  "cli-extend-repair",
+  ...stageNames.slice(7),
+]);
 
 const pinFields = {
   coding: ["cliVersion", "cliSha256", "policySha256", "bindingSha256"],
@@ -65,7 +86,7 @@ const pinFields = {
  * repository with the local hints the CLI reads, an owner policy validating
  * under `environment`, the attestation of every fact the CLI cannot observe,
  * and `criteria(id)`, which writes the criteria file for a started delivery. */
-export function ownerInputs(root, environment) {
+export function ownerInputs(root, environment, { repair = false } = {}) {
   const repository = join(root, "repository");
   mkdirSync(repository);
   const git = (...args) => {
@@ -113,7 +134,9 @@ export function ownerInputs(root, environment) {
     publicationLogin: "acceptance-owner",
     requiredChecks: ["pr-ci"],
     validation: ["isolated-offline"],
-    validationContract: acceptanceContract(environment),
+    validationContract: repair
+      ? withRepairCheck(acceptanceContract(environment))
+      : acceptanceContract(environment),
   };
   const policyPath = join(owner, "owner-policy.json"),
     attestationPath = join(owner, "onboarding-attestation.json"),
@@ -167,6 +190,25 @@ export function ownerInputs(root, environment) {
   };
 }
 
+/** `contract` with the candidate-only check the first turn can't know about. */
+export function withRepairCheck(contract) {
+  return {
+    ...contract,
+    checks: [
+      ...contract.checks,
+      {
+        id: repairCheckId,
+        kind: "acceptance",
+        scope: "local",
+        stages: ["candidate"],
+        command: ["grep", "-q", repairMarker, "index.html"],
+        publisher: "isolated-checker",
+        timeoutMs: 60000,
+      },
+    ],
+  };
+}
+
 /** A new private folder under `parent`. The CLI refuses owner records and
  * decision state that anyone else can reach; a new temp folder is private. */
 export async function privateRoot(prefix, parent = tmpdir()) {
@@ -216,6 +258,7 @@ export async function cliDeliveryAcceptance(
     authDirectory,
     imageSha256,
     cleanupCodingSession,
+    repair = false,
   },
   options = {},
 ) {
@@ -225,7 +268,9 @@ export async function cliDeliveryAcceptance(
     "../dist/native-validation.js"
   );
   const report = {
-    scope: "native-cli-metered-delivery-acceptance",
+    scope: repair
+      ? "native-cli-metered-repair-acceptance"
+      : "native-cli-metered-delivery-acceptance",
     productionEnabled: false,
     qualified: false,
     // Paid inference, bounded by the delivery's spend budget.
@@ -295,7 +340,7 @@ export async function cliDeliveryAcceptance(
         );
     });
     inputs = await stage("owner-inputs", () =>
-      ownerInputs(root, offlineValidationEnvironment(imageSha256)),
+      ownerInputs(root, offlineValidationEnvironment(imageSha256), { repair }),
     );
     const owner = [
       "--owner-policy",
@@ -315,6 +360,7 @@ export async function cliDeliveryAcceptance(
         String(codingMinutes),
         "--budget-dollars",
         String(budgetDollars),
+        ...(repair ? ["--repair-cycles", "1"] : []),
       );
       check(uuid.test(started.id ?? ""), "The CLI started no delivery");
       check(
@@ -463,15 +509,153 @@ export async function cliDeliveryAcceptance(
           status: r.status,
         })),
       };
-      check(
-        attempt?.stage === "candidate" &&
-          attempt.state === "stopped" &&
-          attempt.outcome === "passed" &&
-          validated.feature?.candidate?.validation === "passed",
-        "The candidate did not pass on the admitted validation runtime",
-      );
+      if (repair)
+        // The first turn never knew the marker, so only its check fails.
+        check(
+          attempt?.stage === "candidate" &&
+            attempt.state === "stopped" &&
+            attempt.outcome === "failed" &&
+            attempt.results.every(
+              (r) => (r.checkId === repairCheckId) === (r.status !== "success"),
+            ) &&
+            attempt.results.some((r) => r.checkId === repairCheckId),
+          `The candidate did not fail exactly the ${repairCheckId} check`,
+        );
+      else
+        check(
+          attempt?.stage === "candidate" &&
+            attempt.state === "stopped" &&
+            attempt.outcome === "passed" &&
+            validated.feature?.candidate?.validation === "passed",
+          "The candidate did not pass on the admitted validation runtime",
+        );
       return validated;
     });
+    if (repair) {
+      const turn = [
+        ...owner,
+        ...validation,
+        "--coding-admission",
+        codingAdmission,
+        "--auth-directory",
+        authDirectory,
+      ];
+      const before = last.spend;
+      last = await stage("cli-repair-feature", async () => {
+        const repaired = await run("repair-feature", "--id", id, ...turn);
+        const r = repaired.repair,
+          attempt = r?.attempts.at(-1),
+          session = attempt?.codingSession,
+          spend = repaired.spend,
+          revalidated = repaired.validation?.attempts.at(-1);
+        report.repair = {
+          allowanceCycles: r?.allowanceCycles ?? null,
+          allowanceMs: r?.allowanceMs ?? null,
+          activeMs: r?.activeMs ?? null,
+          attempts: r?.attempts.length ?? 0,
+          outcome: attempt?.outcome ?? null,
+          state: attempt?.state ?? null,
+          findings: attempt?.findings ?? [],
+          remainingCycles: attempt?.remainingCycles ?? null,
+          remainingMs: attempt?.remainingMs ?? null,
+          provider: session?.provider ?? null,
+          sessionState: session?.state ?? null,
+          budgetRouted:
+            session?.route?.deliveryId === id &&
+            session.route.decisionSha256 ===
+              sha256("aios-spend-budget-route-v1:" + id),
+          revalidation: revalidated && {
+            stage: revalidated.stage,
+            outcome: revalidated.outcome,
+            results: revalidated.results.map((x) => ({
+              checkId: x.checkId,
+              status: x.status,
+            })),
+          },
+        };
+        report.repairSpend = spend && {
+          spent: spend.spent,
+          charges: spend.charges,
+          interrupted: Boolean(spend.interruption),
+        };
+        check(
+          !spend?.interruption,
+          `The $${budgetDollars} budget interrupted the repair turn`,
+        );
+        check(
+          r?.allowanceCycles === 1 &&
+            r.attempts.length === 1 &&
+            attempt.state === "stopped" &&
+            attempt.remainingCycles === 0,
+          "The repair did not spend the one owner-set cycle",
+        );
+        check(
+          attempt.findings.includes(
+            "Candidate check " + repairCheckId + ": failure",
+          ),
+          "The repair was not given the failed check",
+        );
+        check(
+          r.activeMs > 0 && r.activeMs < r.allowanceMs,
+          "The repair's active time was not recorded within its allowance",
+        );
+        check(
+          report.repair.provider === "claude" &&
+            report.repair.sessionState === "stopped" &&
+            report.repair.budgetRouted,
+          "The repair turn was not a stopped Claude Code session on the delivery's budget",
+        );
+        check(
+          spend.spent > before.spent &&
+            spend.spent <= spend.budget &&
+            spend.charges > before.charges &&
+            !spend.reserved,
+          "The repair turn's requests were not charged within the budget",
+        );
+        check(
+          attempt.outcome === "passed" &&
+            revalidated?.stage === "candidate" &&
+            revalidated.outcome === "passed" &&
+            repaired.feature?.candidate?.validation === "passed",
+          "The repaired candidate did not pass revalidation",
+        );
+        return repaired;
+      });
+      last = await stage("cli-repair-exhausted", async () => {
+        const refused = await run("repair-feature", "--id", id, ...turn);
+        check(
+          refused.repair?.attempts.length === 1 &&
+            /Repair allowance exhausted/.test(
+              refused.blocker?.nextAction ?? "",
+            ),
+          "A spent allowance was not reported as exhausted",
+        );
+        check(
+          refused.spend?.spent === last.spend.spent &&
+            refused.spend.charges === last.spend.charges,
+          "The refused repair spent the budget",
+        );
+        report.exhausted = refused.blocker.nextAction;
+        return refused;
+      });
+      last = await stage("cli-extend-repair", async () => {
+        const extended = await run(
+          "extend-repair",
+          "--id",
+          id,
+          "--cycles",
+          "1",
+        );
+        check(
+          extended.repair?.allowanceCycles === 2 &&
+            extended.repair.extensions.length === 1 &&
+            extended.repair.extensions[0].addedCycles === 1 &&
+            extended.repair.attempts.length === 1,
+          "The owner extension was not recorded",
+        );
+        return extended;
+      });
+    }
     await stage("host-checkout-unchanged", () => {
       check(
         inputs.git("branch", "--show-current") === "main" &&
@@ -486,10 +670,16 @@ export async function cliDeliveryAcceptance(
       );
     });
     await stage("coding-session-cleanup", async () => {
-      const receipt = await cleanupCodingSession(last.feature.session);
-      check(receipt.cleaned === 1, "Expected one cleaned session");
+      // The coding turn's session, then the repair turn's own.
+      for (const session of [
+        last.feature.session,
+        ...(repair ? [last.repair.attempts[0].codingSession] : []),
+      ]) {
+        const receipt = await cleanupCodingSession(session);
+        check(receipt.cleaned === 1, "Expected one cleaned session");
+      }
     });
-    report.outcome = passingOutcome;
+    report.outcome = repair ? repairPassingOutcome : passingOutcome;
   } catch (error) {
     report.error = bounded(error?.message);
     report.outcome = "blocked";
@@ -500,7 +690,8 @@ export async function cliDeliveryAcceptance(
         let current = await run("status", "--id", id);
         const open = (d) =>
           (d.feature?.session && d.feature.session.state !== "stopped") ||
-          d.validation?.attempts.some((a) => a.state !== "stopped");
+          d.validation?.attempts.some((a) => a.state !== "stopped") ||
+          d.repair?.attempts.some((a) => a.state !== "stopped");
         if (open(current))
           current = await stage("final-exact-stop", async () => {
             await cli([
@@ -570,7 +761,10 @@ async function main() {
     !authDirectory ||
     !reportPath ||
     approval !== "--approve-metered-native-run" ||
-    extra.length
+    !(
+      extra.length === 0 ||
+      (extra.length === 1 && extra[0] === "--with-repair")
+    )
   ) {
     console.error(usage);
     process.exitCode = 1;
@@ -661,6 +855,7 @@ async function main() {
       imageSha256,
       cleanupCodingSession: (session) =>
         codingTransport().transport.cleanupSupersededLineage(session),
+      repair: extra[0] === "--with-repair",
     },
     {
       interrupted: () => interrupted,
@@ -679,12 +874,17 @@ async function main() {
       reportPath,
       state,
       // Fresh pins, so the owner can write or check the records.
-      ...(report.outcome === passingOutcome
+      ...(report.outcome === passingOutcome ||
+      report.outcome === repairPassingOutcome
         ? {}
         : { freshPins: report.freshPins ?? null }),
     }),
   );
-  if (report.outcome !== passingOutcome) process.exitCode = 1;
+  if (
+    report.outcome !== passingOutcome &&
+    report.outcome !== repairPassingOutcome
+  )
+    process.exitCode = 1;
 }
 
 // Compare real paths, so a symlinked checkout still runs.
