@@ -8,7 +8,9 @@
 // unprivileged. Planning, onboarding facts and usage are synthetic. With
 // --with-npm-dependencies it also validates a second synthetic repository whose
 // lockfile pins one small registry package: the host fetches and verifies the
-// tarball, the guest installs it offline, and a check requires it. That needs
+// tarball, the guest installs it offline, and a check requires it. The
+// project's own postinstall script probes its isolation during the install,
+// and a second check requires its marker. That needs
 // an owner-loaded image with node and npm. It never provisions or starts the
 // VM, loads images, opens credentials or authorizes inference, and it never
 // enables production or claims qualification. Run it through
@@ -58,11 +60,39 @@ export const dependencyPackage = Object.freeze({
     "sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==",
 });
 
-/** The manifest and lockfile of a project depending on exactly `dependency`. */
-function npmProject({ name, version, integrity }) {
+/** The project's own `postinstall` script, which `npm ci` runs inside the
+ * install container (#265). It writes its marker into `node_modules`, the only
+ * part of an install that becomes the layer, and only when it finds no
+ * network, a read-only root, no engine socket and the unprivileged user. */
+export const installScriptProbe = [
+  "node",
+  "-e",
+  JSON.stringify(
+    [
+      'const fs = require("fs");',
+      "(async () => {",
+      "  let reached = false;",
+      '  try { await fetch("http://example.com", { signal: AbortSignal.timeout(3000) }); reached = true; } catch {}',
+      "  let wrote = false;",
+      '  try { fs.writeFileSync("/etc/aios-install-probe", "x"); wrote = true; } catch {}',
+      '  const sockets = ["/run/podman", "/var/run/docker.sock"].some((p) => fs.existsSync(p));',
+      "  if (reached || wrote || sockets || process.getuid() !== 65534) process.exit(1);",
+      '  fs.writeFileSync("node_modules/.aios-install-probe", "isolated");',
+      "})();",
+    ].join(" "),
+  ),
+].join(" ");
+
+/** The manifest and lockfile of a project depending on exactly `dependency`,
+ * whose own install script probes its isolation. */
+export function npmProject({ name, version, integrity }) {
   const root = { name: "acceptance-page", version: "1.0.0" };
   return {
-    "package.json": { ...root, dependencies: { [name]: version } },
+    "package.json": {
+      ...root,
+      scripts: { postinstall: installScriptProbe },
+      dependencies: { [name]: version },
+    },
     "package-lock.json": {
       ...root,
       lockfileVersion: 3,
@@ -96,6 +126,16 @@ export function acceptanceContract(environment, dependency) {
                 "dependencies",
                 "build",
                 ["node", "-e", `require(${JSON.stringify(dependency.name)})`],
+              ],
+              // The install script ran, and found itself isolated.
+              [
+                "install-scripts",
+                "build",
+                [
+                  "sh",
+                  "-c",
+                  'test "$(cat node_modules/.aios-install-probe)" = isolated',
+                ],
               ],
             ]
           : [],
@@ -394,7 +434,8 @@ export async function validationAcceptance(
           "Dependency attempt is not stopped",
         );
         check(
-          installed.results.length === Object.keys(probes).length + 1 &&
+          // The probes, the require check and the install-script check.
+          installed.results.length === Object.keys(probes).length + 2 &&
             installed.results.every((r) => r.status === "success"),
           "A dependency check did not pass",
         );

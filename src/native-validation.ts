@@ -209,7 +209,8 @@ export class PinnedValidationRuntime implements ValidationRuntime {
   readonly mode = "controlled" as const;
   readonly pins: ValidationPins;
   readonly bindingSha256: string;
-  private readonly environment: ValidationEnvironment;
+  /** The environment the owner contract must declare to use this runtime. */
+  readonly environment: ValidationEnvironment;
   /** Each attempt's prepared cache, fetched once on the host. */
   private readonly caches = new Map<string, Promise<NpmCache>>();
   constructor(

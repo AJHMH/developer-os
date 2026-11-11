@@ -260,12 +260,17 @@ owner-loaded image that contains `npm`.
 `--with-npm-dependencies` adds two stages to the validation admission
 acceptance. After the baseline, the controller validates a second synthetic
 repository whose `package-lock.json` pins one small registry package,
-`is-number@7.0.0` (no dependencies, no install scripts):
+`is-number@7.0.0` (no dependencies, no install scripts of its own). The
+repository's own `postinstall` script probes the install's isolation (#265):
+it writes a marker into `node_modules` only when it finds no network, a
+read-only root, no engine socket and the unprivileged user.
 
 - `controller-dependency-validation`: the host plans the lockfile, fetches the
   one tarball from `https://registry.npmjs.org` and verifies its sha512; the
-  guest installs it offline; each probe check, plus a `dependencies` check
-  running `node -e 'require("is-number")'`, runs on the installed layer.
+  guest installs it offline, running the `postinstall` script in the install
+  container; each probe check, a `dependencies` check running
+  `node -e 'require("is-number")'` and an `install-scripts` check requiring the
+  marker run on the installed layer.
 - `controller-recorded-installed-dependencies`: every check passed, and every
   result names the same plan and layer digests. The report's `dependencies`
   section keeps them, with the tree and environment digests.
