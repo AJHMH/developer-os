@@ -117,7 +117,9 @@ The report is evidence only: `productionEnabled` and `qualified` stay false.
 On 20 October 2026 every stage passed on this Mac on the earlier Codex guest;
 see the
 [native session acceptance receipt](../.scratch/aios-v1-implementation/ticket04-native-session-acceptance-receipt.md).
-It hasn't been run on the Claude Code guest yet. Before reusing a session home,
+On 10 November 2026 it passed on the Claude Code guest for the first time:
+all 26 stages, from clean `main` at `4a867bf`, under the pins `policySha256`
+`c5a7a034…`, `bindingSha256` `8e2cfe1c…` and Claude Code 2.1.311. Before reusing a session home,
 the guest removes what Claude Code regenerates on every start (its shell
 snapshots and `plugins`) and refuses any other configuration.
 
