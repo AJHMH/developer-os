@@ -356,6 +356,20 @@ import { hostGitCwd } from "./host-git.js";
 import type { SessionGateway } from "./session-relay.js";
 export const candidateDigest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
+/** The digest of a coding input's files, by path, content digest and mode:
+ * the `inputSha256` a coding runtime checks against the files it is sent. */
+export const filesManifestDigest = (
+  files: readonly { path: string; bytes: Buffer; executable: boolean }[],
+) =>
+  candidateDigest(
+    JSON.stringify(
+      files.map(({ path, bytes, executable }) => ({
+        path,
+        sha256: candidateDigest(bytes),
+        executable,
+      })),
+    ),
+  );
 /** The ambient environment without any GIT_* input, plus fixed settings. It
  * is built on first use and reused: reading every variable of `process.env`
  * costs as much as starting git itself, and a variable set later never

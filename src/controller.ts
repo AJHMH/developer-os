@@ -48,6 +48,7 @@ import {
   featureBranch,
   needsResumeRecovery,
   featurePlan,
+  filesManifestDigest,
   claudeCodingPinFields,
   validClaudeCodingPins,
   recordedProvider,
@@ -2635,7 +2636,9 @@ export class DeliveryController {
             modelRoute,
             branch: prepared.feature!.branch!,
             sourceRevision: source.revision,
-            inputSha256: input.digest,
+            // The files' own manifest digest. A repair's input is named
+            // elsewhere by its candidate artifact's digest, which differs.
+            inputSha256: filesManifestDigest(input.files),
             onEvent: (event) => {
               if (!checkpoint()) return false;
               const threadId = agent.boundThread(event);
