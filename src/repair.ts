@@ -47,10 +47,14 @@ export function repairFindings(values: string[]): string[] {
     throw Error("Repair findings must be a bounded non-secret batch");
   return [...values];
 }
-export function repairBudget(): RepairEvidence {
+/** A new repair allowance: the owner's from start, or three cycles or 60
+ * active minutes. */
+export function repairBudget(
+  initial: { cycles: number; ms: number } = { cycles: 3, ms: 3600000 },
+): RepairEvidence {
   return {
-    allowanceCycles: 3,
-    allowanceMs: 3600000,
+    allowanceCycles: initial.cycles,
+    allowanceMs: initial.ms,
     activeMs: 0,
     attempts: [],
     extensions: [],

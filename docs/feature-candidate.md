@@ -44,6 +44,8 @@ The admitted candidate records a SHA-256 of its complete manifest, original inpu
 4. `code-feature` on the owner-admitted Claude Code and validation runtimes, with `--auth-directory` naming your stored Anthropic key
 5. `validate-candidate`
 
+With `--with-repair` the run also repairs a deliberately failing candidate and observes the repair allowance; see [native repair acceptance](bounded-repair.md#native-repair-acceptance-266).
+
 The script writes the repository, owner policy, onboarding attestation and criteria file itself. They are synthetic, private and outside every repository, and the report labels them so.
 
 The coding turn is Claude Code's, metered through your Anthropic key against the delivery's spend budget. It sends real, paid model requests, and the gateway refuses any request once the $5 budget can't cover its worst case, so the run spends at most $5. The budget is set above the expected cost because each request first reserves its worst case. The guest caps Claude Code's output at 32,000 tokens (`claudeCodeMaxOutputTokens`), which alone reserves $0.64; before that cap a request asked for 128,000 tokens and reserved $2.56. The run passes only when the turn stops exactly, is authorized by the budget alone, charges its requests within the budget, and admits a candidate that then passes validation. The host checkout must stay on unchanged `main`, with the feature branch still at the baseline. If the budget interrupts the turn, the run is `blocked` and the report says so; the work stays in the delivery's state.

@@ -154,6 +154,10 @@ export interface FeatureRequest {
   codingMinutes?: number;
   /** The delivery's spend budget in dollars (ADR 0008); default $10. */
   budgetDollars?: number;
+  /** The repair allowance's cycles (1 to 100); default 3. */
+  repairCycles?: number;
+  /** The repair allowance's active minutes (1 to 1440); default 60. */
+  repairMinutes?: number;
   repository: string;
   request: string;
   issue?: string;
@@ -232,6 +236,8 @@ export interface Delivery {
   publication?: PublicationEvidence;
   validation?: ValidationEvidence;
   initialCodingAllowanceMs?: number;
+  /** The owner's repair allowance at start, when not the default. */
+  initialRepairAllowance?: { cycles: number; ms: number };
   /** The owner's spend budget at start, in picodollars, when not the default. */
   initialSpendBudget?: number;
   /** Metered model access charged to this delivery (ADR 0008). */
@@ -381,6 +387,17 @@ export class DeliveryController {
         input.codingMinutes > 1440)
     )
       throw new DeliveryError("Declare 1 to 1440 initial coding minutes.");
+    for (const [value, max] of [
+      [input.repairCycles, 100],
+      [input.repairMinutes, 1440],
+    ] as const)
+      if (
+        value !== undefined &&
+        (!Number.isSafeInteger(value) || value < 1 || value > max)
+      )
+        throw new DeliveryError(
+          "Declare 1 to 100 repair cycles and 1 to 1440 repair minutes.",
+        );
     let initialSpendBudget: number | undefined;
     if (input.budgetDollars !== undefined)
       try {
@@ -443,6 +460,14 @@ export class DeliveryController {
       issue: input.issue === undefined ? null : redact(input.issue.trim()),
       ...(input.codingMinutes !== undefined
         ? { initialCodingAllowanceMs: input.codingMinutes * 60000 }
+        : {}),
+      ...(input.repairCycles !== undefined || input.repairMinutes !== undefined
+        ? {
+            initialRepairAllowance: {
+              cycles: input.repairCycles ?? 3,
+              ms: (input.repairMinutes ?? 60) * 60000,
+            },
+          }
         : {}),
       ...(initialSpendBudget !== undefined ? { initialSpendBudget } : {}),
       createdAt: new Date().toISOString(),
@@ -1968,29 +1993,33 @@ export class DeliveryController {
       throw new DeliveryError(
         "Repair needs the controlled coding and validation runtimes; no repair was recorded.",
       );
-    const findings = repairFindings([
-      ...(validation.outcome === "passed"
-        ? []
-        : [
-            "Candidate validation: " + validation.outcome,
-            ...validation.results
-              .filter((r) => r.status !== "success")
-              .map((r) => "Candidate check " + r.checkId + ": " + r.status),
-          ]),
-      ...(Array.isArray(reviewFindings) && reviewFindings.length === 0
-        ? []
-        : repairFindings(reviewFindings)),
-    ]);
-    const input = validationCandidate(feature, this.stateDirectory);
-    const attemptId = randomUUID();
-    // Coding's own refusals come before the attempt too. A base refresh
-    // changes the feature's revision inside the attempt, so its coding checks
-    // still run there.
+    // A spent allowance is reported before anything else, even with nothing
+    // left to repair; it records nothing.
     const budget = snapshot.repair,
       exhausted =
         budget &&
         (budget.activeMs >= budget.allowanceMs ||
           budget.attempts.length >= budget.allowanceCycles);
+    const findings = exhausted
+      ? []
+      : repairFindings([
+          ...(validation.outcome === "passed"
+            ? []
+            : [
+                "Candidate validation: " + validation.outcome,
+                ...validation.results
+                  .filter((r) => r.status !== "success")
+                  .map((r) => "Candidate check " + r.checkId + ": " + r.status),
+              ]),
+          ...(Array.isArray(reviewFindings) && reviewFindings.length === 0
+            ? []
+            : repairFindings(reviewFindings)),
+        ]);
+    const input = validationCandidate(feature, this.stateDirectory);
+    const attemptId = randomUUID();
+    // Coding's own refusals come before the attempt too. A base refresh
+    // changes the feature's revision inside the attempt, so its coding checks
+    // still run there.
     // An exhausted allowance is reported below without coding's checks.
     const preflight =
       baseRefresh || exhausted
@@ -2004,7 +2033,7 @@ export class DeliveryController {
         d.repair?.attempts.some((a) => a.state !== "stopped")
       )
         throw new DeliveryError("Repair authority changed.");
-      const r = (d.repair ??= repairBudget());
+      const r = (d.repair ??= repairBudget(d.initialRepairAllowance));
       if (
         r.activeMs >= r.allowanceMs ||
         r.attempts.length >= r.allowanceCycles
