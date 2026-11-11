@@ -822,11 +822,18 @@ async function main() {
     },
     validation: {
       admitted: validationPins,
+      // With the database and browser images the record admits, which its
+      // binding names.
       fresh: () =>
         new NativePodmanValidationTransport(
           machine,
           nativeValidationAuthority(machine),
           imageSha256,
+          Object.fromEntries(
+            ["databaseImageSha256", "browserImageSha256"]
+              .filter((field) => validationPins[field])
+              .map((field) => [field, validationPins[field]]),
+          ),
         ).inspect(),
     },
   };
