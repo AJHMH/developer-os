@@ -82,6 +82,7 @@ function liveTransport(hooks = {}) {
               tarballs: request.dependencies.files.length,
             }
           : {}),
+        ...(request.database ? { database: true } : {}),
       });
       if (!request.mayDispatch()) throw Error("Dispatch refused");
       trees.set(request.operationId, request.treeSha256);
@@ -93,7 +94,7 @@ function liveTransport(hooks = {}) {
         checkId: request.check.id,
         exitCode: hooks.exitCode?.(request) ?? 0,
         timedOut: hooks.timedOut?.(request) ?? false,
-        pins: { ...pins },
+        pins: { ...pins, ...hooks.pins?.() },
         // Like the guest, a prepared cache yields an installed layer.
         ...(request.dependencies
           ? {
@@ -102,6 +103,10 @@ function liveTransport(hooks = {}) {
                 layerSha256: "e".repeat(64),
               },
             }
+          : {}),
+        // Like the guest, an E2E check's database is ready unless scripted.
+        ...(request.database
+          ? { database: hooks.database?.(request) ?? "ready" }
           : {}),
       };
     },
@@ -901,4 +906,119 @@ test("the dependency project's install script probes its isolation", async (t) =
     existsSync(join(directory, "node_modules/.aios-install-probe")),
     false,
   );
+});
+
+// The database stage (#265): E2E checks that each get a disposable database.
+const databaseImageSha256 = "5".repeat(64);
+const databasePins = () => ({ databaseImageSha256 });
+
+test("the validation acceptance runs E2E checks on disposable databases when asked", async (t) => {
+  const { validationAcceptance, probes, databaseChecks } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t, { pins: { ...pins, ...databasePins() } });
+  const transport = liveTransport({ pins: databasePins });
+  const report = await validationAcceptance(
+    transport,
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { database: true },
+  );
+  assert.equal(
+    report.outcome,
+    "observed-offline-validation-admission-acceptance",
+    report.error,
+  );
+  assert.deepEqual(report.stages.map((s) => [s.name, s.outcome]).slice(-2), [
+    ["controller-database-validation", "passed"],
+    ["controller-recorded-database-checks", "passed"],
+  ]);
+  // The baseline ran without databases; the database stage gave one to each
+  // E2E check alone.
+  const plain = Object.keys(probes).length;
+  const staged = transport.effects.runs.slice(plain);
+  assert.ok(transport.effects.runs.slice(0, plain).every((r) => !r.database));
+  assert.deepEqual(
+    staged.map((r) => [r.checkId, Boolean(r.database)]),
+    [
+      ...Object.keys(probes).map((id) => [id, false]),
+      ...Object.keys(databaseChecks).map((id) => [id, true]),
+    ],
+  );
+  assert.equal(report.database.imageSha256, databaseImageSha256);
+  assert.equal(report.database.outcome, "passed");
+});
+
+test("the validation acceptance blocks when a database never becomes ready", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t, { pins: { ...pins, ...databasePins() } });
+  const report = await validationAcceptance(
+    liveTransport({ pins: databasePins, database: () => "unready" }),
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { database: true },
+  );
+  assert.equal(report.outcome, "blocked");
+  assert.match(report.error, /A database check did not pass/);
+  assert.ok(
+    report.database.results
+      .filter((r) => r.checkId.startsWith("database"))
+      .every((r) => r.status === "failure"),
+  );
+});
+
+test("the database stage needs a record admitting the database image", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  for (const [recordPins, transportPins, options] of [
+    // The VM has the image, but the record doesn't admit it.
+    [pins, databasePins, { database: true }],
+    // The record admits one, but the run wasn't asked to use it.
+    [{ ...pins, ...databasePins() }, databasePins, {}],
+  ]) {
+    const transport = liveTransport({ pins: transportPins });
+    const report = await validationAcceptance(
+      transport,
+      ownerValidationAdmission(ownerRecord(t, { pins: recordPins }).path),
+      pins.imageSha256,
+      options,
+    );
+    assert.equal(report.outcome, "blocked");
+    assert.match(report.error, /does not name the fresh pins/);
+    assert.equal(transport.effects.runs.length, 0);
+  }
+});
+
+test("the acceptance takes each optional flag once", async () => {
+  const { acceptanceFlags } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  assert.deepEqual(acceptanceFlags([]), {
+    dependencies: false,
+    databaseImageSha256: undefined,
+  });
+  assert.deepEqual(
+    acceptanceFlags([
+      "--with-database",
+      databaseImageSha256,
+      "--with-npm-dependencies",
+    ]),
+    { dependencies: true, databaseImageSha256 },
+  );
+  for (const extra of [
+    ["--with-database"],
+    ["--with-database", "short"],
+    ["--with-npm-dependencies", "--with-npm-dependencies"],
+    [
+      "--with-database",
+      databaseImageSha256,
+      "--with-database",
+      databaseImageSha256,
+    ],
+    ["--other"],
+  ])
+    assert.equal(acceptanceFlags(extra), null);
 });

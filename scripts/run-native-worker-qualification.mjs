@@ -39,6 +39,14 @@ const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 export const passingOutcome = "observed-offline-worker-qualification";
 const validationPinFields = ["imageSha256", "policySha256", "bindingSha256"];
 const same = (fields, a, b) => fields.every((field) => a[field] === b[field]);
+/** The validation pin fields any of `pins` names: the required ones, and the
+ * database image when one is admitted (#265). */
+const validationKeys = (...pins) => [
+  ...validationPinFields,
+  ...(pins.some((p) => p && Object.hasOwn(p, "databaseImageSha256"))
+    ? ["databaseImageSha256"]
+    : []),
+];
 const prompt =
   "Offline qualification only. Do not call any tool or change any file.";
 const admittedFile = "index.html";
@@ -265,7 +273,7 @@ export async function workerQualification(
       check(
         report.pins.validation.imageSha256 === imageSha256 &&
           same(
-            validationPinFields,
+            validationKeys(validation.admission.pins(), report.pins.validation),
             validation.admission.pins(),
             report.pins.validation,
           ),
@@ -282,7 +290,7 @@ export async function workerQualification(
       );
       refusesChangedPins(
         validation.Runtime,
-        validationPinFields,
+        validationKeys(report.pins.validation),
         report.pins.validation,
         validation.transport,
         validation.admission,
@@ -400,7 +408,11 @@ export async function workerQualification(
       for (const name of probes.names) {
         const result = await runCheck(attempt, probeCheck(probes.script, name));
         check(
-          same(validationPinFields, result.pins, report.pins.validation),
+          same(
+            validationKeys(result.pins, report.pins.validation),
+            result.pins,
+            report.pins.validation,
+          ),
           "The validation pins changed during the probe",
         );
         report.validation.probes.push({
@@ -636,13 +648,21 @@ async function main() {
       model: pinnedModelPrices.model,
     }),
   };
+  // A database image the record admits is qualified with the rest.
+  const validationAdmission = ownerValidationAdmission(validationRecord);
+  // An unreadable record is refused later, in its own stage.
+  let databaseImageSha256;
+  try {
+    ({ databaseImageSha256 } = validationAdmission.pins());
+  } catch {}
   const validation = {
     transport: new NativePodmanValidationTransport(
       machine,
       sha256("issue04-native-offline-validation-v1:" + machine),
       imageSha256,
+      databaseImageSha256 ? { databaseImageSha256 } : {},
     ),
-    admission: ownerValidationAdmission(validationRecord),
+    admission: validationAdmission,
     Runtime: PinnedValidationRuntime,
   };
   for (const { transport } of [coding, validation])

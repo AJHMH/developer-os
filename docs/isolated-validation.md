@@ -182,7 +182,7 @@ inference and never starts the VM.
 
 The following remain open:
 
-- disposable browser and database fixtures;
+- disposable browsers (#265, from Microsoft's Playwright image);
 - hosted checks;
 - native qualification of this executor on the Mac.
 
@@ -293,3 +293,71 @@ NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
 IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies
 ```
+
+## Disposable databases for E2E checks (#265)
+
+An owner contract that declares `database: true` in its validation
+environment must declare a local E2E check for the candidate, as before. Each
+local `e2e` check then gets its own PostgreSQL:
+
+- **The image.** The owner loads an official PostgreSQL Alpine image into the
+  VM and admits its image ID in the validation record as
+  `databaseImageSha256`, beside the other pins. The guest checks it is loaded
+  for the VM's architecture whenever it observes the VM, and the pin is part
+  of the validation binding. A record without it admits no database, and a
+  runtime asked for one refuses. Records without it keep the binding they had.
+- **One per check.** Before the check, the guest starts the database in its
+  own container from that image: no network, a read-only root, its data on a
+  512 MiB tmpfs, no capabilities, the derived seccomp profile and user
+  `65534`. It runs a fixed command, `initdb` for a synthetic user `aios` with
+  trust authentication, then `postgres` listening only on `127.0.0.1:5432`.
+  Its own guest deadline is the check's timeout plus a minute.
+- **Ready first.** The guest polls `pg_isready` inside the database for up to
+  20 seconds. A database that never answers, or exits, is removed and the
+  check never runs; it fails as `unready`.
+- **Shared loopback only.** The check container joins the database's network
+  namespace and nothing else, so it still has no outside network. It gets
+  `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE` and `DATABASE_URL` naming that
+  loopback database, and no password or production credential.
+- **Removed with the check.** When the check ends, its database goes; stop
+  ends both. The next check starts from an empty database.
+
+Other checks get no database. Each E2E result carries the database image as a
+`postgres-image` artifact. The guest program changed, so the validation policy
+pin changed: the owner re-approves the validation record, reruns the worker
+qualification and updates the production record to the new pins.
+
+### Native database acceptance
+
+`--with-database <postgres-image-id>` adds two stages to the validation
+admission acceptance. The controller validates a third synthetic repository
+whose contract declares a database, with three E2E checks besides the probes.
+The node image needs no PostgreSQL client: the first two speak the wire
+protocol from `node`.
+
+- `controller-database-validation`: `database` creates a table; then
+  `database-fresh` finds a fresh database without that table; then
+  `database-offline` still can't reach the outside network.
+- `controller-recorded-database-checks`: every check passed, and exactly the
+  E2E checks carry the admitted database image.
+
+In Terminal, load the image into the VM and read its ID:
+
+```sh
+/opt/podman/bin/podman --connection aios-macos-noshare pull docker.io/library/postgres:17-alpine
+DATABASE_IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' docker.io/library/postgres:17-alpine)"
+```
+
+Then run the acceptance. The first run stops before any check and prints the
+fresh pins, now with `databaseImageSha256`. Write them into
+`validation-admission.json` with a new `approvedAt`, then run it again:
+
+```sh
+NODE_DIGEST=8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
+NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
+IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-database-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies --with-database "${DATABASE_IMAGE:?}"
+```
+
+A pass prints `observed-offline-validation-admission-acceptance`.
+

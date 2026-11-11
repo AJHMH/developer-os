@@ -16,32 +16,46 @@ export function nativeValidationAuthority(machine: string): string {
     .digest("hex");
 }
 
-/** Whether the owner policy at `path` declares the prepared npm cache for its
- * validation contract (#265). It only chooses which runtime the CLI builds:
- * the controller still refuses a runtime whose environment isn't exactly the
- * contract's, so a wrong answer refuses rather than runs. */
-export function ownerPolicyDeclaresPreparedNpm(path: string | undefined) {
-  if (!path) return false;
+/** The validation environment the owner policy at `path` declares, or
+ * nothing when it can't be read. It only chooses which runtime the CLI
+ * builds: the controller still refuses a runtime whose environment isn't
+ * exactly the contract's, so a wrong answer refuses rather than runs. */
+function declaredEnvironment(path: string | undefined): unknown {
+  if (!path) return undefined;
   try {
     const stat = lstatSync(path);
-    if (!stat.isFile() || stat.size > 65536) return false;
-    const caches = JSON.parse(readFileSync(path, "utf8"))?.validationContract
-      ?.environment?.caches;
-    return Array.isArray(caches) && caches.includes("prepared-npm");
+    if (!stat.isFile() || stat.size > 65536) return undefined;
+    return JSON.parse(readFileSync(path, "utf8"))?.validationContract
+      ?.environment;
   } catch {
-    return false;
+    return undefined;
   }
+}
+/** Whether the owner policy at `path` declares the prepared npm cache for its
+ * validation contract (#265). */
+export function ownerPolicyDeclaresPreparedNpm(path: string | undefined) {
+  const caches = (declaredEnvironment(path) as { caches?: unknown })?.caches;
+  return Array.isArray(caches) && caches.includes("prepared-npm");
+}
+/** Whether the owner policy at `path` declares a database for its E2E
+ * checks (#265). */
+export function ownerPolicyDeclaresDatabase(path: string | undefined) {
+  return (
+    (declaredEnvironment(path) as { database?: unknown })?.database === true
+  );
 }
 
 /** The owner-admitted native validation runtime for `machine`, at the
- * record's pins and its image. Checks run offline. With a registry `reader`,
+ * record's pins and its images. Checks run offline. With a registry `reader`,
  * the host fetches and verifies exactly the tarballs the candidate's lockfile
  * pins, and each attempt installs them offline from that prepared cache in its
- * own container; without one there are no dependency installs. */
+ * own container; without one there are no dependency installs. With
+ * `database`, each E2E check gets a disposable PostgreSQL from the record's
+ * database image. */
 export function nativeValidationRuntime(
   machine: string,
   admissionPath: string,
-  dependencies?: { reader: RegistryReader },
+  options: { reader?: RegistryReader; database?: boolean } = {},
 ): PinnedValidationRuntime {
   const admission = ownerValidationAdmission(admissionPath);
   const pins = admission.pins();
@@ -51,8 +65,11 @@ export function nativeValidationRuntime(
       machine,
       nativeValidationAuthority(machine),
       pins.imageSha256,
+      pins.databaseImageSha256
+        ? { databaseImageSha256: pins.databaseImageSha256 }
+        : {},
     ),
     admission,
-    dependencies,
+    options,
   );
 }

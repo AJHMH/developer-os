@@ -9,7 +9,7 @@ import {
 import {
   type ValidationPins,
   validationBindingSha256,
-  validationPinFields,
+  validationPinKeys,
   validValidationPins,
 } from "./native-validation.js";
 
@@ -104,7 +104,7 @@ export function ownerProductionAdmission(
         if (
           !exact(coding, claudeCodingPinFields) ||
           !validClaudeCodingPins(coding) ||
-          !exact(validation, validationPinFields) ||
+          !exact(validation, validationPinKeys(validation)) ||
           !validValidationPins(validation)
         )
           throw Error();
@@ -122,7 +122,11 @@ export function ownerProductionAdmission(
           report.sourceDirty !== false ||
           !object(report.pins) ||
           !samePins(report.pins.coding, coding, claudeCodingPinFields) ||
-          !samePins(report.pins.validation, validation, validationPinFields)
+          !samePins(
+            report.pins.validation,
+            validation,
+            validationPinKeys(validation),
+          )
         )
           throw Error();
         return {

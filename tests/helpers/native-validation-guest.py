@@ -9,8 +9,14 @@ simulated: each cached tarball becomes node_modules/p-<digest>/package.json,
 with a .bin link. installExit, installHang, installNoModules and
 installWritesInput script it; cacheChunkDrift alters the first uploaded
 chunk and laterChunkDrift one past a tarball's start.
+A database container (PostgreSQL from the database image) runs until killed;
+databaseUnready keeps pg_isready failing until the guest's wait expires,
+databaseExits makes it exit at start, and databaseIdDrift has the engine
+report another network namespace for the check. The check verb `database`
+exits 0 only while its database runs.
 """
 import sys, os, json, pathlib, subprocess, time, types, re, signal, errno
+from hashlib import sha256
 
 root = pathlib.Path(sys.argv[1])
 os.environ['HOME'] = str(root)
@@ -77,8 +83,16 @@ def run_install(name, c):
         if state.get('installSpecialFile'): os.mkfifo(str(modules / 'fifo'))
     c['State'].update(Running=False, Pid=0, ExitCode=state.get('installExit', 0))
 
+def run_database(name, c):
+    if state.get('databaseExits'):
+        c['State'].update(Running=False, Pid=0, ExitCode=1); return
+    state['nextPid'] += 1
+    c['State'].update(Running=True, Pid=state['nextPid'], ExitCode=0)
+    c['FixtureGroup'] = 'libpod-' + name
+
 def run_check(name, c):
     if 'npm ci' in c['Config']['Cmd'][1]: return run_install(name, c)
+    if 'initdb' in c['Config']['Cmd'][1]: return run_database(name, c)
     argv = c['Config']['Cmd'][3:]
     work = pathlib.Path(c['Mounts'][0]['Source'])
     # Like the engine, a missing bind source fails the start.
@@ -112,6 +126,10 @@ def run_check(name, c):
             os.mkdir(name, dir_fd=fd)
             next_fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd); os.close(fd); fd = next_fd
         os.close(fd)
+    elif verb == 'database':
+        mode = c['HostConfig'].get('NetworkMode', '')
+        db = next((d for d in state['containers'].values() if 'container:' + d['Id'] == mode), None)
+        code = 0 if db and db['State']['Running'] else 1
     elif verb != 'true': code = 127
     c['State'].update(Running=False, Pid=0, ExitCode=code)
 
@@ -148,6 +166,9 @@ def podman(args):
         return json.dumps(running)
     if sub == 'image':
         image = state.get('image', {'Id': request['imageSha256'], 'Architecture': 'arm64'})
+        if args[2] == request.get('databaseImageSha256') and args[2] != image['Id']:
+            if state.get('databaseImageMissing'): raise LookupError('no such image')
+            image = {'Id': args[2], 'Architecture': state.get('databaseArch', 'arm64')}
         if state.get('imageMissing') or args[2] != image['Id']: raise LookupError('no such image')
         # An engine answering for another image than the one asked for.
         if state.get('imageIdDrift'): image = dict(image, Id='8' * 64)
@@ -181,8 +202,12 @@ def podman(args):
             elif key == '--entrypoint': config['Entrypoint'] = [val]
             elif key == '--hostname': config['Env'].append('HOSTNAME=' + val)
         image = rest[i]; config['Cmd'] = rest[i + 1:]
+        ident = sha256(name.encode()).hexdigest()
+        # Like the engine, a container without a hostname is named by its ID.
+        if not any(e.startswith('HOSTNAME=') for e in config['Env']): config['Env'].append('HOSTNAME=' + ident[:12])
+        if state.get('databaseIdDrift') and host.get('NetworkMode', '').startswith('container:'): host['NetworkMode'] = 'container:' + '9' * 64
         host.update(state.get('inspectDrift', {}))
-        state['containers'][name] = {'Image': image, 'Config': config, 'HostConfig': host, 'Mounts': mounts, 'State': {'Running': False, 'Pid': 0, 'ExitCode': 0}}
+        state['containers'][name] = {'Id': ident, 'Image': image, 'Config': config, 'HostConfig': host, 'Mounts': mounts, 'State': {'Running': False, 'Pid': 0, 'ExitCode': 0}}
         return name
     if sub == 'inspect':
         c = state['containers'].get(args[1])
@@ -206,6 +231,15 @@ def podman(args):
         # options and cannot remove trees past its 1024-byte path limit.
         if args[1:-1] != ['rm', '-rf', '--one-file-system', '--']: raise LookupError('unexpected unshare')
         remove_owned_tree(args[-1])
+        return ''
+    if sub == 'exec':
+        c = state['containers'].get(args[1])
+        if args[2:4] != ['pg_isready', '-q'] or not c or 'initdb' not in c['Config']['Cmd'][1]: raise LookupError('unexpected exec')
+        if not c['State']['Running']: raise LookupError('not running')
+        if state.get('databaseUnready'):
+            # Never ready: the guest's bounded wait runs out.
+            state['timeOffset'] = state.get('timeOffset', 0) + 30
+            raise LookupError('not ready')
         return ''
     if sub == 'container' and args[1] == 'exists':
         return None if args[2] in state['containers'] else LookupError

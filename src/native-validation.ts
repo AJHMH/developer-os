@@ -23,19 +23,54 @@ export interface ValidationPins {
   policySha256: string;
   /** Digest of the host, engine, VM and authority binding. */
   bindingSha256: string;
+  /** Image ID of the owner-loaded PostgreSQL image each E2E check's
+   * disposable database runs in, when the owner admits one (#265). */
+  databaseImageSha256?: string;
 }
 export const validationPinFields = Object.freeze([
   "imageSha256",
   "policySha256",
   "bindingSha256",
 ] as const);
+/** Pins a validation record names only when the owner admits them. */
+export const validationOptionalPinFields = Object.freeze([
+  "databaseImageSha256",
+] as const);
+/** The pin fields `pins` names: the required ones, then each optional one
+ * present. */
+export function validationPinKeys(pins: object): string[] {
+  return [
+    ...validationPinFields,
+    ...validationOptionalPinFields.filter((field) =>
+      Object.hasOwn(pins, field),
+    ),
+  ];
+}
 const sha256 = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 export function validValidationPins(pins: ValidationPins): boolean {
   return Boolean(
     pins &&
       typeof pins === "object" &&
-      validationPinFields.every((field) => sha256(pins[field])),
+      validationPinFields.every((field) => sha256(pins[field])) &&
+      validationOptionalPinFields.every(
+        (field) => !Object.hasOwn(pins, field) || sha256(pins[field]),
+      ),
+  );
+}
+/** Whether `a` and `b` name the same pins, optional ones included. */
+export function sameValidationPins(
+  a: ValidationPins | undefined,
+  b: ValidationPins | undefined,
+): boolean {
+  return (
+    !!a &&
+    !!b &&
+    validationPinKeys(a).join() === validationPinKeys(b).join() &&
+    validationPinKeys(a).every(
+      (field) =>
+        a[field as keyof ValidationPins] === b[field as keyof ValidationPins],
+    )
   );
 }
 
@@ -100,6 +135,7 @@ export function ownerValidationAdmission(
       scope: "aios-native-validation-admission-v1",
       label: "validation",
       fields: validationPinFields,
+      optional: validationOptionalPinFields,
       valid: validValidationPins,
     },
     options,
@@ -131,6 +167,9 @@ export interface ValidationRunRequest {
   check: { id: string; command: string[]; timeoutMs: number };
   /** With these, each check also sees the installed layer, read-only. */
   dependencies?: ValidationDependencies;
+  /** The check gets its own disposable PostgreSQL, ready before it starts
+   * and removed when it ends. */
+  database?: true;
   /** Checked before every effect; false stops dispatch and polling. */
   mayDispatch(): boolean;
 }
@@ -145,6 +184,9 @@ export interface ValidationRunResult {
   /** For a request with dependencies. A failed install ends the check
    * unrun, reporting the install's exit and deadline instead. */
   dependencies?: ValidationInstall;
+  /** For a request with a database. "unready" means the database never
+   * became ready, so the check never ran. */
+  database?: "ready" | "unready";
 }
 /** Trusted isolated management boundary for validation checks. */
 export interface IsolatedValidationTransport {
@@ -199,6 +241,10 @@ export function validationBindingSha256(pins: ValidationPins): string {
       imageSha256: pins.imageSha256,
       policySha256: pins.policySha256,
       bindingSha256: pins.bindingSha256,
+      // Named only when admitted, so records without it keep their binding.
+      ...(pins.databaseImageSha256
+        ? { databaseImageSha256: pins.databaseImageSha256 }
+        : {}),
     },
   });
 }
@@ -213,24 +259,41 @@ export class PinnedValidationRuntime implements ValidationRuntime {
   readonly environment: ValidationEnvironment;
   /** Each attempt's prepared cache, fetched once on the host. */
   private readonly caches = new Map<string, Promise<NpmCache>>();
+  private readonly dependencies: { reader: RegistryReader } | undefined;
   constructor(
     pins: ValidationPins,
     private readonly transport: IsolatedValidationTransport,
     private readonly admission?: ValidationAdmission,
-    /** With a registry reader, checks install the candidate's npm
-     * dependencies offline from a prepared cache. */
-    private readonly dependencies?: { reader: RegistryReader },
+    options: {
+      /** With a registry reader, checks install the candidate's npm
+       * dependencies offline from a prepared cache. */
+      reader?: RegistryReader;
+      /** Each E2E check gets a disposable PostgreSQL from the admitted
+       * database image. */
+      database?: boolean;
+    } = {},
   ) {
     this.pins = Object.freeze({
       imageSha256: pins?.imageSha256,
       policySha256: pins?.policySha256,
       bindingSha256: pins?.bindingSha256,
+      ...(pins && Object.hasOwn(pins, "databaseImageSha256")
+        ? { databaseImageSha256: pins.databaseImageSha256 }
+        : {}),
     });
-    if (!validValidationPins(this.pins) || !this.admitted())
+    if (
+      !validValidationPins(this.pins) ||
+      (options.database && !this.pins.databaseImageSha256) ||
+      !this.admitted()
+    )
       throw Error("Unqualified validation transport");
-    this.environment = dependencies
-      ? preparedNpmValidationEnvironment(this.pins.imageSha256)
-      : offlineValidationEnvironment(this.pins.imageSha256);
+    this.dependencies = options.reader ? { reader: options.reader } : undefined;
+    this.environment = {
+      ...(this.dependencies
+        ? preparedNpmValidationEnvironment(this.pins.imageSha256)
+        : offlineValidationEnvironment(this.pins.imageSha256)),
+      database: options.database === true,
+    };
     this.bindingSha256 = validationBindingSha256(this.pins);
     Object.freeze(this.environment);
   }
@@ -239,19 +302,13 @@ export class PinnedValidationRuntime implements ValidationRuntime {
     if (this.transport.mode === "controlled") return !this.admission;
     if (this.transport.mode !== "live" || !this.admission) return false;
     try {
-      const admitted = this.admission.pins();
-      return validationPinFields.every(
-        (field) => admitted[field] === this.pins[field],
-      );
+      return sameValidationPins(this.admission.pins(), this.pins);
     } catch {
       return false;
     }
   }
   private same(observed: ValidationPins | undefined): boolean {
-    return (
-      !!observed &&
-      validationPinFields.every((field) => observed[field] === this.pins[field])
-    );
+    return sameValidationPins(observed, this.pins);
   }
   async inspect() {
     if (!this.admitted() || !this.same(await this.transport.inspect()))
@@ -323,6 +380,8 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       if (!this.admitted() || !mayDispatch())
         throw Error("Validation execution refused");
     }
+    // Only E2E checks get a database, and only where the contract declares one.
+    const database = this.environment.database && check.kind === "e2e";
     const run: ValidationRunRequest = Object.freeze({
       operationId: request.operationId,
       fence: request.fence,
@@ -353,6 +412,7 @@ export class PinnedValidationRuntime implements ValidationRuntime {
             },
           }
         : {}),
+      ...(database ? { database: true as const } : {}),
     });
     const result = await this.transport.run(run);
     if (
@@ -373,12 +433,17 @@ export class PinnedValidationRuntime implements ValidationRuntime {
             sha256(result.dependencies.layerSha256)) ||
           (result.dependencies.state === "failed" &&
             result.dependencies.layerSha256 === null)
-        ))
+        )) ||
+      (database
+        ? !["ready", "unready"].includes(String(result.database))
+        : result.database !== undefined)
     )
       throw Error("Untrusted validation result");
-    // A failed install fails the unrun check whatever npm exited with: a
-    // clean exit can still leave a layer that could not be admitted.
-    const installFailed = result.dependencies?.state === "failed";
+    // A failed install or an unready database fails the unrun check whatever
+    // it exited with: a clean exit can still leave a layer that could not be
+    // admitted.
+    const installFailed =
+      result.dependencies?.state === "failed" || result.database === "unready";
     return {
       checkId: check.id,
       status: result.timedOut
@@ -389,16 +454,27 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       publisher: check.publisher,
       treeSha256: request.treeSha256,
       environmentSha256: request.environmentSha256,
-      // The installed layer, as evidence beside the tested tree.
-      artifacts: result.dependencies?.layerSha256
-        ? [
-            { name: "npm-cache-plan", sha256: cache!.planSha256 },
-            {
-              name: "npm-dependency-layer",
-              sha256: result.dependencies.layerSha256,
-            },
-          ]
-        : [],
+      // The installed layer and the database image, as evidence beside the
+      // tested tree.
+      artifacts: [
+        ...(result.dependencies?.layerSha256
+          ? [
+              { name: "npm-cache-plan", sha256: cache!.planSha256 },
+              {
+                name: "npm-dependency-layer",
+                sha256: result.dependencies.layerSha256,
+              },
+            ]
+          : []),
+        ...(result.database === "ready"
+          ? [
+              {
+                name: "postgres-image",
+                sha256: this.pins.databaseImageSha256!,
+              },
+            ]
+          : []),
+      ],
     };
   }
   async stop(attempt: ValidationAttempt) {

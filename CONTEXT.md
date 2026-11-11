@@ -159,12 +159,20 @@ further checks. It admits offline validation checks only; it never enables
 production delivery.
 _Avoid_: validation enablement, coding record
 
-**Offline validation environment**: The only validation environment the native
+**Offline validation environment**: The validation environment the native
 validation runtime offers: the owner-loaded image by ID, the fixed "no
-network" policy digest, no registries, no caches and no browser or database
-fixtures. An owner contract must declare exactly this environment; any other
-declaration is refused before a check runs.
+network" policy digest, no registries, no caches and no browser fixtures,
+optionally with a disposable database for each E2E check. An owner contract
+must declare exactly this environment; any other declaration is refused
+before a check runs.
 _Avoid_: sandbox profile, network allowlist
+
+**Disposable database**: A fresh, empty PostgreSQL that one E2E check gets for
+itself, from the database image the owner's validation record admits. It is
+ready before the check starts, reachable only on the loopback the two share,
+holds only synthetic data under a synthetic user, and is removed when the
+check ends.
+_Avoid_: test database, shared database, fixture database
 
 **Prepared dependency cache**: The npm tarballs a candidate's lockfile names,
 read on the host only as data, fetched from the one declared registry and
