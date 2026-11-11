@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DeliveryController } from "../dist/controller.js";
@@ -10,11 +18,13 @@ import {
   offlineValidationEnvironment,
   offlineValidationNetworkPolicySha256,
   ownerValidationAdmission,
+  preparedNpmValidationEnvironment,
 } from "../dist/native-validation.js";
 import { validationDigest } from "../dist/isolated-validation.js";
 import {
   nativeValidationAuthority,
   nativeValidationRuntime,
+  ownerPolicyDeclaresPreparedNpm,
 } from "../dist/native-validation-runtime.js";
 import { codingFixture } from "./helpers/feature-fixture.mjs";
 
@@ -646,7 +656,7 @@ test("the validation acceptance installs a pinned npm dependency offline when as
   const installed = transport.effects.runs.slice(plain);
   assert.deepEqual(
     installed.map((r) => r.checkId),
-    [...Object.keys(probes), "dependencies"],
+    [...Object.keys(probes), "dependencies", "install-scripts"],
   );
   assert.ok(
     installed.every(
@@ -654,10 +664,15 @@ test("the validation acceptance installs a pinned npm dependency offline when as
         r.planSha256 === report.dependencies.planSha256 && r.tarballs === 1,
     ),
   );
-  assert.deepEqual(installed.at(-1).command, [
+  assert.deepEqual(installed.at(-2).command, [
     "node",
     "-e",
     'require("is-number")',
+  ]);
+  assert.deepEqual(installed.at(-1).command, [
+    "sh",
+    "-c",
+    'test "$(cat node_modules/.aios-install-probe)" = isolated',
   ]);
   assert.equal(report.dependencies.outcome, "passed");
   assert.equal(report.dependencies.layerSha256, "e".repeat(64));
@@ -804,5 +819,86 @@ test("the CLI's native validation runtime takes the owner's record pins and the 
   assert.throws(
     () => nativeValidationRuntime("other", record.path),
     /Invalid native validation authority/,
+  );
+});
+
+// #265: the CLI installs the candidate's npm dependencies offline only when
+// the owner contract declares the prepared cache. The controller still
+// refuses any runtime whose environment isn't exactly the contract's.
+function ownerPolicy(t, environment) {
+  const directory = mkdtempSync(join(tmpdir(), "aios-owner-policy-"));
+  t.after(() => rmSync(directory, { recursive: true }));
+  const path = join(directory, "policy.json");
+  writeFileSync(
+    path,
+    environment === undefined
+      ? "not json"
+      : JSON.stringify({ validationContract: { environment } }),
+  );
+  return path;
+}
+
+test("only an owner contract declaring the prepared npm cache asks for installs", (t) => {
+  assert.equal(
+    ownerPolicyDeclaresPreparedNpm(
+      ownerPolicy(t, preparedNpmValidationEnvironment(pins.imageSha256)),
+    ),
+    true,
+  );
+  for (const path of [
+    ownerPolicy(t, offlineValidationEnvironment(pins.imageSha256)),
+    ownerPolicy(t, { caches: "prepared-npm" }),
+    ownerPolicy(t, undefined),
+    join(tmpdir(), "aios-missing-policy.json"),
+    undefined,
+    // A folder, and a policy over 64 KiB.
+    tmpdir(),
+    ownerPolicy(t, { caches: ["prepared-npm"], pad: "x".repeat(70000) }),
+  ])
+    assert.equal(ownerPolicyDeclaresPreparedNpm(path), false, String(path));
+});
+
+test("the CLI's native validation runtime installs from the prepared cache only when asked", (t) => {
+  const record = ownerRecord(t);
+  const offline = nativeValidationRuntime("aios-test", record.path);
+  assert.deepEqual(
+    offline.environment,
+    offlineValidationEnvironment(pins.imageSha256),
+  );
+  const reader = async () => {
+    throw Error("no network in tests");
+  };
+  const installing = nativeValidationRuntime("aios-test", record.path, {
+    reader,
+  });
+  assert.deepEqual(
+    installing.environment,
+    preparedNpmValidationEnvironment(pins.imageSha256),
+  );
+  // The binding names only the pins, so the CLI stops either runtime's attempts.
+  assert.equal(installing.bindingSha256, offline.bindingSha256);
+});
+
+test("the dependency project's install script probes its isolation", async (t) => {
+  const { installScriptProbe, npmProject, dependencyPackage } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  assert.equal(
+    npmProject(dependencyPackage)["package.json"].scripts.postinstall,
+    installScriptProbe,
+  );
+  // On this host it is not isolated, so it refuses and writes no marker.
+  const directory = mkdtempSync(join(tmpdir(), "aios-install-probe-"));
+  t.after(() => rmSync(directory, { recursive: true }));
+  mkdirSync(join(directory, "node_modules"));
+  const probe = spawnSync("/bin/sh", ["-c", installScriptProbe], {
+    cwd: directory,
+    encoding: "utf8",
+    timeout: 20000,
+  });
+  assert.notEqual(probe.status, 0, probe.stderr);
+  assert.equal(
+    existsSync(join(directory, "node_modules/.aios-install-probe")),
+    false,
   );
 });

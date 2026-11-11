@@ -1,6 +1,6 @@
 # 04: Launch an isolated worker with a fail-closed qualification gate
 
-**Status:** open — moved to GitHub as [#264](https://github.com/AJHMH/developer-os/issues/264). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
+**Status:** completed in #277 ([#264](https://github.com/AJHMH/developer-os/issues/264)); its dependency item moved to [#265](https://github.com/AJHMH/developer-os/issues/265). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 **What to build:** Run a pinned dedicated Podman worker for admitted feature work
 only after fresh, version-bound host, workspace, model-only authentication,

@@ -339,6 +339,35 @@ test("a valid owner validation admission installs the native runtime without any
   assert.equal(result.status, 1);
   // The runtime was installed; only the unknown delivery refuses.
   assert.equal(JSON.parse(result.stderr).error, "Delivery not found.");
+  // #265: an owner contract declaring the prepared npm cache gets the
+  // installing runtime, still without any VM or registry effect.
+  const policy = join(state, "policy.json");
+  writeFileSync(
+    policy,
+    JSON.stringify({
+      validationContract: { environment: { caches: ["prepared-npm"] } },
+    }),
+  );
+  const installing = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      "validate-baseline",
+      "--id",
+      "11111111-2222-4333-8444-555555555555",
+      "--state-dir",
+      join(state, "state"),
+      "--owner-policy",
+      policy,
+      "--podman-machine",
+      "aios-test",
+      "--validation-admission",
+      record,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(installing.status, 1);
+  assert.equal(JSON.parse(installing.stderr).error, "Delivery not found.");
 });
 
 test("code-feature takes the owner's coding and validation inputs, auth directory and initial coding minutes", async () => {
