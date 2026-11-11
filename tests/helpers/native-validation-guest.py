@@ -9,7 +9,8 @@ simulated: each cached tarball becomes node_modules/p-<digest>/package.json,
 with a .bin link. installExit, installHang, installNoModules and
 installWritesInput script it; cacheChunkDrift alters the first uploaded
 chunk and laterChunkDrift one past a tarball's start.
-A database container (PostgreSQL from the database image) runs until killed;
+A database container (PostgreSQL from the database image) runs until killed,
+and gets the image's VOLUME as a mount unless image volumes are ignored;
 databaseUnready keeps pg_isready failing until the guest's wait expires,
 databaseExits makes it exit at start, and databaseIdDrift has the engine
 report another network namespace for the check. The check verb `database`
@@ -202,6 +203,10 @@ def podman(args):
             elif key == '--entrypoint': config['Entrypoint'] = [val]
             elif key == '--hostname': config['Env'].append('HOSTNAME=' + val)
         image = rest[i]; config['Cmd'] = rest[i + 1:]
+        # Like the engine, an image's declared VOLUME becomes an anonymous
+        # volume mount unless image volumes are ignored.
+        if image == request.get('databaseImageSha256') and '--image-volume=ignore' not in rest[:i]:
+            mounts.append({'Type': 'volume', 'Source': '/volumes/' + name, 'Destination': '/var/lib/postgresql/data', 'RW': True, 'Propagation': 'rprivate'})
         ident = sha256(name.encode()).hexdigest()
         # Like the engine, a container without a hostname is named by its ID.
         if not any(e.startswith('HOSTNAME=') for e in config['Env']): config['Env'].append('HOSTNAME=' + ident[:12])

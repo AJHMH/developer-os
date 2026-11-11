@@ -309,7 +309,9 @@ local `e2e` check then gets its own PostgreSQL:
 - **One per check.** Before the check, the guest starts the database in its
   own container from that image: no network, a read-only root, its data on a
   512 MiB tmpfs, no capabilities, the derived seccomp profile and user
-  `65534`. It runs a fixed command, `initdb` for a synthetic user `aios` with
+  `65534`. The image declares a data `VOLUME`; every validation container is
+  created with `--image-volume=ignore`, so no image's volume is ever mounted
+  and the guest still refuses any mount it didn't ask for. It runs a fixed command, `initdb` for a synthetic user `aios` with
   trust authentication, then `postgres` listening only on `127.0.0.1:5432`.
   Its own guest deadline is the check's timeout plus a minute.
 - **Ready first.** The guest polls `pg_isready` inside the database for up to

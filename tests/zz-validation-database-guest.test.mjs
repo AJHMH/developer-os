@@ -44,6 +44,8 @@ test("an E2E check gets its own ready database on a shared loopback, removed wit
   assert.ok(db.args.includes(database));
   assert.equal(value(db.args, "--network"), "none");
   assert.ok(db.args.includes("--read-only"));
+  // The image's own data volume is never mounted.
+  assert.ok(db.args.includes("--image-volume=ignore"));
   assert.match(value(db.args, "--tmpfs"), /size=536870912$/);
   assert.match(
     db.args.at(-1),
