@@ -7,7 +7,7 @@
 
 **Blocked by:** 11: [Merge only the validated and owner-approved head](11-conditional-owner-merge.md).
 
-**Status:** ready-for-human
+**Status:** open — moved to GitHub as [#271](https://github.com/AJHMH/developer-os/issues/271). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

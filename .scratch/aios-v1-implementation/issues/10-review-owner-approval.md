@@ -7,7 +7,7 @@
 
 **Blocked by:** 09: [Monitor trusted PR checks for the current revision](09-trusted-pr-checks.md).
 
-**Status:** ready-for-human
+**Status:** open — moved to GitHub as [#269](https://github.com/AJHMH/developer-os/issues/269). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

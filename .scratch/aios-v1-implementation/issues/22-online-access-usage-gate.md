@@ -7,7 +7,7 @@
 
 **Blocked by:** 20, 21 (the pinned macOS fixture has a positive public decision; broader runtime qualification remains required).
 
-**Status:** ready-for-human
+**Status:** wontfix — superseded by ADR 0008 (the spend budget replaces the usage gate). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Parent and governing contract
 

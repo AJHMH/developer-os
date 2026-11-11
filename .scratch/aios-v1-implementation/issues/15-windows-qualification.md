@@ -4,7 +4,7 @@
 
 **Blocked by:** 14: [Clean eligible merged branches and report delivery completion](14-eligible-cleanup-completion.md).
 
-**Status:** ready-for-agent — started; native prerequisites and Windows acceptance blocked
+**Status:** wontfix — superseded by ADR 0007 (Mac is the only owner host). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

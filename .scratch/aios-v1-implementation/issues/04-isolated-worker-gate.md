@@ -1,6 +1,6 @@
 # 04: Launch an isolated worker with a fail-closed qualification gate
 
-**Status:** ready-for-agent — implementation partial; resumed by owner; production qualification pending
+**Status:** open — moved to GitHub as [#264](https://github.com/AJHMH/developer-os/issues/264). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 **What to build:** Run a pinned dedicated Podman worker for admitted feature work
 only after fresh, version-bound host, workspace, model-only authentication,

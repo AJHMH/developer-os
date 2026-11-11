@@ -7,7 +7,7 @@
 
 **Blocked by:** 07: [Repair validation findings within persisted allowances](07-bounded-validation-repair.md).
 
-**Status:** ready-for-human
+**Status:** open — moved to GitHub as [#267](https://github.com/AJHMH/developer-os/issues/267). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

@@ -5,9 +5,18 @@ Approved: 7 October 2026
 
 Canonical source: [Developer AIOS v1 specification](../aios-feature-delivery/spec.md). These are implementation slices; the resolved wayfinder issues remain unchanged.
 
-## Current status — 15 October 2026
+## Current status — 10 November 2026
 
-Tickets **01–03, 18–20, 23–25** are complete within their recorded scope. Ticket **21** is complete for fixed-request mediation; **22** has fixed-fixture evidence but its broad usage-monitoring/restart criterion remains open. Generalized production use remains gated. Tickets **05–14** have implemented controlled controller slices; ticket 13 merged in PR #37 and ticket 14 merged in PR #38; PR #39 restored publication recovery coverage and adopted reviewed Factory diagnostics/reuse, with all 24 checks passing on main `c63ee3a`. Native acceptance remains open throughout. Parent **04** stays open for production admission. Tickets **15–17** remain unfinished: complete-platform qualification and observed pilot.
+The [10 November 2026 reconciliation](reconciliation-20261110.md) gives the
+status of every ticket and all 56 user stories. In short:
+- **Completed and still current:** tickets 01, 02, 03 and 05.
+- **Completed for code since removed:** 18 to 21 and 23 to 25 (Windows, the fixed worker and the ChatGPT layer).
+- **Superseded:** 15 (ADR 0007) and 22 (ADR 0008).
+- **Open:** the remaining 12, now in GitHub under [Spec: Finish Developer AIOS v1 on the Mac (#263)](https://github.com/AJHMH/developer-os/issues/263). Each keeps its v1 number.
+- **Stories:** 23 are met, 4 of them in a form a later ADR changed, and 12 are partly met. 19 are built only against test stand-ins, and 2 aren't built. No delivery can yet go past a validated candidate natively.
+
+The dated progress entries below are history. The ticket table lists
+dependencies and stories, not status.
 
 Use the [implementation reference](../../docs/implementation-status.md) for evidence and limits. Qualification is source/host/policy bound, not automatically inherited by later revisions. Ticket review or completion never supplies inference authority or owner GitHub approval. Historical progress entries below retain the observations at their recorded dates and are superseded by the current summary where they conflict.
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** 15: [Qualify the complete controller boundary on Windows](15-windows-qualification.md); 16: [Qualify the complete controller boundary on macOS](16-macos-qualification.md).
 
-**Status:** ready-for-agent
+**Status:** open — moved to GitHub as [#275](https://github.com/AJHMH/developer-os/issues/275). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

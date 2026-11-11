@@ -7,7 +7,7 @@
 
 **Blocked by:** 08: [Publish signed code and create an App-authored PR](08-signed-app-publication.md).
 
-**Status:** ready-for-human
+**Status:** open — moved to GitHub as [#268](https://github.com/AJHMH/developer-os/issues/268). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

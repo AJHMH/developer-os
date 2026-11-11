@@ -7,7 +7,7 @@
 
 **Blocked by:** 18.
 
-**Status:** completed — fixed-request mediation scope only
+**Status:** completed — for code since removed (Windows in #226, the fixed worker and ChatGPT layer in #255 and #256); historical. See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Parent and governing contract
 

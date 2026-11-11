@@ -7,7 +7,7 @@
 
 **Blocked by:** 05: [Implement a bounded feature and safely admit the worker result](05-bounded-feature-candidate.md).
 
-**Status:** ready-for-human
+**Status:** open — moved to GitHub as [#265](https://github.com/AJHMH/developer-os/issues/265). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 
