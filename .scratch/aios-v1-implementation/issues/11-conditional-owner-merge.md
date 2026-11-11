@@ -7,7 +7,7 @@
 
 **Blocked by:** 10: [Address review findings and wait for owner approval](10-review-owner-approval.md).
 
-**Status:** ready-for-human
+**Status:** open — moved to GitHub as [#270](https://github.com/AJHMH/developer-os/issues/270). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

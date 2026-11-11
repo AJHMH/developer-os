@@ -7,7 +7,7 @@
 
 **Blocked by:** 06: [Validate baseline and candidate behavior inside isolation](06-isolated-validation.md).
 
-**Status:** ready-for-human
+**Status:** open — moved to GitHub as [#266](https://github.com/AJHMH/developer-os/issues/266). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

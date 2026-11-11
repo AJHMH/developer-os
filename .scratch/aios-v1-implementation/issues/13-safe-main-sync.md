@@ -4,7 +4,7 @@
 
 **Blocked by:** 12: [Verify merged main and block unsafe recovery](12-merged-main-verification.md).
 
-**Status:** ready-for-human — controlled implementation complete and merged; native acceptance open
+**Status:** open — moved to GitHub as [#272](https://github.com/AJHMH/developer-os/issues/272). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

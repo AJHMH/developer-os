@@ -4,7 +4,7 @@
 
 **Blocked by:** 13: [Synchronize clean local main without losing work](13-safe-main-sync.md).
 
-**Status:** ready-for-human — controlled implementation complete and merged; native acceptance open
+**Status:** open — moved to GitHub as [#273](https://github.com/AJHMH/developer-os/issues/273). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

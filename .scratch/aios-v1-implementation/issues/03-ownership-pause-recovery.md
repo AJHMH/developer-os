@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: [Submit a feature request and inspect durable delivery status](01-durable-request-status.md).
 
-**Status:** completed
+**Status:** completed. See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

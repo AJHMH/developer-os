@@ -4,7 +4,7 @@
 
 **Blocked by:** 14: [Clean eligible merged branches and report delivery completion](14-eligible-cleanup-completion.md).
 
-**Status:** ready-for-agent
+**Status:** open — moved to GitHub as [#274](https://github.com/AJHMH/developer-os/issues/274). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 

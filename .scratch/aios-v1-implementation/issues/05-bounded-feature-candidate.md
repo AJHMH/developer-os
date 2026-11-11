@@ -7,7 +7,7 @@
 
 **Blocked by:** 04: [Launch an isolated worker with a fail-closed qualification gate](04-isolated-worker-gate.md).
 
-**Status:** needs-info — controller slice implemented; native qualification dependency 04 remains open
+**Status:** completed — its last criterion is met by Claude Code (session and CLI delivery acceptances). See the [10 November 2026 reconciliation](../reconciliation-20261110.md).
 
 ## Source and governing contract
 
