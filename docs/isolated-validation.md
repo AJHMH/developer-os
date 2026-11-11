@@ -282,11 +282,13 @@ so a new image needs a new validation record: run the acceptance once without
 the flag to print the fresh pins, write the record, then run it with the flag.
 The baseline probes also pass on such an image.
 
-Set the owner-chosen image digest, without `sha256:`, as `NODE_DIGEST`.
+Set the owner-chosen image digest, without `sha256:`, as `NODE_DIGEST`. The
+admitted image on this Mac is `node:24-alpine3.24` at the digest below.
 
 In Terminal, after loading the owner-chosen image into the VM:
 
 ```sh
+NODE_DIGEST=8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
 NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
 IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies

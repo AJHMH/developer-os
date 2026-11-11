@@ -23,8 +23,7 @@ Natively on the Mac, a delivery runs from intake to a validated candidate: `star
 
 Production delivery stays disabled. What remains, each as a GitHub ticket under #263:
 
-- **Worker admission (04, #264):** the production admission decision, the dependency phase, and whether one dedicated VM with a container per session meets the per-delivery boundary.
-- **Validation and repair (06 and 07, #265 and #266):** E2E on disposable infrastructure, dependency phases in isolation, and a native repair acceptance.
+- **Validation and repair (06 and 07, #265 and #266):** E2E on disposable infrastructure and a native repair acceptance. Dependency installs, install scripts included, passed natively on 11 November.
 - **Publication to cleanup (08 to 14, #267 to #273):** signed publication and the App PR, PR checks, review under the change gate, conditional merge, the main observer, main sync, and branch cleanup with the completion report. All are implemented and tested only against test stand-ins, and the CLI says no native adapter is installed for any of them.
 - **Complete-controller qualification and the pilot (16 and 17, #274 and #275):** never run.
 
