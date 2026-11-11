@@ -71,7 +71,7 @@ longer matches, the publication stops and the merge refuses.
    path in a variable, and print its SHA-256:
 
    ```sh
-   REPORT="$HOME/.developer-os/issue04-worker-qualification-20261110-205505.json"
+   REPORT="$HOME/.developer-os/issue04-worker-qualification-20261111-112708.json"
    shasum -a 256 "$REPORT"
    ```
 
@@ -83,7 +83,7 @@ longer matches, the publication stops and the merge refuses.
    {
      "scope": "aios-production-admission-v1",
      "approvedAt": "2026-11-10T00:00:00.000Z",
-     "qualificationReport": "/Users/you/.developer-os/issue04-worker-qualification-20261110-205505.json",
+     "qualificationReport": "/Users/you/.developer-os/issue04-worker-qualification-20261111-112708.json",
      "qualificationSha256": "the digest from step 1",
      "pins": {
        "coding": {

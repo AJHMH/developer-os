@@ -345,6 +345,11 @@ protocol from `node`.
 - `controller-recorded-database-checks`: every check passed, and exactly the
   E2E checks carry the admitted database image.
 
+The admitted image on this Mac is `postgres:17-alpine`, digest
+`postgres@sha256:1108a8fe22dff4eab48870e081be046d549ddc1b6f5972e0a766eaf1e0b1003c`,
+image ID `e29b5f75230807dfc40a4c8ff9e486b87a30df01cfcab04a4e99d5077d77ddfb`
+([receipt](../.scratch/aios-v1-implementation/ticket06-macos-database-acceptance-receipt.md)).
+
 In Terminal, load the image into the VM and read its ID:
 
 ```sh
