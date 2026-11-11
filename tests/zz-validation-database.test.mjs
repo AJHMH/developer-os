@@ -313,6 +313,20 @@ function fakePostgres(t, respond) {
     socket.on("data", (data) => {
       if (!started) {
         started = true;
+        // Like a fresh `initdb -U aios`: that one user, and only the
+        // databases initdb creates.
+        const pairs = data.subarray(8).toString().split("\0");
+        const params = Object.fromEntries(
+          pairs.flatMap((v, i) => (i % 2 ? [] : [[v, pairs[i + 1]]])),
+        );
+        if (
+          params.user !== "aios" ||
+          !["postgres", "template1"].includes(params.database)
+        ) {
+          message("E", Buffer.from("SFATAL\0C3D000\0\0"));
+          socket.end();
+          return;
+        }
         const auth = Buffer.alloc(4);
         message("R", auth);
         message("Z", Buffer.from("I"));
@@ -340,8 +354,9 @@ function fakePostgres(t, respond) {
     ),
   );
 }
-/** Run `command` as a check would, against the stand-in on `port`. */
-const runQuery = (command, port) =>
+/** Run `command` as a check would, against the stand-in on `port`, with the
+ * guest's database variables (or `database` instead of its own). */
+const runQuery = (command, port, database = "postgres") =>
   new Promise((accept) => {
     const child = spawn(command[0], command.slice(1), {
       env: {
@@ -349,7 +364,7 @@ const runQuery = (command, port) =>
         PGHOST: "127.0.0.1",
         PGPORT: String(port),
         PGUSER: "aios",
-        PGDATABASE: "aios",
+        PGDATABASE: database,
       },
       stdio: "ignore",
     });
@@ -381,6 +396,8 @@ test("the acceptance's query client speaks the PostgreSQL protocol from node alo
     "SELECT 1",
     "BAD",
   ]);
+  // A database initdb never created refuses the connection.
+  assert.equal(await runQuery(databaseChecks.database, server.port, "aios"), 1);
   // No server at all fails it too.
   const gone = createServer();
   await new Promise((done) => gone.listen(0, "127.0.0.1", done));

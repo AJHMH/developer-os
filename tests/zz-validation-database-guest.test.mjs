@@ -63,8 +63,8 @@ test("an E2E check gets its own ready database on a shared loopback, removed wit
       "PGHOST=127.0.0.1",
       "PGPORT=5432",
       "PGUSER=aios",
-      "PGDATABASE=aios",
-      "DATABASE_URL=postgresql://aios@127.0.0.1:5432/aios",
+      "PGDATABASE=postgres",
+      "DATABASE_URL=postgresql://aios@127.0.0.1:5432/postgres",
     ],
   );
   // The guest waited for it, inside the database container.
