@@ -172,3 +172,27 @@ test("the CLI start takes the owner's repair cycles and minutes", (t) => {
       0,
     );
 });
+test("each coding turn names its files by their manifest digest, as the native runtime checks, a repair's candidate included", async (t) => {
+  const f = await failedCandidate(t, {});
+  const sha = (b) => createHash("sha256").update(b).digest("hex");
+  const sent = [];
+  const execute = f.runtime.execute.bind(f.runtime);
+  f.runtime.execute = (request, gateway) => {
+    sent.push(request.inputSha256);
+    // Like the native transport, before anything reaches the guest.
+    const manifest = request.files.map(({ path, bytes, executable }) => ({
+      path,
+      sha256: sha(bytes),
+      executable,
+    }));
+    assert.equal(request.inputSha256, sha(JSON.stringify(manifest)));
+    return execute(request, gateway);
+  };
+  const candidate = f.controller.status(f.delivery.id).feature.candidate;
+  const repaired = await f.controller.repairFeature(f.delivery.id);
+  assert.equal(repaired.repair.attempts[0].outcome, "passed");
+  assert.equal(sent.length, 1);
+  // The repair itself is still named by the candidate artifact it repaired.
+  assert.equal(repaired.repair.attempts[0].inputSha256, candidate.sha256);
+  assert.notEqual(sent[0], candidate.sha256);
+});
