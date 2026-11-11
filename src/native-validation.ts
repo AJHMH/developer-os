@@ -190,6 +190,18 @@ export function validCheckBounds(check: {
   );
 }
 
+/** The binding a validation attempt records when it ran on a pinned runtime
+ * at exactly `pins`. */
+export function validationBindingSha256(pins: ValidationPins): string {
+  return validationDigest({
+    scope: "aios-native-validation-runtime-v1",
+    pins: {
+      imageSha256: pins.imageSha256,
+      policySha256: pins.policySha256,
+      bindingSha256: pins.bindingSha256,
+    },
+  });
+}
 /** Offline validation over a pinned transport. A controlled transport is the
  * test seam; a live one runs only while the owner's validation record names
  * its exact pins. Production delivery stays disabled either way. */
@@ -218,10 +230,7 @@ export class PinnedValidationRuntime implements ValidationRuntime {
     this.environment = dependencies
       ? preparedNpmValidationEnvironment(this.pins.imageSha256)
       : offlineValidationEnvironment(this.pins.imageSha256);
-    this.bindingSha256 = validationDigest({
-      scope: "aios-native-validation-runtime-v1",
-      pins: this.pins,
-    });
+    this.bindingSha256 = validationBindingSha256(this.pins);
     Object.freeze(this.environment);
   }
   /** The transport is controlled, or the owner record still names these pins. */

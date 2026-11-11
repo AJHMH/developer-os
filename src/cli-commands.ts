@@ -9,6 +9,7 @@ export const cliOptions = {
   "podman-machine": { type: "string" },
   "coding-admission": { type: "string" },
   "validation-admission": { type: "string" },
+  "production-admission": { type: "string" },
   "feature-criteria": { type: "string" },
   "onboarding-attestation": { type: "string" },
   repo: { type: "string" },
@@ -34,7 +35,7 @@ export interface CliCommand {
     controller: DeliveryController,
     values: CliValues,
   ) => unknown | Promise<unknown>;
-  authAction?: "prepare" | "store-anthropic-key";
+  authAction?: "prepare" | "store-anthropic-key" | "check-production";
 }
 type IdAction = {
   [Key in keyof DeliveryController]: DeliveryController[Key] extends (
@@ -112,6 +113,14 @@ const commands: Record<string, CliCommand> = {
     authAction: "store-anthropic-key",
     required: ["auth-directory"],
     optional: ["replace"],
+  },
+  // Ticket 04: checks the owner's production record against the passing
+  // qualification report it names, and prints what it admits.
+  "check-production": {
+    kind: "auth",
+    authAction: "check-production",
+    required: ["production-admission"],
+    optional: [],
   },
   // With owner coding or validation admissions, these also stop or recover
   // the exact native coding session or validation attempt.

@@ -1,6 +1,7 @@
 import { DeliveryController } from "../../dist/controller.js";
 import assert from "node:assert/strict";
 import { codingFixture } from "./feature-fixture.mjs";
+import { controlledProduction } from "./production-fixture.mjs";
 
 export async function fixture(t, configurePolicy) {
   const f = codingFixture(t, configurePolicy);
@@ -67,6 +68,7 @@ export async function fixture(t, configurePolicy) {
       return { state: "unknown" };
     },
   };
+  f.production = controlledProduction(f);
   f.reopen = () =>
     new DeliveryController(f.state, f.options, {
       featurePlanner: f.criteria,
@@ -74,6 +76,7 @@ export async function fixture(t, configurePolicy) {
       messagesSessions: f.messagesSessions,
       validationRuntime: f.validation,
       publicationRuntime: f.runtimePublication,
+      productionAdmission: f.production,
       clock: () => f.now,
     });
   f.controller = f.reopen();

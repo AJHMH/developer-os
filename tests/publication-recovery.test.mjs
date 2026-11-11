@@ -121,7 +121,9 @@ test("publication intent is durable before dispatch and the CLI installs no nati
     { encoding: "utf8" },
   );
   assert.notEqual(refused.status, 0);
-  assert.match(refused.stderr, /native writes remain disabled/);
+  // The CLI installs neither a native publisher nor a production admission,
+  // so the production gate refuses first (ticket 04).
+  assert.match(refused.stderr, /need the owner's production admission/);
   assert.equal(f.controller.status(f.delivery.id).publication, undefined);
   assert.equal(
     (await f.controller.publishFeature(f.delivery.id)).publication.outcome,

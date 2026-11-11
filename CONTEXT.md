@@ -137,8 +137,17 @@ digest, management policy, host and VM binding) of one live coding transport.
 The pinned coding runtime re-reads it before dispatch, on results and
 receipts, and at least once a second while a turn streams, so editing or
 removing it, or any pin change, stops further coding. It admits coding turns
-only; it never enables production delivery.
+only; production needs a production admission.
 _Avoid_: enablement flag, production switch
+
+**Production admission**: An owner-written record, kept privately on one host
+and never in a repository, that names the exact coding and validation pins of
+a passing worker qualification report, and names that report by path and
+digest. Only a delivery whose coding and validation ran under those pins may
+publish, so it gates every stage from publication on, and merge re-checks the
+same record. Editing or removing the record or the report revokes it at the
+next check.
+_Avoid_: production flag, production switch
 
 **Owner validation admission**: An owner-written record, kept privately on one
 host and never in a repository, that names the exact pins (validation image ID,

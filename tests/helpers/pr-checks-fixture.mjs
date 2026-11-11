@@ -58,6 +58,7 @@ export async function monitored(t, configure, setup) {
       messagesSessions: f.messagesSessions,
       validationRuntime: f.validation,
       publicationRuntime: f.runtimePublication,
+      productionAdmission: f.production,
       prChecksRuntime: f.checks,
       clock: () => f.time,
     });

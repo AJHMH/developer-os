@@ -385,6 +385,22 @@ for (const entrypoint of [null, [], ["docker-entrypoint.sh"], ["/bin/sh"]])
     );
   });
 
+// Story 51 (ADR 0009): one dedicated VM, a container per session. The guest
+// trusts a container only when it mounts exactly this session's workspace and
+// home and the read-only binary, so no session sees another's folders.
+for (const [name, engine] of [
+  ["also mounts another session's workspace", { extraMount: "/other" }],
+  ["mounts another session's workspace as its own", { otherWorkspace: true }],
+])
+  test(`a Claude Code worker that ${name} never starts`, async (t) => {
+    const { transport, read } = claudeFixture(t, engine);
+    await assert.rejects(transport.run(await start(transport), () => {}));
+    assert.equal(
+      read().commands.filter((args) => args[1] === "start").length,
+      0,
+    );
+  });
+
 test("a Claude Code worker that exits as it is polled ends its turn, never a refusal", async (t) => {
   // Podman reports the worker running, with its old pid, for one more
   // inspection after Claude Code has exited at the end of its turn.

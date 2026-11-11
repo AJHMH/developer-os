@@ -48,6 +48,7 @@ import {
   featureBranch,
   needsResumeRecovery,
   featurePlan,
+  claudeCodingPinFields,
   validClaudeCodingPins,
   recordedProvider,
   sessionProvider,
@@ -94,6 +95,7 @@ import {
   ownerChangeGate,
 } from "./onboarding.js";
 import { pathContains } from "./path-containment.js";
+import { samePins, type ProductionAdmission } from "./production-admission.js";
 import {
   PRChecksCoordinator,
   type PRChecksEvidence,
@@ -175,6 +177,9 @@ export type MessagesSessionFactory = (
   budget: MessagesBudget,
 ) => SessionGateway;
 
+const productionRefusal =
+  "Publication and merge need the owner's production admission naming this delivery's coding and validation pins, unchanged since publication; production remains disabled.";
+
 /** The route a metered Claude Code turn records. Its authority is the
  * delivery's spend budget, not a mediation decision, so the digest names the
  * delivery's budget: every turn of a delivery shares it, and a resume keeps
@@ -210,6 +215,10 @@ export interface CoordinationOptions {
   observationTimeoutMs?: number;
   /** Meters Claude Code coding turns against the spend budget (ADR 0008). */
   messagesSessions?: MessagesSessionFactory;
+  /** The owner's production admission (ticket 04). Without it, or for a
+   * delivery whose coding or validation ran under other pins, publication and
+   * so every later stage refuses. */
+  productionAdmission?: ProductionAdmission;
 }
 
 export interface Delivery {
@@ -675,6 +684,11 @@ export class DeliveryController {
     );
   }
   async mergeFeature(id: string): Promise<Delivery> {
+    // Merge lands the code, so it re-checks the production admission its
+    // publication ran under (ticket 04).
+    const d = this.status(id);
+    if (!d.publication?.productionSha256 || !this.productionAdmits(d))
+      throw new DeliveryError(productionRefusal);
     try {
       return await this.mergeCoordinator(id).merge();
     } catch {
@@ -1184,6 +1198,7 @@ export class DeliveryController {
       throw new DeliveryError("Publication source or check contract changed.");
     const candidate = validationCandidate(f, this.stateDirectory);
     protectValidationInputs(v.contract, source.files, candidate.files);
+    const production = this.productionSha256(d);
     const previous = d.publicationHistory?.at(-1);
     if (
       previous &&
@@ -1212,6 +1227,7 @@ export class DeliveryController {
       branch: f.branch,
       sourceRevision: source.revision,
       candidateSha256: candidate.digest,
+      ...(production ? { productionSha256: production } : {}),
       policySha256: d.authorityPolicySha256!,
       validationOperationId: v.operationId,
       publicationLogin: policy.publicationLogin,
@@ -1219,6 +1235,34 @@ export class DeliveryController {
       approver: policy.approver,
       files: candidate.files,
     };
+  }
+
+  /** The owner's production admission digest when it admits exactly the
+   * coding pins `d`'s feature ran under and the binding its latest validation
+   * attempt recorded (ticket 04); otherwise undefined. */
+  private productionSha256(d: Delivery): string | undefined {
+    const production = this.coordination.productionAdmission;
+    const attempt = d.validation?.attempts.at(-1);
+    if (!production || !d.feature?.pins || !attempt) return undefined;
+    try {
+      const admitted = production.admitted();
+      return samePins(d.feature.pins, admitted.coding, claudeCodingPinFields) &&
+        admitted.validationBindingSha256 === attempt.bindingSha256
+        ? admitted.productionSha256
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  /** Whether production admits `d` now, under the same record its publication
+   * recorded, if it has one. */
+  private productionAdmits(d: Delivery): boolean {
+    const production = this.productionSha256(d);
+    return (
+      !!production &&
+      (!d.publication?.productionSha256 ||
+        d.publication.productionSha256 === production)
+    );
   }
 
   private publicationCoordinator(id: string): PublicationCoordinator {
@@ -1234,6 +1278,7 @@ export class DeliveryController {
           const observation = await this.observe(runtime.inspect());
           const after = this.publicationInput(id);
           return (
+            this.productionAdmits(this.status(id)) &&
             before.validationOperationId === after.validationOperationId &&
             observation?.mode === "controlled" &&
             observation.bindingSha256 === v.bindingSha256 &&
@@ -1248,6 +1293,8 @@ export class DeliveryController {
 
   async publishFeature(id: string): Promise<Delivery> {
     this.requireMergeIdle(id);
+    if (!this.productionAdmits(this.status(id)))
+      throw new DeliveryError(productionRefusal);
     try {
       this.invalidateReviewApproval(id);
       if (unresolvedReviewEffect(this.status(id)))

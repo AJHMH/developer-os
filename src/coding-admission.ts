@@ -51,8 +51,9 @@ function insideRepository(folder: string): boolean {
   });
 }
 
-/** Read the private record through one descriptor bound to the checked file. */
-function readRecord(file: string, maxBytes = 4096): unknown {
+/** Read the private file's bytes through one descriptor bound to the checked
+ * file. */
+function readPrivateBytes(file: string, maxBytes: number): Buffer {
   assertOwnerControlledStorage(dirname(file), "directory", 4096, "readable");
   assertPrivateAuthStorage(file, "file", maxBytes);
   const checked = lstatSync(file);
@@ -69,22 +70,32 @@ function readRecord(file: string, maxBytes = 4096): unknown {
       opened.size > maxBytes
     )
       throw Error();
-    return JSON.parse(readFileSync(descriptor, "utf8"));
+    return readFileSync(descriptor);
   } finally {
     closeSync(descriptor);
   }
 }
+/** Read the private record through one descriptor bound to the checked file. */
+function readRecord(file: string, maxBytes = 4096): unknown {
+  return JSON.parse(readPrivateBytes(file, maxBytes).toString("utf8"));
+}
 
-/** A private, owner-written record of up to `maxBytes`, read afresh from an
- * absolute path outside every repository. */
-export function readOwnerRecord(path: string, maxBytes = 4096): unknown {
+/** The bytes of a private, owner-held file of up to `maxBytes`, read afresh
+ * from an absolute path outside every repository. */
+export function readOwnerBytes(path: string, maxBytes = 4096): Buffer {
   if (typeof path !== "string" || !isAbsolute(path))
     throw Error("Owner record path must be absolute");
   const file = resolve(path);
   if (insideRepository(dirname(file)))
     throw Error("Owner records never live in a repository");
-  return readRecord(file, maxBytes);
+  return readPrivateBytes(file, maxBytes);
 }
+/** A private, owner-written record of up to `maxBytes`, read afresh from an
+ * absolute path outside every repository. */
+export function readOwnerRecord(path: string, maxBytes = 4096): unknown {
+  return JSON.parse(readOwnerBytes(path, maxBytes).toString("utf8"));
+}
+export { insideRepository };
 
 /** What an owner record admits: its scope, exact pin fields and pin check.
  * `label` names the record in refusals, for example "coding". */

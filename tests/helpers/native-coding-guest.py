@@ -211,7 +211,12 @@ def run(args, **kwargs):
                 elif value == '--env': env.append(args[i+1] + ('0' if state.get('routeEnvDrift') and args[i+1].startswith(state['routeEnvDrift'] + '=' if isinstance(state['routeEnvDrift'], str) else 'AIOS_MODEL_ROUTE=') else ''))
                 elif value == '--label':
                     key, val = args[i+1].split('=',1); labels[key] = val
-            if state.get('dropHostMount'): mounts = [m for m in mounts if m['Destination'] != '/codex-code-mode-host']
+            # Another session's workspace, mounted beside this one's or in its place.
+            other = lambda m: m['Source'].rsplit('/', 2)[0] + '/other-session/workspace'
+            if state.get('extraMount'): mounts.append({'Type': 'bind', 'Source': other(mounts[0]), 'Destination': state['extraMount'], 'RW': True, 'Propagation': 'rprivate'})
+            if state.get('otherWorkspace'):
+                for m in mounts:
+                    if m['Destination'] == '/workspace': m['Source'] = other(m)
             env.append('HOSTNAME=aios-coding')
             nextPid = 42 + len(containers())
             if state.get('containerName'): state.setdefault('containers', {})[state['containerName']] = state['container']

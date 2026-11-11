@@ -53,6 +53,7 @@ export async function reviewed(t, configurePolicy) {
       messagesSessions: f.messagesSessions,
       validationRuntime: f.validation,
       publicationRuntime: f.runtimePublication,
+      productionAdmission: f.production,
       prChecksRuntime: f.checks,
       reviewRuntime: f.reviewRuntime,
       clock: () => f.time,
