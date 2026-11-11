@@ -54,6 +54,65 @@ and once to pass with them. Follow these steps in order, on the Mac, in
    Anything else is described under [Outcomes](#outcomes). Keep the report
    file it names as evidence.
 
+## Admitting production
+
+A passing qualification is evidence, not a production grant. To let deliveries
+publish, and so reach PR checks, review, merge, main sync and cleanup, you name
+a passing report in a production admission record (ticket 04). Publication
+refuses a delivery whose coding or validation ran under other pins, and the
+publication records the record's digest as `productionSha256`. Each publication
+step, and the merge, re-checks the record: if it was removed, rewritten or no
+longer matches, the publication stops and the merge refuses.
+
+1. Pick the passing report the qualification printed (`reportPath`), set its
+   path in a variable, and print its SHA-256:
+
+   ```sh
+   REPORT="$HOME/.developer-os/issue04-worker-qualification-20261110-205505.json"
+   shasum -a 256 "$REPORT"
+   ```
+
+2. Write `~/.developer-os/admission/production-admission.json`, private to you
+   (mode `600`). Use the report's path and digest, and copy `pins.coding` and
+   `pins.validation` from the report exactly:
+
+   ```json
+   {
+     "scope": "aios-production-admission-v1",
+     "approvedAt": "2026-11-10T00:00:00.000Z",
+     "qualificationReport": "/Users/you/.developer-os/issue04-worker-qualification-20261110-205505.json",
+     "qualificationSha256": "the digest from step 1",
+     "pins": {
+       "coding": {
+         "cliVersion": "…",
+         "cliSha256": "…",
+         "policySha256": "…",
+         "bindingSha256": "…"
+       },
+       "validation": {
+         "imageSha256": "…",
+         "policySha256": "…",
+         "bindingSha256": "…"
+       }
+     }
+   }
+   ```
+
+   Set `approvedAt` with `date -u +%Y-%m-%dT%H:%M:%S.000Z`, as for the
+   admission records.
+
+3. Check it. A good record prints the coding pins, validation binding and
+   `productionSha256` it admits:
+
+   ```sh
+   node dist/cli.js check-production --production-admission "$HOME/.developer-os/admission/production-admission.json"
+   ```
+
+The record refuses a report that doesn't pass, came from a stale build or dirty
+source, or names other pins. It also refuses a report changed since you took
+its digest. After a guest change and re-pin, write a new record for the new
+passing report.
+
 ## What it checks
 
 | Issue 04 criterion                                | Coding worker                                           | Validation worker                                                                                                        |

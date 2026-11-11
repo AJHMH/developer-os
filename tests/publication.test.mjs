@@ -94,6 +94,7 @@ test("a timeout fences late dispatch and requires proven quiescent absence befor
     messagesSessions: f.messagesSessions,
     validationRuntime: f.validation,
     publicationRuntime: f.runtimePublication,
+    productionAdmission: f.production,
     observationTimeoutMs: 20,
   });
   await f.controller.publishFeature(f.delivery.id);

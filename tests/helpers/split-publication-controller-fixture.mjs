@@ -69,6 +69,7 @@ export async function splitFixture(t) {
     messagesSessions: f.messagesSessions,
     validationRuntime: f.validation,
     publicationRuntime: runtime,
+    productionAdmission: f.production,
     clock: () => f.now,
   });
   assert.equal(f.runtimePublication, original);

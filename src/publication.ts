@@ -54,6 +54,9 @@ export interface PublicationEvidence {
   candidateSha256: string;
   treeSha1: string;
   policySha256: string;
+  /** Digest of the owner's production admission record at the start. Absent
+   * only on a publication recorded before ticket 04's production gate. */
+  productionSha256?: string;
   validationOperationId: string;
   publicationLogin: string;
   appLogin: string;
@@ -117,6 +120,9 @@ export interface PublicationInput {
   publicationLogin: string;
   appLogin: string;
   approver: string;
+  /** The owner's production admission this publication ran under (ticket
+   * 04). Recorded, not matched: its live check is `qualified()`. */
+  productionSha256?: string;
   files: PublicationRequest["files"];
 }
 export interface PublicationHost {
