@@ -146,3 +146,30 @@ test("a browser check whose limits drift is refused", async (t) => {
   await guest.transport.stop(request);
   assert.deepEqual(Object.keys(guest.read().containers), []);
 });
+
+test("a check container carries only its image's own labels and ours", async (t) => {
+  // Its image's label is inherited, and ours replace one of the same name.
+  const inherited = guestWith(
+    t,
+    { browserImageSha256: browser },
+    {
+      browserLabels: {
+        "org.opencontainers.image.version": "24.04",
+        "aios.validation.attempt": "from-the-image",
+      },
+    },
+  );
+  const request = runRequest({ browser: true }, { id: "e2e" });
+  assert.equal((await inherited.transport.run(request)).browser, true);
+  await inherited.transport.stop(request);
+  // A label from anywhere else is not ours to trust.
+  const foreign = guestWith(
+    t,
+    { browserImageSha256: browser },
+    { labelDrift: { "io.example.other": "1" } },
+  );
+  await assert.rejects(
+    foreign.transport.run(request),
+    /Native validation start observation unavailable/,
+  );
+});
