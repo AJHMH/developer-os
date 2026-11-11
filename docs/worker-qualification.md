@@ -6,6 +6,54 @@ under the owner's coding and validation admission records. It opens no
 credentials, authorizes no inference and never enables production. A passing
 report is evidence for the owner to judge, not a qualification decision.
 
+## Re-pinning after a guest change
+
+When a merged PR moves a guest program digest, its "Pin impact" section says
+so. The owner record for that worker then stops admitting it until you re-pin.
+You re-pin with this document's one qualification command, the one under
+[Running it](#running-it), which you run twice: once to print the fresh pins,
+and once to pass with them. Follow these steps in order, on the Mac, in
+`~/Repos/developer-os`, with the VM running:
+
+1. Update and build the checkout:
+
+   ```sh
+   git switch main && git pull --ff-only && npm ci --ignore-scripts && npm run build
+   ```
+
+2. Run the qualification. With an out-of-date record it stops before any
+   worker starts and exits with code 1:
+
+   ```sh
+   node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+   ```
+
+   Its last line is JSON with `"outcome": "blocked"` and `freshPins`. For a
+   coding guest change, `freshPins.coding` holds the four pins `cliVersion`,
+   `cliSha256`, `policySha256` and `bindingSha256`.
+
+3. Check the printed pins. `policySha256` must be the new Claude Code coding
+   digest in [owner-hosts.md](owner-hosts.md) and in the PR's "Pin impact".
+   `cliVersion` and `cliSha256` should not have changed unless the PR says
+   so.
+
+4. In `~/.developer-os/admission/claude-coding-admission.json`, replace the
+   four values under `pins` with the printed ones. Set `approvedAt` to the
+   current time in exactly this form, which the record refuses otherwise, and
+   which this prints:
+
+   ```sh
+   date -u +%Y-%m-%dT%H:%M:%S.000Z
+   ```
+
+   Leave `scope` as it is. If the PR moved the validation digest, do the same
+   with `freshPins.validation` in `validation-admission.json`.
+
+5. Run the same command from step 2 again. A pass prints
+   `"outcome": "observed-offline-worker-qualification"` and no `freshPins`.
+   Anything else is described under [Outcomes](#outcomes). Keep the report
+   file it names as evidence.
+
 ## What it checks
 
 | Issue 04 criterion                                | Coding worker                                           | Validation worker                                                                                                        |
@@ -231,12 +279,9 @@ write a Claude Code record whose pins don't match yet:
 
 Save it as `~/.developer-os/admission/claude-coding-admission.json`, private
 to you. A run with it blocks at `owner-records-name-fresh-pins` and prints
-`freshPins.coding`. Once you've judged those pins, copy them into the record,
-then run again:
-
-```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
-```
+`freshPins.coding`. Once you've judged those pins, copy them into the record
+and run the same command again, as in
+[Re-pinning after a guest change](#re-pinning-after-a-guest-change).
 
 ## Limits
 
