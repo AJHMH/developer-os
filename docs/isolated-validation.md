@@ -182,7 +182,6 @@ inference and never starts the VM.
 
 The following remain open:
 
-- native acceptance of browser checks (#265, below);
 - hosted checks;
 - native qualification of this executor on the Mac.
 
@@ -411,6 +410,13 @@ whose lockfile pins it:
 
 The version must be the one the image's tag names, so Playwright finds the
 browsers it ships.
+
+The admitted image on this Mac is `mcr.microsoft.com/playwright:v1.64.1-noble`,
+digest
+`playwright@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f`,
+image ID `2dee255e66f9985e1623c12a6f77535bb7487e7bd00a0b0ad82f98688ae60f4d`.
+It passed natively on 11 November
+([receipt](../.scratch/aios-v1-implementation/ticket06-macos-browser-acceptance-receipt.md)).
 
 A container inherits its image's own labels. Playwright's image carries
 `org.opencontainers.image.version` from its Ubuntu base, so the guest trusts a
