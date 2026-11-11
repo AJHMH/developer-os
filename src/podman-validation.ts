@@ -129,15 +129,15 @@ def snapshot():
  for c in obj('ps','--format','json'):
   names=c.get('Names') or []
   if not R.get('name') or len(names)!=1 or not (names[0].startswith(R['name']+'-c') or names[0].startswith(R['name']+'-d') or names[0]==R['name']+'-install'): fail()
- images=[R['imageSha256']]+([R['databaseImageSha256']] if 'databaseImageSha256' in R else [])
+ images=[R['imageSha256']]+[R[k] for k in ['databaseImageSha256','browserImageSha256'] if k in R]
  for wanted in images:
   if not isinstance(wanted,str) or not re.fullmatch('[a-f0-9]{64}',wanted): fail()
   checked=obj('image','inspect',wanted)[0]
   if checked.get('Id')!=wanted or checked.get('Architecture')!=R['guestArch']: fail()
  machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
  if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
- # The database image is named only when the owner admits one.
- return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],image=R['imageSha256'],hostId=h(machine_id.encode()),**({'database':R['databaseImageSha256']} if 'databaseImageSha256' in R else {}))
+ # The database and browser images are named only when the owner admits them.
+ return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],image=R['imageSha256'],hostId=h(machine_id.encode()),**({'database':R['databaseImageSha256']} if 'databaseImageSha256' in R else {}),**({'browser':R['browserImageSha256']} if 'browserImageSha256' in R else {}))
 
 def directory(path):
  os.makedirs(path,mode=0o700,exist_ok=True)
@@ -250,7 +250,13 @@ DATABASE_ENV={'PGHOST':'127.0.0.1','PGPORT':'5432','PGUSER':'aios','PGDATABASE':
 # PostgreSQL, from the owner-admitted image, with its data on the tmpfs and
 # listening only on loopback.
 POSTGRES='set -e; initdb -D /tmp/pgdata -U aios --auth=trust --no-sync >/dev/null; exec postgres -D /tmp/pgdata -k /tmp -h 127.0.0.1 -p 5432 -c fsync=off'
-def effective(c,cmd,binds,image,network,env,workdir):
+# A browser check runs in the owner-admitted Playwright image, which keeps its
+# browsers there, with room for Chromium. Its own sandbox needs user
+# namespaces the seccomp profile removes, so the container is its sandbox.
+BROWSER_ENV={'PLAYWRIGHT_BROWSERS_PATH':'/ms-playwright'}
+CHECK_LIMITS=dict(pids=256,memory=1073741824,shm=None,tmp=268435456)
+BROWSER_LIMITS=dict(pids=1024,memory=2147483648,shm=268435456,tmp=536870912)
+def effective(c,cmd,binds,image,network,env,workdir,limits=CHECK_LIMITS):
  # binds: the exact (source, destination, writable) bind mounts expected.
  if c.get('Image')!=image or c['Config'].get('Entrypoint') not in [['/bin/sh'],'/bin/sh'] or c['Config'].get('Cmd')!=cmd: fail()
  hc=c['HostConfig'];found_env=dict(x.split('=',1) for x in c['Config']['Env'])
@@ -262,20 +268,20 @@ def effective(c,cmd,binds,image,network,env,workdir):
  if hc.get('Privileged') or hc.get('VolumesFrom') or hc.get('PortBindings') or hc.get('Devices') or hc.get('CapAdd'): fail()
  if hc.get('NetworkMode')!=network or hc.get('PidMode')!='private' or hc.get('IpcMode')!='private' or not hc.get('ReadonlyRootfs'): fail()
  if c['Config']['User']!='65534:65534' or found_env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no' or c['Config'].get('WorkingDir')!=workdir: fail()
- if hc.get('PidsLimit')!=256 or hc.get('Memory')!=1073741824 or 'no-new-privileges' not in hc.get('SecurityOpt',[]) or 'seccomp='+root+'/seccomp.json' not in hc.get('SecurityOpt',[]): fail()
+ if hc.get('PidsLimit')!=limits['pids'] or hc.get('Memory')!=limits['memory'] or (limits['shm'] and hc.get('ShmSize')!=limits['shm']) or 'no-new-privileges' not in hc.get('SecurityOpt',[]) or 'seccomp='+root+'/seccomp.json' not in hc.get('SecurityOpt',[]): fail()
  found=[m for m in c.get('Mounts',[]) if m.get('Type')=='bind']
  if any(m.get('Type') not in ['bind','tmpfs'] or (m.get('Type')=='tmpfs' and m.get('Destination')!='/tmp') for m in c.get('Mounts',[])): fail()
  if sorted((m.get('Source'),m.get('Destination'),m.get('RW')) for m in found)!=sorted(binds) or any(m.get('Propagation') not in ['rprivate','private'] for m in found): fail()
 # The prepared npm cache installs offline; scripts run only in here.
 INSTALL='set -e; for f in /cache/*.tgz; do [ -e "$f" ] || continue; npm cache add "$f" --cache /npm-cache --offline >/dev/null; done; exec npm ci --offline --cache /npm-cache --no-audit --no-fund'
-def create(name,cmd,volumes,image=None,network='none',env={},workdir='/workspace',tmp=268435456):
+def create(name,cmd,volumes,image=None,network='none',env={},workdir='/workspace',limits=CHECK_LIMITS):
  # One hardened container from an owner-admitted image by ID, offline or
  # sharing only its own database's loopback. An image's own VOLUME, such as
  # PostgreSQL's data directory, is never mounted: only the binds asked for.
  image=image or R['imageSha256']
- pod('create','--name',name,*(['--hostname=aios-validation'] if network=='none' else []),'--pull=never','--image-volume=ignore','--network='+network,'--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size='+str(tmp),'--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=256','--memory=1024m','--http-proxy=false','--unsetenv-all',*[x for k,v in {**BASE_ENV,**env}.items() for x in ['--env',k+'='+v]],'--workdir='+workdir,'--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,*[x for v in volumes for x in ['--volume',v[0]+':'+v[1]+(':rw' if v[2] else ':ro')+',Z,rprivate']],image,*cmd)
+ pod('create','--name',name,*(['--hostname=aios-validation'] if network=='none' else []),'--pull=never','--image-volume=ignore','--network='+network,'--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size='+str(limits['tmp']),'--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit='+str(limits['pids']),'--memory='+str(limits['memory']//1048576)+'m',*(['--shm-size='+str(limits['shm']//1048576)+'m'] if limits['shm'] else []),'--http-proxy=false','--unsetenv-all',*[x for k,v in {**BASE_ENV,**env}.items() for x in ['--env',k+'='+v]],'--workdir='+workdir,'--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,*[x for v in volumes for x in ['--volume',v[0]+':'+v[1]+(':rw' if v[2] else ':ro')+',Z,rprivate']],image,*cmd)
  c=check_container(name)
- effective(c,cmd,sorted(volumes),image,network,env,workdir)
+ effective(c,cmd,sorted(volumes),image,network,env,workdir,limits)
  return c
 def ready(name):
  # PostgreSQL answers on its loopback within a bounded time, or never does.
@@ -481,8 +487,9 @@ else:
    deps=record.get('deps')
    if R.get('dependencies') is not None and (not deps or deps['state']!='installed' or deps['planSha256']!=R['dependencies']): fail()
    if R.get('dependencies') is None and deps: fail()
-   database=R.get('database')
+   database=R.get('database');browser=R.get('browser')
    if database not in [None,True] or (database and 'databaseImageSha256' not in R): fail()
+   if browser not in [None,True] or (browser and 'browserImageSha256' not in R): fail()
    index=len(record['checks']);name=R['name']+'-c'+str(index);work=operation+'/check-'+str(index)
    entry=dict(checkId=check['id'],container=name,workspace=work,argv=argv,group='',pids={},exitCode=None,timedOut=False,treeSha256=None)
    if database: entry['database']=dict(container=R['name']+'-d'+str(index),group='',pids={},exitCode=None,timedOut=False,state='starting')
@@ -493,7 +500,7 @@ else:
     # A fresh database for this check alone, removed when it ends; its own
     # guest deadline outlasts the check's.
     d=entry['database']
-    network='container:'+create(d['container'],['-c',POSTGRES],[],image=R['databaseImageSha256'],workdir='/tmp',tmp=536870912)['Id']
+    network='container:'+create(d['container'],['-c',POSTGRES],[],image=R['databaseImageSha256'],workdir='/tmp',limits=dict(CHECK_LIMITS,tmp=536870912))['Id']
     launch(d,check['timeoutMs']+60000)
     d['state']='ready' if ready(d['container']) else 'unready'
     save(recordPath,record)
@@ -501,12 +508,12 @@ else:
     # The check never runs; its untouched copy and the database go.
     kill_check(d);discard(work)
     entry['treeSha256']=record['manifestSha256'];record['phase']='prepared';save(recordPath,record)
-    result=dict(database='unready')
+    result=dict(database='unready',**({'browser':True} if browser else {}))
    else:
-    create(name,['-c','exec "$@"','--',*argv],[(work,'/workspace',True)]+([(operation+'/deps','/workspace/node_modules',False)] if deps else []),network=network,env=DATABASE_ENV if database else {})
+    create(name,['-c','exec "$@"','--',*argv],[(work,'/workspace',True)]+([(operation+'/deps','/workspace/node_modules',False)] if deps else []),image=R['browserImageSha256'] if browser else None,network=network,env={**(DATABASE_ENV if database else {}),**(BROWSER_ENV if browser else {})},limits=BROWSER_LIMITS if browser else CHECK_LIMITS)
     launch(entry,check['timeoutMs'])
     save(recordPath,record)
-    result=dict(container=name,**({'database':'ready'} if database else {}))
+    result=dict(container=name,**({'database':'ready'} if database else {}),**({'browser':True} if browser else {}))
   elif R['action']=='poll':
    if not record or record['phase']!='running' or not record['checks'] or record['checks'][-1]['checkId']!=R.get('checkId'): fail()
    entry=record['checks'][-1]
@@ -584,6 +591,8 @@ export class NativePodmanValidationTransport
   private readonly deadlineGraceMs: number;
   /** The owner-loaded PostgreSQL image E2E checks get a database from. */
   private readonly databaseImageSha256: string | undefined;
+  /** The owner-loaded Playwright image browser E2E checks run in. */
+  private readonly browserImageSha256: string | undefined;
   constructor(
     private readonly machine: string,
     private readonly authority: string,
@@ -592,6 +601,7 @@ export class NativePodmanValidationTransport
       pollMs?: number;
       deadlineGraceMs?: number;
       databaseImageSha256?: string;
+      browserImageSha256?: string;
     } = {},
   ) {
     if (
@@ -599,10 +609,13 @@ export class NativePodmanValidationTransport
       !sha256(authority) ||
       !sha256(imageSha256) ||
       (options.databaseImageSha256 !== undefined &&
-        !sha256(options.databaseImageSha256))
+        !sha256(options.databaseImageSha256)) ||
+      (options.browserImageSha256 !== undefined &&
+        !sha256(options.browserImageSha256))
     )
       throw Error("Invalid native validation authority");
     this.databaseImageSha256 = options.databaseImageSha256;
+    this.browserImageSha256 = options.browserImageSha256;
     this.pollMs = options.pollMs ?? 1000;
     this.deadlineGraceMs = options.deadlineGraceMs ?? 30000;
     if (
@@ -637,9 +650,7 @@ export class NativePodmanValidationTransport
       guestArch: host.guestArch,
       imageReference: host.imageReference,
       imageSha256: this.imageSha256,
-      ...(this.databaseImageSha256
-        ? { databaseImageSha256: this.databaseImageSha256 }
-        : {}),
+      ...this.optionalImages(),
       ...payload,
     };
     const result: unknown = await runManagement(
@@ -655,7 +666,8 @@ export class NativePodmanValidationTransport
       (result.binding !== null &&
         (!validGuestBinding(managed, result.binding) ||
           result.binding.image !== this.imageSha256 ||
-          result.binding.database !== this.databaseImageSha256)) ||
+          result.binding.database !== this.databaseImageSha256 ||
+          result.binding.browser !== this.browserImageSha256)) ||
       (action !== "stop" && result.binding === null) ||
       JSON.stringify(result.attempt) !== JSON.stringify(identity)
     )
@@ -668,11 +680,20 @@ export class NativePodmanValidationTransport
         this.authority,
         result.binding,
       ),
+      ...this.optionalImages(),
+    };
+    return { result, pins };
+  }
+  /** The database and browser images this transport admits, by pin name. */
+  private optionalImages() {
+    return {
       ...(this.databaseImageSha256
         ? { databaseImageSha256: this.databaseImageSha256 }
         : {}),
+      ...(this.browserImageSha256
+        ? { browserImageSha256: this.browserImageSha256 }
+        : {}),
     };
-    return { result, pins };
   }
   async inspect(): Promise<ValidationPins> {
     return (await this.invoke("inspect")).pins;
@@ -700,7 +721,9 @@ export class NativePodmanValidationTransport
       (request.dependencies !== undefined &&
         !validDependencies(request.dependencies)) ||
       (request.database !== undefined &&
-        (request.database !== true || !this.databaseImageSha256))
+        (request.database !== true || !this.databaseImageSha256)) ||
+      (request.browser !== undefined &&
+        (request.browser !== true || !this.browserImageSha256))
     )
       throw Error("Unsupported native validation request");
     const attempt = { operationId: request.operationId, fence: request.fence };
@@ -747,6 +770,7 @@ export class NativePodmanValidationTransport
         expectedBinding,
         dependencies: deps?.planSha256 ?? null,
         database: request.database ?? null,
+        browser: request.browser ?? null,
         treeSha256: request.treeSha256,
         check: {
           id: check.id,
@@ -760,11 +784,15 @@ export class NativePodmanValidationTransport
       ? (started.result.database as unknown)
       : undefined;
     if (
-      request.database
+      (request.database
         ? database !== "ready" && database !== "unready"
-        : started.result.database !== undefined
+        : started.result.database !== undefined) ||
+      (request.browser
+        ? started.result.browser !== true
+        : started.result.browser !== undefined)
     )
       throw Error("Native validation binding changed");
+    const browser = request.browser ? { browser: true as const } : {};
     // A database that never became ready leaves the check unrun.
     if (database === "unready")
       return {
@@ -775,6 +803,7 @@ export class NativePodmanValidationTransport
         timedOut: false,
         pins: started.pins,
         database,
+        ...browser,
         ...(install ? { dependencies: install } : {}),
       };
     // The guest timer ends the check at its timeout; polling ends a little
@@ -803,6 +832,7 @@ export class NativePodmanValidationTransport
           pins: polled.pins,
           ...(install ? { dependencies: install } : {}),
           ...(database ? { database: "ready" as const } : {}),
+          ...browser,
         };
       }
       if (polled.result.running !== true || performance.now() > deadline)

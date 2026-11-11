@@ -50,7 +50,9 @@ and once to pass with them. Follow these steps in order, on the Mac, in
    with `freshPins.validation` in `validation-admission.json`. A validation
    record that admits a database image (`databaseImageSha256`, see
    [disposable databases](isolated-validation.md#disposable-databases-for-e2e-checks-265))
-   keeps it: the qualification checks that pin with the others.
+   or a browser image (`browserImageSha256`, see
+   [browser checks](isolated-validation.md#browser-checks-for-e2e-265))
+   keeps it: the qualification checks those pins with the others.
 
 5. Run the same command from step 2 again. A pass prints
    `"outcome": "observed-offline-worker-qualification"` and no `freshPins`.
@@ -101,8 +103,9 @@ longer matches, the publication stops and the merge refuses.
    }
    ```
 
-   When the validation record admits a database image, `validation` also
-   names its `databaseImageSha256`, as the report does.
+   When the validation record admits a database or browser image,
+   `validation` also names its `databaseImageSha256` or `browserImageSha256`,
+   as the report does.
 
    Set `approvedAt` with `date -u +%Y-%m-%dT%H:%M:%S.000Z`, as for the
    admission records.

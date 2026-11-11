@@ -40,12 +40,12 @@ export const passingOutcome = "observed-offline-worker-qualification";
 const validationPinFields = ["imageSha256", "policySha256", "bindingSha256"];
 const same = (fields, a, b) => fields.every((field) => a[field] === b[field]);
 /** The validation pin fields any of `pins` names: the required ones, and the
- * database image when one is admitted (#265). */
+ * database and browser images when admitted (#265). */
 const validationKeys = (...pins) => [
   ...validationPinFields,
-  ...(pins.some((p) => p && Object.hasOwn(p, "databaseImageSha256"))
-    ? ["databaseImageSha256"]
-    : []),
+  ...["databaseImageSha256", "browserImageSha256"].filter((field) =>
+    pins.some((p) => p && Object.hasOwn(p, field)),
+  ),
 ];
 const prompt =
   "Offline qualification only. Do not call any tool or change any file.";
@@ -648,19 +648,22 @@ async function main() {
       model: pinnedModelPrices.model,
     }),
   };
-  // A database image the record admits is qualified with the rest.
+  // Database and browser images the record admits are qualified with the rest.
   const validationAdmission = ownerValidationAdmission(validationRecord);
   // An unreadable record is refused later, in its own stage.
-  let databaseImageSha256;
+  let databaseImageSha256, browserImageSha256;
   try {
-    ({ databaseImageSha256 } = validationAdmission.pins());
+    ({ databaseImageSha256, browserImageSha256 } = validationAdmission.pins());
   } catch {}
   const validation = {
     transport: new NativePodmanValidationTransport(
       machine,
       sha256("issue04-native-offline-validation-v1:" + machine),
       imageSha256,
-      databaseImageSha256 ? { databaseImageSha256 } : {},
+      {
+        ...(databaseImageSha256 ? { databaseImageSha256 } : {}),
+        ...(browserImageSha256 ? { browserImageSha256 } : {}),
+      },
     ),
     admission: validationAdmission,
     Runtime: PinnedValidationRuntime,

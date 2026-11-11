@@ -26,6 +26,9 @@ export interface ValidationPins {
   /** Image ID of the owner-loaded PostgreSQL image each E2E check's
    * disposable database runs in, when the owner admits one (#265). */
   databaseImageSha256?: string;
+  /** Image ID of the owner-loaded Playwright image browser E2E checks run
+   * in, when the owner admits one (#265). */
+  browserImageSha256?: string;
 }
 export const validationPinFields = Object.freeze([
   "imageSha256",
@@ -35,6 +38,7 @@ export const validationPinFields = Object.freeze([
 /** Pins a validation record names only when the owner admits them. */
 export const validationOptionalPinFields = Object.freeze([
   "databaseImageSha256",
+  "browserImageSha256",
 ] as const);
 /** The pin fields `pins` names: the required ones, then each optional one
  * present. */
@@ -170,6 +174,9 @@ export interface ValidationRunRequest {
   /** The check gets its own disposable PostgreSQL, ready before it starts
    * and removed when it ends. */
   database?: true;
+  /** The check runs in the admitted browser image, with a browser check's
+   * limits. */
+  browser?: true;
   /** Checked before every effect; false stops dispatch and polling. */
   mayDispatch(): boolean;
 }
@@ -187,6 +194,8 @@ export interface ValidationRunResult {
   /** For a request with a database. "unready" means the database never
    * became ready, so the check never ran. */
   database?: "ready" | "unready";
+  /** For a request with a browser: it ran in the browser image. */
+  browser?: true;
 }
 /** Trusted isolated management boundary for validation checks. */
 export interface IsolatedValidationTransport {
@@ -245,6 +254,9 @@ export function validationBindingSha256(pins: ValidationPins): string {
       ...(pins.databaseImageSha256
         ? { databaseImageSha256: pins.databaseImageSha256 }
         : {}),
+      ...(pins.browserImageSha256
+        ? { browserImageSha256: pins.browserImageSha256 }
+        : {}),
     },
   });
 }
@@ -271,19 +283,24 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       /** Each E2E check gets a disposable PostgreSQL from the admitted
        * database image. */
       database?: boolean;
+      /** Each E2E check runs in the admitted browser image. */
+      browser?: boolean;
     } = {},
   ) {
     this.pins = Object.freeze({
       imageSha256: pins?.imageSha256,
       policySha256: pins?.policySha256,
       bindingSha256: pins?.bindingSha256,
-      ...(pins && Object.hasOwn(pins, "databaseImageSha256")
-        ? { databaseImageSha256: pins.databaseImageSha256 }
-        : {}),
+      ...Object.fromEntries(
+        validationOptionalPinFields
+          .filter((field) => pins && Object.hasOwn(pins, field))
+          .map((field) => [field, pins[field]]),
+      ),
     });
     if (
       !validValidationPins(this.pins) ||
       (options.database && !this.pins.databaseImageSha256) ||
+      (options.browser && !this.pins.browserImageSha256) ||
       !this.admitted()
     )
       throw Error("Unqualified validation transport");
@@ -293,6 +310,7 @@ export class PinnedValidationRuntime implements ValidationRuntime {
         ? preparedNpmValidationEnvironment(this.pins.imageSha256)
         : offlineValidationEnvironment(this.pins.imageSha256)),
       database: options.database === true,
+      browser: options.browser === true,
     };
     this.bindingSha256 = validationBindingSha256(this.pins);
     Object.freeze(this.environment);
@@ -380,8 +398,10 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       if (!this.admitted() || !mayDispatch())
         throw Error("Validation execution refused");
     }
-    // Only E2E checks get a database, and only where the contract declares one.
+    // Only E2E checks get a database or a browser, and only where the
+    // contract declares one.
     const database = this.environment.database && check.kind === "e2e";
+    const browser = this.environment.browser && check.kind === "e2e";
     const run: ValidationRunRequest = Object.freeze({
       operationId: request.operationId,
       fence: request.fence,
@@ -413,6 +433,7 @@ export class PinnedValidationRuntime implements ValidationRuntime {
           }
         : {}),
       ...(database ? { database: true as const } : {}),
+      ...(browser ? { browser: true as const } : {}),
     });
     const result = await this.transport.run(run);
     if (
@@ -436,7 +457,8 @@ export class PinnedValidationRuntime implements ValidationRuntime {
         )) ||
       (database
         ? !["ready", "unready"].includes(String(result.database))
-        : result.database !== undefined)
+        : result.database !== undefined) ||
+      (browser ? result.browser !== true : result.browser !== undefined)
     )
       throw Error("Untrusted validation result");
     // A failed install or an unready database fails the unrun check whatever
@@ -473,6 +495,9 @@ export class PinnedValidationRuntime implements ValidationRuntime {
                 sha256: this.pins.databaseImageSha256!,
               },
             ]
+          : []),
+        ...(browser
+          ? [{ name: "browser-image", sha256: this.pins.browserImageSha256! }]
           : []),
       ],
     };
