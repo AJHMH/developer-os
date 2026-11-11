@@ -103,6 +103,8 @@ export interface OwnerAdmissionKind<P> {
   readonly scope: string;
   readonly label: string;
   readonly fields: readonly (keyof P & string)[];
+  /** Pins a record may also name; each one present is admitted with it. */
+  readonly optional?: readonly (keyof P & string)[];
   valid(pins: P): boolean;
 }
 
@@ -143,12 +145,20 @@ export function ownerAdmission<P>(
           Date.parse(record.approvedAt) > now ||
           !pins ||
           typeof pins !== "object" ||
-          Object.keys(pins).sort().join() !== [...kind.fields].sort().join() ||
+          Object.keys(pins).some(
+            (key) =>
+              !kind.fields.includes(key as keyof P & string) &&
+              !kind.optional?.includes(key as keyof P & string),
+          ) ||
+          !kind.fields.every((field) => Object.hasOwn(pins, field)) ||
           !kind.valid(pins)
         )
           throw Error();
+        const named = [...kind.fields, ...(kind.optional ?? [])].filter(
+          (field) => Object.hasOwn(pins, field),
+        );
         const admitted = Object.fromEntries(
-          kind.fields.map((field) => [field, pins[field]]),
+          named.map((field) => [field, pins[field]]),
         ) as P;
         last = { at: now, pins: admitted };
         return { ...admitted };

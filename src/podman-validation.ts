@@ -128,13 +128,16 @@ def snapshot():
  # Only this attempt's own check containers may be running.
  for c in obj('ps','--format','json'):
   names=c.get('Names') or []
-  if not R.get('name') or len(names)!=1 or not (names[0].startswith(R['name']+'-c') or names[0]==R['name']+'-install'): fail()
- if not re.fullmatch('[a-f0-9]{64}',R['imageSha256']): fail()
- checked=obj('image','inspect',R['imageSha256'])[0]
- if checked.get('Id')!=R['imageSha256'] or checked.get('Architecture')!=R['guestArch']: fail()
+  if not R.get('name') or len(names)!=1 or not (names[0].startswith(R['name']+'-c') or names[0].startswith(R['name']+'-d') or names[0]==R['name']+'-install'): fail()
+ images=[R['imageSha256']]+([R['databaseImageSha256']] if 'databaseImageSha256' in R else [])
+ for wanted in images:
+  if not isinstance(wanted,str) or not re.fullmatch('[a-f0-9]{64}',wanted): fail()
+  checked=obj('image','inspect',wanted)[0]
+  if checked.get('Id')!=wanted or checked.get('Architecture')!=R['guestArch']: fail()
  machine_id=pathlib.Path('/etc/machine-id').read_text().strip()
  if not re.fullmatch('[a-f0-9]{32}',machine_id): fail()
- return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],image=R['imageSha256'],hostId=h(machine_id.encode()))
+ # The database image is named only when the owner admits one.
+ return dict(engineVersion=info['version']['Version'],vmImageSha256=image[7:],image=R['imageSha256'],hostId=h(machine_id.encode()),**({'database':R['databaseImageSha256']} if 'databaseImageSha256' in R else {}))
 
 def directory(path):
  os.makedirs(path,mode=0o700,exist_ok=True)
@@ -239,24 +242,48 @@ def kill_check(entry):
   if exists(entry['container']): fail()
  stop_deadline(entry['container'])
  if not gone(entry): fail()
-def effective(c,cmd,binds):
+BASE_ENV={'PATH':'/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin','HOME':'/tmp','CI':'true'}
+# A check with a database reaches it only on the loopback of the network
+# namespace they share, as a synthetic user with no password.
+DATABASE_ENV={'PGHOST':'127.0.0.1','PGPORT':'5432','PGUSER':'aios','PGDATABASE':'aios','DATABASE_URL':'postgresql://aios@127.0.0.1:5432/aios'}
+# PostgreSQL, from the owner-admitted image, with its data on the tmpfs and
+# listening only on loopback.
+POSTGRES='set -e; initdb -D /tmp/pgdata -U aios --auth=trust --no-sync >/dev/null; exec postgres -D /tmp/pgdata -k /tmp -h 127.0.0.1 -p 5432 -c fsync=off'
+def effective(c,cmd,binds,image,network,env,workdir):
  # binds: the exact (source, destination, writable) bind mounts expected.
- if c.get('Image')!=R['imageSha256'] or c['Config'].get('Entrypoint') not in [['/bin/sh'],'/bin/sh'] or c['Config'].get('Cmd')!=cmd: fail()
- hc=c['HostConfig'];env=dict(x.split('=',1) for x in c['Config']['Env'])
- expected={'PATH':'/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin','HOME':'/tmp','CI':'true','HOSTNAME':'aios-validation'}
+ if c.get('Image')!=image or c['Config'].get('Entrypoint') not in [['/bin/sh'],'/bin/sh'] or c['Config'].get('Cmd')!=cmd: fail()
+ hc=c['HostConfig'];found_env=dict(x.split('=',1) for x in c['Config']['Env'])
+ expected={**BASE_ENV,**env}
+ # A check joining its database's network namespace sets no hostname of its
+ # own, so the engine names it.
+ if network=='none': expected['HOSTNAME']='aios-validation'
+ elif not re.fullmatch('[A-Za-z0-9.-]{1,64}',found_env.pop('HOSTNAME','-')): fail()
  if hc.get('Privileged') or hc.get('VolumesFrom') or hc.get('PortBindings') or hc.get('Devices') or hc.get('CapAdd'): fail()
- if hc.get('NetworkMode')!='none' or hc.get('PidMode')!='private' or hc.get('IpcMode')!='private' or not hc.get('ReadonlyRootfs'): fail()
- if c['Config']['User']!='65534:65534' or env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no' or c['Config'].get('WorkingDir')!='/workspace': fail()
+ if hc.get('NetworkMode')!=network or hc.get('PidMode')!='private' or hc.get('IpcMode')!='private' or not hc.get('ReadonlyRootfs'): fail()
+ if c['Config']['User']!='65534:65534' or found_env!=expected or hc.get('RestartPolicy',{}).get('Name')!='no' or c['Config'].get('WorkingDir')!=workdir: fail()
  if hc.get('PidsLimit')!=256 or hc.get('Memory')!=1073741824 or 'no-new-privileges' not in hc.get('SecurityOpt',[]) or 'seccomp='+root+'/seccomp.json' not in hc.get('SecurityOpt',[]): fail()
  found=[m for m in c.get('Mounts',[]) if m.get('Type')=='bind']
  if any(m.get('Type') not in ['bind','tmpfs'] or (m.get('Type')=='tmpfs' and m.get('Destination')!='/tmp') for m in c.get('Mounts',[])): fail()
  if sorted((m.get('Source'),m.get('Destination'),m.get('RW')) for m in found)!=sorted(binds) or any(m.get('Propagation') not in ['rprivate','private'] for m in found): fail()
 # The prepared npm cache installs offline; scripts run only in here.
 INSTALL='set -e; for f in /cache/*.tgz; do [ -e "$f" ] || continue; npm cache add "$f" --cache /npm-cache --offline >/dev/null; done; exec npm ci --offline --cache /npm-cache --no-audit --no-fund'
-def create(name,cmd,volumes):
- # One hardened, offline container from the owner image by ID.
- pod('create','--name',name,'--hostname=aios-validation','--pull=never','--network=none','--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size=268435456','--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=256','--memory=1024m','--http-proxy=false','--unsetenv-all','--env','PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin','--env','HOME=/tmp','--env','CI=true','--workdir=/workspace','--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,*[x for v in volumes for x in ['--volume',v[0]+':'+v[1]+(':rw' if v[2] else ':ro')+',Z,rprivate']],R['imageSha256'],*cmd)
- effective(check_container(name),cmd,sorted(volumes))
+def create(name,cmd,volumes,image=None,network='none',env={},workdir='/workspace',tmp=268435456):
+ # One hardened container from an owner-admitted image by ID, offline or
+ # sharing only its own database's loopback.
+ image=image or R['imageSha256']
+ pod('create','--name',name,*(['--hostname=aios-validation'] if network=='none' else []),'--pull=never','--network='+network,'--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size='+str(tmp),'--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=256','--memory=1024m','--http-proxy=false','--unsetenv-all',*[x for k,v in {**BASE_ENV,**env}.items() for x in ['--env',k+'='+v]],'--workdir='+workdir,'--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,*[x for v in volumes for x in ['--volume',v[0]+':'+v[1]+(':rw' if v[2] else ':ro')+',Z,rprivate']],image,*cmd)
+ c=check_container(name)
+ effective(c,cmd,sorted(volumes),image,network,env,workdir)
+ return c
+def ready(name):
+ # PostgreSQL answers on its loopback within a bounded time, or never does.
+ deadline=time.monotonic()+20
+ while time.monotonic()<deadline:
+  if not check_container(name)['State'].get('Running'): return False
+  r=subprocess.run(['/usr/bin/podman','exec',name,'pg_isready','-q','-h','127.0.0.1','-p','5432','-U','aios','-d','aios'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15)
+  if r.returncode==0: return True
+  time.sleep(0.25)
+ return False
 def launch(entry,timeoutMs):
  # The guest deadline bounds the process even when the controller is gone.
  name=entry['container']
@@ -452,14 +479,32 @@ else:
    deps=record.get('deps')
    if R.get('dependencies') is not None and (not deps or deps['state']!='installed' or deps['planSha256']!=R['dependencies']): fail()
    if R.get('dependencies') is None and deps: fail()
+   database=R.get('database')
+   if database not in [None,True] or (database and 'databaseImageSha256' not in R): fail()
    index=len(record['checks']);name=R['name']+'-c'+str(index);work=operation+'/check-'+str(index)
    entry=dict(checkId=check['id'],container=name,workspace=work,argv=argv,group='',pids={},exitCode=None,timedOut=False,treeSha256=None)
+   if database: entry['database']=dict(container=R['name']+'-d'+str(index),group='',pids={},exitCode=None,timedOut=False,state='starting')
    record['checks'].append(entry);record['phase']='running';save(recordPath,record)
    fresh_workspace(work)
-   create(name,['-c','exec "$@"','--',*argv],[(work,'/workspace',True)]+([(operation+'/deps','/workspace/node_modules',False)] if deps else []))
-   launch(entry,check['timeoutMs'])
-   save(recordPath,record)
-   result=dict(container=name)
+   network='none'
+   if database:
+    # A fresh database for this check alone, removed when it ends; its own
+    # guest deadline outlasts the check's.
+    d=entry['database']
+    network='container:'+create(d['container'],['-c',POSTGRES],[],image=R['databaseImageSha256'],workdir='/tmp',tmp=536870912)['Id']
+    launch(d,check['timeoutMs']+60000)
+    d['state']='ready' if ready(d['container']) else 'unready'
+    save(recordPath,record)
+   if database and d['state']=='unready':
+    # The check never runs; its untouched copy and the database go.
+    kill_check(d);discard(work)
+    entry['treeSha256']=record['manifestSha256'];record['phase']='prepared';save(recordPath,record)
+    result=dict(database='unready')
+   else:
+    create(name,['-c','exec "$@"','--',*argv],[(work,'/workspace',True)]+([(operation+'/deps','/workspace/node_modules',False)] if deps else []),network=network,env=DATABASE_ENV if database else {})
+    launch(entry,check['timeoutMs'])
+    save(recordPath,record)
+    result=dict(container=name,**({'database':'ready'} if database else {}))
   elif R['action']=='poll':
    if not record or record['phase']!='running' or not record['checks'] or record['checks'][-1]['checkId']!=R.get('checkId'): fail()
    entry=record['checks'][-1]
@@ -467,6 +512,8 @@ else:
    if code is None:
     result=dict(running=True)
    else:
+    # The check's database goes with it.
+    if entry.get('database'): kill_check(entry['database'])
     entry['treeSha256']=measure(entry['workspace'],record['order'])
     discard(entry['workspace'])
     record['phase']='prepared';save(recordPath,record)
@@ -480,6 +527,7 @@ else:
     if record.get('deps',{}).get('container'): kill_check(record['deps'])
     for entry in record['checks']:
      kill_check(entry)
+     if entry.get('database'): kill_check(entry['database'])
      if entry.get('treeSha256') is None and os.path.lexists(entry.get('workspace','')): entry['treeSha256']=measure(entry['workspace'],record['order'])
     changed=[e['treeSha256'] for e in record['checks'] if e.get('treeSha256') not in [None,record['manifestSha256']]]
     final=changed[0] if changed else record['treeSha256'] if record['manifestSha256'] else h(b'never-prepared')
@@ -532,18 +580,27 @@ export class NativePodmanValidationTransport
   private readonly pollMs: number;
   /** How long past a guest deadline the host still waits for its kill. */
   private readonly deadlineGraceMs: number;
+  /** The owner-loaded PostgreSQL image E2E checks get a database from. */
+  private readonly databaseImageSha256: string | undefined;
   constructor(
     private readonly machine: string,
     private readonly authority: string,
     private readonly imageSha256: string,
-    options: { pollMs?: number; deadlineGraceMs?: number } = {},
+    options: {
+      pollMs?: number;
+      deadlineGraceMs?: number;
+      databaseImageSha256?: string;
+    } = {},
   ) {
     if (
       !/^aios-[a-z0-9-]+$/.test(machine) ||
       !sha256(authority) ||
-      !sha256(imageSha256)
+      !sha256(imageSha256) ||
+      (options.databaseImageSha256 !== undefined &&
+        !sha256(options.databaseImageSha256))
     )
       throw Error("Invalid native validation authority");
+    this.databaseImageSha256 = options.databaseImageSha256;
     this.pollMs = options.pollMs ?? 1000;
     this.deadlineGraceMs = options.deadlineGraceMs ?? 30000;
     if (
@@ -578,6 +635,9 @@ export class NativePodmanValidationTransport
       guestArch: host.guestArch,
       imageReference: host.imageReference,
       imageSha256: this.imageSha256,
+      ...(this.databaseImageSha256
+        ? { databaseImageSha256: this.databaseImageSha256 }
+        : {}),
       ...payload,
     };
     const result: unknown = await runManagement(
@@ -592,7 +652,8 @@ export class NativePodmanValidationTransport
       !record(result) ||
       (result.binding !== null &&
         (!validGuestBinding(managed, result.binding) ||
-          result.binding.image !== this.imageSha256)) ||
+          result.binding.image !== this.imageSha256 ||
+          result.binding.database !== this.databaseImageSha256)) ||
       (action !== "stop" && result.binding === null) ||
       JSON.stringify(result.attempt) !== JSON.stringify(identity)
     )
@@ -605,6 +666,9 @@ export class NativePodmanValidationTransport
         this.authority,
         result.binding,
       ),
+      ...(this.databaseImageSha256
+        ? { databaseImageSha256: this.databaseImageSha256 }
+        : {}),
     };
     return { result, pins };
   }
@@ -632,7 +696,9 @@ export class NativePodmanValidationTransport
       ) ||
       !validCheckBounds(check) ||
       (request.dependencies !== undefined &&
-        !validDependencies(request.dependencies))
+        !validDependencies(request.dependencies)) ||
+      (request.database !== undefined &&
+        (request.database !== true || !this.databaseImageSha256))
     )
       throw Error("Unsupported native validation request");
     const attempt = { operationId: request.operationId, fence: request.fence };
@@ -672,12 +738,13 @@ export class NativePodmanValidationTransport
         pins: (await this.invoke("inspect", attempt)).pins,
         dependencies: install,
       };
-    await this.invoke(
+    const started = await this.invoke(
       "start",
       attempt,
       {
         expectedBinding,
         dependencies: deps?.planSha256 ?? null,
+        database: request.database ?? null,
         treeSha256: request.treeSha256,
         check: {
           id: check.id,
@@ -687,6 +754,27 @@ export class NativePodmanValidationTransport
       },
       mayDispatch,
     );
+    const database = request.database
+      ? (started.result.database as unknown)
+      : undefined;
+    if (
+      request.database
+        ? database !== "ready" && database !== "unready"
+        : started.result.database !== undefined
+    )
+      throw Error("Native validation binding changed");
+    // A database that never became ready leaves the check unrun.
+    if (database === "unready")
+      return {
+        operationId: attempt.operationId,
+        fence: attempt.fence,
+        checkId: check.id,
+        exitCode: 125,
+        timedOut: false,
+        pins: started.pins,
+        database,
+        ...(install ? { dependencies: install } : {}),
+      };
     // The guest timer ends the check at its timeout; polling ends a little
     // after that, so a lost guest timer can never keep this call waiting.
     const deadline = performance.now() + check.timeoutMs + this.deadlineGraceMs;
@@ -712,6 +800,7 @@ export class NativePodmanValidationTransport
           timedOut: polled.result.timedOut as boolean,
           pins: polled.pins,
           ...(install ? { dependencies: install } : {}),
+          ...(database ? { database: "ready" as const } : {}),
         };
       }
       if (polled.result.running !== true || performance.now() > deadline)
