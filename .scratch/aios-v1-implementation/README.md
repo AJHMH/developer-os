@@ -13,7 +13,7 @@ status of every ticket and all 56 user stories. In short:
 - **Completed for code since removed:** 18 to 21 and 23 to 25 (Windows, the fixed worker and the ChatGPT layer).
 - **Superseded:** 15 (ADR 0007) and 22 (ADR 0008).
 - **Open:** the remaining 12, now in GitHub under [Spec: Finish Developer AIOS v1 on the Mac (#263)](https://github.com/AJHMH/developer-os/issues/263). Each keeps its v1 number.
-- **Stories:** 23 are met, 4 of them in a form a later ADR changed, and 12 are partly met. 19 are built only against test stand-ins, and 2 aren't built. No delivery can yet go past a validated candidate natively.
+- **Stories:** 24 are met, 4 of them in a form a later ADR changed, and 11 are partly met. 19 are built only against test stand-ins, and 2 aren't built. No delivery can yet go past a validated candidate natively.
 
 The dated progress entries below are history. The ticket table lists
 dependencies and stories, not status.
