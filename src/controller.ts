@@ -2352,11 +2352,11 @@ export class DeliveryController {
         !!prior?.threadId &&
         !!predecessor &&
         prior.resumeRecovery !== "retired";
-      // A resume keeps its predecessor's route. Under another route (a new
-      // decision, or a change between offline and routed) coding starts a
-      // new lineage instead.
-      // A provider change (ADR 0003) likewise starts a new lineage: one
-      // provider's CLI never continues another's conversation.
+      // A resume keeps its predecessor's route and coding agent. Every turn
+      // of a delivery shares its spend budget's route, so only a session
+      // recorded before the spend budget, under a mediation decision, starts
+      // a new lineage instead. One agent's CLI never continues another's
+      // conversation.
       const sameRoute =
         JSON.stringify(prior?.route) === JSON.stringify(route) &&
         !!prior &&
