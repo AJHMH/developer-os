@@ -83,6 +83,7 @@ function liveTransport(hooks = {}) {
             }
           : {}),
         ...(request.database ? { database: true } : {}),
+        ...(request.browser ? { browser: true } : {}),
       });
       if (!request.mayDispatch()) throw Error("Dispatch refused");
       trees.set(request.operationId, request.treeSha256);
@@ -108,6 +109,7 @@ function liveTransport(hooks = {}) {
         ...(request.database
           ? { database: hooks.database?.(request) ?? "ready" }
           : {}),
+        ...(request.browser ? { browser: true } : {}),
       };
     },
     async stop(attempt) {
@@ -1019,6 +1021,160 @@ test("the acceptance takes each optional flag once", async () => {
       databaseImageSha256,
     ],
     ["--other"],
+  ])
+    assert.equal(acceptanceFlags(extra), null);
+});
+
+// The browser stage (#265): E2E checks in the admitted Playwright image.
+const browserImageSha256 = "6".repeat(64);
+const browserPins = () => ({ browserImageSha256 });
+function playwrightRegistry(status = 200) {
+  const tarball = Buffer.from("synthetic playwright-core tarball");
+  const reads = [];
+  return {
+    reads,
+    tarball,
+    reader: async (url, signal, maxBytes) => {
+      reads.push({ url, maxBytes, aborted: signal.aborted });
+      return { status, bytes: tarball };
+    },
+  };
+}
+
+test("the validation acceptance runs E2E checks in the browser image when asked", async (t) => {
+  const { validationAcceptance, probes, browserChecks } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t, { pins: { ...pins, ...browserPins() } });
+  const transport = liveTransport({ pins: browserPins });
+  const registry = playwrightRegistry();
+  const report = await validationAcceptance(
+    transport,
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { browser: { version: "1.56.1", reader: registry.reader } },
+  );
+  assert.equal(
+    report.outcome,
+    "observed-offline-validation-admission-acceptance",
+    report.error,
+  );
+  assert.deepEqual(report.stages.map((s) => [s.name, s.outcome]).slice(-2), [
+    ["controller-browser-validation", "passed"],
+    ["controller-recorded-browser-checks", "passed"],
+  ]);
+  // playwright-core was read once for its integrity, then once as the cache.
+  assert.ok(
+    registry.reads.every(
+      (r) =>
+        r.url ===
+        "https://registry.npmjs.org/playwright-core/-/playwright-core-1.56.1.tgz",
+    ),
+  );
+  const plain = Object.keys(probes).length;
+  const staged = transport.effects.runs.slice(plain);
+  assert.deepEqual(
+    staged.map((r) => [r.checkId, Boolean(r.browser), Boolean(r.planSha256)]),
+    [
+      ...Object.keys(probes).map((id) => [id, false, true]),
+      ...Object.keys(browserChecks).map((id) => [id, true, true]),
+      ["dependencies", false, true],
+      ["install-scripts", false, true],
+    ],
+  );
+  assert.equal(report.browser.imageSha256, browserImageSha256);
+  assert.equal(report.browser.playwrightVersion, "1.56.1");
+});
+
+test("the browser stage blocks when playwright-core cannot be fetched", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t, { pins: { ...pins, ...browserPins() } });
+  const report = await validationAcceptance(
+    liveTransport({ pins: browserPins }),
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { browser: { version: "1.56.1", reader: playwrightRegistry(404).reader } },
+  );
+  assert.equal(report.outcome, "blocked");
+  assert.match(report.error, /playwright-core could not be fetched/);
+});
+
+test("the browser stage blocks on a failed browser check", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const record = ownerRecord(t, { pins: { ...pins, ...browserPins() } });
+  const report = await validationAcceptance(
+    liveTransport({
+      pins: browserPins,
+      exitCode: (r) => (r.check.id === "browser" ? 1 : 0),
+    }),
+    ownerValidationAdmission(record.path),
+    pins.imageSha256,
+    { browser: { version: "1.56.1", reader: playwrightRegistry().reader } },
+  );
+  assert.equal(report.outcome, "blocked");
+  assert.match(report.error, /A browser check did not pass/);
+});
+
+test("the browser stage needs a record admitting the browser image", async (t) => {
+  const { validationAcceptance } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const transport = liveTransport({ pins: browserPins });
+  const report = await validationAcceptance(
+    transport,
+    ownerValidationAdmission(ownerRecord(t).path),
+    pins.imageSha256,
+    { browser: { version: "1.56.1", reader: playwrightRegistry().reader } },
+  );
+  assert.equal(report.outcome, "blocked");
+  assert.match(report.error, /does not name the fresh pins/);
+  assert.equal(transport.effects.runs.length, 0);
+});
+
+test("the browser stage pins playwright-core by the integrity of its tarball", async () => {
+  const { playwrightDependency } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  const registry = playwrightRegistry();
+  assert.deepEqual(await playwrightDependency("1.56.1", registry.reader), {
+    name: "playwright-core",
+    version: "1.56.1",
+    integrity:
+      "sha512-" +
+      createHash("sha512").update(registry.tarball).digest("base64"),
+  });
+  assert.equal(registry.reads[0].maxBytes, 64 * 1024 * 1024);
+  await assert.rejects(
+    playwrightDependency("latest", registry.reader),
+    /Invalid Playwright version/,
+  );
+  assert.equal(registry.reads.length, 1, "nothing is read for a bad version");
+});
+
+test("the acceptance takes --with-browser with an image and a version", async () => {
+  const { acceptanceFlags } = await import(
+    "../scripts/run-native-validation-admission-acceptance.mjs"
+  );
+  assert.deepEqual(
+    acceptanceFlags(["--with-browser", browserImageSha256, "1.56.1"]).browser,
+    { imageSha256: browserImageSha256, version: "1.56.1" },
+  );
+  for (const extra of [
+    ["--with-browser", browserImageSha256],
+    ["--with-browser", browserImageSha256, "latest"],
+    ["--with-browser", "short", "1.56.1"],
+    [
+      "--with-browser",
+      browserImageSha256,
+      "1.56.1",
+      "--with-browser",
+      browserImageSha256,
+      "1.56.1",
+    ],
   ])
     assert.equal(acceptanceFlags(extra), null);
 });

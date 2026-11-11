@@ -15,7 +15,11 @@
 // also validates a third synthetic repository whose E2E checks each get a
 // disposable PostgreSQL from that owner-loaded image: one creates a table,
 // the next finds a fresh database without it, and a third still has no
-// outside network. It never provisions or starts the
+// outside network. With --with-browser <image-id> <playwright-version> it
+// also validates a fourth synthetic repository whose lockfile pins that
+// version of playwright-core: its E2E checks run in that owner-loaded
+// Playwright image, where Chromium renders a page and still has no outside
+// network. It never provisions or starts the
 // VM, loads images, opens credentials or authorizes inference, and it never
 // enables production or claims qualification. Run it through
 // scripts/run-native-acceptance.mjs.
@@ -37,7 +41,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { freshBuild } from "./fresh-build.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-validation-admission-acceptance.mjs <aios-machine> <owner-validation-admission.json> <image-id> <new-report.json> --approve-offline-native-run [--with-npm-dependencies] [--with-database <postgres-image-id>]";
+  "Usage: node scripts/run-native-validation-admission-acceptance.mjs <aios-machine> <owner-validation-admission.json> <image-id> <new-report.json> --approve-offline-native-run [--with-npm-dependencies] [--with-database <postgres-image-id>] [--with-browser <playwright-image-id> <playwright-version>]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 /** Probes run as checks; each passes only when isolation holds. */
@@ -130,6 +134,49 @@ export const databaseChecks = Object.freeze({
   ],
 });
 
+/** A browser E2E check's command: Chromium from the Playwright image, driven
+ * by playwright-core, runs `body` with `browser` open and exits with what it
+ * sets, or 1 if anything throws. */
+const chromium = (body) => [
+  "node",
+  "-e",
+  [
+    'const { chromium } = require("playwright-core");',
+    "(async () => { const browser = await chromium.launch();",
+    `try { ${body} } finally { await browser.close(); } })().catch(() => process.exit(1));`,
+  ].join(" "),
+];
+/** The E2E checks the browser stage runs, each in the browser image. */
+export const browserChecks = Object.freeze({
+  // Chromium launches and renders a page.
+  browser: chromium(
+    'const page = await browser.newPage(); await page.setContent("<h1>Contact</h1>"); process.exitCode = (await page.textContent("h1")) === "Contact" ? 0 : 1;',
+  ),
+  // It still has no outside network.
+  "browser-offline": chromium(
+    'const page = await browser.newPage(); let reached = false; try { await page.goto("http://example.com", { timeout: 5000 }); reached = true; } catch {} process.exitCode = reached ? 1 : 0;',
+  ),
+});
+
+/** The registry package the browser stage pins: playwright-core at the
+ * version the owner's Playwright image ships browsers for, which has no
+ * dependencies. Its integrity is read from the tarball itself, through the
+ * same verified host reader the install uses. */
+export async function playwrightDependency(version, reader) {
+  if (!/^\d+\.\d+\.\d+$/.test(version ?? ""))
+    throw Error("Invalid Playwright version");
+  const url = `https://registry.npmjs.org/playwright-core/-/playwright-core-${version}.tgz`;
+  const read = await reader(url, AbortSignal.timeout(60000), 64 * 1024 * 1024);
+  if (read.status !== 200 || !Buffer.isBuffer(read.bytes))
+    throw Error("playwright-core could not be fetched");
+  return {
+    name: "playwright-core",
+    version,
+    integrity:
+      "sha512-" + createHash("sha512").update(read.bytes).digest("base64"),
+  };
+}
+
 /** The manifest and lockfile of a project depending on exactly `dependency`,
  * whose own install script probes its isolation. */
 export function npmProject({ name, version, integrity }) {
@@ -170,6 +217,15 @@ export function acceptanceContract(environment, dependency) {
       .concat(
         environment.database
           ? Object.entries(databaseChecks).map(([id, command]) => [
+              id,
+              "e2e",
+              command,
+            ])
+          : [],
+      )
+      .concat(
+        environment.browser
+          ? Object.entries(browserChecks).map(([id, command]) => [
               id,
               "e2e",
               command,
@@ -239,11 +295,13 @@ export function acceptanceContract(environment, dependency) {
 function syntheticDelivery(root, environment, dependency) {
   const repository = join(
     root,
-    dependency
-      ? "npm-repository"
-      : environment.database
-        ? "database-repository"
-        : "repository",
+    environment.browser
+      ? "browser-repository"
+      : dependency
+        ? "npm-repository"
+        : environment.database
+          ? "database-repository"
+          : "repository",
   );
   mkdirSync(repository);
   const git = (...args) => {
@@ -390,7 +448,8 @@ export async function validationAcceptance(
       check(
         sameValidationPins(admission.pins(), report.pins) &&
           Boolean(report.pins.databaseImageSha256) ===
-            Boolean(options.database),
+            Boolean(options.database) &&
+          Boolean(report.pins.browserImageSha256) === Boolean(options.browser),
         "The owner validation admission does not name the fresh pins",
       ),
     );
@@ -590,6 +649,79 @@ export async function validationAcceptance(
         check(tested.outcome === "passed", "Database validation did not pass");
       });
     }
+    if (options.browser) {
+      const tested = await stage("controller-browser-validation", async () => {
+        const dependency = await playwrightDependency(
+          options.browser.version,
+          options.browser.reader,
+        );
+        const synthetic = syntheticDelivery(
+          root,
+          { ...preparedNpmValidationEnvironment(imageSha256), browser: true },
+          dependency,
+        );
+        const controller = new DeliveryController(
+          join(root, "browser-state"),
+          synthetic.options,
+          {
+            featurePlanner: synthetic.planner,
+            validationRuntime: new PinnedValidationRuntime(
+              report.pins,
+              transport,
+              admission,
+              { reader: options.browser.reader, browser: true },
+            ),
+          },
+        );
+        const started = controller.start({
+          repository: synthetic.repository,
+          request: "Add a visible contact hint.",
+        });
+        deliveries.push([controller, started.id]);
+        await controller.planFeature(started.id);
+        await controller.validateBaseline(started.id);
+        return controller.status(started.id).validation.attempts.at(-1);
+      });
+      report.browser = {
+        imageSha256: report.pins.browserImageSha256,
+        playwrightVersion: options.browser.version,
+        outcome: tested.outcome,
+        state: tested.state,
+        results: tested.results.map((r) => ({
+          checkId: r.checkId,
+          status: r.status,
+        })),
+        treeSha256: tested.treeSha256,
+        environmentSha256: tested.environmentSha256,
+      };
+      await stage("controller-recorded-browser-checks", () => {
+        check(tested.state === "stopped", "Browser attempt is not stopped");
+        check(
+          // The probes, the require and install-script checks, and the
+          // browser checks.
+          tested.results.length ===
+            Object.keys(probes).length +
+              2 +
+              Object.keys(browserChecks).length &&
+            tested.results.every((r) => r.status === "success"),
+          "A browser check did not pass",
+        );
+        // Only the E2E checks ran in the browser image.
+        check(
+          tested.results.every(
+            (r) =>
+              r.checkId in browserChecks ===
+              r.artifacts.some(
+                (a) =>
+                  a.name === "browser-image" &&
+                  a.sha256 === report.pins.browserImageSha256,
+              ),
+          ),
+          "The E2E checks did not each run in the admitted browser image",
+        );
+        check(tested.outcome === "passed", "Browser validation did not pass");
+      });
+    }
     report.outcome = "observed-offline-validation-admission-acceptance";
   } catch (error) {
     report.error = String(error?.message).slice(0, 300);
@@ -648,20 +780,30 @@ function sourceEvidence(root) {
   };
 }
 
-/** The optional flags: `--with-npm-dependencies` and `--with-database
- * <image-id>`, each at most once, or null when anything else is passed. */
+/** The optional flags: `--with-npm-dependencies`, `--with-database
+ * <image-id>` and `--with-browser <image-id> <playwright-version>`, each at
+ * most once, or null when anything else is passed. */
 export function acceptanceFlags(extra) {
   const flags = { dependencies: false, databaseImageSha256: undefined };
+  const image = (value) => /^[a-f0-9]{64}$/.test(value ?? "");
   for (let i = 0; i < extra.length; i++)
     if (extra[i] === "--with-npm-dependencies" && !flags.dependencies)
       flags.dependencies = true;
     else if (
       extra[i] === "--with-database" &&
       !flags.databaseImageSha256 &&
-      /^[a-f0-9]{64}$/.test(extra[i + 1] ?? "")
+      image(extra[i + 1])
     )
       flags.databaseImageSha256 = extra[++i];
-    else return null;
+    else if (
+      extra[i] === "--with-browser" &&
+      !flags.browser &&
+      image(extra[i + 1]) &&
+      /^\d+\.\d+\.\d+$/.test(extra[i + 2] ?? "")
+    ) {
+      flags.browser = { imageSha256: extra[i + 1], version: extra[i + 2] };
+      i += 2;
+    } else return null;
   return flags;
 }
 
@@ -697,9 +839,14 @@ async function main() {
     machine,
     authority,
     imageSha256,
-    flags.databaseImageSha256
-      ? { databaseImageSha256: flags.databaseImageSha256 }
-      : {},
+    {
+      ...(flags.databaseImageSha256
+        ? { databaseImageSha256: flags.databaseImageSha256 }
+        : {}),
+      ...(flags.browser
+        ? { browserImageSha256: flags.browser.imageSha256 }
+        : {}),
+    },
   );
   if (transport.mode !== "live" || transport.productionEnabled !== false)
     throw Error("Expected the live transport with production disabled");
@@ -723,6 +870,14 @@ async function main() {
       ? { dependencies: { reader: httpsRegistryReader() } }
       : {}),
     ...(flags.databaseImageSha256 ? { database: true } : {}),
+    ...(flags.browser
+      ? {
+          browser: {
+            version: flags.browser.version,
+            reader: httpsRegistryReader(),
+          },
+        }
+      : {}),
     persist: (r) =>
       writeFileSync(
         reportPath,

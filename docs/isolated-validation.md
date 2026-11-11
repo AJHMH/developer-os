@@ -182,7 +182,7 @@ inference and never starts the VM.
 
 The following remain open:
 
-- disposable browsers (#265, from Microsoft's Playwright image);
+- native acceptance of browser checks (#265, below);
 - hosted checks;
 - native qualification of this executor on the Mac.
 
@@ -369,4 +369,46 @@ node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state"
 ```
 
 A pass prints `observed-offline-validation-admission-acceptance`.
+
+## Browser checks for E2E (#265)
+
+An owner contract that declares `browser: true` runs each local `e2e` check in
+Microsoft's Playwright image instead of the check image:
+
+- **The image.** The owner loads `mcr.microsoft.com/playwright:v<version>-noble`
+  into the VM and admits its image ID in the validation record as
+  `browserImageSha256`. It is checked like the database image and is part of
+  the validation binding. A record without it admits no browser checks.
+- **Room for Chromium.** A browser check gets 1024 processes and threads,
+  2 GiB of memory, a 256 MiB `/dev/shm` and a 512 MiB `/tmp`. Every other
+  check keeps 256, 1 GiB, the default `/dev/shm` and 256 MiB.
+- **The container is the sandbox.** Chromium's own sandbox needs user
+  namespaces, which the derived seccomp profile removes, so it runs with its
+  sandbox off, as Playwright does by default in containers. The check keeps
+  every other control: no network, no capabilities, `no-new-privileges`, the
+  same seccomp profile, a read-only root and user `65534`.
+- **Browsers from the image.** The check gets
+  `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`, where the image keeps them. The
+  repository's lockfile must pin `playwright` or `playwright-core` at the
+  image's version, installed from the prepared cache like any dependency.
+
+A browser E2E check may also get a disposable database when the contract
+declares both. Each browser E2E result carries the image as a `browser-image`
+artifact. The guest program changed, so the validation policy pin changed.
+
+### Native browser acceptance
+
+`--with-browser <playwright-image-id> <playwright-version>` adds two stages.
+The host reads `playwright-core` at that version from the registry once, to
+pin it by its own integrity, then validates a fourth synthetic repository
+whose lockfile pins it:
+
+- `controller-browser-validation`: the probes, the `dependencies` and
+  `install-scripts` checks, then `browser` (Chromium renders a page) and
+  `browser-offline` (Chromium cannot reach the outside network).
+- `controller-recorded-browser-checks`: every check passed, and exactly the
+  E2E checks ran in the admitted browser image.
+
+The version must be the one the image's tag names, so Playwright finds the
+browsers it ships.
 

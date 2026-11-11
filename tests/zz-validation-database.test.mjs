@@ -215,7 +215,7 @@ test("a validation record may admit a database image", (t) => {
   );
   for (const bad of [
     { ...pins, databaseImageSha256: "short" },
-    { ...pins, browserImageSha256: database },
+    { ...pins, cacheImageSha256: database },
     { ...plainPins, bindingSha256: undefined },
   ])
     assert.throws(

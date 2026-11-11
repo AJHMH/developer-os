@@ -14,7 +14,9 @@ and gets the image's VOLUME as a mount unless image volumes are ignored;
 databaseUnready keeps pg_isready failing until the guest's wait expires,
 databaseExits makes it exit at start, and databaseIdDrift has the engine
 report another network namespace for the check. The check verb `database`
-exits 0 only while its database runs.
+exits 0 only while its database runs. The browser image (browserImageMissing,
+browserArch) is inspected like the database's; the check verb `browser` exits
+0 only in the browser image with the Playwright browsers path set.
 """
 import sys, os, json, pathlib, subprocess, time, types, re, signal, errno
 from hashlib import sha256
@@ -131,6 +133,9 @@ def run_check(name, c):
         mode = c['HostConfig'].get('NetworkMode', '')
         db = next((d for d in state['containers'].values() if 'container:' + d['Id'] == mode), None)
         code = 0 if db and db['State']['Running'] else 1
+    elif verb == 'browser':
+        env = dict(e.split('=', 1) for e in c['Config']['Env'])
+        code = 0 if c['Image'] == request.get('browserImageSha256') and env.get('PLAYWRIGHT_BROWSERS_PATH') == '/ms-playwright' else 1
     elif verb != 'true': code = 127
     c['State'].update(Running=False, Pid=0, ExitCode=code)
 
@@ -170,6 +175,9 @@ def podman(args):
         if args[2] == request.get('databaseImageSha256') and args[2] != image['Id']:
             if state.get('databaseImageMissing'): raise LookupError('no such image')
             image = {'Id': args[2], 'Architecture': state.get('databaseArch', 'arm64')}
+        elif args[2] == request.get('browserImageSha256') and args[2] != image['Id']:
+            if state.get('browserImageMissing'): raise LookupError('no such image')
+            image = {'Id': args[2], 'Architecture': state.get('browserArch', 'arm64')}
         if state.get('imageMissing') or args[2] != image['Id']: raise LookupError('no such image')
         # An engine answering for another image than the one asked for.
         if state.get('imageIdDrift'): image = dict(image, Id='8' * 64)
@@ -196,6 +204,7 @@ def podman(args):
             elif key == '--ipc': host['IpcMode'] = val
             elif key == '--pids-limit': host['PidsLimit'] = int(val)
             elif key == '--memory': host['Memory'] = int(val[:-1]) * 1048576
+            elif key == '--shm-size': host['ShmSize'] = int(val[:-1]) * 1048576
             elif key == '--security-opt': host['SecurityOpt'].append(val)
             elif key == '--restart': host['RestartPolicy'] = {'Name': val}
             elif key == '--user': config['User'] = val

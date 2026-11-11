@@ -44,6 +44,11 @@ export function ownerPolicyDeclaresDatabase(path: string | undefined) {
     (declaredEnvironment(path) as { database?: unknown })?.database === true
   );
 }
+/** Whether the owner policy at `path` declares a browser for its E2E checks
+ * (#265). */
+export function ownerPolicyDeclaresBrowser(path: string | undefined) {
+  return (declaredEnvironment(path) as { browser?: unknown })?.browser === true;
+}
 
 /** The owner-admitted native validation runtime for `machine`, at the
  * record's pins and its images. Checks run offline. With a registry `reader`,
@@ -51,11 +56,15 @@ export function ownerPolicyDeclaresDatabase(path: string | undefined) {
  * pins, and each attempt installs them offline from that prepared cache in its
  * own container; without one there are no dependency installs. With
  * `database`, each E2E check gets a disposable PostgreSQL from the record's
- * database image. */
+ * database image; with `browser`, each runs in the record's browser image. */
 export function nativeValidationRuntime(
   machine: string,
   admissionPath: string,
-  options: { reader?: RegistryReader; database?: boolean } = {},
+  options: {
+    reader?: RegistryReader;
+    database?: boolean;
+    browser?: boolean;
+  } = {},
 ): PinnedValidationRuntime {
   const admission = ownerValidationAdmission(admissionPath);
   const pins = admission.pins();
@@ -65,9 +74,14 @@ export function nativeValidationRuntime(
       machine,
       nativeValidationAuthority(machine),
       pins.imageSha256,
-      pins.databaseImageSha256
-        ? { databaseImageSha256: pins.databaseImageSha256 }
-        : {},
+      {
+        ...(pins.databaseImageSha256
+          ? { databaseImageSha256: pins.databaseImageSha256 }
+          : {}),
+        ...(pins.browserImageSha256
+          ? { browserImageSha256: pins.browserImageSha256 }
+          : {}),
+      },
     ),
     admission,
     options,

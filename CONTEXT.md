@@ -161,8 +161,8 @@ _Avoid_: validation enablement, coding record
 
 **Offline validation environment**: The validation environment the native
 validation runtime offers: the owner-loaded image by ID, the fixed "no
-network" policy digest, no registries, no caches and no browser fixtures,
-optionally with a disposable database for each E2E check. An owner contract
+network" policy digest, no registries and no caches, optionally with a
+disposable database for each E2E check and a browser image E2E checks run in. An owner contract
 must declare exactly this environment; any other declaration is refused
 before a check runs.
 _Avoid_: sandbox profile, network allowlist
@@ -173,6 +173,13 @@ ready before the check starts, reachable only on the loopback the two share,
 holds only synthetic data under a synthetic user, and is removed when the
 check ends.
 _Avoid_: test database, shared database, fixture database
+
+**Browser check**: An E2E check that runs in the Playwright image the owner's
+validation record admits, with room for Chromium and every other container
+control unchanged: no network, no capabilities, a read-only root and the
+unprivileged user. The container is the browser's sandbox; Chromium's own is
+off.
+_Avoid_: headless worker, browser sandbox
 
 **Prepared dependency cache**: The npm tarballs a candidate's lockfile names,
 read on the host only as data, fetched from the one declared registry and
