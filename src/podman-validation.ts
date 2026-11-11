@@ -269,9 +269,10 @@ def effective(c,cmd,binds,image,network,env,workdir):
 INSTALL='set -e; for f in /cache/*.tgz; do [ -e "$f" ] || continue; npm cache add "$f" --cache /npm-cache --offline >/dev/null; done; exec npm ci --offline --cache /npm-cache --no-audit --no-fund'
 def create(name,cmd,volumes,image=None,network='none',env={},workdir='/workspace',tmp=268435456):
  # One hardened container from an owner-admitted image by ID, offline or
- # sharing only its own database's loopback.
+ # sharing only its own database's loopback. An image's own VOLUME, such as
+ # PostgreSQL's data directory, is never mounted: only the binds asked for.
  image=image or R['imageSha256']
- pod('create','--name',name,*(['--hostname=aios-validation'] if network=='none' else []),'--pull=never','--network='+network,'--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size='+str(tmp),'--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=256','--memory=1024m','--http-proxy=false','--unsetenv-all',*[x for k,v in {**BASE_ENV,**env}.items() for x in ['--env',k+'='+v]],'--workdir='+workdir,'--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,*[x for v in volumes for x in ['--volume',v[0]+':'+v[1]+(':rw' if v[2] else ':ro')+',Z,rprivate']],image,*cmd)
+ pod('create','--name',name,*(['--hostname=aios-validation'] if network=='none' else []),'--pull=never','--image-volume=ignore','--network='+network,'--read-only','--tmpfs=/tmp:rw,nosuid,nodev,size='+str(tmp),'--cap-drop=ALL','--security-opt=no-new-privileges','--security-opt=seccomp='+root+'/seccomp.json','--userns=keep-id:uid=65534,gid=65534','--user=65534:65534','--pid=private','--ipc=private','--pids-limit=256','--memory=1024m','--http-proxy=false','--unsetenv-all',*[x for k,v in {**BASE_ENV,**env}.items() for x in ['--env',k+'='+v]],'--workdir='+workdir,'--entrypoint=/bin/sh','--log-driver=none','--restart=no','--label','aios.validation.authority='+R['authority'],'--label','aios.validation.attempt='+identity,*[x for v in volumes for x in ['--volume',v[0]+':'+v[1]+(':rw' if v[2] else ':ro')+',Z,rprivate']],image,*cmd)
  c=check_container(name)
  effective(c,cmd,sorted(volumes),image,network,env,workdir)
  return c
