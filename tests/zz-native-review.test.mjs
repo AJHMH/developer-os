@@ -566,7 +566,9 @@ test("the owner-run acceptance needs an ungated PR authorized, a gated one waiti
   const { reviewAcceptance, passingOutcome, stageNames, gatedFile } =
     await import("../scripts/run-native-review-acceptance.mjs");
   const identity = { repository, botLogin: app, approver: owner };
+  let said = [];
   const run = async (s, act, limitMs = 60000) => {
+    said = [];
     let published = 0;
     let clock = t0 + 3600000;
     return reviewAcceptance(
@@ -588,7 +590,7 @@ test("the owner-run acceptance needs an ungated PR authorized, a gated one waiti
           }
           return { number: 7, head };
         },
-        say: () => {},
+        say: (line) => said.push(line),
         sleep: async () => act(s),
         now: () => (clock += 15000),
         limitMs,
@@ -615,6 +617,12 @@ test("the owner-run acceptance needs an ungated PR authorized, a gated one waiti
   assert.equal(r.resolve.receipt.state, "accepted");
   assert.deepEqual(r.gated.after.approval, { reviewId: 9, head, owner });
   assert.deepEqual(s.g.mutations, ["PRRT_1"]);
+  // It tells the owner what to do, then each change it sees.
+  assert.match(said[0], /pull\/7\/files/);
+  assert.deepEqual(said.slice(1), [
+    "PR 7: 0 open line comments; not approved.",
+    "PR 7: 1 open line comment, one marked 👍; approved.",
+  ]);
   // An owner who doesn't act in time, or only comments, blocks it.
   const idle = await run(github(t), () => {}, 60000);
   assert.equal(idle.outcome, "blocked");

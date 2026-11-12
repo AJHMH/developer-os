@@ -39,7 +39,7 @@ There are 25 tickets, 01 to 25.
 | 07 Validation repair             | Open, [#266](https://github.com/AJHMH/developer-os/issues/266) | Native: `repair-feature` repaired a failing candidate on Claude Code, with cycle, active-time and spend accounting and the exhausted refusal ([11 November receipt](ticket07-macos-repair-acceptance-receipt.md)). |
 | 08 Signed App publication        | Open, [#267](https://github.com/AJHMH/developer-os/issues/267) | Native ports: the owner's key signs through ssh-agent, the owner pushes, GitHub verifies, the App opens the PR ([11 November receipt](ticket08-macos-publication-acceptance-receipt.md)). `publish-feature` installs them (#297). |
 | 09 Trusted PR checks             | Open, [#268](https://github.com/AJHMH/developer-os/issues/268) | Native monitor: a passing and a failing `pr-ci` run of the trusted workflow, and a receipted rerun that keeps the failure ([12 November receipt](ticket09-macos-pr-checks-acceptance-receipt.md)). No delivery has reached the CLI commands yet. |
-| 10 Review and owner approval     | Open, [#269](https://github.com/AJHMH/developer-os/issues/269) | Controlled. Approval follows the change gate (ADR 0005).                                                                                                |
+| 10 Review and owner approval     | Open, [#269](https://github.com/AJHMH/developer-os/issues/269) | Native adapter: an ungated head authorized without review, a gated one waiting, the owner's 👍 finding resolved, then the owner's approval of exactly that head ([12 November receipt](ticket10-macos-review-acceptance-receipt.md)). No delivery has reached the CLI commands yet. |
 | 11 Conditional merge             | Open, [#270](https://github.com/AJHMH/developer-os/issues/270) | Controlled; no native merge adapter.                                                                                                                    |
 | 12 Merged main verification      | Open, [#271](https://github.com/AJHMH/developer-os/issues/271) | Controlled; no native main observer.                                                                                                                    |
 | 13 Safe main sync                | Open, [#272](https://github.com/AJHMH/developer-os/issues/272) | Controlled; no native Git adapter.                                                                                                                      |
@@ -94,12 +94,12 @@ There are 56 stories. Their status:
 | 21  | Missing, skipped or neutral checks are incomplete         | 06, 09             | Partial: local; PR checks in tests only                                                                                                             |
 | 22  | Failures and reruns preserved                             | 06, 09             | Partial: local; PR checks natively by the PR check acceptance, not yet on a delivery                                                               |
 | 23  | Tests and thresholds protected                            | 06                 | Done: owner-held validation contract                                                                                                                |
-| 24  | App authors PRs, owner signs commits                      | 08, 17             | Partial: natively proven by the publication acceptance ([receipt](ticket08-macos-publication-acceptance-receipt.md)); not yet through `publish-feature` (#267) |
-| 25  | Straightforward review findings repaired                  | 10                 | Controlled only (#269)                                                                                                                              |
+| 24  | App authors PRs, owner signs commits                      | 08, 17             | Partial: natively proven by the publication acceptance ([receipt](ticket08-macos-publication-acceptance-receipt.md)), and `publish-feature` installs it (#297); not yet on a delivery |
+| 25  | Straightforward review findings repaired                  | 10                 | Partial: the owner's 👍 finding is assessed and resolved natively ([receipt](ticket10-macos-review-acceptance-receipt.md)); no native review repair yet |
 | 26  | Disputed review requests escalated                        | 10                 | Controlled only (#269)                                                                                                                              |
-| 27  | Current-head approval authorizes merge                    | 10, 11, 17         | Controlled only; changed: needed only for gated heads (ADR 0005)                                                                                    |
+| 27  | Current-head approval authorizes merge                    | 10, 11, 17         | Partial: natively, the owner's exact-head approval authorizes a gated head and an ungated head needs none (ADR 0005); no native merge (#270) |
 | 28  | New commits invalidate approval                           | 10, 11             | Controlled only; changed as story 27                                                                                                                |
-| 29  | Agent never submits the owner's approval                  | 08, 10             | Controlled only, by design                                                                                                                          |
+| 29  | Agent never submits the owner's approval                  | 08, 10             | Partial: natively the owner approved in GitHub, and the adapter has no way to submit a review; not yet on a delivery |
 | 30  | Bounded implementation and repair allowances              | 05, 07             | Done: coding and repair natively ([repair receipt](ticket07-macos-repair-acceptance-receipt.md)); owner-set repair allowance at `start` (#287) |
 | 31  | Explicit allowance extensions                             | 05, 07             | Done (`extend-coding`, `extend-budget`, `extend-repair`)                                                                                            |
 | 32  | CI waits bounded, approval waits unhurried                | 09, 10             | Controlled only                                                                                                                                     |
@@ -134,8 +134,8 @@ In total:
 | --------------- | ----- | ------------------------------------------------------------------------- |
 | Done            | 23    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 23, 30, 31, 33, 34, 35, 37, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
-| Partial         | 11    | 5, 7, 20, 21, 22, 24, 36, 49, 51, 53, 54                                  |
-| Controlled only | 18    | 8, 25, 26, 27, 28, 29, 32, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48     |
+| Partial         | 14    | 5, 7, 20, 21, 22, 24, 25, 27, 29, 36, 49, 51, 53, 54                      |
+| Controlled only | 15    | 8, 26, 28, 32, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48                 |
 | Not done        | 0     |                                                                           |
 
 No story is complete end to end until tickets 08 to 14 have native adapters and

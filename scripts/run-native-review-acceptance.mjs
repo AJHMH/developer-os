@@ -203,13 +203,15 @@ export async function reviewAcceptance(
       say(
         [
           `Now, in GitHub, on ${url}:`,
-          `  1. Comment on any line ("Add single comment"), for example: Add a closing line.`,
+          `  1. Hover over a line, click the blue +, write for example: Add a closing line. Then "Add single comment".`,
+          `     A comment in the Conversation tab doesn't count: it can't be resolved.`,
           `  2. React 👍 to that comment.`,
           `  3. Review changes → Approve → Submit review.`,
-          `Waiting up to ${Math.round(limitMs / 60000)} minutes; checking every ${Math.round(intervalMs / 1000)} seconds.`,
+          `Waiting up to ${Math.round(limitMs / 60000)} minutes; checking every ${Math.round(intervalMs / 1000)} seconds and printing each change.`,
         ].join("\n"),
       );
       const start = now();
+      let last;
       for (;;) {
         const r = await read(gated);
         const thread = r.decision.threads.find(
@@ -221,6 +223,11 @@ export async function reviewAcceptance(
             x.state === "APPROVED" &&
             x.head === gated.head,
         );
+        // Each check says what it found, so the owner sees it working.
+        const marked = r.decision.threads.filter((t) => !t.resolved).length;
+        const seen = `${marked} open line comment${marked === 1 ? "" : "s"}${thread ? ", one marked 👍" : ""}; ${approved ? "approved" : "not approved"}`;
+        if (seen !== last) say(`PR ${gated.number}: ${seen}.`);
+        last = seen;
         if (thread && approved) {
           report.gated.beforeResolve = summary(r);
           check(
