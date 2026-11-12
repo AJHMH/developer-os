@@ -156,7 +156,11 @@ test("the native publication runtime is bound to the record's digest and keeps i
   );
   writeFileSync(
     o.path,
-    JSON.stringify({ ...o.record, signingKey: "id_ed25519.pub" }),
+    // A relative key path, built rather than written out.
+    JSON.stringify({
+      ...o.record,
+      signingKey: o.record.signingKey.split("/").pop(),
+    }),
     { mode: 0o600 },
   );
   assert.throws(
