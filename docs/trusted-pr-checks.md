@@ -5,8 +5,7 @@ Implementation reference: [current scope and qualification gates](implementation
 Ticket 09 adds `monitorPRChecks`, `rerunPRCheck` and `repairPRChecks` to the public
 controller. The corresponding CLI commands are `monitor-pr-checks`,
 `rerun-pr-check --check-id <id>` and `repair-pr-checks`, each requiring `--id`.
-The CLI installs no native GitHub monitor. Only explicitly supplied trusted,
-controlled adapters can exercise this implementation slice.
+With the owner policy, the CLI installs the native monitor (#268, below).
 
 ## Identity and policy
 
@@ -71,6 +70,76 @@ match the prior PR number. Lost update outcomes use publication reconciliation.
 A new managed head receives new check evidence and a new CI phase deadline, while
 old evidence and cumulative repair usage remain retained. Unchanged output cannot
 manufacture a new head merely to hide an unexplained failing retry.
+
+## Native monitor (#268)
+
+`src/native-pr-checks.ts` is the monitor for GitHub Actions. The owner chose
+(#268):
+
+- **Identity: the owner's `gh` login**, the same one that pushes. Observing
+  only reads. The one write is an explicit `rerun-pr-check`, which reruns that
+  run's failed jobs once.
+- **Trust: path and unchanged file.** A check counts only from a GitHub
+  Actions run of a declared workflow file, for the PR's exact head, while
+  that file at the head is byte-identical to the base branch's. A run whose
+  workflow the PR changed is reported under the publisher
+  `untrusted-workflow-change`, so it never matches the policy.
+
+An owner contract declares such a check with `publisher: github-actions` and
+`workflow: <path>@<default branch>`, for example:
+
+```json
+{
+  "id": "pr-ci",
+  "kind": "build",
+  "scope": "pr",
+  "stages": ["candidate"],
+  "command": ["workflow", "ci"],
+  "publisher": "github-actions",
+  "workflow": ".github/workflows/ci.yml@main",
+  "timeoutMs": 1800000
+}
+```
+
+The check's `id` is the workflow job's name. Each observation reads:
+- the PR;
+- every Actions run for the head;
+- every job of every attempt of the declared workflow's runs, across all
+  pages.
+
+So a failure stays in the history after a rerun. A missing page or attempt
+makes the observation incomplete. Job statuses map as follows:
+- queued and in-progress jobs are `pending`;
+- `timed_out` is `timeout`;
+- `stale`, `action_required` and unknown conclusions are `missing`.
+
+A rerun is recorded before dispatch. Its receipt is the run's next attempt,
+and an unanswered rerun is reported absent only after two minutes.
+
+`monitor-pr-checks`, `rerun-pr-check` and `repair-pr-checks` install the
+monitor from `--owner-policy`. It uses the policy's repository and the
+workflows of its PR checks declared as above. Its rerun markers live in a
+private folder under the state directory. `repair-pr-checks` also takes
+`code-feature`'s options, `--production-admission` and
+`--publication-identity`, to repair and republish.
+
+### Native PR check acceptance
+
+`scripts/run-native-pr-checks-acceptance.mjs` needs the disposable
+repository's `main` to carry `.github/workflows/ci.yml` with one job, `pr-ci`,
+that passes unless the PR adds `acceptance/fail`. Through the native
+publisher it opens two PRs:
+
+1. **A passing PR:** `pr-ci` must pass, by the controller's own rules.
+2. **A failing PR:** it adds the switch, so `pr-ci` must fail.
+3. **One rerun of the failure:** its new attempt must be recorded as the
+   receipt, with the first failure still in the history.
+
+With the signing key in ssh-agent:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-pr-checks-acceptance.mjs -- "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/issue09-pr-checks-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-native-pr-checks
+```
 
 ## Qualification still required
 

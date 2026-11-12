@@ -22,7 +22,10 @@ export type CommandRunner = (
   },
 ) => CommandResult;
 /** The owner's GitHub API, read through the owner's own `gh` login. */
-export type GitHubApi = (path: string) => Promise<{
+export type GitHubApi = (
+  path: string,
+  method?: "GET" | "POST",
+) => Promise<{
   status: number;
   body: unknown;
 }>;
@@ -43,8 +46,8 @@ export const defaultRunner: CommandRunner = (executable, args, options) => {
 
 /** The owner's `gh api`, with a bounded answer. A missing resource is 404. */
 export function ghApi(run: CommandRunner = defaultRunner): GitHubApi {
-  return async (path) => {
-    const r = run("gh", ["api", "--include", path], {
+  return async (path, method = "GET") => {
+    const r = run("gh", ["api", "--include", "-X", method, path], {
       env: {
         ...cleanEnvironment(),
         GH_PROMPT_DISABLED: "1",

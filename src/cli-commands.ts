@@ -172,8 +172,14 @@ const commands: Record<string, CliCommand> = {
   "repair-feature": idAction("repairFeature", codingTurnOptions),
   "publish-feature": idAction("publishFeature", publicationOptions),
   "reconcile-publication": idAction("reconcilePublication", publicationOptions),
-  "monitor-pr-checks": idAction("monitorPRChecks"),
-  "repair-pr-checks": idAction("repairPRChecks"),
+  // #268: with the owner policy, these install the native monitor for the
+  // policy's GitHub Actions PR checks. A repair also republishes.
+  "monitor-pr-checks": idAction("monitorPRChecks", ownerPolicyOptions),
+  "repair-pr-checks": idAction("repairPRChecks", [
+    ...codingTurnOptions,
+    "production-admission",
+    "publication-identity",
+  ]),
   "monitor-review": idAction("monitorReview"),
   "repair-review": idAction("repairReview"),
   "merge-feature": idAction("mergeFeature"),
@@ -187,7 +193,7 @@ const commands: Record<string, CliCommand> = {
   "rerun-pr-check": {
     kind: "delivery",
     required: ["id", "check-id"],
-    optional: [],
+    optional: ownerPolicyOptions,
     invoke: (c, v) => c.rerunPRCheck(v.id!, v["check-id"]!),
   },
   "resolve-review-thread": {
