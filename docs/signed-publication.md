@@ -74,6 +74,85 @@ updates the same branch and PR from the exact prior signed head. See
 [trusted PR checks](trusted-pr-checks.md). Final status directs the owner/controller
 to hosted checks and independent review; production delivery remains disabled.
 
+## Native publisher (#267)
+
+`src/native-publication.ts` and `src/native-app-pr.ts` are the native ports
+for the Mac. The owner chose (#267):
+
+- **Signing: the owner's own SSH key, through ssh-agent only.** Git gets the
+  key as a literal public key (`key::…`), so it signs with `ssh-keygen -U`,
+  which uses the agent and never reads or prompts for the key file. When the
+  agent doesn't hold the key, `inspect` reports signing unavailable, and
+  signing fails rather than publishing unsigned.
+- **Push: the owner's `gh` login**, through `gh auth git-credential`. It is
+  conditional: `--force-with-lease` expects a new branch to be absent, or an
+  update to start from the exact previous head. There is never a plain force.
+- **PR: the Software Factory App.** Every call takes an installation token for
+  the one repository with `permissions: {pull_requests: write}`. The port
+  checks GitHub granted exactly that, plus implicit `metadata: read`, and
+  revokes the token after use. It can only create and observe PRs.
+
+All Git work happens in the port's own bare metadata, with no system or
+global configuration (`GIT_CONFIG_NOSYSTEM`, `GIT_CONFIG_GLOBAL=/dev/null`)
+and no `GIT_*` environment. Hooks point at an empty folder, attributes at
+`/dev/null`, and only one protocol is allowed. The tree is built from the
+admitted bytes with `hash-object --no-filters` and `mktree`, and must equal
+`publicationTree`. The commit's parent is fetched from the repository itself.
+
+GitHub's own word decides the remote evidence. The branch head must carry
+`verification.verified: true` with reason `valid`, and the repository's
+activity record must name the owner as the pusher. A dispatched push or PR
+creation is recorded first, so an unanswered one is reported absent only
+after two minutes, when it can no longer land.
+
+### The owner's publication record
+
+The ports read identities and key paths from a private file (mode `0600`)
+holding no secrets:
+
+```json
+{
+  "scope": "aios-publication-identity-v1",
+  "repository": "AJHMH/aios-publication-acceptance",
+  "login": "aaron-howard",
+  "name": "Aaron Howard",
+  "email": "<an email GitHub has verified for you>",
+  "signingKey": "/Users/aaronhoward/.ssh/id_ed25519.pub",
+  "appId": "5180250",
+  "installationId": "167664341",
+  "botLogin": "ajhmh-software-factory[bot]",
+  "appKeyPath": "<the App's PEM, outside every repository>",
+  "approver": "aaron-howard"
+}
+```
+
+`signingKey` must be the public key (`.pub`). The commit email must be one
+GitHub has verified for the owner, or GitHub won't show the signature as
+Verified. The key must be registered on GitHub as a **signing** key.
+
+### Native publication acceptance
+
+`scripts/run-native-publication-acceptance.mjs` publishes one acceptance
+candidate to a disposable repository:
+
+1. It reads `main` and adds one file under `acceptance/`.
+2. Your key signs the exact tree through the agent.
+3. Your `gh` login pushes a new `aios/feature-acceptance-<run>` branch.
+4. GitHub must report the commit Verified, signed and pushed by you.
+5. The App opens the PR.
+6. Reconciling each step finds it again, and a repeated push or PR creation
+   returns the same branch and PR.
+
+It never writes `main`, approves or merges, and leaves its branch and PR open.
+Before running it, unlock the key into the agent:
+
+```sh
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-publication-acceptance.mjs -- "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/issue08-publication-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-native-publication
+```
+
+The CLI's `publish-feature` doesn't install these ports yet.
+
 ## Validation and qualification limits
 
 Public fixtures cover exact-tree/signature/identity refusal, durable dispatch,
