@@ -761,7 +761,7 @@ test("the owner-run acceptance publishes one signed candidate from main and open
   assert.match(locked.error, /ssh-add --apple-use-keychain/);
 });
 
-test("the owner publication record is a private file naming every identity and a public signing key", (t) => {
+test("the owner publication record is a private file naming every identity and a public signing key", async (t) => {
   const root = mkdtempSync(join(tmpdir(), "aios-publication-record-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const record = {
@@ -779,17 +779,17 @@ test("the owner publication record is a private file naming every identity and a
   };
   const path = join(root, "publication-identity.json");
   writeFileSync(path, JSON.stringify(record), { mode: 0o600 });
-  assert.equal(readIdentity(path).login, "aaron-howard");
-  assert.match(readIdentity(path).sha256, /^[a-f0-9]{64}$/);
+  assert.equal((await readIdentity(path)).login, "aaron-howard");
+  assert.match((await readIdentity(path)).sha256, /^[a-f0-9]{64}$/);
   writeFileSync(
     path,
     JSON.stringify({ ...record, signingKey: "/Users/owner/.ssh/id_ed25519" }),
     { mode: 0o600 },
   );
-  assert.throws(() => readIdentity(path), /Invalid owner publication record/);
+  await assert.rejects(readIdentity(path), /Invalid owner publication record/);
   writeFileSync(path, JSON.stringify(record), { mode: 0o644 });
   spawnSync("chmod", ["644", path]);
-  assert.throws(() => readIdentity(path), /private file/);
+  await assert.rejects(readIdentity(path), /private file/);
 });
 
 const controls = {

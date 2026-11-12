@@ -19,10 +19,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
   closeSync,
-  lstatSync,
   mkdtempSync,
   openSync,
-  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -45,32 +43,13 @@ export const stageNames = Object.freeze([
 ]);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-/** The owner's publication identity record: identities and key paths. */
-export function readIdentity(path) {
-  const st = lstatSync(path);
-  if (!st.isFile() || st.isSymbolicLink() || (st.mode & 0o077) !== 0)
-    throw Error("The owner publication record must be a private file");
-  const bytes = readFileSync(path);
-  const r = JSON.parse(bytes.toString("utf8"));
-  const fields = [
-    "repository",
-    "login",
-    "name",
-    "email",
-    "signingKey",
-    "appId",
-    "installationId",
-    "botLogin",
-    "appKeyPath",
-    "approver",
-  ];
-  if (
-    r?.scope !== "aios-publication-identity-v1" ||
-    !fields.every((f) => typeof r[f] === "string" && r[f]) ||
-    !r.signingKey.endsWith(".pub")
-  )
-    throw Error("Invalid owner publication record");
-  return { ...r, sha256: sha256(bytes) };
+/** The owner's publication identity record: identities and key paths. It
+ * is read by the same code as the CLI's `--publication-identity`. */
+export async function readIdentity(path) {
+  const { readPublicationIdentity } = await import(
+    "../dist/publication-identity.js"
+  );
+  return readPublicationIdentity(path);
 }
 
 /** Publishes one acceptance candidate through `adapter` (a native
@@ -384,13 +363,10 @@ async function main() {
   }
   const root = fileURLToPath(new URL("..", import.meta.url));
   const build = freshBuild(root);
-  const identity = readIdentity(record);
-  const { nativeGitPublicationPort, ghApi } = await import(
-    "../dist/native-publication.js"
-  );
-  const { nativeAppPullRequestPort } = await import("../dist/native-app-pr.js");
-  const { SplitPublicationAdapter } = await import(
-    "../dist/publication-adapter.js"
+  const identity = await readIdentity(record);
+  const { ghApi } = await import("../dist/native-publication.js");
+  const { nativePublicationRuntime } = await import(
+    "../dist/publication-identity.js"
   );
   // Refuse overwriting retained evidence before any effect.
   closeSync(openSync(reportPath, "wx", 0o600));
@@ -398,27 +374,8 @@ async function main() {
     mkdtempSync(join(tmpdir(), "aios-publication-acceptance-")),
   );
   const github = ghApi();
-  const adapter = new SplitPublicationAdapter(
-    identity.sha256,
-    nativeGitPublicationPort({
-      repository: identity.repository,
-      login: identity.login,
-      name: identity.name,
-      email: identity.email,
-      signingKey: identity.signingKey,
-      metadata: join(work, "git"),
-      github,
-    }),
-    nativeAppPullRequestPort({
-      repository: identity.repository,
-      appId: identity.appId,
-      installationId: identity.installationId,
-      botLogin: identity.botLogin,
-      keyPath: identity.appKeyPath,
-      approver: identity.approver,
-      state: join(work, "app"),
-    }),
-  );
+  // The same native publisher the CLI's publish-feature installs.
+  const adapter = nativePublicationRuntime(record, work);
   const context = {
     host: { platform: platform(), arch: arch(), release: release() },
     ...build,
