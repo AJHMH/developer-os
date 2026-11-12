@@ -3,8 +3,8 @@
 Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
 
 Ticket 08 adds publishFeature and reconcilePublication to the public controller.
-The CLI exposes publish-feature and reconcile-publication with --id, but installs
-no native publisher. Only a trusted controlled PublicationRuntime is accepted.
+The CLI exposes publish-feature and reconcile-publication with --id. With the
+owner's publication record it installs the native publisher (#267, below).
 Publication is a separate phase; it is not merge authorization or completion.
 
 ## Admission and identities
@@ -154,7 +154,23 @@ ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-publication-acceptance.mjs -- "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/issue08-publication-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-native-publication
 ```
 
-The CLI's `publish-feature` doesn't install these ports yet.
+### From the CLI
+
+`publish-feature` and `reconcile-publication` install this publisher from
+`--publication-identity <owner-record>`, and the production gate from
+`--production-admission <owner-record>`:
+
+```sh
+node dist/cli.js publish-feature --id "$DELIVERY" --owner-policy "$POLICY" --podman-machine aios-macos-noshare --validation-admission "$HOME/.developer-os/admission/validation-admission.json" --production-admission "$HOME/.developer-os/admission/production-admission.json" --publication-identity "$HOME/.developer-os/admission/publication-identity.json"
+```
+
+The record's repository must be the delivery's. Publication re-checks the
+validation runtime, so it takes the same owner policy and validation
+admission. It needs a production admission naming the pins the delivery's
+coding and validation ran under. The publisher's Git metadata and dispatch
+markers live in a private folder under the state directory, one per
+repository, and its binding is the record's digest, so a changed record never
+continues an earlier publication. `reconcile-publication` only observes.
 
 ### Native results (11 November 2026)
 

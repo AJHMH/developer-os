@@ -98,7 +98,7 @@ test("candidate artifact tampering blocks all publication effects", async (t) =>
   assert.deepEqual(f.events, []);
 });
 
-test("publication intent is durable before dispatch and the CLI installs no native publisher", async (t) => {
+test("publication intent is durable before dispatch, and without the owner's records the CLI installs no publisher", async (t) => {
   const f = await fixture(t),
     sign = f.runtimePublication.sign.bind(f.runtimePublication);
   f.runtimePublication.sign = async (r) => {
@@ -121,8 +121,8 @@ test("publication intent is durable before dispatch and the CLI installs no nati
     { encoding: "utf8" },
   );
   assert.notEqual(refused.status, 0);
-  // The CLI installs neither a native publisher nor a production admission,
-  // so the production gate refuses first (ticket 04).
+  // Without --publication-identity and --production-admission the CLI
+  // installs neither, so the production gate refuses first (ticket 04).
   assert.match(refused.stderr, /need the owner's production admission/);
   assert.equal(f.controller.status(f.delivery.id).publication, undefined);
   assert.equal(

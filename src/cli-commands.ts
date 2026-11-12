@@ -10,6 +10,7 @@ export const cliOptions = {
   "coding-admission": { type: "string" },
   "validation-admission": { type: "string" },
   "production-admission": { type: "string" },
+  "publication-identity": { type: "string" },
   "feature-criteria": { type: "string" },
   "onboarding-attestation": { type: "string" },
   repo: { type: "string" },
@@ -53,6 +54,13 @@ const validationOptions = [
   ...ownerPolicyOptions,
   "podman-machine",
   "validation-admission",
+] as const;
+// Publication re-checks the validation runtime and the production gate, and
+// publishes through the owner's publication record (#267).
+const publicationOptions = [
+  ...validationOptions,
+  "production-admission",
+  "publication-identity",
 ] as const;
 // A coding or repair turn: the owner policy and admissions, and the auth
 // directory holding the owner's Anthropic key (ADR 0008).
@@ -162,8 +170,8 @@ const commands: Record<string, CliCommand> = {
   // turn.
   // Its allowance is the repair's own, so it takes no coding minutes.
   "repair-feature": idAction("repairFeature", codingTurnOptions),
-  "publish-feature": idAction("publishFeature"),
-  "reconcile-publication": idAction("reconcilePublication"),
+  "publish-feature": idAction("publishFeature", publicationOptions),
+  "reconcile-publication": idAction("reconcilePublication", publicationOptions),
   "monitor-pr-checks": idAction("monitorPRChecks"),
   "repair-pr-checks": idAction("repairPRChecks"),
   "monitor-review": idAction("monitorReview"),
@@ -266,7 +274,12 @@ export function validateCliCommand(
     !/^aios-[a-z0-9-]+$/.test(values["podman-machine"])
   )
     return { error: "arguments" };
-  if (values["feature-criteria"] === "") return { error: "arguments" };
+  if (
+    values["feature-criteria"] === "" ||
+    values["publication-identity"] === "" ||
+    (command.kind === "delivery" && values["production-admission"] === "")
+  )
+    return { error: "arguments" };
   if (
     values["onboarding-attestation"] !== undefined &&
     (!values["onboarding-attestation"] || !values["owner-policy"])
