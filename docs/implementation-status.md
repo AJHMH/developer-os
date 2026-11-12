@@ -21,9 +21,10 @@ Reconciled 10 November 2026 against main `86a93ed` and the Mac runs in the [v1 r
 
 Natively on the Mac, a delivery runs from intake to a validated candidate: `start`, `plan-feature`, `validate-baseline`, a metered Claude Code `code-feature` turn and `validate-candidate`. The Claude Code worker qualification, the session acceptance and the metered CLI delivery acceptance all passed on the final guest; see [worker qualification](worker-qualification.md), [macOS worker qualification](macos-worker-qualification.md) and [feature candidate](feature-candidate.md).
 
+Validation and repair (06 and 07, #265 and #266) are done natively: dependency installs with install scripts, a disposable PostgreSQL per E2E check and browser E2E checks in the admitted Playwright image passed on 11 November (#265, closed), and `repair-feature` repaired a failing candidate on Claude Code with its allowance and spend accounted ([repair receipt](../.scratch/aios-v1-implementation/ticket07-macos-repair-acceptance-receipt.md)).
+
 Production delivery stays disabled. What remains, each as a GitHub ticket under #263:
 
-- **Validation and repair (06 and 07, #265 and #266):** a native repair acceptance. Dependency installs with install scripts, a disposable PostgreSQL per E2E check, and browser E2E checks in the admitted Playwright image all passed natively on 11 November, so #265's two acceptance items are proven.
 - **Publication to cleanup (08 to 14, #267 to #273):** signed publication and the App PR, PR checks, review under the change gate, conditional merge, the main observer, main sync, and branch cleanup with the completion report. All are implemented and tested only against test stand-ins, and the CLI says no native adapter is installed for any of them.
 - **Complete-controller qualification and the pilot (16 and 17, #274 and #275):** never run.
 
