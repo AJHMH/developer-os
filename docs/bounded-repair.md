@@ -81,8 +81,11 @@ metered delivery acceptance ([feature candidate](feature-candidate.md)) with a
 repair:
 
 1. `start` adds `--repair-cycles 1`, and the owner contract adds a
-   candidate-only check, `page-contains-text-aios-repaired`. It needs the text
-   `aios-repaired` in `index.html`, which the coding turn is never told about.
+   candidate-only check, `page-has-data-testid-contact-hint`. It needs an E2E
+   test hook, `data-testid="contact-hint"`, in `index.html`, which the coding
+   turn is never told about. The first native run used an arbitrary marker
+   instead, and the repair turn rightly refused to add text the criteria
+   didn't ask for; a test hook is a requirement a careful agent accepts.
 2. `validate-candidate` must fail exactly that check.
 3. `repair-feature`, on the same owner-admitted runtimes and Anthropic key,
    must spend the one cycle: a stopped Claude Code turn on the delivery's

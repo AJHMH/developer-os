@@ -17,9 +17,10 @@
 //
 // With --with-repair (#266) the delivery starts with a one-cycle repair
 // allowance, and the owner contract adds a candidate check the first turn
-// can't know about: the page must contain a marker. The candidate must fail
-// exactly that check. One metered `repair-feature` turn, told only the failed
-// check's ID, must then add the marker and pass revalidation, with its cycle,
+// can't know about: the hint must carry an E2E test hook,
+// `data-testid="contact-hint"`. The candidate must fail exactly that check.
+// One metered `repair-feature` turn, told only the failed check's ID, must
+// then add the hook and pass revalidation, with its cycle,
 // active time and spend recorded. A second `repair-feature` must be refused as
 // exhausted without spending, and `extend-repair` recorded.
 import { spawn, spawnSync } from "node:child_process";
@@ -46,10 +47,12 @@ const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
 export const repairPassingOutcome = "observed-metered-cli-repair-acceptance";
-/** The text the repair must add, and the candidate check that needs it. Its
- * ID is all the repair turn is told. */
-export const repairMarker = "aios-repaired";
-export const repairCheckId = "page-contains-text-" + repairMarker;
+/** The test hook the repair must add, and the candidate check that needs it.
+ * Its ID is all the repair turn is told. A test hook is a requirement a
+ * careful agent accepts; an arbitrary marker it rightly refuses as gaming the
+ * check (the first native run, 11 November). */
+export const repairHook = 'data-testid="contact-hint"';
+export const repairCheckId = "page-has-data-testid-contact-hint";
 export const request = "Add a visible contact hint.";
 /** Enough for Claude Code to make the one-line change. */
 export const codingMinutes = 10;
@@ -201,7 +204,12 @@ export function withRepairCheck(contract) {
         kind: "acceptance",
         scope: "local",
         stages: ["candidate"],
-        command: ["grep", "-q", repairMarker, "index.html"],
+        command: [
+          "grep",
+          "-qE",
+          "data-testid=[\"']contact-hint[\"']",
+          "index.html",
+        ],
         publisher: "isolated-checker",
         timeoutMs: 60000,
       },
@@ -510,7 +518,7 @@ export async function cliDeliveryAcceptance(
         })),
       };
       if (repair)
-        // The first turn never knew the marker, so only its check fails.
+        // The first turn never knew the hook, so only its check fails.
         check(
           attempt?.stage === "candidate" &&
             attempt.state === "stopped" &&

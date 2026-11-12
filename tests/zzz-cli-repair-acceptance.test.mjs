@@ -13,7 +13,7 @@ import {
   ownerInputs,
   privateRoot,
   repairCheckId,
-  repairMarker,
+  repairHook,
   repairPassingOutcome,
   repairStageNames,
 } from "../scripts/run-native-cli-delivery-acceptance.mjs";
@@ -65,7 +65,7 @@ const host = (cleaned = []) => ({
 });
 
 /** A CLI whose VM steps are simulated, with a candidate that fails only the
- * marker check until one repair; `faults` changes what they report. */
+ * hook check until one repair; `faults` changes what they report. */
 function simulatedCli(faults = {}) {
   const calls = [];
   let d, repository;
@@ -210,7 +210,7 @@ function simulatedCli(faults = {}) {
   return { cli, calls };
 }
 
-test("the repair acceptance repairs a candidate that failed only the marker check, then is refused as exhausted until an owner extension", async () => {
+test("the repair acceptance repairs a candidate that failed only the hook check, then is refused as exhausted until an owner extension", async () => {
   const cleaned = [];
   const { cli, calls } = simulatedCli();
   const report = await cliDeliveryAcceptance({ cli, ...host(cleaned) });
@@ -322,7 +322,7 @@ test("the repair acceptance blocks when the candidate fails otherwise, the repai
   }
 });
 
-test("with repair, the owner contract adds a candidate-only check for the marker", async (t) => {
+test("with repair, the owner contract adds a candidate-only check for the test hook", async (t) => {
   const root = await privateRoot("aios-cli-repair-owner-");
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const inputs = ownerInputs(root, offlineValidationEnvironment(imageSha256), {
@@ -337,15 +337,26 @@ test("with repair, the owner contract adds a candidate-only check for the marker
     kind: "acceptance",
     scope: "local",
     stages: ["candidate"],
-    command: ["grep", "-q", repairMarker, "index.html"],
+    command: [
+      "grep",
+      "-qE",
+      "data-testid=[\"']contact-hint[\"']",
+      "index.html",
+    ],
     publisher: "isolated-checker",
     timeoutMs: 60000,
   });
-  // The base page, the baseline's, has no marker.
-  assert.doesNotMatch(
-    readFileSync(`${inputs.repository}/index.html`, "utf8"),
-    new RegExp(repairMarker),
+  // The base page, the baseline's, has no hook; the hook the repair adds
+  // satisfies the check's pattern, in either quote style.
+  assert.ok(
+    !readFileSync(`${inputs.repository}/index.html`, "utf8").includes(
+      "data-testid",
+    ),
   );
+  const pattern = new RegExp(added.command[2]);
+  assert.match(`<p ${repairHook}>Hint</p>`, pattern);
+  assert.match(`<p data-testid='contact-hint'>Hint</p>`, pattern);
+  assert.doesNotMatch(`<p data-testid="other">Hint</p>`, pattern);
   const plain = ownerInputs(
     await privateRoot("aios-cli-plain-owner-"),
     offlineValidationEnvironment(imageSha256),
