@@ -180,8 +180,14 @@ const commands: Record<string, CliCommand> = {
     "production-admission",
     "publication-identity",
   ]),
-  "monitor-review": idAction("monitorReview"),
-  "repair-review": idAction("repairReview"),
+  // #269: with the owner policy, these install the PR check monitor and the
+  // native review adapter. A review repair also republishes.
+  "monitor-review": idAction("monitorReview", ownerPolicyOptions),
+  "repair-review": idAction("repairReview", [
+    ...codingTurnOptions,
+    "production-admission",
+    "publication-identity",
+  ]),
   "merge-feature": idAction("mergeFeature"),
   "reconcile-merge": idAction("reconcileMerge"),
   "refresh-merge-base": idAction("refreshMergeBase"),
@@ -199,7 +205,7 @@ const commands: Record<string, CliCommand> = {
   "resolve-review-thread": {
     kind: "delivery",
     required: ["id", "thread-id"],
-    optional: [],
+    optional: ownerPolicyOptions,
     invoke: (c, v) => c.resolveReviewThread(v.id!, v["thread-id"]!),
   },
   "clarify-feature": {
