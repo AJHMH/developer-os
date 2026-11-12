@@ -156,6 +156,22 @@ node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state"
 
 The CLI's `publish-feature` doesn't install these ports yet.
 
+### Native results (11 November 2026)
+
+The Mac passed with outcome `observed-native-publication-acceptance`, from
+`main` at `b9bcb1b`
+([receipt](../.scratch/aios-v1-implementation/ticket08-macos-publication-acceptance-receipt.md)).
+
+- **Sign and push:** your key signed commit `c73dcb9a…` through ssh-agent, and
+  your `gh` login pushed it to a new branch. GitHub reported it Verified, with
+  you as signer and pusher.
+- **PR:** the App opened
+  [AJHMH/aios-publication-acceptance#1](https://github.com/AJHMH/aios-publication-acceptance/pull/1).
+- **Reconcile:** reconciling found every step again, without a second write.
+
+Reaching this pass needed #293 (reading `main`'s tree), #294 (GitHub's
+refusal reason) and #295 (`contents: read`).
+
 ## Validation and qualification limits
 
 Public fixtures cover exact-tree/signature/identity refusal, durable dispatch,

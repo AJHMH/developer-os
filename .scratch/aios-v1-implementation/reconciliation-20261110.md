@@ -37,7 +37,7 @@ There are 25 tickets, 01 to 25.
 | 05 Bounded feature candidate     | Completed                                                      | The last criterion, the pinned CLI adapter with structured events and explicit resume, is met by Claude Code: the session and CLI delivery acceptances. |
 | 06 Isolated validation           | Open, [#265](https://github.com/AJHMH/developer-os/issues/265) | Native baseline and candidate validation, dependency installs with install scripts, a disposable database per E2E check and browser E2E checks in the admitted Playwright image (11 November receipts). Both acceptance items are proven natively. |
 | 07 Validation repair             | Open, [#266](https://github.com/AJHMH/developer-os/issues/266) | Native: `repair-feature` repaired a failing candidate on Claude Code, with cycle, active-time and spend accounting and the exhausted refusal ([11 November receipt](ticket07-macos-repair-acceptance-receipt.md)). |
-| 08 Signed App publication        | Open, [#267](https://github.com/AJHMH/developer-os/issues/267) | Controlled; no native publisher.                                                                                                                        |
+| 08 Signed App publication        | Open, [#267](https://github.com/AJHMH/developer-os/issues/267) | Native ports: the owner's key signs through ssh-agent, the owner pushes, GitHub verifies, the App opens the PR ([11 November receipt](ticket08-macos-publication-acceptance-receipt.md)). `publish-feature` doesn't install them yet. |
 | 09 Trusted PR checks             | Open, [#268](https://github.com/AJHMH/developer-os/issues/268) | Controlled; no native monitor.                                                                                                                          |
 | 10 Review and owner approval     | Open, [#269](https://github.com/AJHMH/developer-os/issues/269) | Controlled. Approval follows the change gate (ADR 0005).                                                                                                |
 | 11 Conditional merge             | Open, [#270](https://github.com/AJHMH/developer-os/issues/270) | Controlled; no native merge adapter.                                                                                                                    |
@@ -94,7 +94,7 @@ There are 56 stories. Their status:
 | 21  | Missing, skipped or neutral checks are incomplete         | 06, 09             | Partial: local; PR checks controlled only                                                                                                           |
 | 22  | Failures and reruns preserved                             | 06, 09             | Partial: local; PR checks controlled only                                                                                                           |
 | 23  | Tests and thresholds protected                            | 06                 | Done: owner-held validation contract                                                                                                                |
-| 24  | App authors PRs, owner signs commits                      | 08, 17             | Controlled only (#267)                                                                                                                              |
+| 24  | App authors PRs, owner signs commits                      | 08, 17             | Partial: natively proven by the publication acceptance ([receipt](ticket08-macos-publication-acceptance-receipt.md)); not yet through `publish-feature` (#267) |
 | 25  | Straightforward review findings repaired                  | 10                 | Controlled only (#269)                                                                                                                              |
 | 26  | Disputed review requests escalated                        | 10                 | Controlled only (#269)                                                                                                                              |
 | 27  | Current-head approval authorizes merge                    | 10, 11, 17         | Controlled only; changed: needed only for gated heads (ADR 0005)                                                                                    |
@@ -134,8 +134,8 @@ In total:
 | --------------- | ----- | ------------------------------------------------------------------------- |
 | Done            | 23    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 23, 30, 31, 33, 34, 35, 37, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
-| Partial         | 10    | 5, 7, 20, 21, 22, 36, 49, 51, 53, 54                                      |
-| Controlled only | 19    | 8, 24, 25, 26, 27, 28, 29, 32, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 |
+| Partial         | 11    | 5, 7, 20, 21, 22, 24, 36, 49, 51, 53, 54                                  |
+| Controlled only | 18    | 8, 25, 26, 27, 28, 29, 32, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48     |
 | Not done        | 0     |                                                                           |
 
 No story is complete end to end until tickets 08 to 14 have native adapters and
