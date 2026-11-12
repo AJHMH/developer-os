@@ -228,7 +228,7 @@ function appWorld(t, w) {
   const calls = [];
   const prs = [];
   const app = {
-    scope: { pull_requests: "write", metadata: "read" },
+    scope: { pull_requests: "write", contents: "read", metadata: "read" },
     slug: "ajhmh-software-factory",
   };
   const fetch = async (path, init) => {
@@ -238,7 +238,7 @@ function appWorld(t, w) {
     if (path === "app/installations/167664341/access_tokens") {
       assert.deepEqual(init.body, {
         repositories: ["acceptance"],
-        permissions: { pull_requests: "write" },
+        permissions: { pull_requests: "write", contents: "read" },
       });
       return {
         status: 201,
@@ -442,7 +442,10 @@ test("the owner's key signs the exact admitted tree through the agent, the branc
   // No token ever asked for more than pull requests.
   for (const [m, p, body] of a.calls)
     if (m === "POST" && p.endsWith("access_tokens"))
-      assert.deepEqual(body.permissions, { pull_requests: "write" });
+      assert.deepEqual(body.permissions, {
+        pull_requests: "write",
+        contents: "read",
+      });
 });
 
 test("signing blocks when the agent doesn't hold the key, and never prompts or reads the private key", async (t) => {
@@ -597,7 +600,7 @@ test("an unanswered push or PR is never reported absent until it can no longer l
                 status: 201,
                 body: {
                   token: "ghs_x",
-                  permissions: { pull_requests: "write" },
+                  permissions: { pull_requests: "write", contents: "read" },
                   repositories: [{ full_name: "AJHMH/acceptance" }],
                 },
               };
@@ -634,7 +637,7 @@ test("an App token wider than pull requests, another App, or several PRs on the 
   assert.ok(
     a.calls.some(([m, p]) => m === "DELETE" && p === "installation/token"),
   );
-  a.app.scope = { pull_requests: "write", metadata: "read" };
+  a.app.scope = { pull_requests: "write", contents: "read", metadata: "read" };
   a.app.slug = "other-app";
   await assert.rejects(a.port().inspect(), /Wrong GitHub App/);
   a.app.slug = "ajhmh-software-factory";
@@ -1110,7 +1113,7 @@ test("the App port refuses a non-RSA key, a token without permissions, a fenced 
           status: 201,
           body: {
             token: "ghs_x",
-            permissions: { pull_requests: "write" },
+            permissions: { pull_requests: "write", contents: "read" },
             repositories: [{ full_name: "AJHMH/acceptance" }],
           },
         }
@@ -1184,7 +1187,7 @@ test("a refused PR creation says GitHub's status and short reason", async (t) =>
               status: 201,
               body: {
                 token: "ghs_x",
-                permissions: { pull_requests: "write" },
+                permissions: { pull_requests: "write", contents: "read" },
                 repositories: [{ full_name: "AJHMH/acceptance" }],
               },
             }
@@ -1218,4 +1221,26 @@ test("a refused PR creation says GitHub's status and short reason", async (t) =>
       .create({ ...pr, operationId: randomUUID() }),
     (e) => e.message.length < 240 && !e.message.includes("\n"),
   );
+});
+
+test("an App token without contents read, or with any write beyond pull requests, is refused", async (t) => {
+  const w = world(t);
+  const a = appWorld(t, w);
+  for (const scope of [
+    { pull_requests: "write", metadata: "read" },
+    { pull_requests: "write", contents: "write", metadata: "read" },
+    {
+      pull_requests: "write",
+      contents: "read",
+      issues: "write",
+      metadata: "read",
+    },
+  ]) {
+    a.app.scope = scope;
+    await assert.rejects(
+      a.port().inspect(),
+      /Unexpected App credential scope/,
+      JSON.stringify(scope),
+    );
+  }
 });

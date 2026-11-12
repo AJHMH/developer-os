@@ -60,7 +60,9 @@ export interface NativeAppOptions {
 }
 
 /** The Software Factory App's PR author (ticket 08). Every call takes an
- * installation token limited to `pull_requests:write` on the one onboarded
+ * installation token limited to `pull_requests:write`, plus `contents:read`
+ * because GitHub must read a private repository's branches to open a PR
+ * (#267), on the one onboarded
  * repository, checks GitHub granted exactly that, and revokes it after use.
  * It only creates and observes pull requests: no review, merge or content
  * write exists here. */
@@ -119,7 +121,7 @@ export function nativeAppPullRequestPort(
         token: app,
         body: {
           repositories: [name],
-          permissions: { pull_requests: "write" },
+          permissions: { pull_requests: "write", contents: "read" },
         },
       },
     );
@@ -137,9 +139,11 @@ export function nativeAppPullRequestPort(
         t?.repositories?.length !== 1 ||
         t.repositories[0]!.full_name !== options.repository ||
         t.permissions?.pull_requests !== "write" ||
+        t.permissions?.contents !== "read" ||
         !permissions.every(
           ([k, v]) =>
             (k === "pull_requests" && v === "write") ||
+            (k === "contents" && v === "read") ||
             (k === "metadata" && v === "read"),
         )
       )
