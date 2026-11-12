@@ -98,7 +98,7 @@ export interface ReviewRequest {
  * permissions, thread fingerprints, and scope assessments against pinned criteria.
  * Raw review text cannot set assessments or authority. No approve/merge capability.
  * Resolve must honor mayDispatch and stable operation identity; absence requires
- * proof of quiescence. There is no native implementation in the CLI. */
+ * proof of quiescence. The CLI installs `src/native-review.ts` (#269). */
 export interface ReviewRuntime {
   readonly mode: "controlled";
   readonly bindingSha256: string;
@@ -134,9 +134,21 @@ export function unresolvedReviewEffect(d: Delivery): boolean {
     r.resolutions.some((e) => ["dispatched", "uncertain"].includes(e.state)),
   );
 }
-function project(
+/** The controller's reading of one review observation for publication `p`:
+ * its bounded reviews and threads, the change gate's classification, and
+ * what (if anything) authorizes the head. It throws on unverified authority
+ * or malformed evidence. */
+export function projectReview(
   o: ReviewObservation,
-  p: PublicationEvidence,
+  p: Pick<
+    PublicationEvidence,
+    | "repository"
+    | "pullRequest"
+    | "commit"
+    | "defaultBranch"
+    | "appLogin"
+    | "approver"
+  >,
   criteria: string,
   now: number,
   contract: ChangeGateContract,
@@ -350,7 +362,7 @@ export class ReviewCoordinator {
       try {
         const end = this.host.now();
         if (!integer(end) || end < now) throw Error("Unavailable clock");
-        const result = project(
+        const result = projectReview(
           response!,
           p,
           input.criteriaSha256,

@@ -25,6 +25,8 @@ export type CommandRunner = (
 export type GitHubApi = (
   path: string,
   method?: "GET" | "POST",
+  /** A JSON request body, such as a GraphQL query. */
+  body?: unknown,
 ) => Promise<{
   status: number;
   body: unknown;
@@ -46,22 +48,25 @@ export const defaultRunner: CommandRunner = (executable, args, options) => {
 
 /** The owner's `gh api`, with a bounded answer. A missing resource is 404. */
 export function ghApi(run: CommandRunner = defaultRunner): GitHubApi {
-  return async (path, method = "GET") => {
-    const r = run("gh", ["api", "--include", "-X", method, path], {
+  return async (path, method = "GET", body) => {
+    const args = ["api", "--include", "-X", method, path];
+    if (body !== undefined) args.push("--input", "-");
+    const r = run("gh", args, {
       env: {
         ...cleanEnvironment(),
         GH_PROMPT_DISABLED: "1",
         NO_COLOR: "1",
       },
+      input: body === undefined ? undefined : JSON.stringify(body),
       timeoutMs: 30000,
     });
     const text = r.stdout;
     const status = Number(/^HTTP\/[0-9.]+ ([0-9]{3})/.exec(text)?.[1]);
     if (!Number.isInteger(status)) throw Error("GitHub observation failed");
     const split = text.search(/\r?\n\r?\n/);
-    const body = split < 0 ? "" : text.slice(split).trim();
+    const answer = split < 0 ? "" : text.slice(split).trim();
     try {
-      return { status, body: body ? JSON.parse(body) : null };
+      return { status, body: answer ? JSON.parse(answer) : null };
     } catch {
       throw Error("GitHub observation failed");
     }

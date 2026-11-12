@@ -885,7 +885,7 @@ export class DeliveryController {
       return await this.reviewCoordinator(id).monitor();
     } catch {
       throw new DeliveryError(
-        "Review requires current validated publication, trusted checks, unchanged authority and a controlled review adapter; native review remains disabled.",
+        "Review requires current validated publication, trusted checks, unchanged authority and the review adapter the owner policy installs.",
       );
     }
   }
