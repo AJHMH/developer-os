@@ -88,9 +88,12 @@ for the Mac. The owner chose (#267):
   conditional: `--force-with-lease` expects a new branch to be absent, or an
   update to start from the exact previous head. There is never a plain force.
 - **PR: the Software Factory App.** Every call takes an installation token for
-  the one repository with `permissions: {pull_requests: write}`. The port
-  checks GitHub granted exactly that, plus implicit `metadata: read`, and
-  revokes the token after use. It can only create and observe PRs.
+  the one repository with `permissions: {pull_requests: write, contents:
+  read}`. The port checks GitHub granted exactly that, plus implicit
+  `metadata: read`, and revokes the token after use. It can only create and
+  observe PRs. `contents: read` is read-only, and GitHub needs it: on a
+  private repository, a token without it is refused with `not all refs are
+  readable` (the first native run, 11 November). The owner chose to add it.
 
 All Git work happens in the port's own bare metadata, with no system or
 global configuration (`GIT_CONFIG_NOSYSTEM`, `GIT_CONFIG_GLOBAL=/dev/null`)
