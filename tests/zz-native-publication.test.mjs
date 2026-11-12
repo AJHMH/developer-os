@@ -1058,7 +1058,11 @@ test("the owner's gh api and the App's REST calls answer with status and body", 
   assert.deepEqual(await api("repos/x/y"), { status: 404, body: null });
   await assert.rejects(api("user"), /GitHub observation failed/);
   await assert.rejects(api("user"), /GitHub observation failed/);
-  assert.deepEqual(calls[0], ["gh", ["api", "--include", "user"], "1"]);
+  assert.deepEqual(calls[0], [
+    "gh",
+    ["api", "--include", "-X", "GET", "user"],
+    "1",
+  ]);
   // A missing executable is a failed command, not a crash.
   assert.equal(
     defaultRunner("aios-missing-executable", [], { env: {}, timeoutMs: 1000 })

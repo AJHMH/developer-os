@@ -56,7 +56,7 @@ export async function readIdentity(path) {
  * SplitPublicationAdapter) and checks every observation. `github(path)`
  * reads the repository's API as the owner. */
 export async function publicationAcceptance(
-  { adapter, github, identity, runId = randomUUID() },
+  { adapter, github, identity, runId = randomUUID(), extraFiles = [] },
   options = {},
 ) {
   const persist = options.persist ?? (() => {});
@@ -193,6 +193,8 @@ export async function publicationAcceptance(
         ),
         executable: false,
       });
+      // Further files a caller adds, such as a check's failure switch.
+      files.push(...extraFiles);
       report.base = head;
       return { head, files };
     });
