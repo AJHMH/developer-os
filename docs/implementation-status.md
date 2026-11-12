@@ -25,7 +25,7 @@ Validation and repair (06 and 07, #265 and #266) are done natively: dependency i
 
 Production delivery stays disabled. What remains, each as a GitHub ticket under #263:
 
-- **Publication to cleanup (08 to 14, #267 to #273):** signed publication and the App PR, PR checks, review under the change gate, conditional merge, the main observer, main sync, and branch cleanup with the completion report. All are implemented and tested only against test stand-ins, and the CLI says no native adapter is installed for any of them.
+- **Publication to cleanup (08 to 14, #267 to #273):** signed publication and the App PR, PR checks, review under the change gate, conditional merge, the main observer, main sync, and branch cleanup with the completion report. All are implemented and tested against test stand-ins. The native publisher's ports passed against a disposable repository on 11 November, with an owner-signed, GitHub-Verified commit and an App-authored PR ([receipt](../.scratch/aios-v1-implementation/ticket08-macos-publication-acceptance-receipt.md)), but `publish-feature` doesn't install them yet, and the CLI has no native adapter for the later stages.
 - **Complete-controller qualification and the pilot (16 and 17, #274 and #275):** never run.
 
 Factory certification remains open: the repository retains successful adoption/check evidence, but no successful certification receipt with matching producer, certificate and artifact/SBOM identities has been found. Current remote secrets, rules and approvals were not re-inspected.
