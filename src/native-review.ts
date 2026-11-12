@@ -32,10 +32,14 @@ export interface NativeReviewOptions {
   clock?: () => number;
 }
 
+/** GitHub refuses a query that could reach more than 500,000 nodes, so the
+ * pages are 100 conversations, 50 comments each, 25 reactions each: a bigger
+ * conversation is incomplete, never truncated. */
+export const threadPages = { threads: 100, comments: 50, reactions: 25 };
 const threadsQuery = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: ${threadPages.threads}) {
         pageInfo { hasNextPage }
         nodes {
           id
@@ -43,7 +47,7 @@ const threadsQuery = `query($owner: String!, $name: String!, $number: Int!) {
           path
           line
           originalLine
-          comments(first: 100) {
+          comments(first: ${threadPages.comments}) {
             pageInfo { hasNextPage }
             nodes {
               databaseId
@@ -51,7 +55,7 @@ const threadsQuery = `query($owner: String!, $name: String!, $number: Int!) {
               body
               createdAt
               lastEditedAt
-              reactions(first: 100) {
+              reactions(first: ${threadPages.reactions}) {
                 pageInfo { hasNextPage }
                 nodes { content user { login } }
               }

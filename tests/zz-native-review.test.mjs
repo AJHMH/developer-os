@@ -19,6 +19,7 @@ import {
   nativeReviewRuntime,
   ownerPolicyReviewRuntime,
   resolveSettleMs,
+  threadPages,
 } from "../dist/native-review.js";
 import { projectReview } from "../dist/review.js";
 
@@ -122,6 +123,21 @@ function github(t, changes = {}) {
           },
         };
       }
+      // GitHub's limit: the query can't reach more than 500,000 nodes.
+      const firsts = [...body.query.matchAll(/first: (\d+)/g)].map((m) =>
+        Number(m[1]),
+      );
+      assert.deepEqual(firsts, [
+        threadPages.threads,
+        threadPages.comments,
+        threadPages.reactions,
+      ]);
+      assert.ok(
+        firsts.reduce(
+          (n, f, i) => n + firsts.slice(0, i + 1).reduce((a, b) => a * b, 1),
+          0,
+        ) <= 500000,
+      );
       assert.deepEqual(body.variables, {
         owner: "AJHMH",
         name: "acceptance",
