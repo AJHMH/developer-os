@@ -36,7 +36,7 @@ There are 25 tickets, 01 to 25.
 | 04 Isolated worker gate | Completed in #277 ([#264](https://github.com/AJHMH/developer-os/issues/264), closed after this reconciliation) | Production admission and ADR 0009 (story 51). The dependency phase moved to #265. |
 | 05 Bounded feature candidate     | Completed                                                      | The last criterion, the pinned CLI adapter with structured events and explicit resume, is met by Claude Code: the session and CLI delivery acceptances. |
 | 06 Isolated validation           | Open, [#265](https://github.com/AJHMH/developer-os/issues/265) | Native baseline and candidate validation, dependency installs with install scripts, a disposable database per E2E check and browser E2E checks in the admitted Playwright image (11 November receipts). Both acceptance items are proven natively. |
-| 07 Validation repair             | Open, [#266](https://github.com/AJHMH/developer-os/issues/266) | Controlled. A native repair acceptance remains.                                                                                                         |
+| 07 Validation repair             | Open, [#266](https://github.com/AJHMH/developer-os/issues/266) | Native: `repair-feature` repaired a failing candidate on Claude Code, with cycle, active-time and spend accounting and the exhausted refusal ([11 November receipt](ticket07-macos-repair-acceptance-receipt.md)). |
 | 08 Signed App publication        | Open, [#267](https://github.com/AJHMH/developer-os/issues/267) | Controlled; no native publisher.                                                                                                                        |
 | 09 Trusted PR checks             | Open, [#268](https://github.com/AJHMH/developer-os/issues/268) | Controlled; no native monitor.                                                                                                                          |
 | 10 Review and owner approval     | Open, [#269](https://github.com/AJHMH/developer-os/issues/269) | Controlled. Approval follows the change gate (ADR 0005).                                                                                                |
@@ -100,7 +100,7 @@ There are 56 stories. Their status:
 | 27  | Current-head approval authorizes merge                    | 10, 11, 17         | Controlled only; changed: needed only for gated heads (ADR 0005)                                                                                    |
 | 28  | New commits invalidate approval                           | 10, 11             | Controlled only; changed as story 27                                                                                                                |
 | 29  | Agent never submits the owner's approval                  | 08, 10             | Controlled only, by design                                                                                                                          |
-| 30  | Bounded implementation and repair allowances              | 05, 07             | Partial: coding is native; repair is #266                                                                                                           |
+| 30  | Bounded implementation and repair allowances              | 05, 07             | Done: coding and repair natively ([repair receipt](ticket07-macos-repair-acceptance-receipt.md)); owner-set repair allowance at `start` (#287) |
 | 31  | Explicit allowance extensions                             | 05, 07             | Done (`extend-coding`, `extend-budget`, `extend-repair`)                                                                                            |
 | 32  | CI waits bounded, approval waits unhurried                | 09, 10             | Controlled only                                                                                                                                     |
 | 33  | Status and evidence during waits                          | 01                 | Done                                                                                                                                                |
@@ -132,9 +132,9 @@ In total:
 
 | Status          | Count | Stories                                                                   |
 | --------------- | ----- | ------------------------------------------------------------------------- |
-| Done            | 22    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 23, 31, 33, 34, 35, 37, 50, 52, 56 |
+| Done            | 23    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 23, 30, 31, 33, 34, 35, 37, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
-| Partial         | 11    | 5, 7, 20, 21, 22, 30, 36, 49, 51, 53, 54                                  |
+| Partial         | 10    | 5, 7, 20, 21, 22, 36, 49, 51, 53, 54                                      |
 | Controlled only | 19    | 8, 24, 25, 26, 27, 28, 29, 32, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 |
 | Not done        | 0     |                                                                           |
 

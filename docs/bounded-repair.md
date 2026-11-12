@@ -105,6 +105,18 @@ records current:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue07-repair-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --with-repair
 ```
 
+### Native results (11 November 2026)
+
+The Mac passed with outcome `observed-metered-cli-repair-acceptance`, from
+`main` at `984aafd`, spending $0.089 of the $5 budget
+([receipt](../.scratch/aios-v1-implementation/ticket07-macos-repair-acceptance-receipt.md)).
+The coding turn's candidate failed only the test-hook check. One repair cycle
+added the hook in 62.6 s of active time, and the repaired candidate passed all
+seven checks. A second repair was refused as exhausted, without spending, and
+`extend-repair` was recorded. Reaching this pass needed #288 (the run's own
+pin check), #289 (a repair's coding input digest) and #290 (the test-hook
+check).
+
 ## Qualification still required
 
 Only controlled adapters are accepted. No native repair executor, provider call,
