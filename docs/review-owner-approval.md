@@ -136,9 +136,11 @@ repository through the native publisher:
 2. **A PR that adds a file under `.github/`:** it must be gated, with no
    authorization.
 3. **Your review, in GitHub.** The script prints the PR's link and waits up to
-   30 minutes. On the gated PR, comment on any line, react 👍 to your
-   comment, and approve. Your comment must read as a straightforward finding,
-   and the approval mustn't count while the comment is open.
+   30 minutes, printing each change it sees. On the gated PR's **Files
+   changed**, comment on a line, react 👍 to your comment, and approve. A
+   comment in the **Conversation** tab doesn't count, because it can't be
+   resolved. Your comment must read as a straightforward finding, and the
+   approval mustn't count while the comment is open.
 4. **Resolution:** the adapter resolves your comment. Then your approval must
    authorize exactly that head.
 
@@ -147,6 +149,26 @@ With the signing key in ssh-agent:
 ```sh
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-review-acceptance.mjs -- "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/issue10-review-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-native-review
 ```
+
+### Native results (12 November 2026)
+
+The Mac passed with outcome `observed-native-review-acceptance`, from `main`
+at `f3ac9d5`
+([receipt](../.scratch/aios-v1-implementation/ticket10-macos-review-acceptance-receipt.md)).
+
+- **Ungated:**
+  [AJHMH/aios-publication-acceptance#7](https://github.com/AJHMH/aios-publication-acceptance/pull/7)
+  was authorized without a review.
+- **Gated:**
+  [AJHMH/aios-publication-acceptance#8](https://github.com/AJHMH/aios-publication-acceptance/pull/8)
+  touches `.github/`. Your line comment, marked 👍, was read as a
+  straightforward finding, and your approval didn't count while the comment
+  was open.
+- **Resolution:** the adapter resolved your comment. Your approval then
+  authorized exactly that head.
+
+Reaching this pass needed #301, which keeps the conversation query under
+GitHub's 500,000-node limit.
 
 ## Qualification still required
 
