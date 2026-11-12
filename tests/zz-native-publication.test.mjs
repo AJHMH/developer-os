@@ -615,7 +615,7 @@ test("an unanswered push or PR is never reported absent until it can no longer l
   };
   await assert.rejects(
     app.create({ ...pr, mayDispatch: () => true }),
-    /refused/,
+    /^Error: PR creation refused \(HTTP 502\)$/,
   );
   assert.deepEqual(await app.observe(pr), {
     state: "absent",
@@ -1168,5 +1168,54 @@ test("the App port refuses a non-RSA key, a token without permissions, a fenced 
       })
       .observe(pr),
     { state: "unknown" },
+  );
+});
+
+test("a refused PR creation says GitHub's status and short reason", async (t) => {
+  const w = world(t);
+  const a = appWorld(t, w);
+  const refuse = (body) => async (path, init) =>
+    path.endsWith("/pulls") && init.method === "POST"
+      ? { status: 422, body }
+      : path === "app"
+        ? { status: 200, body: { id: 5180250, slug: "ajhmh-software-factory" } }
+        : path.endsWith("access_tokens")
+          ? {
+              status: 201,
+              body: {
+                token: "ghs_x",
+                permissions: { pull_requests: "write" },
+                repositories: [{ full_name: "AJHMH/acceptance" }],
+              },
+            }
+          : { status: 204, body: null };
+  const pr = {
+    repository: "AJHMH/acceptance",
+    branch: "aios/feature-r",
+    base: "main",
+    head: w.base,
+    operationId: randomUUID(),
+    approver: "aaron-howard",
+    mayDispatch: () => true,
+  };
+  await assert.rejects(
+    a
+      .port({
+        fetch: refuse({
+          message: "Validation Failed",
+          errors: [
+            { message: "No commits between main and aios/feature-r" },
+            { code: "invalid" },
+          ],
+        }),
+      })
+      .create(pr),
+    /^Error: PR creation refused \(HTTP 422: Validation Failed; No commits between main and aios\/feature-r; invalid\)$/,
+  );
+  await assert.rejects(
+    a
+      .port({ fetch: refuse({ message: "x".repeat(500) + "\n" }) })
+      .create({ ...pr, operationId: randomUUID() }),
+    (e) => e.message.length < 240 && !e.message.includes("\n"),
   );
 });

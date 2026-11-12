@@ -186,7 +186,26 @@ export function nativeAppPullRequestPort(
             body: `Signed by the owner and validated by the controller.\n\nAIOS-Operation: ${r.operationId}`,
           },
         });
-        if (created.status !== 201) throw Error("PR creation refused");
+        if (created.status !== 201) {
+          // GitHub's own short reason, bounded and on one line.
+          const b = created.body as {
+            message?: unknown;
+            errors?: { message?: unknown; code?: unknown }[];
+          } | null;
+          const reason = [
+            b?.message,
+            ...(Array.isArray(b?.errors)
+              ? b.errors.map((e) => e?.message ?? e?.code)
+              : []),
+          ]
+            .filter((v): v is string => typeof v === "string")
+            .join("; ")
+            .replace(/[^\x20-\x7e]/g, " ")
+            .slice(0, 200);
+          throw Error(
+            `PR creation refused (HTTP ${created.status}${reason ? ": " + reason : ""})`,
+          );
+        }
       });
     },
     async observe(r) {
