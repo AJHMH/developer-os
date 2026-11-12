@@ -23,6 +23,16 @@
 // then add the hook and pass revalidation, with its cycle,
 // active time and spend recorded. A second `repair-feature` must be refused as
 // exhausted without spending, and `extend-repair` recorded.
+//
+// With --through-review (the first real delivery) the repository is a clone of
+// the owner's publication repository, and the policy and attestation name its
+// real facts, each first read live from GitHub: its rules, approvers, App and
+// a Verified owner-signed commit. A missing fact stops the run before `start`.
+// After validation the delivery publishes (`publish-feature`, under the
+// owner's production admission and publication records), waits for its
+// GitHub Actions `pr-ci` check (`monitor-pr-checks`) and reads its review
+// (`monitor-review`). It must reach `ready-to-merge` and stop there: merge is
+// #270. It writes one signed branch and one App PR to that repository.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -42,11 +52,15 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair]";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review <owner-publication-identity.json> <owner-production-admission.json>]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
 export const repairPassingOutcome = "observed-metered-cli-repair-acceptance";
+export const reviewPassingOutcome = "observed-native-delivery-through-review";
+/** How long the delivery waits for its PR checks, and how often it looks. */
+export const prChecksWaitMs = 15 * 60000;
+export const prChecksIntervalMs = 20000;
 /** The test hook the repair must add, and the candidate check that needs it.
  * Its ID is all the repair turn is told. A test hook is a requirement a
  * careful agent accepts; an arbitrary marker it rightly refuses as gaming the
@@ -71,6 +85,16 @@ export const stageNames = Object.freeze([
   "host-checkout-unchanged",
   "coding-session-cleanup",
 ]);
+/** Every stage of a real delivery through review, in order. */
+export const reviewStageNames = Object.freeze([
+  "owner-records-name-fresh-pins",
+  "repository-facts",
+  ...stageNames.slice(1, 7),
+  "cli-publish-feature",
+  "cli-monitor-pr-checks",
+  "cli-monitor-review",
+  ...stageNames.slice(7),
+]);
 /** Every stage of a run with repair, in order. */
 export const repairStageNames = Object.freeze([
   ...stageNames.slice(0, 7),
@@ -89,7 +113,8 @@ const pinFields = {
  * repository with the local hints the CLI reads, an owner policy validating
  * under `environment`, the attestation of every fact the CLI cannot observe,
  * and `criteria(id)`, which writes the criteria file for a started delivery. */
-export function ownerInputs(root, environment, { repair = false } = {}) {
+export function ownerInputs(root, environment, { repair = false, real } = {}) {
+  if (real) return realOwnerInputs(root, environment, real);
   const repository = join(root, "repository");
   mkdirSync(repository);
   const git = (...args) => {
@@ -193,6 +218,254 @@ export function ownerInputs(root, environment, { repair = false } = {}) {
   };
 }
 
+/** The owner contract for the real repository: the probe checks, the
+ * candidate acceptance check, and its GitHub Actions `pr-ci` check from the
+ * default branch's workflow (#268). The main check names the same workflow
+ * for the later main observer (#271). */
+export function realContract(environment) {
+  const contract = acceptanceContract(environment);
+  return {
+    ...contract,
+    checks: contract.checks
+      .filter((c) => c.scope === "local")
+      .concat(
+        [
+          ["pr-ci", "pr"],
+          ["main-ci", "main"],
+        ].map(([id, scope]) => ({
+          id,
+          kind: "build",
+          scope,
+          stages: ["candidate"],
+          command: ["workflow", "ci"],
+          publisher: "github-actions",
+          workflow: ".github/workflows/ci.yml@main",
+          timeoutMs: prChecksWaitMs,
+        })),
+      ),
+  };
+}
+
+/** The real repository's onboarding facts, each read live from GitHub through
+ * the owner's API, for the publication record `identity`. It throws naming
+ * the first fact that doesn't hold, so nothing false is ever attested. */
+export async function repositoryFacts(github, identity) {
+  const repo = `repos/${identity.repository}`;
+  const read = async (path) => {
+    const r = await github(path);
+    if (r.status !== 200) throw Error(`GitHub refused ${path} (${r.status})`);
+    return r.body;
+  };
+  const need = (condition, fact) => {
+    if (!condition) throw Error(`The repository doesn't have: ${fact}`);
+  };
+  const about = await read(repo);
+  need(about.full_name === identity.repository, "the record's name");
+  const defaultBranch = about.default_branch;
+  const rules = await read(`${repo}/rules/branches/${defaultBranch}`);
+  const rule = (type) => rules.filter((r) => r.type === type);
+  const statusChecks = rule("required_status_checks").flatMap(
+    (r) => r.parameters?.required_status_checks ?? [],
+  );
+  const reviews = rule("pull_request").some(
+    (r) => (r.parameters?.required_approving_review_count ?? 0) > 0,
+  );
+  need(rule("required_signatures").length > 0, "required signed commits");
+  need(rule("non_fast_forward").length > 0, "blocked force pushes");
+  need(rule("deletion").length > 0, "blocked deletion");
+  need(
+    statusChecks.some((c) => c.context === "pr-ci"),
+    "a required pr-ci status check",
+  );
+  // GitHub Actions' App ID: only its pr-ci can satisfy the rule.
+  need(
+    statusChecks
+      .filter((c) => c.context === "pr-ci")
+      .every((c) => c.integration_id === 15368),
+    "pr-ci required from GitHub Actions",
+  );
+  need(!reviews, "no required review count (the change gate decides)");
+  const collaborators = await read(
+    `${repo}/collaborators?affiliation=all&permission=push&per_page=100`,
+  );
+  const approvers = collaborators
+    .filter((c) => c.type === "User")
+    .map((c) => c.login);
+  need(
+    approvers.length === 1 && approvers[0] === identity.approver,
+    "the owner as the only person who can push",
+  );
+  const permission = await read(
+    `${repo}/collaborators/${identity.login}/permission`,
+  );
+  need(
+    ["admin", "maintain", "write"].includes(permission.role_name) ||
+      ["admin", "write"].includes(permission.permission),
+    "push access for the publication login",
+  );
+  // The App's latest PR here, and its head: owner-signed and Verified.
+  const pulls = await read(`${repo}/pulls?state=all&per_page=20`);
+  const latest = pulls.find((p) => p.user?.login === identity.botLogin);
+  need(latest, "a PR the App opened");
+  const commit = await read(`${repo}/commits/${latest.head.sha}`);
+  need(
+    commit.commit?.verification?.verified === true &&
+      commit.commit.verification.reason === "valid" &&
+      commit.committer?.login === identity.login,
+    "a Verified commit signed by the owner",
+  );
+  return {
+    repository: identity.repository,
+    defaultBranch,
+    appLogin: identity.botLogin,
+    approver: identity.approver,
+    publicationLogin: identity.login,
+    signedCommit: latest.head.sha,
+    signingKey: identity.signingKey,
+    email: identity.email,
+    requiredChecks: ["pr-ci"],
+    pullRequest: latest.number,
+  };
+}
+
+/** The owner inputs for the real repository: a clone of it, read through the
+ * owner's `gh` login, and a policy and attestation of `facts`, which
+ * `repositoryFacts` read live. */
+function realOwnerInputs(
+  root,
+  environment,
+  {
+    facts,
+    factoryCommit,
+    // Tests stand in a local repository for GitHub.
+    cloneUrl = `https://github.com/${facts.repository}.git`,
+  },
+) {
+  const repository = join(root, "repository");
+  const run = (args, cwd) => {
+    const r = spawnSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      timeout: 60000,
+    });
+    if (r.status !== 0)
+      throw Error(
+        args.includes("verify-commit")
+          ? "The owner-signed commit doesn't verify against the owner's key"
+          : "The repository clone failed",
+      );
+    return r.stdout.trim();
+  };
+  run(
+    [
+      "-c",
+      "credential.helper=",
+      "-c",
+      "credential.helper=!gh auth git-credential",
+      "clone",
+      "-q",
+      "--branch",
+      facts.defaultBranch,
+      cloneUrl,
+      repository,
+    ],
+    root,
+  );
+  const git = (...args) => run(["-C", repository, ...args], root);
+  const revision = git("rev-parse", "HEAD");
+  const owner = join(root, "owner");
+  mkdirSync(owner, { mode: 0o700 });
+  // The signed commit verifies here too, against the owner's public key.
+  const signers = join(owner, "allowed-signers");
+  writeFileSync(
+    signers,
+    `${facts.email} ${readFileSync(facts.signingKey, "utf8").trim()}\n`,
+    { mode: 0o600 },
+  );
+  git(
+    "-c",
+    "credential.helper=",
+    "-c",
+    "credential.helper=!gh auth git-credential",
+    "fetch",
+    "-q",
+    "origin",
+    facts.signedCommit,
+  );
+  git(
+    "-c",
+    "gpg.format=ssh",
+    "-c",
+    `gpg.ssh.allowedSignersFile=${signers}`,
+    "verify-commit",
+    facts.signedCommit,
+  );
+  const policy = {
+    repository: facts.repository,
+    defaultBranch: facts.defaultBranch,
+    factoryCommit,
+    approver: facts.approver,
+    appLogin: facts.appLogin,
+    publicationLogin: facts.publicationLogin,
+    requiredChecks: facts.requiredChecks,
+    validation: ["isolated-offline"],
+    validationContract: realContract(environment),
+  };
+  const policyPath = join(owner, "owner-policy.json"),
+    attestationPath = join(owner, "onboarding-attestation.json"),
+    criteriaPath = join(owner, "criteria.json");
+  const write = (path, value) =>
+    writeFileSync(path, JSON.stringify(value), { mode: 0o600 });
+  write(policyPath, policy);
+  const signature = {
+    commit: facts.signedCommit,
+    valid: true,
+    login: facts.publicationLogin,
+  };
+  write(attestationPath, {
+    scope: "aios-onboarding-attestation-v1",
+    policySha256: sha256(readFileSync(policyPath)),
+    attestedAt: new Date(Date.now() - 60_000).toISOString(),
+    facts: {
+      repository: policy.repository,
+      defaultBranch: policy.defaultBranch,
+      factoryCommit,
+      appLogin: policy.appLogin,
+      appRepositoryAccess: true,
+      eligibleApprovers: [policy.approver],
+      protectionsEnforced: true,
+      forcePushBlocked: true,
+      signedCommitsRequired: true,
+      everyPullRequestReviewRequired: false,
+      requiredChecks: policy.requiredChecks,
+      trustedCheckPublishers: true,
+      publicationLogin: policy.publicationLogin,
+      publicationAccess: true,
+      localSignature: signature,
+      githubSignature: signature,
+      validation: policy.validation,
+    },
+  });
+  return {
+    repository,
+    revision,
+    git,
+    policyPath,
+    attestationPath,
+    criteria(deliveryId) {
+      write(criteriaPath, {
+        scope: "aios-feature-criteria-v1",
+        deliveryId,
+        request,
+        criteria: ["The contact page shows a visible hint."],
+        verification: ["Check the visible hint in the isolated page."],
+        ambiguity: null,
+      });
+      return criteriaPath;
+    },
+  };
+}
+
 /** `contract` with the candidate-only check the first turn can't know about. */
 export function withRepairCheck(contract) {
   return {
@@ -267,24 +540,32 @@ export async function cliDeliveryAcceptance(
     imageSha256,
     cleanupCodingSession,
     repair = false,
+    through,
   },
   options = {},
 ) {
   const persist = options.persist ?? (() => {});
+  const sleep =
+    options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const now = options.now ?? Date.now;
   const interrupted = options.interrupted ?? (() => false);
   const { offlineValidationEnvironment } = await import(
     "../dist/native-validation.js"
   );
   const report = {
-    scope: repair
-      ? "native-cli-metered-repair-acceptance"
-      : "native-cli-metered-delivery-acceptance",
+    scope: through
+      ? "native-delivery-through-review"
+      : repair
+        ? "native-cli-metered-repair-acceptance"
+        : "native-cli-metered-delivery-acceptance",
     productionEnabled: false,
     qualified: false,
     // Paid inference, bounded by the delivery's spend budget.
     inferenceAuthorized: true,
     budgetDollars,
-    synthetic: ["repository", "owner-policy", "attestation", "criteria"],
+    synthetic: through
+      ? ["criteria"]
+      : ["repository", "owner-policy", "attestation", "criteria"],
     outcome: "running",
     stages: [],
   };
@@ -347,9 +628,42 @@ export async function cliDeliveryAcceptance(
           `The owner ${kind} admission does not name the fresh pins`,
         );
     });
+    let facts;
+    if (through)
+      facts = await stage("repository-facts", async () => {
+        // The production record must admit exactly the pins this run uses.
+        const admitted = through.productionAdmission.admitted();
+        check(
+          pinFields.coding.every(
+            (field) => admitted.coding[field] === pins.coding.admitted[field],
+          ),
+          "The production admission doesn't name the coding admission's pins",
+        );
+        report.productionSha256 = admitted.productionSha256;
+        const found = await repositoryFacts(through.github, through.identity);
+        report.repository = {
+          name: found.repository,
+          defaultBranch: found.defaultBranch,
+          signedCommit: found.signedCommit,
+          signedPullRequest: found.pullRequest,
+        };
+        return found;
+      });
     inputs = await stage("owner-inputs", () =>
-      ownerInputs(root, offlineValidationEnvironment(imageSha256), { repair }),
+      ownerInputs(root, offlineValidationEnvironment(imageSha256), {
+        repair,
+        ...(through
+          ? {
+              real: {
+                facts,
+                factoryCommit: through.factoryCommit,
+                ...(through.cloneUrl ? { cloneUrl: through.cloneUrl } : {}),
+              },
+            }
+          : {}),
+      }),
     );
+    if (through) report.repository.baseRevision = inputs.revision;
     const owner = [
       "--owner-policy",
       inputs.policyPath,
@@ -664,6 +978,94 @@ export async function cliDeliveryAcceptance(
         return extended;
       });
     }
+    if (through) {
+      last = await stage("cli-publish-feature", async () => {
+        const published = await run(
+          "publish-feature",
+          "--id",
+          id,
+          ...owner,
+          ...validation,
+          "--production-admission",
+          through.productionAdmission.path,
+          "--publication-identity",
+          through.identityPath,
+        );
+        const p = published.publication;
+        report.publication = p && {
+          outcome: p.outcome,
+          number: p.pullRequest?.number ?? null,
+          commit: p.commit ?? null,
+          branch: p.branch ?? null,
+          productionSha256: p.productionSha256 ?? null,
+        };
+        check(
+          p?.outcome === "published" &&
+            Number.isSafeInteger(p.pullRequest?.number) &&
+            /^[a-f0-9]{40}$/.test(p.commit ?? ""),
+          "The delivery was not published",
+        );
+        check(
+          p.productionSha256 === report.productionSha256,
+          "The publication doesn't record the production admission",
+        );
+        return published;
+      });
+      last = await stage("cli-monitor-pr-checks", async () => {
+        const start = now();
+        for (;;) {
+          const watched = await run("monitor-pr-checks", "--id", id, ...owner);
+          const r = watched.prChecks?.runs.at(-1);
+          report.prChecks = r && {
+            outcome: r.outcome,
+            head: r.head,
+            polls: r.polls,
+            attempts: r.attempts.map((a) => ({
+              checkId: a.checkId,
+              runId: a.runId,
+              attempt: a.attempt,
+              status: a.status,
+              publisher: a.publisher,
+              workflow: a.workflow,
+            })),
+          };
+          if (r?.outcome !== "pending") {
+            check(
+              r?.outcome === "passed" && r.head === report.publication.commit,
+              `The PR checks are ${r?.outcome ?? "missing"}`,
+            );
+            return watched;
+          }
+          check(
+            now() - start < prChecksWaitMs,
+            "The PR checks didn't finish in time",
+          );
+          await sleep(prChecksIntervalMs);
+        }
+      });
+      last = await stage("cli-monitor-review", async () => {
+        const reviewed = await run("monitor-review", "--id", id, ...owner);
+        const r = reviewed.review?.runs.at(-1);
+        report.review = r && {
+          outcome: r.outcome,
+          head: r.head,
+          approval: r.approval ?? null,
+          gate: r.gate
+            ? {
+                gated: r.gate.gated,
+                reasons: [...r.gate.destructive, ...r.gate.wideImpact],
+              }
+            : null,
+          phase: reviewed.phase,
+        };
+        check(
+          reviewed.phase === "ready-to-merge" &&
+            r?.approval?.head === report.publication.commit,
+          `Review left the delivery ${reviewed.phase}: ${reviewed.blocker?.nextAction ?? ""}`,
+        );
+        return reviewed;
+      });
+    }
     await stage("host-checkout-unchanged", () => {
       check(
         inputs.git("branch", "--show-current") === "main" &&
@@ -687,7 +1089,11 @@ export async function cliDeliveryAcceptance(
         check(receipt.cleaned === 1, "Expected one cleaned session");
       }
     });
-    report.outcome = repair ? repairPassingOutcome : passingOutcome;
+    report.outcome = through
+      ? reviewPassingOutcome
+      : repair
+        ? repairPassingOutcome
+        : passingOutcome;
   } catch (error) {
     report.error = bounded(error?.message);
     report.outcome = "blocked";
@@ -771,7 +1177,8 @@ async function main() {
     approval !== "--approve-metered-native-run" ||
     !(
       extra.length === 0 ||
-      (extra.length === 1 && extra[0] === "--with-repair")
+      (extra.length === 1 && extra[0] === "--with-repair") ||
+      (extra.length === 3 && extra[0] === "--through-review")
     )
   ) {
     console.error(usage);
@@ -845,6 +1252,25 @@ async function main() {
         ).inspect(),
     },
   };
+  // The real delivery's records, read before any worker effect.
+  let through;
+  if (extra[0] === "--through-review") {
+    const { readPublicationIdentity } = await import(
+      "../dist/publication-identity.js"
+    );
+    const { ownerProductionAdmission } = await import(
+      "../dist/production-admission.js"
+    );
+    const { ghApi } = await import("../dist/native-publication.js");
+    through = {
+      identityPath: extra[1],
+      identity: readPublicationIdentity(extra[1]),
+      productionAdmission: ownerProductionAdmission(extra[2]),
+      github: ghApi(),
+      factoryCommit: source.sourceRevision,
+    };
+    through.productionAdmission.admitted();
+  }
   // Refuse overwriting retained evidence before any worker effect.
   closeSync(openSync(reportPath, "wx", 0o600));
   const state = await privateRoot("aios-cli-delivery-state-");
@@ -871,6 +1297,7 @@ async function main() {
       cleanupCodingSession: (session) =>
         codingTransport().transport.cleanupSupersededLineage(session),
       repair: extra[0] === "--with-repair",
+      ...(through ? { through } : {}),
     },
     {
       interrupted: () => interrupted,
@@ -889,15 +1316,20 @@ async function main() {
       reportPath,
       state,
       // Fresh pins, so the owner can write or check the records.
+      ...(report.publication?.number
+        ? { pullRequest: report.publication.number }
+        : {}),
       ...(report.outcome === passingOutcome ||
-      report.outcome === repairPassingOutcome
+      report.outcome === repairPassingOutcome ||
+      report.outcome === reviewPassingOutcome
         ? {}
         : { freshPins: report.freshPins ?? null }),
     }),
   );
   if (
     report.outcome !== passingOutcome &&
-    report.outcome !== repairPassingOutcome
+    report.outcome !== repairPassingOutcome &&
+    report.outcome !== reviewPassingOutcome
   )
     process.exitCode = 1;
 }
