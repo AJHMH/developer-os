@@ -162,11 +162,23 @@ export async function publicationAcceptance(
         branch.status === 200 && /^[a-f0-9]{40}$/.test(head ?? ""),
         "main is unreadable",
       );
+      // The commit's own tree, asked for by its SHA: given a commit SHA,
+      // GitHub's trees endpoint answers with the commit's SHA, not the tree's.
+      const commit = await github(
+        `repos/${identity.repository}/commits/${head}`,
+      );
+      const treeSha = commit.body?.commit?.tree?.sha;
+      check(
+        commit.status === 200 && /^[a-f0-9]{40}$/.test(treeSha ?? ""),
+        "main's commit is unreadable",
+      );
       const tree = await github(
-        `repos/${identity.repository}/git/trees/${head}?recursive=1`,
+        `repos/${identity.repository}/git/trees/${treeSha}?recursive=1`,
       );
       check(
-        tree.status === 200 && tree.body?.truncated === false,
+        tree.status === 200 &&
+          tree.body?.truncated === false &&
+          tree.body.sha === treeSha,
         "main's tree is unreadable",
       );
       const blobs = tree.body.tree.filter((e) => e.type === "blob");

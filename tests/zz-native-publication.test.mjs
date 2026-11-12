@@ -161,7 +161,8 @@ function world(t) {
         path,
       );
     if (m) {
-      const tree = remoteGit(["show", "-s", "--format=%T", m[1]]).stdout.trim();
+      // Like GitHub, the answer's sha is the SHA asked for, commit or tree.
+      const tree = m[1];
       const entries = remoteGit(["ls-tree", "-r", "-t", m[1]])
         .stdout.trim()
         .split("\n")
