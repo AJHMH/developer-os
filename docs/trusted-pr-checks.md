@@ -141,6 +141,22 @@ With the signing key in ssh-agent:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-pr-checks-acceptance.mjs -- "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/issue09-pr-checks-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-native-pr-checks
 ```
 
+### Native results (12 November 2026)
+
+The Mac passed with outcome `observed-native-pr-checks-acceptance`, from
+`main` at `2b7661b`, on the first run
+([receipt](../.scratch/aios-v1-implementation/ticket09-macos-pr-checks-acceptance-receipt.md)).
+
+- **Pass:** on
+  [AJHMH/aios-publication-acceptance#2](https://github.com/AJHMH/aios-publication-acceptance/pull/2),
+  `pr-ci` succeeded, from `github-actions` and `.github/workflows/ci.yml@main`.
+  The verdict is `passed`.
+- **Failure:** on
+  [AJHMH/aios-publication-acceptance#3](https://github.com/AJHMH/aios-publication-acceptance/pull/3),
+  `pr-ci` failed. The verdict is `failed`.
+- **Rerun:** GitHub accepted the rerun, and its attempt 2 was recorded as the
+  receipt. Attempt 1's failure stayed in the history.
+
 ## Qualification still required
 
 Controlled fixtures and real temporary signed Git objects establish controller
