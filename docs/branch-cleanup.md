@@ -139,7 +139,9 @@ and main was verified and synchronized at `881d6806…`. `cleanup-branches` then
 - completed the delivery.
 
 Cleanup took 215 seconds, because each removal then re-took the whole
-inventory. A removal now re-checks only its own branch.
+inventory. A removal now re-checks only its own branch (#317). A rerun deleting
+2 branches took 90 seconds: the controller still takes a full inventory, about
+20 seconds, to plan, after each deletion and to finish.
 
 ## CLI and qualification boundary
 
