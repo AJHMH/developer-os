@@ -18,7 +18,7 @@ and each keeps its v1 number.
   the candidate validated 6 of 6 for $0.069
   ([feature candidate](../../docs/feature-candidate.md)).
 - **The CLI's own statement:** `publish-feature`, the PR-check, review, merge,
-  main-observer, sync and cleanup commands each say that no native adapter is
+  and cleanup commands each say that no native adapter is
   installed, and production delivery stays disabled (`src/cli.ts`).
 
 "Native" below means observed on the Mac through the real CLI or runtime.
@@ -42,7 +42,7 @@ There are 25 tickets, 01 to 25.
 | 10 Review and owner approval     | Open, [#269](https://github.com/AJHMH/developer-os/issues/269) | Native adapter: ungated, gated, the owner's 👍 finding resolved, then exact-head approval ([12 November receipt](ticket10-macos-review-acceptance-receipt.md)); the [first real delivery](first-real-delivery-receipt.md) reached `ready-to-merge` through `monitor-review`, ungated. |
 | 11 Conditional merge             | Open, [#270](https://github.com/AJHMH/developer-os/issues/270) | Native fast-forward merge: a real delivery merged through `merge-feature`, main fast-forwarded to its exact head with a lease on the base, PR merged, reconciled once ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)). |
 | 12 Merged main verification      | Open, [#271](https://github.com/AJHMH/developer-os/issues/271) | Native main observer: a real delivery merged, then `monitor-main-checks` verified main through its own `main-ci` push run ([12 November receipt](ticket12-macos-main-delivery-receipt.md)). That delivery's candidate changed nothing, yet published; a follow-up. |
-| 13 Safe main sync                | Open, [#272](https://github.com/AJHMH/developer-os/issues/272) | Controlled; no native Git adapter.                                                                                                                      |
+| 13 Safe main sync                | Open, [#272](https://github.com/AJHMH/developer-os/issues/272) | Native main sync: a real delivery merged, main was verified, then `sync-main` fast-forwarded the delivery's checkout to exactly that revision ([13 November receipt](ticket13-macos-sync-delivery-receipt.md)). |
 | 14 Cleanup and completion        | Open, [#273](https://github.com/AJHMH/developer-os/issues/273) | Controlled; no native cleanup adapter.                                                                                                                  |
 | 15 Windows qualification         | Superseded                                                     | ADR 0007: the Mac is the only owner host.                                                                                                               |
 | 16 macOS qualification           | Open, [#274](https://github.com/AJHMH/developer-os/issues/274) | Never run for the complete controller.                                                                                                                  |
@@ -111,7 +111,7 @@ There are 56 stories. Their status:
 | 38  | Approval, checks and head revalidated at merge            | 11                 | Done: `merge-feature` re-checked checks, review and production, then merged only the exact head onto the expected main ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)) |
 | 39  | Main checks verified after merge                          | 12, 17             | Partial: natively on a real delivery, through the default branch's own push run ([12 November receipt](ticket12-macos-main-delivery-receipt.md)); the pilot (#275) remains |
 | 40  | Post-merge fixes use a new signed PR                      | 12                 | Controlled only                                                                                                                                     |
-| 41  | Clean main fast-forwarded                                 | 13                 | Controlled only (#272)                                                                                                                              |
+| 41  | Clean main fast-forwarded                                 | 13                 | Done: `sync-main` fast-forwarded a real delivery's clean checkout to exactly the verified main ([13 November receipt](ticket13-macos-sync-delivery-receipt.md)) |
 | 42  | Dirty or divergent main blocks                            | 13                 | Controlled only                                                                                                                                     |
 | 43  | All eligible merged branches considered                   | 14                 | Controlled only (#273)                                                                                                                              |
 | 44  | Squash and rebase linkage                                 | 14                 | Controlled only                                                                                                                                     |
@@ -132,10 +132,10 @@ In total:
 
 | Status          | Count | Stories                                                                   |
 | --------------- | ----- | ------------------------------------------------------------------------- |
-| Done            | 26    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 23, 29, 30, 31, 33, 34, 35, 37, 38, 50, 52, 56 |
+| Done            | 27    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 23, 29, 30, 31, 33, 34, 35, 37, 38, 41, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
 | Partial         | 13    | 5, 7, 21, 22, 24, 25, 27, 36, 39, 49, 51, 53, 54                          |
-| Controlled only | 13    | 8, 26, 28, 32, 40, 41, 42, 43, 44, 45, 46, 47, 48                         |
+| Controlled only | 12    | 8, 26, 28, 32, 40, 42, 43, 44, 45, 46, 47, 48                             |
 | Not done        | 0     |                                                                           |
 
 No story is complete end to end until tickets 08 to 14 have native adapters and
