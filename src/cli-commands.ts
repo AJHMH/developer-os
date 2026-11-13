@@ -203,7 +203,9 @@ const commands: Record<string, CliCommand> = {
     "production-admission",
     "publication-identity",
   ]),
-  "monitor-main-checks": idAction("monitorMainChecks"),
+  // #271: with the owner policy, this installs the native read-only main
+  // observer for the policy's GitHub Actions main checks.
+  "monitor-main-checks": idAction("monitorMainChecks", ownerPolicyOptions),
   "sync-main": idAction("syncMain"),
   "reconcile-main-sync": idAction("reconcileMainSync"),
   "cleanup-branches": idAction("cleanupBranches"),

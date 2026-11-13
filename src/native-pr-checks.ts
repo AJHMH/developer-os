@@ -67,6 +67,111 @@ const time = (value: unknown) => {
   return Number.isSafeInteger(t) && t > 0 ? t : undefined;
 };
 
+/** Every job of every attempt of the GitHub Actions runs of `workflows` for
+ * exactly `head`, as check attempts, through `github`; undefined when any page
+ * or attempt is unreadable. A run whose workflow `trusted` refuses is
+ * reported under an untrusted publisher, so it never counts. With `event`
+ * (and `branch`), only runs of that event on that branch count. Shared by the
+ * PR check monitor and the main observer (#271). */
+export async function actionsChecks(
+  github: GitHubApi,
+  request: {
+    repository: string;
+    workflows: string[];
+    head: string;
+    base: string;
+    trusted: (path: string) => boolean;
+    event?: string;
+    branch?: string;
+  },
+): Promise<
+  { checks: PRCheckAttempt[]; attempts: Map<number, number> } | undefined
+> {
+  const repo = `repos/${request.repository}`;
+  async function all<T>(path: string, key: string): Promise<T[] | undefined> {
+    const found: T[] = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const r = await github(
+        `${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`,
+      );
+      const body = r.body as Record<string, unknown> | null;
+      const items = body?.[key];
+      if (r.status !== 200 || !Array.isArray(items)) return undefined;
+      found.push(...(items as T[]));
+      if (
+        typeof body!.total_count === "number" &&
+        found.length >= body!.total_count
+      )
+        return found;
+      if (items.length < 100) return found;
+    }
+    return undefined;
+  }
+  const runs = await all<{
+    id?: unknown;
+    path?: unknown;
+    head_sha?: unknown;
+    head_branch?: unknown;
+    run_attempt?: unknown;
+    event?: unknown;
+  }>(`${repo}/actions/runs?head_sha=${request.head}`, "workflow_runs");
+  if (!runs) return undefined;
+  const checks: PRCheckAttempt[] = [];
+  const attempts = new Map<number, number>();
+  for (const run of runs) {
+    if (
+      typeof run.path !== "string" ||
+      !request.workflows.includes(run.path) ||
+      run.head_sha !== request.head ||
+      (request.event !== undefined && run.event !== request.event) ||
+      (request.branch !== undefined && run.head_branch !== request.branch)
+    )
+      continue;
+    if (
+      !Number.isSafeInteger(run.id) ||
+      !Number.isSafeInteger(run.run_attempt) ||
+      (run.run_attempt as number) < 1 ||
+      (run.run_attempt as number) > 50
+    )
+      return undefined;
+    const id = run.id as number,
+      last = run.run_attempt as number;
+    attempts.set(id, last);
+    for (let attempt = 1; attempt <= last; attempt++) {
+      const jobs = await all<{
+        name?: unknown;
+        status?: unknown;
+        conclusion?: unknown;
+        started_at?: unknown;
+        completed_at?: unknown;
+      }>(`${repo}/actions/runs/${id}/attempts/${attempt}/jobs`, "jobs");
+      if (!jobs) return undefined;
+      for (const job of jobs) {
+        const startedAt = time(job.started_at),
+          completedAt = time(job.completed_at),
+          s = status(job);
+        if (typeof job.name !== "string" || startedAt === undefined) continue;
+        checks.push({
+          runId: id,
+          attempt,
+          checkId: job.name,
+          publisher: request.trusted(run.path)
+            ? actionsPublisher
+            : "untrusted-workflow-change",
+          workflow: workflowIdentity(run.path, request.base),
+          head: request.head,
+          status: s,
+          startedAt,
+          ...(s !== "pending" && completedAt !== undefined
+            ? { completedAt }
+            : {}),
+        });
+      }
+    }
+  }
+  return { checks, attempts };
+}
+
 /** The owner's native PR check monitor (ticket 09, #268). It reads, through
  * the owner's `gh` login, every GitHub Actions run of the trusted workflows
  * for the exact PR head, and every job of every attempt of each, so earlier
@@ -94,26 +199,6 @@ export function nativePRChecksRuntime(
       throw Error("Invalid rerun operation");
     return join(options.state, "rerun-" + operationId + ".json");
   };
-  /** Every page of a listing, or undefined when any page is unreadable. */
-  async function all<T>(path: string, key: string): Promise<T[] | undefined> {
-    const found: T[] = [];
-    for (let page = 1; page <= MAX_PAGES; page++) {
-      const r = await github(
-        `${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`,
-      );
-      const body = r.body as Record<string, unknown> | null;
-      const items = body?.[key];
-      if (r.status !== 200 || !Array.isArray(items)) return undefined;
-      found.push(...(items as T[]));
-      if (
-        typeof body!.total_count === "number" &&
-        found.length >= body!.total_count
-      )
-        return found;
-      if (items.length < 100) return found;
-    }
-    return undefined;
-  }
   /** The file's blob at `ref`, or undefined. */
   async function blob(path: string, ref: string) {
     const r = await github(
@@ -173,16 +258,6 @@ export function nativePRChecksRuntime(
         p.base.repo?.full_name !== options.repository
       )
         return unavailable(pr);
-      const runs = await all<{
-        id?: unknown;
-        path?: unknown;
-        head_sha?: unknown;
-        run_attempt?: unknown;
-        event?: unknown;
-      }>(`${repo}/actions/runs?head_sha=${pr.head}`, "workflow_runs");
-      if (!runs) return unavailable(pr);
-      const checks: PRCheckAttempt[] = [];
-      const reruns: PRCheckObservation["reruns"] = [];
       const trustedFile = new Map<string, boolean>();
       for (const path of options.workflows) {
         const [atHead, atBase] = [
@@ -191,58 +266,16 @@ export function nativePRChecksRuntime(
         ];
         trustedFile.set(path, !!atHead && atHead === atBase);
       }
-      const attempts = new Map<number, number>();
-      for (const run of runs) {
-        if (
-          typeof run.path !== "string" ||
-          !options.workflows.includes(run.path) ||
-          run.head_sha !== pr.head
-        )
-          continue;
-        if (
-          !Number.isSafeInteger(run.id) ||
-          !Number.isSafeInteger(run.run_attempt) ||
-          (run.run_attempt as number) < 1 ||
-          (run.run_attempt as number) > 50
-        )
-          return unavailable(pr);
-        const id = run.id as number,
-          last = run.run_attempt as number;
-        attempts.set(id, last);
-        for (let attempt = 1; attempt <= last; attempt++) {
-          const jobs = await all<{
-            name?: unknown;
-            status?: unknown;
-            conclusion?: unknown;
-            started_at?: unknown;
-            completed_at?: unknown;
-            head_sha?: unknown;
-          }>(`${repo}/actions/runs/${id}/attempts/${attempt}/jobs`, "jobs");
-          if (!jobs) return unavailable(pr);
-          for (const job of jobs) {
-            const startedAt = time(job.started_at),
-              completedAt = time(job.completed_at),
-              s = status(job);
-            if (typeof job.name !== "string" || startedAt === undefined)
-              continue;
-            checks.push({
-              runId: id,
-              attempt,
-              checkId: job.name,
-              publisher: trustedFile.get(run.path)
-                ? actionsPublisher
-                : "untrusted-workflow-change",
-              workflow: workflowIdentity(run.path, pr.base),
-              head: pr.head,
-              status: s,
-              startedAt,
-              ...(s !== "pending" && completedAt !== undefined
-                ? { completedAt }
-                : {}),
-            });
-          }
-        }
-      }
+      const read = await actionsChecks(github, {
+        repository: options.repository,
+        workflows: options.workflows,
+        head: pr.head,
+        base: pr.base,
+        trusted: (path) => trustedFile.get(path) === true,
+      });
+      if (!read) return unavailable(pr);
+      const { checks, attempts } = read;
+      const reruns: PRCheckObservation["reruns"] = [];
       // Each rerun this monitor dispatched, by its run's attempt number.
       let recorded: string[] = [];
       try {
