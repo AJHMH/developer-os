@@ -543,7 +543,29 @@ test("the PR check commands take the owner policy, and repair also the coding an
   const policy = join(state, "policy.json");
   for (const args of [
     ["monitor-pr-checks", ...id, "--owner-policy", policy],
-    ["rerun-pr-check", ...id, "--check-id", "pr-ci", "--owner-policy", policy],
+    // They re-check the publication's validation, so they take its runtime.
+    [
+      "monitor-pr-checks",
+      ...id,
+      "--owner-policy",
+      policy,
+      "--podman-machine",
+      "aios-test",
+      "--validation-admission",
+      join(state, "v.json"),
+    ],
+    [
+      "rerun-pr-check",
+      ...id,
+      "--check-id",
+      "pr-ci",
+      "--owner-policy",
+      policy,
+      "--podman-machine",
+      "aios-test",
+      "--validation-admission",
+      join(state, "v.json"),
+    ],
     [
       "repair-pr-checks",
       ...id,

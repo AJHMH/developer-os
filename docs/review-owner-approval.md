@@ -121,7 +121,9 @@ after two minutes.
 
 `monitor-review`, `repair-review` and `resolve-review-thread` take
 `--owner-policy`, which installs this adapter for the policy's repository and
-the PR check monitor (#268). Review markers live in a private folder under
+the PR check monitor (#268), and `--podman-machine` with
+`--validation-admission`, because review re-checks the publication's
+validation evidence. Review markers live in a private folder under
 the state directory. `repair-review` also takes `code-feature`'s options,
 `--production-admission` and `--publication-identity`, to repair and
 republish.

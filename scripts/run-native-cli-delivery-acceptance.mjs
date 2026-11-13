@@ -1014,7 +1014,13 @@ export async function cliDeliveryAcceptance(
       last = await stage("cli-monitor-pr-checks", async () => {
         const start = now();
         for (;;) {
-          const watched = await run("monitor-pr-checks", "--id", id, ...owner);
+          const watched = await run(
+            "monitor-pr-checks",
+            "--id",
+            id,
+            ...owner,
+            ...validation,
+          );
           const r = watched.prChecks?.runs.at(-1);
           report.prChecks = r && {
             outcome: r.outcome,
@@ -1044,7 +1050,13 @@ export async function cliDeliveryAcceptance(
         }
       });
       last = await stage("cli-monitor-review", async () => {
-        const reviewed = await run("monitor-review", "--id", id, ...owner);
+        const reviewed = await run(
+          "monitor-review",
+          "--id",
+          id,
+          ...owner,
+          ...validation,
+        );
         const r = reviewed.review?.runs.at(-1);
         report.review = r && {
           outcome: r.outcome,

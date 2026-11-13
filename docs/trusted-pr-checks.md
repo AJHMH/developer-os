@@ -117,7 +117,8 @@ A rerun is recorded before dispatch. Its receipt is the run's next attempt,
 and an unanswered rerun is reported absent only after two minutes.
 
 `monitor-pr-checks`, `rerun-pr-check` and `repair-pr-checks` install the
-monitor from `--owner-policy`. It uses the policy's repository and the
+monitor from `--owner-policy`. Each re-checks the publication's validation
+evidence, so each also takes `--podman-machine` with `--validation-admission`. It uses the policy's repository and the
 workflows of its PR checks declared as above. Its rerun markers live in a
 private folder under the state directory. `repair-pr-checks` also takes
 `code-feature`'s options, `--production-admission` and

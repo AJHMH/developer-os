@@ -95,8 +95,9 @@ criteria file is synthetic.
 
 It needs, in the disposable repository and on your Mac:
 
-1. **A page to change.** Add `index.html` to `main`; GitHub signs this
-   commit:
+1. **A page to change.** Add `index.html` to `main`. This commit is
+   unsigned, which is fine: the signed-commit rule applies to later pushes,
+   and the signing fact is your signed commit on an App PR.
 
    ```sh
    gh api -X PUT repos/AJHMH/aios-publication-acceptance/contents/index.html -f message="Add the contact page" -f content=PGgxPkNvbnRhY3Q8L2gxPgo=

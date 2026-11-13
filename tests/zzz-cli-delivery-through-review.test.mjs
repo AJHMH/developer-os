@@ -573,12 +573,24 @@ test("the real delivery publishes, waits for its GitHub Actions check, and stops
       "status",
     ],
   );
-  // The PR steps name only the owner policy and attestation.
-  for (const args of sim.calls.filter((a) => a[0].startsWith("monitor-")))
+  // The PR steps re-check the publication's validation, so they name the
+  // validation runtime with the owner policy: without it a native delivery's
+  // monitor always refused (the first real run, 12 November).
+  for (const args of sim.calls.filter((a) => a[0].startsWith("monitor-"))) {
     assert.deepEqual(
       args.slice(3).filter((a) => a.startsWith("--")),
-      ["--owner-policy", "--onboarding-attestation"],
+      [
+        "--owner-policy",
+        "--onboarding-attestation",
+        "--podman-machine",
+        "--validation-admission",
+      ],
     );
+    assert.equal(
+      option(args, "--validation-admission"),
+      "/owner/validation-admission.json",
+    );
+  }
 
   // A production record for other pins stops it before any CLI step.
   const early = simulatedCli();
