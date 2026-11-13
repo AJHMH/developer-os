@@ -212,7 +212,9 @@ export async function lifecycleAcceptance(host, options = {}) {
     );
     return { id, owner };
   }
-  const coding = (d) => [
+  // The allowance is declared only before a delivery's first session; a
+  // later turn draws on what is left of it.
+  const coding = (d, { first = true } = {}) => [
     "code-feature",
     "--id",
     d.id,
@@ -222,8 +224,7 @@ export async function lifecycleAcceptance(host, options = {}) {
     codingAdmission,
     "--auth-directory",
     authDirectory,
-    "--coding-minutes",
-    String(codingMinutes),
+    ...(first ? ["--coding-minutes", String(codingMinutes)] : []),
   ];
   /** Poll status until `ready` holds, so an interruption lands mid-step. */
   async function whenRunning(id, ready, what) {
@@ -311,7 +312,7 @@ export async function lifecycleAcceptance(host, options = {}) {
       );
     });
     await stage("a-code-after-resume", async () => {
-      const coded = await run(...coding(a));
+      const coded = await run(...coding(a, { first: false }));
       const session = coded.feature?.session;
       report.deliveries.a.afterResume = {
         outcome: coded.feature?.outcome ?? null,
