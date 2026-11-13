@@ -183,6 +183,10 @@ export type MessagesSessionFactory = (
   budget: MessagesBudget,
 ) => SessionGateway;
 
+/** Publication refused because ssh-agent doesn't hold the signing key (the
+ * first sync delivery run, 13 November). */
+export const signingRefusal =
+  "Publication blocked: your signing key isn't loaded in ssh-agent. Add it with ssh-add --apple-use-keychain and your private key, then publish again. Nothing was published.";
 /** A candidate with exactly main's files: the request was already met, so
  * there is nothing to publish (the third real delivery, 12 November). */
 const unchangedRefusal =
@@ -1359,8 +1363,19 @@ export class DeliveryController {
         throw Error("Uncertain review effect");
       return await this.publicationCoordinator(id).publish();
     } catch {
+      // Name the commonest cause the owner can fix: the signing key isn't
+      // loaded in ssh-agent (it drops on restart or a long sleep).
+      let signing: boolean | undefined;
+      try {
+        signing = (await this.coordination.publicationRuntime?.inspect())
+          ?.signingAvailable;
+      } catch {
+        /* the generic refusal */
+      }
       throw new DeliveryError(
-        "Publication blocked: verify candidate, signatures, authority, controls and unresolved effects; native writes remain disabled.",
+        signing === false
+          ? signingRefusal
+          : "Publication blocked: verify candidate, signatures, authority, controls and unresolved effects; native writes remain disabled.",
       );
     }
   }

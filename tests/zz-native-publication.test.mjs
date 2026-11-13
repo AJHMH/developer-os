@@ -19,6 +19,7 @@ import {
   defaultRunner,
   ghApi,
   nativeGitPublicationPort,
+  signingKeyLoaded,
 } from "../dist/native-publication.js";
 import {
   githubFetch,
@@ -1247,4 +1248,30 @@ test("an App token without contents read, or with any write beyond pull requests
       JSON.stringify(scope),
     );
   }
+});
+
+test("signingKeyLoaded reads the agent's keys for the owner's public key", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "aios-signing-loaded-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const pub = join(dir, "id.pub");
+  writeFileSync(pub, "ssh-ed25519 AAAAkey owner\n");
+  const agent = (status, stdout) => () => ({ status, stdout, stderr: "" });
+  assert.equal(
+    signingKeyLoaded(
+      pub,
+      agent(0, "ssh-ed25519 AAAAother x\nssh-ed25519 AAAAkey y\n"),
+    ),
+    true,
+  );
+  assert.equal(
+    signingKeyLoaded(pub, agent(0, "ssh-ed25519 AAAAother x\n")),
+    false,
+  );
+  // "The agent has no identities" exits 1.
+  assert.equal(signingKeyLoaded(pub, agent(1, "")), false);
+  assert.equal(signingKeyLoaded(join(dir, "none.pub"), agent(0, "")), false);
+  writeFileSync(pub, "not-a-key\n");
+  assert.equal(signingKeyLoaded(pub, agent(0, "not-a-key\n")), false);
+  writeFileSync(pub, "ssh-ed25519\n");
+  assert.equal(signingKeyLoaded(pub, agent(0, "ssh-ed25519\n")), false);
 });

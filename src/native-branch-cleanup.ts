@@ -57,8 +57,9 @@ interface RemoteBranch {
  *   the latest merged PR for the branch, its head, and whether its merge
  *   commit is in main's history.
  *
- * A removal re-takes the whole inventory, requires the same main, policy and
- * tip, re-applies the cleanup decision, and only then deletes, conditioned on
+ * A removal re-checks only that branch, against the same main and policy,
+ * requires the same tip, re-applies the cleanup decision, and only then
+ * deletes, conditioned on
  * the evaluated tip: `update-ref -d` with the old value locally, and a push
  * with a lease on that tip remotely, under GitHub's own branch rules. Every
  * Git step is isolated as in the main sync. */
@@ -184,6 +185,40 @@ export function nativeBranchCleanupRuntime(
     };
   }
 
+  /** One branch's facts against main's tip `revision`. */
+  async function factOf(
+    checkout: string,
+    f: { name: string; tip: string; location: BranchFact["location"] },
+    base: string,
+    revision: string,
+    isProtected: boolean,
+    checkedOut: Set<string>,
+  ): Promise<BranchFact> {
+    const a = git(checkout, ["merge-base", "--is-ancestor", f.tip, revision]);
+    const ancestry =
+      a.status === 0 ? "merged" : a.status === 1 ? "unmerged" : "unknown";
+    const fact: BranchFact = {
+      name: f.name,
+      location: f.location,
+      tip: f.tip,
+      protected: isProtected,
+      replayRetained: factoryReplay.test(f.name),
+      activeWorktree: f.location === "local" && checkedOut.has(f.name),
+      ancestry,
+      conditionalDelete: true,
+    };
+    if (ancestry === "unmerged" && f.name !== base) {
+      const l = await linkage(f.name, f.tip, base, revision);
+      if (l) fact.linkage = l;
+    }
+    return fact;
+  }
+  const worktreeBranches = (out: string) =>
+    new Set(
+      [...out.matchAll(/^branch refs\/heads\/(.+)$/gm)].map((m) => m[1]!),
+    );
+  const sharedLocks = ["index.lock", "HEAD.lock", "packed-refs.lock"];
+
   async function observe(
     target: Parameters<BranchCleanupRuntime["observe"]>[0],
   ): Promise<BranchInventory> {
@@ -256,11 +291,7 @@ export function nativeBranchCleanupRuntime(
       listed.some((b) => tracking.get(b.name) !== b.sha)
     )
       return { ...blank, checkout };
-    const checkedOut = new Set(
-      [...worktrees.out.matchAll(/^branch refs\/heads\/(.+)$/gm)].map(
-        (m) => m[1],
-      ),
-    );
+    const checkedOut = worktreeBranches(worktrees.out);
     const protectedNames = new Map<string, boolean>();
     for (const b of listed) if (b.protected) protectedNames.set(b.name, true);
     const names = new Set([...listed.map((b) => b.name), ...local.keys()]);
@@ -283,30 +314,19 @@ export function nativeBranchCleanupRuntime(
         location: "remote" as const,
       })),
     ];
-    for (const f of facts) {
-      const a = git(checkout, ["merge-base", "--is-ancestor", f.tip, revision]);
-      const ancestry =
-        a.status === 0 ? "merged" : a.status === 1 ? "unmerged" : "unknown";
-      const fact: BranchFact = {
-        name: f.name,
-        location: f.location,
-        tip: f.tip,
-        protected: protectedNames.get(f.name) === true,
-        replayRetained: factoryReplay.test(f.name),
-        activeWorktree: f.location === "local" && checkedOut.has(f.name),
-        ancestry,
-        conditionalDelete: true,
-      };
-      if (ancestry === "unmerged" && f.name !== target.branch) {
-        const l = await linkage(f.name, f.tip, target.branch, revision);
-        if (l) fact.linkage = l;
-      }
-      branches.push(fact);
-    }
+    for (const f of facts)
+      branches.push(
+        await factOf(
+          checkout,
+          f,
+          target.branch,
+          revision,
+          protectedNames.get(f.name) === true,
+          checkedOut,
+        ),
+      );
     const locks = [
-      "index.lock",
-      "HEAD.lock",
-      "packed-refs.lock",
+      ...sharedLocks,
       ...[...local.keys()].map((n) => `refs/heads/${n}.lock`),
       ...listed.map((b) => `refs/remotes/origin/${b.name}.lock`),
     ];
@@ -322,6 +342,101 @@ export function nativeBranchCleanupRuntime(
       quiescent:
         inFlight === 0 && !locks.some((l) => existsSync(join(gitDir, l))),
       branches,
+    };
+  }
+
+  /** Only the branch being deleted, against the evaluated main and policy:
+   * main's tip on GitHub, the branch's tip (on GitHub and as fetched, for a
+   * remote branch), its protection, worktrees, ancestry, PR history and
+   * locks. Undefined when anything is unavailable or busy. */
+  async function recheck(
+    request: Parameters<BranchCleanupRuntime["remove"]>[0],
+  ): Promise<{ checkout: string; fact: BranchFact } | undefined> {
+    if (request.repository !== options.repository) return undefined;
+    let checkout: string;
+    try {
+      checkout = realpathSync.native(request.checkout);
+    } catch {
+      return undefined;
+    }
+    if (
+      !reviewed(checkout) ||
+      !originMatches(checkout) ||
+      policyDigest() !== request.policySha256
+    )
+      return undefined;
+    const main = await github(
+      `${repo}/git/ref/heads/${encodeURIComponent(request.branch)}`,
+    );
+    if (
+      main.status !== 200 ||
+      (main.body as { object?: { sha?: unknown } } | null)?.object?.sha !==
+        request.revision
+    )
+      return undefined;
+    // GitHub's own view of this branch name: its tip and classic protection.
+    const named = await github(
+      `${repo}/branches/${encodeURIComponent(request.name)}`,
+    );
+    const listed = named.body as {
+      commit?: { sha?: unknown };
+      protected?: unknown;
+    } | null;
+    if (named.status !== 200 && named.status !== 404) return undefined;
+    let tip: string;
+    const tracking = `refs/remotes/origin/${request.name}`;
+    if (request.location === "remote") {
+      if (
+        named.status !== 200 ||
+        typeof listed?.commit?.sha !== "string" ||
+        !sha40.test(listed.commit.sha)
+      )
+        return undefined;
+      const fetched = git(
+        checkout,
+        [
+          "fetch",
+          "--quiet",
+          "--no-tags",
+          "--no-recurse-submodules",
+          remote,
+          `+refs/heads/${request.name}:${tracking}`,
+        ],
+        120000,
+      );
+      tip = git(checkout, ["rev-parse", "--verify", tracking]).out;
+      // The branch moved between GitHub's answer and the fetch.
+      if (!fetched.ok || tip !== listed.commit.sha) return undefined;
+    } else {
+      const r = git(checkout, [
+        "rev-parse",
+        "--verify",
+        `refs/heads/${request.name}`,
+      ]);
+      if (!r.ok || !sha40.test(r.out)) return undefined;
+      tip = r.out;
+    }
+    const rule = await deletionRule(request.name);
+    const worktrees = git(checkout, ["worktree", "list", "--porcelain"]),
+      gitDir = git(checkout, ["rev-parse", "--absolute-git-dir"]).out;
+    if (rule === undefined || !worktrees.ok || !gitDir) return undefined;
+    const locks = [
+      ...sharedLocks,
+      `refs/heads/${request.name}.lock`,
+      `${tracking}.lock`,
+    ];
+    if (inFlight > 0 || locks.some((l) => existsSync(join(gitDir, l))))
+      return undefined;
+    return {
+      checkout,
+      fact: await factOf(
+        checkout,
+        { name: request.name, tip, location: request.location },
+        request.branch,
+        request.revision,
+        rule || (named.status === 200 && listed?.protected === true),
+        worktreeBranches(worktrees.out),
+      ),
     };
   }
 
@@ -348,19 +463,12 @@ export function nativeBranchCleanupRuntime(
         !["local", "remote"].includes(request.location)
       )
         throw Error("Fenced or invalid branch deletion");
-      // Everything as evaluated: main, policy, the tip and its eligibility.
-      const now = await observe(request);
-      const fact = now.branches.find(
-        (f) => f.location === request.location && f.name === request.name,
-      );
+      // Main, the policy, the tip and its eligibility, all as evaluated.
+      const now = await recheck(request);
       if (
-        !now.complete ||
-        !now.quiescent ||
-        now.revision !== request.revision ||
-        now.policySha256 !== request.policySha256 ||
-        !fact ||
-        fact.tip !== request.expectedTip ||
-        cleanupDecision(fact, request).decision !== "eligible"
+        !now ||
+        now.fact.tip !== request.expectedTip ||
+        cleanupDecision(now.fact, request).decision !== "eligible"
       )
         throw Error("The branch changed or is not eligible");
       if (!request.mayDispatch()) throw Error("Dispatch fenced");

@@ -171,6 +171,39 @@ function setup(t) {
             : "diverged";
       return { status: 200, body: { status } };
     }
+    const tipOf = (name) =>
+      spawnSync(
+        "git",
+        [
+          "--git-dir",
+          bare,
+          "rev-parse",
+          "--verify",
+          "-q",
+          `refs/heads/${name}`,
+        ],
+        { encoding: "utf8" },
+      ).stdout.trim();
+    if ((m = /^git\/ref\/heads\/(.+)$/.exec(rest))) {
+      const sha = api.mainOverride ?? tipOf(decodeURIComponent(m[1]));
+      return sha
+        ? { status: 200, body: { object: { sha } } }
+        : { status: 404, body: null };
+    }
+    if ((m = /^branches\/(.+)$/.exec(rest))) {
+      const name = decodeURIComponent(m[1]);
+      const sha = api.tipOverride.get(name) ?? tipOf(name);
+      return sha
+        ? {
+            status: 200,
+            body: {
+              name,
+              commit: { sha },
+              protected: api.protected.has(name),
+            },
+          }
+        : { status: 404, body: null };
+    }
     throw Error("Unexpected GitHub path " + path);
   };
   const runtime = (over = {}) =>
@@ -588,4 +621,73 @@ test("an owner policy that is too large or names no valid repository installs no
   const bad = join(s.root, "bad-slug.json");
   writeFileSync(bad, JSON.stringify({ repository: "not a slug" }));
   assert.equal(ownerPolicyBranchCleanupRuntime(bad), undefined);
+});
+
+test("a removal re-checks only its own branch, and refuses whatever changed or is unavailable", async (t) => {
+  const s = setup(t);
+  const r = s.runtime();
+  s.api.calls.length = 0;
+  await s.remove(r, "aios/merged", "remote", s.merged);
+  // No full inventory: no branch listing, one ruleset call.
+  assert.equal(s.api.calls.filter((c) => c.includes("/branches?")).length, 0);
+  assert.equal(
+    s.api.calls.filter((c) => c.includes("/rules/branches/")).length,
+    1,
+  );
+  const refused = async (name, location, tip, over = {}) => {
+    await assert.rejects(s.remove(r, name, location, tip, over), name);
+  };
+  // Gone from GitHub already, or never there.
+  await refused("aios/merged", "remote", s.merged);
+  await refused("no-such", "local", s.merged);
+  // GitHub and the fetch disagree: it moved in between.
+  s.api.tipOverride.set("aios/squashed", s.main);
+  await refused("aios/squashed", "remote", s.squashedTip);
+  s.api.tipOverride.clear();
+  // Main moved on GitHub since it was verified.
+  s.api.mainOverride = s.merged;
+  await refused("aios/squashed", "remote", s.squashedTip);
+  delete s.api.mainOverride;
+  // Protected since the inventory, classically or by a ruleset.
+  s.api.protected.add("aios/squashed");
+  await refused("aios/squashed", "remote", s.squashedTip);
+  await refused("aios/squashed", "local", s.squashedTip);
+  s.api.protected.clear();
+  s.api.deletionRule.add("aios/squashed");
+  await refused("aios/squashed", "remote", s.squashedTip);
+  s.api.deletionRule.delete("aios/squashed");
+  // GitHub unavailable for the branch, the main tip or the rules.
+  for (const part of ["branches/", "git/ref/", "rules/branches/"]) {
+    s.api.fail = new Set([part]);
+    await refused("aios/squashed", "remote", s.squashedTip);
+  }
+  s.api.fail = new Set();
+  // Another repository, a vanished checkout, another policy.
+  await refused("aios/squashed", "remote", s.squashedTip, {
+    repository: "other/repo",
+  });
+  await refused("aios/squashed", "remote", s.squashedTip, {
+    checkout: join(s.root, "gone"),
+  });
+  // A held lock on that branch.
+  const lock = join(
+    s.checkout,
+    ".git",
+    "refs",
+    "heads",
+    "aios",
+    "squashed.lock",
+  );
+  writeFileSync(lock, "");
+  await refused("aios/squashed", "local", s.squashedTip);
+  rmSync(lock);
+  // The checkout's configuration selects a helper.
+  sh(s.checkout, "config", "filter.x.clean", "cat");
+  await refused("aios/squashed", "local", s.squashedTip);
+  sh(s.checkout, "config", "--unset", "filter.x.clean");
+  // With everything restored, both still delete.
+  await s.remove(r, "aios/squashed", "remote", s.squashedTip);
+  await s.remove(r, "aios/squashed", "local", s.squashedTip);
+  assert.equal(s.remoteHas("aios/squashed"), false);
+  assert.equal(s.localHas("aios/squashed"), false);
 });

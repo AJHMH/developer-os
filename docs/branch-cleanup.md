@@ -85,10 +85,17 @@ and remote branch it records:
 It is quiescent only when none of its own deletions is running and the
 checkout's index, HEAD, packed-refs and branch locks are free.
 
-**Removal.** It takes the whole inventory again, and requires the same main,
-the same owner policy digest and the same tip. It re-applies the cleanup
-decision, and checks the controller fence once more. Only then does it delete,
-conditioned on the evaluated tip:
+**Removal.** It re-checks only the branch it deletes, not the whole
+inventory:
+- main's tip on GitHub must still be the verified revision, and the owner
+  policy digest the same;
+- the branch's tip must be the evaluated one. For a remote branch, GitHub's
+  answer and a fresh fetch of that branch must agree;
+- its classic protection, ruleset deletion rule, worktrees, ancestry, PR
+  history and locks are read again.
+
+It re-applies the cleanup decision, and checks the controller fence once more.
+Only then does it delete, conditioned on the evaluated tip:
 - locally, with `update-ref -d` and the old value;
 - remotely, with a push that deletes the branch under a lease on that tip,
   through your `gh` login and under GitHub's own branch rules. Then it drops
@@ -131,7 +138,8 @@ and main was verified and synchronized at `881d6806…`. `cleanup-branches` then
 - kept 13 unmerged branches;
 - completed the delivery.
 
-Cleanup took 215 seconds, because each removal re-takes the whole inventory.
+Cleanup took 215 seconds, because each removal then re-took the whole
+inventory. A removal now re-checks only its own branch.
 
 ## CLI and qualification boundary
 

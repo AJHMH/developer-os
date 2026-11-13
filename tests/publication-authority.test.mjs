@@ -26,3 +26,32 @@ for (const [name, patch] of [
     assert.deepEqual(f.events, []);
     assert.equal(f.controller.status(f.delivery.id).publication, undefined);
   });
+
+test("a refusal names the signing key only when ssh-agent doesn't hold it", async (t) => {
+  const f = await fixture(t),
+    inspect = f.runtimePublication.inspect.bind(f.runtimePublication);
+  f.runtimePublication.inspect = async () => ({
+    ...(await inspect()),
+    signingAvailable: false,
+  });
+  await assert.rejects(
+    f.controller.publishFeature(f.delivery.id),
+    /signing key isn't loaded in ssh-agent/,
+  );
+  // Another cause keeps the general refusal.
+  f.runtimePublication.inspect = async () => ({
+    ...(await inspect()),
+    publicationAllowed: false,
+  });
+  await assert.rejects(f.controller.publishFeature(f.delivery.id), (e) =>
+    /verify candidate/.test(e.message),
+  );
+  // An inspection that fails outright also keeps it.
+  f.runtimePublication.inspect = async () => {
+    throw Error("offline");
+  };
+  await assert.rejects(f.controller.publishFeature(f.delivery.id), (e) =>
+    /verify candidate/.test(e.message),
+  );
+  assert.deepEqual(f.events, []);
+});

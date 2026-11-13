@@ -1590,6 +1590,13 @@ async function main() {
       cleanup: extra[0] === "--through-cleanup",
     };
     through.productionAdmission.admitted();
+    // Publication signs through ssh-agent: a key that isn't loaded would
+    // stop the run at publish-feature, after the model spend.
+    const { signingKeyLoaded } = await import("../dist/native-publication.js");
+    if (!signingKeyLoaded(through.identity.signingKey))
+      throw Error(
+        `The signing key isn't loaded in ssh-agent. Add it with ssh-add --apple-use-keychain ${through.identity.signingKey.replace(/\.pub$/, "")}, then run again. Nothing was spent.`,
+      );
   }
   // Refuse overwriting retained evidence before any worker effect.
   closeSync(openSync(reportPath, "wx", 0o600));
