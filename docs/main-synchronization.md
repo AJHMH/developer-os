@@ -39,10 +39,52 @@ The durable `main-synchronized` phase identifies recorded alignment, not deliver
 completion. Ticket 14 still owns eligible cleanup and the completion decision.
 Any later observation of changed refs or failed checks revokes alignment.
 
+## Native main sync (#272)
+
+`src/native-main-sync.ts` works in the delivery's own checkout. It fetches
+the default branch through your `gh` login, from the repository's own GitHub
+URL, into the origin tracking ref. Then it fast-forwards local main to exactly
+the verified revision. Every Git step runs with:
+- no system or global configuration;
+- an empty hooks folder;
+- fsmonitor off;
+- one allowed protocol.
+
+A checkout whose own configuration names filters or includes is refused, as
+is one whose origin is another repository.
+
+It never switches branch, stashes, resets, rebases or forces. The checkout
+must:
+- already be on main;
+- be clean, with no tracked, staged or untracked work;
+- have main checked out in no other worktree;
+- have local main as an ancestor of the target;
+- have no Git lock held.
+
+**Ignored files are allowed** (owner's choice). The fast-forward runs with
+`--no-overwrite-ignore`, so if the new main would overwrite an ignored file,
+it aborts and nothing is lost. Git's default would overwrite it. Right before
+the write, it observes everything again and refuses any difference.
+
+`sync-main` re-checks main first, so it installs the main observer too.
+`reconcile-main-sync` only observes. Both take `--owner-policy`.
+
+### Native sync acceptance
+
+The real delivery run's `--through-sync` continues after main verification,
+once the clone has been shown unchanged:
+- `sync-main` must fast-forward the clone's local main to exactly the verified
+  revision, on main and clean;
+- `reconcile-main-sync` must then find it aligned.
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue13-sync-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-sync "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
+```
+
 ## CLI and qualification boundary
 
 The CLI recognizes `sync-main --id <id>` and `reconcile-main-sync --id <id>`.
-It installs no native synchronization adapter and refuses unqualified authority.
+With the owner policy, it installs the native main sync (#272, below).
 Controller callers must supply a trusted `MainSyncRuntime` together with the
 qualified read-only main-check boundary. Repository files cannot configure ports.
 

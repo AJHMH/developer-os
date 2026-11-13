@@ -119,7 +119,7 @@ test("remote advancement invalidates green checks and requires newly verified ma
   assert.equal(f.g("rev-parse", "main"), next);
 });
 
-test("CLI synchronization refuses without native adapters", async (t) => {
+test("CLI synchronization refuses without the owner policy's native sync", async (t) => {
   const f = await syncFixture(t);
   const r = spawnSync(
     process.execPath,
@@ -127,6 +127,6 @@ test("CLI synchronization refuses without native adapters", async (t) => {
     { encoding: "utf8" },
   );
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /native synchronization remains disabled/);
+  assert.match(r.stderr, /main sync the owner policy installs/);
   assert.equal(f.writes.length, 0);
 });

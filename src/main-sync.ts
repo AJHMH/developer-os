@@ -3,7 +3,8 @@ import { realpathSync } from "node:fs";
 import type { Delivery } from "./controller.js";
 
 /** Required at the trusted Git boundary; repository config/environment may not
- * select hooks, filters, helpers or transports. Native ports are not installed. */
+ * select hooks, filters, helpers or transports. The CLI installs
+ * `src/native-main-sync.ts` (#272). */
 export const mainSyncControls = Object.freeze({
   hooks: false,
   filters: false,

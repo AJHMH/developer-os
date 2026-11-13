@@ -23,6 +23,8 @@ import {
   request,
   mainPassingOutcome,
   mainStageNames,
+  syncPassingOutcome,
+  syncStageNames,
   mergePassingOutcome,
   mergeStageNames,
   reviewPassingOutcome,
@@ -361,7 +363,7 @@ test("the real owner inputs clone the repository, verify the owner's signature, 
 function simulatedCli(faults = {}) {
   const calls = [];
   let delivery, repo;
-  const head = "e".repeat(40);
+  const head = faults.head ?? "e".repeat(40);
   const ok = (value) => ({
     status: 0,
     stdout: JSON.stringify(value),
@@ -495,6 +497,8 @@ function simulatedCli(faults = {}) {
         "/owner/validation-admission.json",
       );
       const merged = (faults.merge ?? "merged") === "merged";
+      // The merge moves the remote's main, as a fast-forward does.
+      faults.onMerge?.();
       delivery.phase = merged ? "merged" : "blocked";
       delivery.merge = {
         attempts: [
@@ -537,6 +541,28 @@ function simulatedCli(faults = {}) {
           },
         ],
       };
+      return ok(delivery);
+    },
+    "sync-main"() {
+      // Fast-forward the real clone, as the native sync does.
+      if (!faults.syncFails) {
+        spawnSync("git", ["-C", repo, "fetch", "-q", "origin", "main"]);
+        spawnSync("git", ["-C", repo, "merge", "-q", "--ff-only", head]);
+      }
+      delivery.phase = faults.syncFails ? "blocked" : "main-synchronized";
+      delivery.mainSync = {
+        attempts: [
+          {
+            state: faults.syncFails ? "blocked" : "aligned",
+            reason: faults.syncFails ? "unsafe" : "aligned",
+            from: faults.base,
+            revision: head,
+          },
+        ],
+      };
+      return ok(delivery);
+    },
+    "reconcile-main-sync"() {
       return ok(delivery);
     },
     "reconcile-merge"() {
@@ -888,4 +914,111 @@ test("through main, the merged main is verified by its own push run, waiting whi
     },
   );
   assert.match(stuck.error, /main checks didn't finish/);
+});
+
+test("through sync, the clone's main is fast-forwarded to the verified revision and reconciled aligned", async (t) => {
+  const remote = await signedRemote(t);
+  // A real next main for the clone to fast-forward to.
+  const work = join(remote.url, "..", "work");
+  writeFileSync(join(work, "index.html"), "<h1>Contact</h1>\n<p>Next</p>\n");
+  const git = (...args) => {
+    const r = spawnSync("git", ["-C", work, ...args], { encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  git(
+    "-c",
+    "user.name=O",
+    "-c",
+    "user.email=o@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-qam",
+    "next",
+  );
+  const next = git("rev-parse", "HEAD");
+  // Pushed only when the delivery merges, after the clone.
+  const onMerge = () => git("push", "-q", remote.url, "main");
+  const gh = factsGitHub(remote, {
+    [`repos/${repository}/git/ref/heads/main`]: { object: { sha: next } },
+    [`repos/${repository}/pulls/9`]: { merged: true },
+  });
+  const host = (sim) => ({
+    cli: sim.cli,
+    pins: {
+      coding: { admitted: codingPins, fresh: async () => codingPins },
+      validation: {
+        admitted: validationPins,
+        fresh: async () => validationPins,
+      },
+    },
+    machine: "aios-test",
+    codingAdmission: "/owner/coding-admission.json",
+    validationAdmission: "/owner/validation-admission.json",
+    authDirectory: "/owner/auth",
+    imageSha256,
+    cleanupCodingSession: async () => ({ cleaned: 1 }),
+    through: {
+      identityPath: "/owner/identity.json",
+      identity: { ...identity, signingKey: remote.key },
+      productionAdmission: {
+        path: "/owner/production.json",
+        admitted: () => ({
+          coding: codingPins,
+          validationBindingSha256: "6".repeat(64),
+          productionSha256,
+        }),
+      },
+      github: gh,
+      factoryCommit: "f".repeat(40),
+      cloneUrl: remote.url,
+      merge: true,
+      main: true,
+      sync: true,
+    },
+  });
+  const options = { sleep: async () => {}, now: () => 0 };
+  // The clone starts at the signed commit; the next main is a fast-forward.
+  const faults = {
+    base: remote.commit,
+    head: next,
+    mainRevision: next,
+    onMerge,
+  };
+  const sim = simulatedCli(faults);
+  const report = await cliDeliveryAcceptance(host(sim), options);
+  assert.equal(report.outcome, syncPassingOutcome, report.error);
+  assert.equal(report.scope, "native-delivery-through-sync");
+  assert.deepEqual(
+    report.stages.map((s) => s.name),
+    syncStageNames,
+  );
+  assert.deepEqual(report.mainSync, {
+    state: "aligned",
+    reason: "aligned",
+    from: remote.commit,
+    revision: next,
+    phase: "main-synchronized",
+    checkout: { branch: "main", head: next, main: next, clean: true },
+  });
+  assert.deepEqual(sim.calls.map((a) => a[0]).slice(-3), [
+    "sync-main",
+    "reconcile-main-sync",
+    "status",
+  ]);
+  const blocked = await cliDeliveryAcceptance(
+    host(
+      // Main has moved by now, so this clone starts there.
+      simulatedCli({
+        base: next,
+        head: next,
+        mainRevision: next,
+        syncFails: true,
+      }),
+    ),
+    options,
+  );
+  assert.equal(blocked.outcome, "blocked");
+  assert.match(blocked.error, /Sync left the delivery blocked/);
 });

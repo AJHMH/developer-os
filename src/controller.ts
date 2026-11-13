@@ -607,7 +607,7 @@ export class DeliveryController {
           "Safe main synchronization requires fresh trusted main checks and a qualified controlled Git adapter. Preserve work; reconcile uncertain operations before retry. Native synchronization and cleanup remain disabled.";
       });
       throw new DeliveryError(
-        "Main synchronization requires verified main and a qualified adapter; native synchronization remains disabled.",
+        "Main synchronization requires verified main and the main sync the owner policy installs.",
       );
     }
   }

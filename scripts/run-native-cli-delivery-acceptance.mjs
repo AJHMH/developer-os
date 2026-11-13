@@ -42,6 +42,10 @@
 // --through-main (#271) continues after the merge: `monitor-main-checks` must
 // verify the merged main through the default branch's own GitHub Actions push
 // run of `main-ci`, waiting as for the PR checks.
+//
+// --through-sync (#272) continues: after the clone is shown unchanged,
+// `sync-main` must fast-forward its local main to exactly the verified
+// revision, clean, and `reconcile-main-sync` must find it aligned.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -61,7 +65,7 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge|--through-main <owner-publication-identity.json> <owner-production-admission.json>]";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge|--through-main|--through-sync <owner-publication-identity.json> <owner-production-admission.json>]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
@@ -69,6 +73,7 @@ export const repairPassingOutcome = "observed-metered-cli-repair-acceptance";
 export const reviewPassingOutcome = "observed-native-delivery-through-review";
 export const mergePassingOutcome = "observed-native-delivery-through-merge";
 export const mainPassingOutcome = "observed-native-delivery-through-main";
+export const syncPassingOutcome = "observed-native-delivery-through-sync";
 /** How long the delivery waits for its PR checks, and how often it looks. */
 export const prChecksWaitMs = 15 * 60000;
 export const prChecksIntervalMs = 20000;
@@ -118,6 +123,12 @@ export const mainStageNames = Object.freeze([
   ...mergeStageNames.slice(0, 13),
   "cli-monitor-main-checks",
   ...mergeStageNames.slice(13),
+]);
+/** Every stage of a real delivery through main sync, in order. */
+export const syncStageNames = Object.freeze([
+  ...mainStageNames.slice(0, 15),
+  "cli-sync-main",
+  ...mainStageNames.slice(15),
 ]);
 /** Every stage of a run with repair, in order. */
 export const repairStageNames = Object.freeze([
@@ -592,11 +603,13 @@ export async function cliDeliveryAcceptance(
   );
   const report = {
     scope: through
-      ? through.main
-        ? "native-delivery-through-main"
-        : through.merge
-          ? "native-delivery-through-merge"
-          : "native-delivery-through-review"
+      ? through.sync
+        ? "native-delivery-through-sync"
+        : through.main
+          ? "native-delivery-through-main"
+          : through.merge
+            ? "native-delivery-through-merge"
+            : "native-delivery-through-review"
       : repair
         ? "native-cli-metered-repair-acceptance"
         : "native-cli-metered-delivery-acceptance",
@@ -1239,6 +1252,47 @@ export async function cliDeliveryAcceptance(
         "The feature branch moved from the baseline revision",
       );
     });
+    if (through?.sync)
+      last = await stage("cli-sync-main", async () => {
+        const synced = await run("sync-main", "--id", id, ...owner);
+        const a = synced.mainSync?.attempts.at(-1);
+        report.mainSync = a && {
+          state: a.state,
+          reason: a.reason,
+          from: a.from,
+          revision: a.revision,
+          phase: synced.phase,
+        };
+        check(
+          synced.phase === "main-synchronized" &&
+            a?.state === "aligned" &&
+            a.from === inputs.revision &&
+            a.revision === report.mainChecks.revision,
+          `Sync left the delivery ${synced.phase}: ${synced.blocker?.nextAction ?? ""}`,
+        );
+        // The checkout itself: on main, at the verified revision, clean.
+        report.mainSync.checkout = {
+          branch: inputs.git("branch", "--show-current"),
+          head: inputs.git("rev-parse", "HEAD"),
+          main: inputs.git("rev-parse", "refs/heads/main"),
+          clean: inputs.git("status", "--porcelain") === "",
+        };
+        check(
+          report.mainSync.checkout.branch === "main" &&
+            report.mainSync.checkout.head === a.revision &&
+            report.mainSync.checkout.main === a.revision &&
+            report.mainSync.checkout.clean,
+          "The checkout isn't clean main at the verified revision",
+        );
+        const again = await run("reconcile-main-sync", "--id", id, ...owner);
+        check(
+          again.phase === "main-synchronized" &&
+            again.mainSync?.attempts.length === 1 &&
+            again.mainSync.attempts[0].state === "aligned",
+          "Reconciling didn't find the same single aligned sync",
+        );
+        return again;
+      });
     await stage("coding-session-cleanup", async () => {
       // The coding turn's session, then the repair turn's own.
       for (const session of [
@@ -1250,11 +1304,13 @@ export async function cliDeliveryAcceptance(
       }
     });
     report.outcome = through
-      ? through.main
-        ? mainPassingOutcome
-        : through.merge
-          ? mergePassingOutcome
-          : reviewPassingOutcome
+      ? through.sync
+        ? syncPassingOutcome
+        : through.main
+          ? mainPassingOutcome
+          : through.merge
+            ? mergePassingOutcome
+            : reviewPassingOutcome
       : repair
         ? repairPassingOutcome
         : passingOutcome;
@@ -1343,9 +1399,12 @@ async function main() {
       extra.length === 0 ||
       (extra.length === 1 && extra[0] === "--with-repair") ||
       (extra.length === 3 &&
-        ["--through-review", "--through-merge", "--through-main"].includes(
-          extra[0],
-        ))
+        [
+          "--through-review",
+          "--through-merge",
+          "--through-main",
+          "--through-sync",
+        ].includes(extra[0]))
     )
   ) {
     console.error(usage);
@@ -1422,7 +1481,12 @@ async function main() {
   // The real delivery's records, read before any worker effect.
   let through;
   if (
-    ["--through-review", "--through-merge", "--through-main"].includes(extra[0])
+    [
+      "--through-review",
+      "--through-merge",
+      "--through-main",
+      "--through-sync",
+    ].includes(extra[0])
   ) {
     const { readPublicationIdentity } = await import(
       "../dist/publication-identity.js"
@@ -1437,8 +1501,11 @@ async function main() {
       productionAdmission: ownerProductionAdmission(extra[2]),
       github: ghApi(),
       factoryCommit: source.sourceRevision,
-      merge: ["--through-merge", "--through-main"].includes(extra[0]),
-      main: extra[0] === "--through-main",
+      merge: ["--through-merge", "--through-main", "--through-sync"].includes(
+        extra[0],
+      ),
+      main: ["--through-main", "--through-sync"].includes(extra[0]),
+      sync: extra[0] === "--through-sync",
     };
     through.productionAdmission.admitted();
   }
@@ -1494,7 +1561,8 @@ async function main() {
       report.outcome === repairPassingOutcome ||
       report.outcome === reviewPassingOutcome ||
       report.outcome === mergePassingOutcome ||
-      report.outcome === mainPassingOutcome
+      report.outcome === mainPassingOutcome ||
+      report.outcome === syncPassingOutcome
         ? {}
         : { freshPins: report.freshPins ?? null }),
     }),
@@ -1504,7 +1572,8 @@ async function main() {
     report.outcome !== repairPassingOutcome &&
     report.outcome !== reviewPassingOutcome &&
     report.outcome !== mergePassingOutcome &&
-    report.outcome !== mainPassingOutcome
+    report.outcome !== mainPassingOutcome &&
+    report.outcome !== syncPassingOutcome
   )
     process.exitCode = 1;
 }
