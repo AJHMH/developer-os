@@ -62,7 +62,12 @@ function simulatedCli(faults = {}) {
       };
       return ok(d);
     },
-    "code-feature"(d) {
+    "code-feature"(d, args) {
+      // As the controller: the allowance only before the first session.
+      if (args.includes("--coding-minutes") && d.feature.session)
+        return refuse(
+          "Declare 1 to 1440 initial coding minutes before the first coding session.",
+        );
       // Run to the end.
       d.feature.session = {
         ...session("stopped"),
@@ -123,6 +128,23 @@ function simulatedCli(faults = {}) {
     spawnCli(args) {
       calls.push("spawn:" + args[0]);
       const d = target(args);
+      if (
+        args[0] === "code-feature" &&
+        args.includes("--coding-minutes") &&
+        d.feature.session
+      )
+        return {
+          kill() {},
+          done: Promise.resolve({
+            status: 1,
+            signal: null,
+            stdout: "",
+            stderr: JSON.stringify({
+              error:
+                "Declare 1 to 1440 initial coding minutes before the first coding session.",
+            }),
+          }),
+        };
       if (args[0] === "code-feature" && !faults.neverRuns)
         d.feature.session = session("running");
       if (args[0] === "validate-candidate")
