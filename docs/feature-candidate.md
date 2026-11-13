@@ -63,6 +63,73 @@ npm ci --ignore-scripts && npm run build
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue04-cli-delivery-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run
 ```
 
+### The first real delivery (`--through-review`)
+
+With `--through-review <publication-identity.json> <production-admission.json>`
+the run is a real delivery, not a synthetic one. The repository is a clone of
+your publication record's repository. Before `start`, the run reads each
+onboarding fact live from GitHub through your `gh` login, and stops naming the
+first one that doesn't hold, so nothing false is attested:
+
+- the default branch's rules require signed commits, block force pushes and
+  deletion, and require a `pr-ci` status check from GitHub Actions, with no
+  required review count (the change gate decides, ADR 0005);
+- you are the only person who can push;
+- the App opened a PR there, whose head is your Verified signed commit; the
+  run also verifies that signature locally against your `.pub` key;
+- the production admission names exactly the coding admission's pins.
+
+The owner contract is the acceptance's probe checks plus the GitHub Actions
+`pr-ci` check from `.github/workflows/ci.yml@main` (#268). After
+`validate-candidate` the run:
+
+1. publishes, with `publish-feature` and your production admission and
+   publication records;
+2. waits for `pr-ci` with `monitor-pr-checks`, every 20 seconds for up to 15
+   minutes;
+3. reads the review with `monitor-review`.
+
+The delivery must reach `ready-to-merge` and stop there, because merge is
+#270. It writes one signed branch and one App PR to the repository. Only the
+criteria file is synthetic.
+
+It needs, in the disposable repository and on your Mac:
+
+1. **A page to change.** Add `index.html` to `main`; GitHub signs this
+   commit:
+
+   ```sh
+   gh api -X PUT repos/AJHMH/aios-publication-acceptance/contents/index.html -f message="Add the contact page" -f content=PGgxPkNvbnRhY3Q8L2gxPgo=
+   ```
+
+2. **The default branch's rules.** Write the ruleset, then create it:
+
+   ```sh
+   RULESET="$HOME/.developer-os/notes/aios-delivery-ruleset.json"
+   cat > "$RULESET" <<'JSON'
+   {"name":"aios-delivery","target":"branch","enforcement":"active","conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"},{"type":"required_signatures"},{"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":false,"required_status_checks":[{"context":"pr-ci","integration_id":15368}]}}]}
+   JSON
+   gh api -X POST repos/AJHMH/aios-publication-acceptance/rulesets --input "$RULESET" --jq '{id, enforcement}'
+   ```
+
+3. **Your production admission record**, from the passing worker
+   qualification, as in
+   [admitting production](worker-qualification.md#admitting-production). This
+   writes it from the report and checks it:
+
+   ```sh
+   REPORT="$HOME/.developer-os/issue04-worker-qualification-20261111-152729.json"
+   RECORD="$HOME/.developer-os/admission/production-admission.json"
+   node -e 'const fs=require("fs"),c=require("crypto");const [report,record]=process.argv.slice(1);const bytes=fs.readFileSync(report);const r=JSON.parse(bytes);fs.writeFileSync(record,JSON.stringify({scope:"aios-production-admission-v1",approvedAt:new Date(Date.now()-60000).toISOString().replace(/\.\d{3}Z$/,".000Z"),qualificationReport:report,qualificationSha256:c.createHash("sha256").update(bytes).digest("hex"),pins:{coding:r.pins.coding,validation:r.pins.validation}},null,2),{mode:0o600,flag:"wx"})' "$REPORT" "$RECORD"
+   node dist/cli.js check-production --production-admission "$RECORD"
+   ```
+
+Then, with your signing key in ssh-agent:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue04-real-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-review "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
+```
+
 ### Native results (9 November 2026)
 
 The Mac passed with outcome `observed-metered-cli-delivery-acceptance`, from `main` at `13a88c9` with this change applied:
