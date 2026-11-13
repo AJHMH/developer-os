@@ -1,23 +1,13 @@
 import { createHash } from "node:crypto";
-import {
-  existsSync,
-  lstatSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import {
   mainSyncControls,
   type MainSyncObservation,
   type MainSyncRuntime,
 } from "./main-sync.js";
-import {
-  cleanEnvironment,
-  defaultRunner,
-  type CommandRunner,
-} from "./native-publication.js";
+import { isolatedGit } from "./native-git.js";
+import type { CommandRunner } from "./native-publication.js";
 
 const sha40 = /^[a-f0-9]{40}$/;
 const slug = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -48,69 +38,13 @@ export function nativeMainSyncRuntime(
   options: NativeMainSyncOptions,
 ): MainSyncRuntime {
   if (!slug.test(options.repository)) throw Error("Invalid main sync");
-  const run = options.run ?? defaultRunner;
-  const remote =
-    options.remoteUrl ?? `https://github.com/${options.repository}.git`;
-  const https = remote.startsWith("https://");
-  if (!https && !remote.startsWith("file://"))
+  let isolated;
+  try {
+    isolated = isolatedGit(options.repository, options.remoteUrl, options.run);
+  } catch {
     throw Error("Invalid main sync remote");
-  // An empty hooks folder, outside every checkout.
-  const empty = mkdtempSync(join(tmpdir(), "aios-main-sync-hooks-"));
-  const env = (): NodeJS.ProcessEnv => ({
-    ...cleanEnvironment(),
-    GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: "/dev/null",
-    GIT_TERMINAL_PROMPT: "0",
-    GH_PROMPT_DISABLED: "1",
-  });
-  const git = (checkout: string, args: string[], timeoutMs = 60000) => {
-    const r = run(
-      "git",
-      [
-        "-C",
-        checkout,
-        "-c",
-        "core.hooksPath=" + empty,
-        "-c",
-        "core.fsmonitor=false",
-        "-c",
-        "protocol.allow=never",
-        "-c",
-        https ? "protocol.https.allow=always" : "protocol.file.allow=always",
-        "-c",
-        "credential.helper=",
-        ...(https ? ["-c", "credential.helper=!gh auth git-credential"] : []),
-        ...args,
-      ],
-      { env: env(), timeoutMs },
-    );
-    return { ok: r.status === 0, out: r.stdout.trim() };
-  };
-  /** The checkout's own configuration may not select helpers. */
-  const reviewed = (checkout: string) => {
-    for (const scope of ["--local", "--worktree"]) {
-      const r = git(checkout, ["config", scope, "--no-includes", "--list"]);
-      // `--worktree` fails without worktree config; that is fine.
-      if (
-        r.ok &&
-        /^(?:filter\.[^=]+\.(?:clean|smudge|process)|include(?:if\.[^=]+)?\.path)=/im.test(
-          r.out,
-        )
-      )
-        return false;
-    }
-    return true;
-  };
-  const originMatches = (checkout: string) => {
-    const r = git(checkout, ["config", "--local", "remote.origin.url"]);
-    if (!r.ok) return false;
-    const url = r.out.replace(/\.git$/, "").replace(/\/$/, "");
-    return (
-      url === remote.replace(/\.git$/, "") ||
-      url === `git@github.com:${options.repository}` ||
-      url === `ssh://git@github.com/${options.repository}`
-    );
-  };
+  }
+  const { remote, git, reviewed, originMatches } = isolated;
   async function observe(
     request: Parameters<MainSyncRuntime["observe"]>[0],
   ): Promise<MainSyncObservation> {

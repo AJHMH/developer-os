@@ -194,7 +194,9 @@ function validInventory(
     return false;
   }
 }
-function decide(
+/** The cleanup decision for one branch fact against the target main. The
+ * native adapter re-applies it under its own recheck before a deletion. */
+export function cleanupDecision(
   f: BranchFact,
   t: MainSyncTarget,
 ): Pick<CleanupEntry, "decision" | "reason"> {
@@ -253,7 +255,7 @@ function entry(f: BranchFact, t: MainSyncTarget): CleanupEntry {
       reachable: f.linkage.reachable === true,
       complete: f.linkage.complete === true,
     };
-  const d = decide(fact, t);
+  const d = cleanupDecision(fact, t);
   return {
     fact,
     ...d,
@@ -554,7 +556,7 @@ export class BranchCleanupCoordinator {
       if (!["paused", "cancelled"].includes(d.phase))
         d.phase = complete ? "completed" : "blocked";
       d.blocker.nextAction = complete
-        ? "Controlled delivery complete at the recorded verified and synchronized main revision; eligible branches deleted and expected retentions recorded. Native qualification and production delivery remain disabled."
+        ? "Delivery complete at the recorded verified and synchronized main revision; eligible branches deleted and expected retentions recorded. Production delivery remains disabled."
         : "Cleanup incomplete; inspect independent local/remote outcomes, preserve retained tips and reconcile uncertainty before an explicit fresh attempt. Production remains disabled.";
     });
   }
