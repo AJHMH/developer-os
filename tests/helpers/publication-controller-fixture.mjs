@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { codingFixture } from "./feature-fixture.mjs";
 import { controlledProduction } from "./production-fixture.mjs";
 
-export async function fixture(t, configurePolicy) {
+export async function fixture(t, configurePolicy, prepare) {
   const f = codingFixture(t, configurePolicy);
+  // Lets a test change the coding runtime before the turn runs.
+  prepare?.(f);
   await f.controller.planFeature(f.delivery.id);
   await f.controller.validateBaseline(f.delivery.id);
   await f.controller.codeFeature(f.delivery.id);

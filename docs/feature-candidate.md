@@ -79,8 +79,11 @@ first one that doesn't hold, so nothing false is attested:
   run also verifies that signature locally against your `.pub` key;
 - the production admission names exactly the coding admission's pins.
 
-The owner contract is the acceptance's probe checks plus the GitHub Actions
-`pr-ci` check from `.github/workflows/ci.yml@main` (#268). After
+Each run asks for a line unique to it, `Delivery check <8 hex>`, which main
+can't already have. The candidate acceptance check requires that line in
+`index.html`, so a delivery always changes the page. The owner contract is
+the acceptance's probe checks plus the GitHub Actions `pr-ci` check from
+`.github/workflows/ci.yml@main` (#268). After
 `validate-candidate` the run:
 
 1. publishes, with `publish-feature` and your production admission and
