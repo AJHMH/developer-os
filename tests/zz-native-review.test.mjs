@@ -531,12 +531,26 @@ test("the review commands take the owner policy, and review repair also the codi
   for (const args of [
     ["monitor-review", ...id, "--owner-policy", policy],
     [
+      "monitor-review",
+      ...id,
+      "--owner-policy",
+      policy,
+      "--podman-machine",
+      "aios-test",
+      "--validation-admission",
+      join(state, "v.json"),
+    ],
+    [
       "resolve-review-thread",
       ...id,
       "--thread-id",
       "PRRT_1",
       "--owner-policy",
       policy,
+      "--podman-machine",
+      "aios-test",
+      "--validation-admission",
+      join(state, "v.json"),
     ],
     [
       "repair-review",

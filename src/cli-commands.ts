@@ -173,8 +173,9 @@ const commands: Record<string, CliCommand> = {
   "publish-feature": idAction("publishFeature", publicationOptions),
   "reconcile-publication": idAction("reconcilePublication", publicationOptions),
   // #268: with the owner policy, these install the native monitor for the
-  // policy's GitHub Actions PR checks. A repair also republishes.
-  "monitor-pr-checks": idAction("monitorPRChecks", ownerPolicyOptions),
+  // policy's GitHub Actions PR checks. A repair also republishes. Each re-checks
+  // the publication's validation evidence, so it takes the validation runtime.
+  "monitor-pr-checks": idAction("monitorPRChecks", validationOptions),
   "repair-pr-checks": idAction("repairPRChecks", [
     ...codingTurnOptions,
     "production-admission",
@@ -182,7 +183,7 @@ const commands: Record<string, CliCommand> = {
   ]),
   // #269: with the owner policy, these install the PR check monitor and the
   // native review adapter. A review repair also republishes.
-  "monitor-review": idAction("monitorReview", ownerPolicyOptions),
+  "monitor-review": idAction("monitorReview", validationOptions),
   "repair-review": idAction("repairReview", [
     ...codingTurnOptions,
     "production-admission",
@@ -199,13 +200,13 @@ const commands: Record<string, CliCommand> = {
   "rerun-pr-check": {
     kind: "delivery",
     required: ["id", "check-id"],
-    optional: ownerPolicyOptions,
+    optional: validationOptions,
     invoke: (c, v) => c.rerunPRCheck(v.id!, v["check-id"]!),
   },
   "resolve-review-thread": {
     kind: "delivery",
     required: ["id", "thread-id"],
-    optional: ownerPolicyOptions,
+    optional: validationOptions,
     invoke: (c, v) => c.resolveReviewThread(v.id!, v["thread-id"]!),
   },
   "clarify-feature": {
