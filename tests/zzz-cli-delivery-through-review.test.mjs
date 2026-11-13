@@ -21,6 +21,8 @@ import {
   realContract,
   repositoryFacts,
   request,
+  mainPassingOutcome,
+  mainStageNames,
   mergePassingOutcome,
   mergeStageNames,
   reviewPassingOutcome,
@@ -356,7 +358,8 @@ function simulatedCli(faults = {}) {
     stdout: JSON.stringify(value),
     stderr: "",
   });
-  let polls = 0;
+  let polls = 0,
+    mainPolls = 0;
   const commands = {
     start(args) {
       repo = option(args, "--repo");
@@ -491,6 +494,37 @@ function simulatedCli(faults = {}) {
             head,
             baseRevision: faults.base,
             ...(merged ? { mergeCommit: head, mainRevision: head } : {}),
+          },
+        ],
+      };
+      return ok(delivery);
+    },
+    "monitor-main-checks"() {
+      mainPolls++;
+      const outcome =
+        mainPolls === 1 ? "incomplete" : (faults.main ?? "passed");
+      delivery.phase =
+        outcome === "passed"
+          ? "main-verified"
+          : outcome === "incomplete"
+            ? "verifying-main"
+            : "blocked";
+      delivery.mainChecks = {
+        outcome,
+        revision: faults.mainRevision ?? head,
+        runs: [
+          {
+            revision: faults.mainRevision ?? head,
+            attempts: [
+              {
+                checkId: "main-ci",
+                runId: 5,
+                attempt: 1,
+                status: "success",
+                publisher: "github-actions",
+                workflow: ".github/workflows/ci.yml@main",
+              },
+            ],
           },
         ],
       };
@@ -758,4 +792,91 @@ test("through merge, the delivery fast-forwards main to its head, and reconcilin
     assert.equal(r.outcome, "blocked");
     assert.match(r.error, error);
   }
+});
+
+test("through main, the merged main is verified by its own push run, waiting while it starts", async (t) => {
+  const remote = await signedRemote(t);
+  const head = "e".repeat(40);
+  const gh = factsGitHub(remote, {
+    [`repos/${repository}/git/ref/heads/main`]: { object: { sha: head } },
+    [`repos/${repository}/pulls/9`]: { merged: true },
+  });
+  const host = (sim) => ({
+    cli: sim.cli,
+    pins: {
+      coding: { admitted: codingPins, fresh: async () => codingPins },
+      validation: {
+        admitted: validationPins,
+        fresh: async () => validationPins,
+      },
+    },
+    machine: "aios-test",
+    codingAdmission: "/owner/coding-admission.json",
+    validationAdmission: "/owner/validation-admission.json",
+    authDirectory: "/owner/auth",
+    imageSha256,
+    cleanupCodingSession: async () => ({ cleaned: 1 }),
+    through: {
+      identityPath: "/owner/identity.json",
+      identity: { ...identity, signingKey: remote.key },
+      productionAdmission: {
+        path: "/owner/production.json",
+        admitted: () => ({
+          coding: codingPins,
+          validationBindingSha256: "6".repeat(64),
+          productionSha256,
+        }),
+      },
+      github: gh,
+      factoryCommit: "f".repeat(40),
+      cloneUrl: remote.url,
+      merge: true,
+      main: true,
+    },
+  });
+  const slept = [];
+  const options = { sleep: async (ms) => slept.push(ms), now: () => 0 };
+  const sim = simulatedCli({ base: remote.commit });
+  const report = await cliDeliveryAcceptance(host(sim), options);
+  assert.equal(report.outcome, mainPassingOutcome, report.error);
+  assert.equal(report.scope, "native-delivery-through-main");
+  assert.deepEqual(
+    report.stages.map((s) => s.name),
+    mainStageNames,
+  );
+  assert.equal(report.mainChecks.outcome, "passed");
+  assert.equal(report.mainChecks.revision, head);
+  assert.equal(report.mainChecks.phase, "main-verified");
+  assert.equal(
+    sim.calls.filter((a) => a[0] === "monitor-main-checks").length,
+    2,
+  );
+  // The main step names only the owner policy and attestation.
+  assert.deepEqual(
+    sim.calls
+      .find((a) => a[0] === "monitor-main-checks")
+      .slice(3)
+      .filter((a) => a.startsWith("--")),
+    ["--owner-policy", "--onboarding-attestation"],
+  );
+  for (const [faults, error] of [
+    [{ base: remote.commit, main: "failed" }, /Main verification is failed/],
+    [
+      { base: remote.commit, mainRevision: "9".repeat(40) },
+      /Main verification is passed/,
+    ],
+  ]) {
+    const r = await cliDeliveryAcceptance(host(simulatedCli(faults)), options);
+    assert.equal(r.outcome, "blocked");
+    assert.match(r.error, error);
+  }
+  let clock = 0;
+  const stuck = await cliDeliveryAcceptance(
+    host(simulatedCli({ base: remote.commit, main: "pending" })),
+    {
+      sleep: async () => {},
+      now: () => (clock += 60000),
+    },
+  );
+  assert.match(stuck.error, /main checks didn't finish/);
 });

@@ -25,7 +25,8 @@ export interface MainObservation {
 /** Read-only trusted host boundary. Establish PR/head/merge linkage and reachability
  * on current main independently, with complete check history and publisher/workflow
  * provenance for that exact main revision. Re-read main before returning; a raced
- * observation must be incomplete. No native adapter or repair authority is installed. */
+ * observation must be incomplete. No repair authority. The CLI installs
+ * `src/native-main-checks.ts` (#271). */
 export interface MainChecksRuntime {
   readonly mode: "controlled";
   readonly bindingSha256: string;

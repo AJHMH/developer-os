@@ -38,6 +38,10 @@
 // must fast-forward the default branch to the PR's exact head, which GitHub
 // must then show as main's tip with the PR merged, and `reconcile-merge` must
 // find that same merge without a second write.
+//
+// --through-main (#271) continues after the merge: `monitor-main-checks` must
+// verify the merged main through the default branch's own GitHub Actions push
+// run of `main-ci`, waiting as for the PR checks.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -57,13 +61,14 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge <owner-publication-identity.json> <owner-production-admission.json>]";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge|--through-main <owner-publication-identity.json> <owner-production-admission.json>]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
 export const repairPassingOutcome = "observed-metered-cli-repair-acceptance";
 export const reviewPassingOutcome = "observed-native-delivery-through-review";
 export const mergePassingOutcome = "observed-native-delivery-through-merge";
+export const mainPassingOutcome = "observed-native-delivery-through-main";
 /** How long the delivery waits for its PR checks, and how often it looks. */
 export const prChecksWaitMs = 15 * 60000;
 export const prChecksIntervalMs = 20000;
@@ -107,6 +112,12 @@ export const mergeStageNames = Object.freeze([
   "cli-merge-feature",
   "cli-reconcile-merge",
   ...reviewStageNames.slice(11),
+]);
+/** Every stage of a real delivery through main verification, in order. */
+export const mainStageNames = Object.freeze([
+  ...mergeStageNames.slice(0, 13),
+  "cli-monitor-main-checks",
+  ...mergeStageNames.slice(13),
 ]);
 /** Every stage of a run with repair, in order. */
 export const repairStageNames = Object.freeze([
@@ -567,9 +578,11 @@ export async function cliDeliveryAcceptance(
   );
   const report = {
     scope: through
-      ? through.merge
-        ? "native-delivery-through-merge"
-        : "native-delivery-through-review"
+      ? through.main
+        ? "native-delivery-through-main"
+        : through.merge
+          ? "native-delivery-through-merge"
+          : "native-delivery-through-review"
       : repair
         ? "native-cli-metered-repair-acceptance"
         : "native-cli-metered-delivery-acceptance",
@@ -1153,6 +1166,51 @@ export async function cliDeliveryAcceptance(
           return reconciled;
         });
       }
+      if (through.main)
+        last = await stage("cli-monitor-main-checks", async () => {
+          const start = now();
+          for (;;) {
+            const watched = await run(
+              "monitor-main-checks",
+              "--id",
+              id,
+              ...owner,
+            );
+            const m = watched.mainChecks;
+            const r = m?.runs.find((x) => x.revision === m.revision);
+            report.mainChecks = m && {
+              outcome: m.outcome,
+              revision: m.revision ?? null,
+              phase: watched.phase,
+              attempts: (r?.attempts ?? []).map((a) => ({
+                checkId: a.checkId,
+                runId: a.runId,
+                attempt: a.attempt,
+                status: a.status,
+                publisher: a.publisher,
+                workflow: a.workflow,
+              })),
+            };
+            // As for the PR checks: not started, running or unreadable is
+            // not final until the deadline.
+            if (
+              !["pending", "incomplete", "unavailable"].includes(m?.outcome)
+            ) {
+              check(
+                watched.phase === "main-verified" &&
+                  m?.outcome === "passed" &&
+                  m.revision === report.merge.mainRevision,
+                `Main verification is ${m?.outcome ?? "missing"}: ${watched.blocker?.nextAction ?? ""}`,
+              );
+              return watched;
+            }
+            check(
+              now() - start < prChecksWaitMs,
+              "The main checks didn't finish in time",
+            );
+            await sleep(prChecksIntervalMs);
+          }
+        });
     }
     await stage("host-checkout-unchanged", () => {
       check(
@@ -1178,9 +1236,11 @@ export async function cliDeliveryAcceptance(
       }
     });
     report.outcome = through
-      ? through.merge
-        ? mergePassingOutcome
-        : reviewPassingOutcome
+      ? through.main
+        ? mainPassingOutcome
+        : through.merge
+          ? mergePassingOutcome
+          : reviewPassingOutcome
       : repair
         ? repairPassingOutcome
         : passingOutcome;
@@ -1269,7 +1329,9 @@ async function main() {
       extra.length === 0 ||
       (extra.length === 1 && extra[0] === "--with-repair") ||
       (extra.length === 3 &&
-        ["--through-review", "--through-merge"].includes(extra[0]))
+        ["--through-review", "--through-merge", "--through-main"].includes(
+          extra[0],
+        ))
     )
   ) {
     console.error(usage);
@@ -1345,7 +1407,9 @@ async function main() {
   };
   // The real delivery's records, read before any worker effect.
   let through;
-  if (["--through-review", "--through-merge"].includes(extra[0])) {
+  if (
+    ["--through-review", "--through-merge", "--through-main"].includes(extra[0])
+  ) {
     const { readPublicationIdentity } = await import(
       "../dist/publication-identity.js"
     );
@@ -1359,7 +1423,8 @@ async function main() {
       productionAdmission: ownerProductionAdmission(extra[2]),
       github: ghApi(),
       factoryCommit: source.sourceRevision,
-      merge: extra[0] === "--through-merge",
+      merge: ["--through-merge", "--through-main"].includes(extra[0]),
+      main: extra[0] === "--through-main",
     };
     through.productionAdmission.admitted();
   }
@@ -1414,7 +1479,8 @@ async function main() {
       ...(report.outcome === passingOutcome ||
       report.outcome === repairPassingOutcome ||
       report.outcome === reviewPassingOutcome ||
-      report.outcome === mergePassingOutcome
+      report.outcome === mergePassingOutcome ||
+      report.outcome === mainPassingOutcome
         ? {}
         : { freshPins: report.freshPins ?? null }),
     }),
@@ -1423,7 +1489,8 @@ async function main() {
     report.outcome !== passingOutcome &&
     report.outcome !== repairPassingOutcome &&
     report.outcome !== reviewPassingOutcome &&
-    report.outcome !== mergePassingOutcome
+    report.outcome !== mergePassingOutcome &&
+    report.outcome !== mainPassingOutcome
   )
     process.exitCode = 1;
 }

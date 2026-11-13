@@ -667,7 +667,7 @@ export class DeliveryController {
           "Restore confirmed merge linkage, pinned policy and trusted main observation binding. Preserve evidence; synchronization and cleanup remain blocked. Any fix or revert requires a new signed PR and owner approval.";
       });
       throw new DeliveryError(
-        "Main monitoring requires confirmed merge linkage, unchanged owner policy and a qualified read-only adapter; native monitoring remains disabled.",
+        "Main monitoring requires confirmed merge linkage, unchanged owner policy and the main observer the owner policy installs.",
       );
     }
   }
