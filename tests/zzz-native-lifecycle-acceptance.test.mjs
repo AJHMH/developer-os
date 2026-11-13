@@ -182,9 +182,10 @@ function host(sim) {
     codingAdmission: "/owner/coding.json",
     validationAdmission: "/owner/validation.json",
     authDirectory: "/owner/auth",
+    // As the guest: the head and each predecessor it resumed.
     cleanupCodingSession: async (s) => {
       cleaned.push(s.operationId);
-      return { cleaned: 1 };
+      return { cleaned: s.resumeFrom ? 2 : 1 };
     },
     ownerInputs: (folder) => ({
       repository: folder + "/repository",
@@ -219,6 +220,8 @@ test("pause, resume, cancel, recovery and the symlink refusal all pass on a fait
   assert.equal(report.deliveries.b.recover.sameSession, true);
   assert.equal(report.deliveries.c.symlink.candidate, false);
   assert.equal(h.cleaned.length, 3);
+  // A's lineage holds the paused session and the one that resumed it.
+  assert.equal(report.cleanedSessions, 4);
   for (const label of ["a", "b", "c"])
     assert.equal(report.deliveries[label].released, true);
   assert.equal(report.productionEnabled, false);

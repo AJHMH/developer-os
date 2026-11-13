@@ -453,13 +453,19 @@ export async function lifecycleAcceptance(host, options = {}) {
     await stage("c-release", () => release("c"));
 
     await stage("coding-session-cleanup", async () => {
-      // Each delivery's last session, which names its whole lineage.
+      // Each delivery's last session, with the predecessors it resumed: A's
+      // resumed the paused session, so its lineage holds two.
       report.cleanedSessions = 0;
       for (const label of ["a", "b", "c"]) {
         const d = await run("status", "--id", report.deliveries[label].id);
-        const receipt = await cleanupCodingSession(d.feature.session);
-        check(receipt.cleaned === 1, `Expected ${label}'s session cleaned`);
-        report.cleanedSessions++;
+        const session = d.feature.session;
+        const expected = session.resumeFrom ? 2 : 1;
+        const receipt = await cleanupCodingSession(session);
+        check(
+          receipt.cleaned === expected,
+          `Expected ${label}'s ${expected} session${expected > 1 ? "s" : ""} cleaned, not ${receipt.cleaned}`,
+        );
+        report.cleanedSessions += receipt.cleaned;
       }
     });
     report.outcome = lifecyclePassingOutcome;
