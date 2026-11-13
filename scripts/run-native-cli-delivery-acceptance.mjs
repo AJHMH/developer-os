@@ -1035,7 +1035,11 @@ export async function cliDeliveryAcceptance(
               workflow: a.workflow,
             })),
           };
-          if (r?.outcome !== "pending") {
+          // Until the check's deadline, a run not yet started or finished is
+          // incomplete and a failed read unavailable: neither is final. The
+          // first real run gave up on its first look, two seconds after the
+          // push, before GitHub had started pr-ci (12 November).
+          if (!["pending", "incomplete", "unavailable"].includes(r?.outcome)) {
             check(
               r?.outcome === "passed" && r.head === report.publication.commit,
               `The PR checks are ${r?.outcome ?? "missing"}`,

@@ -445,7 +445,15 @@ function simulatedCli(faults = {}) {
       delivery.prChecks = {
         runs: [
           {
-            outcome: polls < 2 ? "pending" : (faults.checks ?? "passed"),
+            // Not started, then running, then done.
+            outcome:
+              polls === 1
+                ? "incomplete"
+                : polls === 2
+                  ? "pending"
+                  : polls === 3
+                    ? "unavailable"
+                    : (faults.checks ?? "passed"),
             head,
             polls,
             attempts: [
@@ -557,7 +565,11 @@ test("the real delivery publishes, waits for its GitHub Actions check, and stops
   assert.equal(report.prChecks.outcome, "passed");
   assert.equal(report.review.approval.kind, "ungated");
   assert.equal(report.review.phase, "ready-to-merge");
-  assert.deepEqual(slept, [prChecksIntervalMs]);
+  assert.deepEqual(slept, [
+    prChecksIntervalMs,
+    prChecksIntervalMs,
+    prChecksIntervalMs,
+  ]);
   assert.deepEqual(
     sim.calls.map((a) => a[0]),
     [
@@ -567,6 +579,8 @@ test("the real delivery publishes, waits for its GitHub Actions check, and stops
       "code-feature",
       "validate-candidate",
       "publish-feature",
+      "monitor-pr-checks",
+      "monitor-pr-checks",
       "monitor-pr-checks",
       "monitor-pr-checks",
       "monitor-review",
