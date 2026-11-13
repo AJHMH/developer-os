@@ -81,6 +81,21 @@ once the clone has been shown unchanged:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue13-sync-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-sync "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
 ```
 
+### Native results (13 November 2026)
+
+The Mac passed with outcome `observed-native-delivery-through-sync`, from
+`main` at `eee53f0`
+([receipt](../.scratch/aios-v1-implementation/ticket13-macos-sync-delivery-receipt.md)).
+A real delivery merged
+[AJHMH/aios-publication-acceptance#15](https://github.com/AJHMH/aios-publication-acceptance/pull/15),
+and main was verified at `26f4541d…`. `sync-main` then fast-forwarded the
+delivery's clean checkout from `0eb21835…` to exactly `26f4541d…`, and
+`reconcile-main-sync` found it aligned.
+
+An earlier run blocked before publication because ssh-agent held no signing
+key. Load it with `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` before a
+run.
+
 ## CLI and qualification boundary
 
 The CLI recognizes `sync-main --id <id>` and `reconcile-main-sync --id <id>`.
