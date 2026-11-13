@@ -62,7 +62,7 @@ export type MergeReceipt =
  * The configured owner merge identity is isolated from worker/App PR authority.
  * Reconcile verifies PR/head/merge linkage and reachability on observed main;
  * absence proves quiescence of every dispatch for this stable operation ID.
- * No native adapter is enabled. */
+ * The CLI installs `src/native-merge.ts` (#270). */
 export interface MergeRuntime {
   readonly mode: "controlled";
   readonly bindingSha256: string;

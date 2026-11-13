@@ -33,6 +33,11 @@
 // GitHub Actions `pr-ci` check (`monitor-pr-checks`) and reads its review
 // (`monitor-review`). It must reach `ready-to-merge` and stop there: merge is
 // #270. It writes one signed branch and one App PR to that repository.
+//
+// --through-merge (#270) takes the same records and continues: `merge-feature`
+// must fast-forward the default branch to the PR's exact head, which GitHub
+// must then show as main's tip with the PR merged, and `reconcile-merge` must
+// find that same merge without a second write.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -52,12 +57,13 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review <owner-publication-identity.json> <owner-production-admission.json>]";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge <owner-publication-identity.json> <owner-production-admission.json>]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
 export const repairPassingOutcome = "observed-metered-cli-repair-acceptance";
 export const reviewPassingOutcome = "observed-native-delivery-through-review";
+export const mergePassingOutcome = "observed-native-delivery-through-merge";
 /** How long the delivery waits for its PR checks, and how often it looks. */
 export const prChecksWaitMs = 15 * 60000;
 export const prChecksIntervalMs = 20000;
@@ -94,6 +100,13 @@ export const reviewStageNames = Object.freeze([
   "cli-monitor-pr-checks",
   "cli-monitor-review",
   ...stageNames.slice(7),
+]);
+/** Every stage of a real delivery through merge, in order. */
+export const mergeStageNames = Object.freeze([
+  ...reviewStageNames.slice(0, 11),
+  "cli-merge-feature",
+  "cli-reconcile-merge",
+  ...reviewStageNames.slice(11),
 ]);
 /** Every stage of a run with repair, in order. */
 export const repairStageNames = Object.freeze([
@@ -554,7 +567,9 @@ export async function cliDeliveryAcceptance(
   );
   const report = {
     scope: through
-      ? "native-delivery-through-review"
+      ? through.merge
+        ? "native-delivery-through-merge"
+        : "native-delivery-through-review"
       : repair
         ? "native-cli-metered-repair-acceptance"
         : "native-cli-metered-delivery-acceptance",
@@ -1081,6 +1096,63 @@ export async function cliDeliveryAcceptance(
         );
         return reviewed;
       });
+      if (through.merge) {
+        last = await stage("cli-merge-feature", async () => {
+          const merged = await run(
+            "merge-feature",
+            "--id",
+            id,
+            ...owner,
+            ...validation,
+            "--production-admission",
+            through.productionAdmission.path,
+          );
+          const a = merged.merge?.attempts.at(-1);
+          report.merge = a && {
+            state: a.state,
+            head: a.head,
+            baseRevision: a.baseRevision,
+            mergeCommit: a.mergeCommit ?? null,
+            mainRevision: a.mainRevision ?? null,
+            phase: merged.phase,
+          };
+          check(
+            merged.phase === "merged" &&
+              a?.state === "merged" &&
+              a.mergeCommit === report.publication.commit &&
+              a.baseRevision === report.repository.baseRevision,
+            `Merge left the delivery ${merged.phase}: ${merged.blocker?.nextAction ?? ""}`,
+          );
+          // GitHub's own view: main is the head, and the PR is merged.
+          const repo = `repos/${report.repository.name}`;
+          const main = await through.github(
+            `${repo}/git/ref/heads/${report.repository.defaultBranch}`,
+          );
+          const pr = await through.github(
+            `${repo}/pulls/${report.publication.number}`,
+          );
+          report.merge.github = {
+            main: main.body?.object?.sha ?? null,
+            merged: pr.body?.merged === true,
+          };
+          check(
+            report.merge.github.main === report.publication.commit &&
+              report.merge.github.merged,
+            "GitHub doesn't show main at the head with the PR merged",
+          );
+          return merged;
+        });
+        last = await stage("cli-reconcile-merge", async () => {
+          const reconciled = await run("reconcile-merge", "--id", id, ...owner);
+          check(
+            reconciled.phase === "merged" &&
+              reconciled.merge?.attempts.length === 1 &&
+              reconciled.merge.attempts[0].state === "merged",
+            "Reconciling didn't find the same single merge",
+          );
+          return reconciled;
+        });
+      }
     }
     await stage("host-checkout-unchanged", () => {
       check(
@@ -1106,7 +1178,9 @@ export async function cliDeliveryAcceptance(
       }
     });
     report.outcome = through
-      ? reviewPassingOutcome
+      ? through.merge
+        ? mergePassingOutcome
+        : reviewPassingOutcome
       : repair
         ? repairPassingOutcome
         : passingOutcome;
@@ -1194,7 +1268,8 @@ async function main() {
     !(
       extra.length === 0 ||
       (extra.length === 1 && extra[0] === "--with-repair") ||
-      (extra.length === 3 && extra[0] === "--through-review")
+      (extra.length === 3 &&
+        ["--through-review", "--through-merge"].includes(extra[0]))
     )
   ) {
     console.error(usage);
@@ -1270,7 +1345,7 @@ async function main() {
   };
   // The real delivery's records, read before any worker effect.
   let through;
-  if (extra[0] === "--through-review") {
+  if (["--through-review", "--through-merge"].includes(extra[0])) {
     const { readPublicationIdentity } = await import(
       "../dist/publication-identity.js"
     );
@@ -1284,6 +1359,7 @@ async function main() {
       productionAdmission: ownerProductionAdmission(extra[2]),
       github: ghApi(),
       factoryCommit: source.sourceRevision,
+      merge: extra[0] === "--through-merge",
     };
     through.productionAdmission.admitted();
   }
@@ -1337,7 +1413,8 @@ async function main() {
         : {}),
       ...(report.outcome === passingOutcome ||
       report.outcome === repairPassingOutcome ||
-      report.outcome === reviewPassingOutcome
+      report.outcome === reviewPassingOutcome ||
+      report.outcome === mergePassingOutcome
         ? {}
         : { freshPins: report.freshPins ?? null }),
     }),
@@ -1345,7 +1422,8 @@ async function main() {
   if (
     report.outcome !== passingOutcome &&
     report.outcome !== repairPassingOutcome &&
-    report.outcome !== reviewPassingOutcome
+    report.outcome !== reviewPassingOutcome &&
+    report.outcome !== mergePassingOutcome
   )
     process.exitCode = 1;
 }

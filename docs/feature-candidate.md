@@ -131,6 +131,15 @@ Then, with your signing key in ssh-agent:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue04-real-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-review "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
 ```
 
+**Through merge (#270).** `--through-merge`, with the same two records,
+continues after review. `merge-feature` must fast-forward the default branch
+to the PR's exact head, and GitHub must then show main at that head with the
+PR merged. `reconcile-merge` must then find that same single merge:
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue11-merge-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-merge "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
+```
+
 ### Real delivery results (12 November 2026)
 
 The Mac passed with outcome `observed-native-delivery-through-review`, from
