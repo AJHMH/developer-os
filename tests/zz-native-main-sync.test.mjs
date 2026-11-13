@@ -371,3 +371,30 @@ test("sync-main and reconcile-main-sync take the owner policy", async (t) => {
     );
   }
 });
+
+test("no origin, a vanished worktree, a detached HEAD or an oversized policy is never a safe sync", async (t) => {
+  const s = setup(t);
+  const r = s.runtime();
+  // A detached HEAD reports no branch, so the sync refuses it.
+  sh(s.checkout, "switch", "-q", "--detach");
+  const detached = await r.observe(s.target);
+  assert.equal(detached.currentBranch, "HEAD");
+  await assert.rejects(s.sync(r, detached), /changed or is unsafe/);
+  sh(s.checkout, "switch", "-q", "main");
+  // Main in a worktree whose folder has gone: still checked out elsewhere.
+  sh(s.checkout, "switch", "-q", "-c", "side");
+  const gone = join(s.root, "gone-worktree");
+  sh(s.checkout, "worktree", "add", "-q", gone, "main");
+  rmSync(gone, { recursive: true, force: true });
+  assert.equal((await r.observe(s.target)).mainCheckedOutElsewhere, true);
+  sh(s.checkout, "worktree", "prune");
+  sh(s.checkout, "switch", "-q", "main");
+  // No origin at all.
+  sh(s.checkout, "remote", "remove", "origin");
+  assert.equal((await r.observe(s.target)).complete, false);
+  // A policy that isn't a small file.
+  const policy = join(s.root, "big.json");
+  writeFileSync(policy, "x".repeat(70000));
+  assert.equal(ownerPolicyMainSyncRuntime(policy), undefined);
+  assert.equal(ownerPolicyMainSyncRuntime(s.root), undefined);
+});
