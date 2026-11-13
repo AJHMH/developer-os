@@ -10,6 +10,7 @@ import {
   claudeCodingBoundaryProbe,
   claudeCodingBoundaryProbeNames,
 } from "../dist/worker-probes.js";
+import { hostProbe } from "./helpers/host-probe.mjs";
 
 // Claude Code's boundary probe (ADR 0008): the shared probe with Claude's
 // home, credentials and binary in place of Codex's, then the coding worker's
@@ -87,7 +88,7 @@ function claude(
     join(root, "mountinfo"),
     `40 30 0:50 /claude ${join(root, "claude")} ${mount},relatime - ext4 /dev/vda4 rw\n`,
   );
-  const script = claudeCodingBoundaryProbe
+  const script = hostProbe(claudeCodingBoundaryProbe)
     .replaceAll("/etc/claude-code", join(root, "etc-claude-code"))
     .replaceAll("/proc/self/mountinfo", join(root, "mountinfo"))
     .replaceAll("/claude;", join(root, "claude") + ";");

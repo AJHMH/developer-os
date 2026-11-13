@@ -15,6 +15,7 @@ import {
   boundaryProbeNames,
   boundaryProbeOutcomes,
 } from "../dist/worker-probes.js";
+import { hostProbe } from "./helpers/host-probe.mjs";
 
 function run(t, { admitted = true, privateReadable = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "aios-worker-probe-"));
@@ -25,7 +26,7 @@ function run(t, { admitted = true, privateReadable = false } = {}) {
   if (privateReadable) writeFileSync(privatePath, "{}\n");
   const result = spawnSync(
     "/bin/sh",
-    ["-c", boundaryProbe, "--", admittedPath, privatePath],
+    ["-c", hostProbe(boundaryProbe), "--", admittedPath, privatePath],
     { encoding: "utf8", timeout: 30000, env: { PATH: process.env.PATH } },
   );
   assert.equal(result.status, 0, result.stderr);
@@ -54,7 +55,7 @@ test("a credential in the environment fails the probe", (t) => {
   for (const name of ["SSH_AUTH_SOCK", "GITHUB_TOKEN", "OPENAI_API_KEY"]) {
     const result = spawnSync(
       "/bin/sh",
-      ["-c", boundaryProbe, "--", "/nonexistent", "/nonexistent"],
+      ["-c", hostProbe(boundaryProbe), "--", "/nonexistent", "/nonexistent"],
       {
         encoding: "utf8",
         env: { PATH: process.env.PATH, [name]: "synthetic" },
@@ -182,7 +183,7 @@ function coding(
     writeFileSync(join(root, "proc", `${i + 1}comm`), name + "\n"),
   );
   writeFileSync(join(root, "status"), "Name:\tsh\n" + status);
-  const script = codingBoundaryProbe
+  const script = hostProbe(codingBoundaryProbe)
     .replaceAll("/proc/self/mountinfo", join(root, "mountinfo"))
     .replaceAll("/proc/self/status", join(root, "status"))
     .replaceAll("/proc/[0-9]*/comm", join(root, "proc", "[0-9]*comm"))
