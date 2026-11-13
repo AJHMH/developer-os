@@ -105,6 +105,22 @@ Then run:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue12-main-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-main "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
 ```
 
+### Native results (12 November 2026)
+
+The Mac passed with outcome `observed-native-delivery-through-main`, from
+`main` at `078d864`, on its first run
+([receipt](../.scratch/aios-v1-implementation/ticket12-macos-main-delivery-receipt.md)).
+A real delivery merged
+[AJHMH/aios-publication-acceptance#14](https://github.com/AJHMH/aios-publication-acceptance/pull/14)
+by fast-forward. `monitor-main-checks` then verified main at `0eb21835…`
+through its own `main-ci` push run.
+
+That delivery's request was already met on main, so its commit changes no
+files. It was published and merged anyway, which is a follow-up.
+
+Making the workflow change needed a commit signed by you: the signed-commit
+rule refused the contents API's unsigned one.
+
 ## Native qualification
 
 Native macOS qualification must demonstrate trusted complete API
