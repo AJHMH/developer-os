@@ -188,6 +188,14 @@ The Mac passed with outcome `observed-native-publication-acceptance`, from
 Reaching this pass needed #293 (reading `main`'s tree), #294 (GitHub's
 refusal reason) and #295 (`contents: read`).
 
+### Nothing to publish
+
+`publish-feature` refuses a first publication whose candidate has exactly
+main's files, before any signing, push or PR. Its request was already met, so
+the delivery is blocked with "Nothing to publish": cancel it, or start one
+whose request main doesn't already meet. The third real delivery
+(12 November, #271) published and merged an empty commit before this check.
+
 ## Validation and qualification limits
 
 Public fixtures cover exact-tree/signature/identity refusal, durable dispatch,

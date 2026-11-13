@@ -246,12 +246,19 @@ export function ownerInputs(root, environment, { repair = false, real } = {}) {
  * candidate acceptance check, and its GitHub Actions `pr-ci` check from the
  * default branch's workflow (#268). The main check names the same workflow
  * for the later main observer (#271). */
-export function realContract(environment) {
+export function realContract(environment, line) {
   const contract = acceptanceContract(environment);
   return {
     ...contract,
     checks: contract.checks
       .filter((c) => c.scope === "local")
+      // The candidate must carry this run's own line, which main can't
+      // already have, so a delivery always changes the page.
+      .map((c) =>
+        c.id === "acceptance" && line
+          ? { ...c, command: ["grep", "-qF", line, "index.html"] }
+          : c,
+      )
       .concat(
         [
           ["pr-ci", "pr"],
@@ -397,6 +404,11 @@ function realOwnerInputs(
   );
   const git = (...args) => run(["-C", repository, ...args], root);
   const revision = git("rev-parse", "HEAD");
+  // A request main doesn't already meet: one line unique to this run. The
+  // third real delivery asked for a hint main already had, and published an
+  // empty commit (12 November).
+  const line = `Delivery check ${randomUUID().slice(0, 8)}`;
+  const realRequest = `Add a visible line to the contact page that reads "${line}".`;
   const owner = join(root, "owner");
   mkdirSync(owner, { mode: 0o700 });
   // The signed commit verifies here too, against the owner's public key.
@@ -433,7 +445,7 @@ function realOwnerInputs(
     publicationLogin: facts.publicationLogin,
     requiredChecks: facts.requiredChecks,
     validation: ["isolated-offline"],
-    validationContract: realContract(environment),
+    validationContract: realContract(environment, line),
   };
   const policyPath = join(owner, "owner-policy.json"),
     attestationPath = join(owner, "onboarding-attestation.json"),
@@ -473,6 +485,8 @@ function realOwnerInputs(
   return {
     repository,
     revision,
+    request: realRequest,
+    line,
     git,
     policyPath,
     attestationPath,
@@ -480,8 +494,8 @@ function realOwnerInputs(
       write(criteriaPath, {
         scope: "aios-feature-criteria-v1",
         deliveryId,
-        request,
-        criteria: ["The contact page shows a visible hint."],
+        request: realRequest,
+        criteria: [`The contact page shows the line "${line}".`],
         verification: ["Check the visible hint in the isolated page."],
         ambiguity: null,
       });
@@ -704,7 +718,7 @@ export async function cliDeliveryAcceptance(
         "--repo",
         inputs.repository,
         "--request",
-        request,
+        inputs.request ?? request,
         ...owner,
         "--coding-minutes",
         String(codingMinutes),

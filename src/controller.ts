@@ -104,6 +104,7 @@ import {
 } from "./pr-checks.js";
 import {
   PublicationCoordinator,
+  publicationTree,
   type PublicationEvidence,
   type PublicationInput,
   type PublicationRuntime,
@@ -182,6 +183,10 @@ export type MessagesSessionFactory = (
   budget: MessagesBudget,
 ) => SessionGateway;
 
+/** A candidate with exactly main's files: the request was already met, so
+ * there is nothing to publish (the third real delivery, 12 November). */
+const unchangedRefusal =
+  "The candidate changes nothing: its files are exactly main's, so the request is already met and there is nothing to publish.";
 const productionRefusal =
   "Publication and merge need the owner's production admission naming this delivery's coding and validation pins, unchanged since publication; production remains disabled.";
 
@@ -1263,6 +1268,25 @@ export class DeliveryController {
     };
   }
 
+  /** Whether a first publication would carry exactly its base revision's
+   * files. An update of an existing PR is judged by its own rules. Unusable
+   * evidence answers false, so publication reports its own refusal. */
+  private candidateUnchanged(id: string): boolean {
+    const d = this.status(id);
+    if (d.publication || d.publicationHistory?.length) return false;
+    try {
+      const input = this.publicationInput(id, d);
+      return (
+        publicationTree(input.files) ===
+        publicationTree(
+          candidateRevisionFiles(d.repository, input.sourceRevision),
+        )
+      );
+    } catch {
+      return false;
+    }
+  }
+
   /** The owner's production admission digest when it admits exactly the
    * coding pins `d`'s feature ran under and the binding its latest validation
    * attempt recorded (ticket 04); otherwise undefined. */
@@ -1321,6 +1345,14 @@ export class DeliveryController {
     this.requireMergeIdle(id);
     if (!this.productionAdmits(this.status(id)))
       throw new DeliveryError(productionRefusal);
+    if (this.candidateUnchanged(id)) {
+      this.change(id, (d) => {
+        if (!["paused", "cancelled"].includes(d.phase)) d.phase = "blocked";
+        d.blocker.nextAction =
+          "Nothing to publish: the candidate is identical to main. Cancel this delivery, or start one whose request main doesn't already meet.";
+      });
+      throw new DeliveryError(unchangedRefusal);
+    }
     try {
       this.invalidateReviewApproval(id);
       if (unresolvedReviewEffect(this.status(id)))

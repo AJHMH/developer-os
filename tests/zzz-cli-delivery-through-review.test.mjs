@@ -7,7 +7,7 @@ import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { offlineValidationEnvironment } from "../dist/native-validation.js";
@@ -316,7 +316,8 @@ test("the real owner inputs clone the repository, verify the owner's signature, 
     "--repo",
     inputs.repository,
     "--request",
-    request,
+    // A request unique to this run, which main can't already meet.
+    inputs.request,
     "--owner-policy",
     inputs.policyPath,
     "--onboarding-attestation",
@@ -335,6 +336,14 @@ test("the real owner inputs clone the repository, verify the owner's signature, 
     inputs.criteria(started.id),
   );
   assert.equal(planned.feature.outcome, "planned");
+  assert.match(inputs.line, /^Delivery check [a-f0-9]{8}$/);
+  assert.ok(inputs.request.includes(inputs.line));
+  // The candidate must carry that line.
+  const policy = JSON.parse(readFileSync(inputs.policyPath, "utf8"));
+  assert.deepEqual(
+    policy.validationContract.checks.find((c) => c.id === "acceptance").command,
+    ["grep", "-qF", inputs.line, "index.html"],
+  );
   // The contract's hosted checks are the GitHub Actions workflow's.
   const hosted = realContract(environment).checks.filter(
     (c) => c.scope !== "local",
