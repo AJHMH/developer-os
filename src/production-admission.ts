@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { insideRepository, readOwnerBytes } from "./coding-admission.js";
 import {
+  completeQualificationScope,
+  passingCompleteQualification,
+  qualificationComponents,
+} from "./complete-qualification.js";
+import {
   type ClaudeCodingPins,
   claudeCodingPinFields,
   validClaudeCodingPins,
@@ -30,6 +35,9 @@ export interface ProductionAdmitted {
   validationBindingSha256: string;
   /** Digest of the record's bytes, which a publication records. */
   productionSha256: string;
+  /** What the record's report qualifies: the workers alone, or the complete
+   * controller (#274), which the pilot requires. */
+  level: "worker" | "complete";
 }
 
 /** The owner's production admission (ticket 04): a private, per-host record
@@ -114,10 +122,15 @@ export function ownerProductionAdmission(
         );
         if (sha256(reportBytes) !== record.qualificationSha256) throw Error();
         const report: unknown = JSON.parse(reportBytes.toString("utf8"));
+        const complete =
+          object(report) && report.scope === completeQualificationScope;
         if (
           !object(report) ||
-          report.scope !== qualificationReportScope ||
-          report.outcome !== passingQualificationOutcome ||
+          (complete
+            ? report.outcome !== passingCompleteQualification ||
+              !completeComponentsIntact(report.components)
+            : report.scope !== qualificationReportScope ||
+              report.outcome !== passingQualificationOutcome) ||
           report.buildFresh !== true ||
           report.sourceDirty !== false ||
           !object(report.pins) ||
@@ -135,10 +148,35 @@ export function ownerProductionAdmission(
           ) as unknown as ClaudeCodingPins,
           validationBindingSha256: validationBindingSha256(validation),
           productionSha256: sha256(bytes),
+          level: complete ? "complete" : "worker",
         };
       } catch {
         throw Error("Owner production admission is missing or invalid");
       }
     },
+  });
+}
+
+/** Every component of a complete qualification is still the accepted report
+ * it bound: present, readable and unchanged since. */
+function completeComponentsIntact(components: unknown): boolean {
+  if (!object(components)) return false;
+  const names = Object.keys(qualificationComponents);
+  if (keys(components) !== [...names].sort().join()) return false;
+  return names.every((name) => {
+    const c = components[name];
+    if (
+      !object(c) ||
+      c.accepted !== true ||
+      typeof c.path !== "string" ||
+      !isAbsolute(c.path) ||
+      typeof c.sha256 !== "string"
+    )
+      return false;
+    try {
+      return sha256(readOwnerBytes(c.path, reportMaxBytes)) === c.sha256;
+    } catch {
+      return false;
+    }
   });
 }

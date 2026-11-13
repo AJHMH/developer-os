@@ -9,6 +9,7 @@ Production stays disabled.
 
 The worker qualification's boundary probe gained two probes for this ticket
 ([worker qualification](worker-qualification.md#what-it-checks)):
+
 - **`proxy`**, in both workers: no proxy is configured, and none answers at
   the VM's gateway addresses.
 - **`cross-delivery`**, in the coding worker: only this session's binds, and
@@ -64,3 +65,68 @@ node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state"
   would read the same. The request asks only for the link.
 - Descendant and orphan termination is shown by the worker qualification's
   exact stops, not here.
+
+## Combined qualification
+
+`scripts/run-native-complete-qualification.mjs` binds five component reports
+by path and SHA-256 into one report. It runs nothing on the VM and spends
+nothing:
+
+| Component    | Report outcome                                     | Boundaries it evidences                                                          |
+| ------------ | -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `worker`     | `observed-offline-worker-qualification`            | runtime pins; boundary probes; descendant termination                            |
+| `session`    | `observed-offline-session-acceptance`              | explicit-session resume; controller recovery; output admission                   |
+| `validation` | `observed-offline-validation-admission-acceptance` | isolated web validation: dependencies, PostgreSQL and the browser                |
+| `lifecycle`  | `observed-native-lifecycle-controls`               | pause and cancel; explicit-session resume; controller recovery; output admission |
+| `delivery`   | `observed-native-delivery-through-cleanup`         | signing and authentication; delivery through cleanup                             |
+
+Every component must come from the same clean, freshly built source revision
+that the combination itself runs from, on a supported Mac and the same VM,
+under the worker qualification's coding and validation pins. A component that
+doesn't is rejected, with its reasons. Each boundary is then `passed`,
+`failed` or `not-run` from the exact stages that evidence it, and the boundary
+probes also need every probe passed, `proxy` and `cross-delivery` included.
+The combination passes, `observed-native-complete-qualification`, only when
+all five are accepted and every boundary passed.
+
+### Production admission levels
+
+The production admission record may name either a worker qualification or a
+passing complete qualification. `check-production` prints which, as `level`:
+
+- **`worker`:** enough to publish test deliveries, as before.
+- **`complete`:** the whole controller is qualified at these pins. The pilot
+  (#275) requires it.
+
+A complete record re-checks every component report's SHA-256 at each check,
+so changing or removing one revokes it.
+
+### Running it
+
+All of it runs from one revision, in this order. The delivery publishes, so
+the record must first admit the new coding pins at the worker level:
+
+1. The worker qualification
+   ([command](worker-qualification.md#re-pinning-after-a-guest-change)).
+2. A production admission record naming that report, at the worker level.
+3. The session acceptance
+   ([command](macos-worker-qualification.md#general-coding-session-acceptance-issue-04)).
+4. The validation acceptance with dependencies, PostgreSQL and the browser:
+
+   ```sh
+   node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue16-validation-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies --with-database e29b5f75230807dfc40a4c8ff9e486b87a30df01cfcab04a4e99d5077d77ddfb --with-browser 2dee255e66f9985e1623c12a6f77535bb7487e7bd00a0b0ad82f98688ae60f4d 1.64.1
+   ```
+
+5. The lifecycle acceptance (above).
+6. A real delivery through cleanup
+   ([command](branch-cleanup.md#native-cleanup-acceptance)).
+7. The combination:
+
+   ```sh
+   node scripts/run-native-complete-qualification.mjs "$HOME/.developer-os/issue16-complete-qualification-$(date +%Y%m%d-%H%M%S).json" --worker "$WORKER" --session "$SESSION" --validation "$VALIDATION" --lifecycle "$LIFECYCLE" --delivery "$DELIVERY"
+   ```
+
+   Set each variable to that step's report path first.
+
+8. A production admission record naming the combined report. Then
+   `check-production` prints `"level": "complete"`.
