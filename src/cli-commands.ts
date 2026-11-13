@@ -206,8 +206,10 @@ const commands: Record<string, CliCommand> = {
   // #271: with the owner policy, this installs the native read-only main
   // observer for the policy's GitHub Actions main checks.
   "monitor-main-checks": idAction("monitorMainChecks", ownerPolicyOptions),
-  "sync-main": idAction("syncMain"),
-  "reconcile-main-sync": idAction("reconcileMainSync"),
+  // #272: with the owner policy, these install the native fast-forward-only
+  // main sync and, since sync re-checks main first, the main observer.
+  "sync-main": idAction("syncMain", ownerPolicyOptions),
+  "reconcile-main-sync": idAction("reconcileMainSync", ownerPolicyOptions),
   "cleanup-branches": idAction("cleanupBranches"),
   "reconcile-cleanup": idAction("reconcileCleanup"),
   "rerun-pr-check": {
