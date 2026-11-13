@@ -719,7 +719,7 @@ export class DeliveryController {
       return await this.mergeCoordinator(id).merge();
     } catch {
       throw new DeliveryError(
-        "Merge requires fresh approved-head gates and qualified conditional authority; native merge remains disabled.",
+        "Merge requires fresh approved-head gates and the merge the owner policy installs.",
       );
     }
   }

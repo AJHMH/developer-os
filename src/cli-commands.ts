@@ -189,9 +189,20 @@ const commands: Record<string, CliCommand> = {
     "production-admission",
     "publication-identity",
   ]),
-  "merge-feature": idAction("mergeFeature"),
-  "reconcile-merge": idAction("reconcileMerge"),
-  "refresh-merge-base": idAction("refreshMergeBase"),
+  // #270: with the owner policy, these install the native fast-forward merge.
+  // Merge re-checks the PR checks, the review and the production admission
+  // right before it pushes, so it takes their runtimes; a refresh repairs
+  // and republishes.
+  "merge-feature": idAction("mergeFeature", [
+    ...validationOptions,
+    "production-admission",
+  ]),
+  "reconcile-merge": idAction("reconcileMerge", ownerPolicyOptions),
+  "refresh-merge-base": idAction("refreshMergeBase", [
+    ...codingTurnOptions,
+    "production-admission",
+    "publication-identity",
+  ]),
   "monitor-main-checks": idAction("monitorMainChecks"),
   "sync-main": idAction("syncMain"),
   "reconcile-main-sync": idAction("reconcileMainSync"),

@@ -21,6 +21,8 @@ import {
   realContract,
   repositoryFacts,
   request,
+  mergePassingOutcome,
+  mergeStageNames,
   reviewPassingOutcome,
   reviewStageNames,
 } from "../scripts/run-native-cli-delivery-acceptance.mjs";
@@ -471,6 +473,34 @@ function simulatedCli(faults = {}) {
       };
       return ok(delivery);
     },
+    "merge-feature"(args) {
+      assert.equal(
+        option(args, "--production-admission"),
+        "/owner/production.json",
+      );
+      assert.equal(
+        option(args, "--validation-admission"),
+        "/owner/validation-admission.json",
+      );
+      const merged = (faults.merge ?? "merged") === "merged";
+      delivery.phase = merged ? "merged" : "blocked";
+      delivery.merge = {
+        attempts: [
+          {
+            state: faults.merge ?? "merged",
+            head,
+            baseRevision: faults.base,
+            ...(merged ? { mergeCommit: head, mainRevision: head } : {}),
+          },
+        ],
+      };
+      return ok(delivery);
+    },
+    "reconcile-merge"() {
+      if (faults.reconcileTwice)
+        delivery.merge.attempts.push({ state: "merged" });
+      return ok(delivery);
+    },
     "monitor-review"() {
       const approved = !faults.review;
       delivery.phase = approved ? "ready-to-merge" : "waiting-review";
@@ -637,4 +667,95 @@ test("the real delivery publishes, waits for its GitHub Actions check, and stops
     now: () => (clock += 60000),
   });
   assert.match(timed.error, /in time/);
+});
+
+test("through merge, the delivery fast-forwards main to its head, and reconciling finds that one merge", async (t) => {
+  const remote = await signedRemote(t);
+  const head = "e".repeat(40);
+  const github = (merged = true, main = head) =>
+    factsGitHub(remote, {
+      [`repos/${repository}/git/ref/heads/main`]: { object: { sha: main } },
+      [`repos/${repository}/pulls/9`]: { merged },
+    });
+  const host = (sim, gh = github()) => ({
+    cli: sim.cli,
+    pins: {
+      coding: { admitted: codingPins, fresh: async () => codingPins },
+      validation: {
+        admitted: validationPins,
+        fresh: async () => validationPins,
+      },
+    },
+    machine: "aios-test",
+    codingAdmission: "/owner/coding-admission.json",
+    validationAdmission: "/owner/validation-admission.json",
+    authDirectory: "/owner/auth",
+    imageSha256,
+    cleanupCodingSession: async () => ({ cleaned: 1 }),
+    through: {
+      identityPath: "/owner/identity.json",
+      identity: { ...identity, signingKey: remote.key },
+      productionAdmission: {
+        path: "/owner/production.json",
+        admitted: () => ({
+          coding: codingPins,
+          validationBindingSha256: "6".repeat(64),
+          productionSha256,
+        }),
+      },
+      github: gh,
+      factoryCommit: "f".repeat(40),
+      cloneUrl: remote.url,
+      merge: true,
+    },
+  });
+  const options = { sleep: async () => {}, now: () => 0 };
+  const sim = simulatedCli({ base: remote.commit });
+  const report = await cliDeliveryAcceptance(host(sim), options);
+  assert.equal(report.outcome, mergePassingOutcome, report.error);
+  assert.equal(report.scope, "native-delivery-through-merge");
+  assert.deepEqual(
+    report.stages.map((s) => s.name),
+    mergeStageNames,
+  );
+  assert.deepEqual(report.merge, {
+    state: "merged",
+    head,
+    baseRevision: remote.commit,
+    mergeCommit: head,
+    mainRevision: head,
+    phase: "merged",
+    github: { main: head, merged: true },
+  });
+  assert.deepEqual(sim.calls.map((a) => a[0]).slice(-3), [
+    "merge-feature",
+    "reconcile-merge",
+    "status",
+  ]);
+  for (const [faults, gh, error] of [
+    [
+      { base: remote.commit, merge: "uncertain" },
+      github(),
+      /Merge left the delivery blocked/,
+    ],
+    [{ base: "9".repeat(40) }, github(), /Merge left/],
+    [{ base: remote.commit }, github(false), /GitHub doesn't show/],
+    [
+      { base: remote.commit },
+      github(true, "8".repeat(40)),
+      /GitHub doesn't show/,
+    ],
+    [
+      { base: remote.commit, reconcileTwice: true },
+      github(),
+      /same single merge/,
+    ],
+  ]) {
+    const r = await cliDeliveryAcceptance(
+      host(simulatedCli(faults), gh),
+      options,
+    );
+    assert.equal(r.outcome, "blocked");
+    assert.match(r.error, error);
+  }
 });

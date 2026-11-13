@@ -74,7 +74,7 @@ export function ghApi(run: CommandRunner = defaultRunner): GitHubApi {
 }
 
 /** The process environment without any Git configuration or hook input. */
-function cleanEnvironment(): NodeJS.ProcessEnv {
+export function cleanEnvironment(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [name, value] of Object.entries(process.env))
     if (!/^GIT_/.test(name)) env[name] = value;
