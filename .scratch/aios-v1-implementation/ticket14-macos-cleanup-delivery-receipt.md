@@ -74,10 +74,37 @@ reason, and the next action.
 ## Findings
 
 - **Cleanup took 215 s**, most of the run. Every inventory makes one ruleset
-  call per branch name, and each removal re-takes the whole inventory, so
-  five deletions mean more than six full inventories. A follow-up could
-  re-observe only the branch being deleted.
+  call per branch name, and each removal re-took the whole inventory. #317
+  made a removal re-check only its own branch; see the speed-up run below.
 - **Podman Desktop was open**, and the run passed anyway.
+
+## Speed-up run (#317)
+
+The owner reran the delivery from `main` at `0d7bf3e` (#317), with removals
+that re-check only their own branch:
+`issue14-cleanup-speed-20261113-115541.json`,
+`observed-native-delivery-through-cleanup`, SHA-256
+`278fed2aa88b46d39ec396cc4453a24ffd263b1c7009bf57602637c8a2a27d7d`. All 18 stages
+passed, for $0.059. The delivery merged
+[AJHMH/aios-publication-acceptance#17](https://github.com/AJHMH/aios-publication-acceptance/pull/17),
+with main at `04157931…`, and cleanup:
+- deleted its own feature branch, locally and on GitHub;
+- kept the same 13 unmerged branches;
+- blocked nothing, and completed the delivery.
+
+`cli-cleanup-branches` took 90 s.
+
+The coordinator takes a full inventory to plan, another after each deletion
+to confirm its outcome, and a last one to finish. Each full inventory takes
+about 20 s, so each deletion now costs one inventory instead of two:
+
+| Run          | Deletions | Full inventories                     | Cleanup |
+| ------------ | --------- | ------------------------------------ | ------- |
+| First        | 5         | 12                                   | 215 s   |
+| Speed-up run | 2         | 4, plus 2 single-branch re-checks    | 90 s    |
+
+The rest of the time is those inventories. Each makes sequential `gh api`
+calls: rules for every branch name, and PR history for every unmerged branch.
 
 ## Not covered
 
