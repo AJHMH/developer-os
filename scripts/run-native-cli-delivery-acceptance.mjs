@@ -46,6 +46,12 @@
 // --through-sync (#272) continues: after the clone is shown unchanged,
 // `sync-main` must fast-forward its local main to exactly the verified
 // revision, clean, and `reconcile-main-sync` must find it aligned.
+//
+// --through-cleanup (#273) continues: `cleanup-branches` must delete the
+// delivery's merged feature branch on GitHub, keep every protected, replay,
+// worktree, unmerged and newer branch, and complete the delivery; and
+// `reconcile-cleanup` must find that same single completed cleanup. Every
+// other branch already merged into main is deleted too, as cleanup requires.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -65,7 +71,7 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge|--through-main|--through-sync <owner-publication-identity.json> <owner-production-admission.json>]";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge|--through-main|--through-sync|--through-cleanup <owner-publication-identity.json> <owner-production-admission.json>]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
@@ -74,6 +80,7 @@ export const reviewPassingOutcome = "observed-native-delivery-through-review";
 export const mergePassingOutcome = "observed-native-delivery-through-merge";
 export const mainPassingOutcome = "observed-native-delivery-through-main";
 export const syncPassingOutcome = "observed-native-delivery-through-sync";
+export const cleanupPassingOutcome = "observed-native-delivery-through-cleanup";
 /** How long the delivery waits for its PR checks, and how often it looks. */
 export const prChecksWaitMs = 15 * 60000;
 export const prChecksIntervalMs = 20000;
@@ -129,6 +136,12 @@ export const syncStageNames = Object.freeze([
   ...mainStageNames.slice(0, 15),
   "cli-sync-main",
   ...mainStageNames.slice(15),
+]);
+/** Every stage of a real delivery through branch cleanup, in order. */
+export const cleanupStageNames = Object.freeze([
+  ...syncStageNames.slice(0, 16),
+  "cli-cleanup-branches",
+  ...syncStageNames.slice(16),
 ]);
 /** Every stage of a run with repair, in order. */
 export const repairStageNames = Object.freeze([
@@ -603,13 +616,15 @@ export async function cliDeliveryAcceptance(
   );
   const report = {
     scope: through
-      ? through.sync
-        ? "native-delivery-through-sync"
-        : through.main
-          ? "native-delivery-through-main"
-          : through.merge
-            ? "native-delivery-through-merge"
-            : "native-delivery-through-review"
+      ? through.cleanup
+        ? "native-delivery-through-cleanup"
+        : through.sync
+          ? "native-delivery-through-sync"
+          : through.main
+            ? "native-delivery-through-main"
+            : through.merge
+              ? "native-delivery-through-merge"
+              : "native-delivery-through-review"
       : repair
         ? "native-cli-metered-repair-acceptance"
         : "native-cli-metered-delivery-acceptance",
@@ -1293,6 +1308,63 @@ export async function cliDeliveryAcceptance(
         );
         return again;
       });
+    if (through?.cleanup)
+      last = await stage("cli-cleanup-branches", async () => {
+        const done = await run("cleanup-branches", "--id", id, ...owner);
+        const round = done.cleanup?.rounds.at(-1);
+        const named = (e) => `${e.fact.location}:${e.fact.name}`;
+        const entries = round?.entries ?? [];
+        // The completion report: the revision, what was deleted and kept,
+        // and the next action.
+        report.cleanup = round && {
+          state: round.state,
+          phase: done.phase,
+          revision: round.target.revision,
+          deleted: entries
+            .filter((e) => e.state === "deleted")
+            .map(named)
+            .sort(),
+          retained: entries
+            .filter((e) => e.state === "retained")
+            .map((e) => ({ branch: named(e), reason: e.reason }))
+            .sort((a, b) => a.branch.localeCompare(b.branch)),
+          blocked: entries
+            .filter((e) => !["deleted", "retained"].includes(e.state))
+            .map((e) => ({
+              branch: named(e),
+              state: e.state,
+              reason: e.reason,
+            })),
+          nextAction: bounded(done.blocker?.nextAction),
+        };
+        check(
+          done.phase === "completed" &&
+            round?.state === "completed" &&
+            round.target.revision === report.mainChecks.revision,
+          `Cleanup left the delivery ${done.phase}: ${done.blocker?.nextAction ?? ""}`,
+        );
+        check(
+          !entries.some((e) => e.fact.name === "main"),
+          "Main was a cleanup candidate",
+        );
+        const feature = last.feature.branch;
+        check(
+          report.cleanup.deleted.includes(`remote:${feature}`),
+          "The delivery's feature branch wasn't deleted on GitHub",
+        );
+        const gone = await through.github(
+          `repos/${report.repository.name}/branches/${encodeURIComponent(feature)}`,
+        );
+        check(gone.status === 404, "GitHub still has the feature branch");
+        const again = await run("reconcile-cleanup", "--id", id, ...owner);
+        check(
+          again.phase === "completed" &&
+            again.cleanup?.rounds.length === 1 &&
+            again.cleanup.rounds[0].state === "completed",
+          "Reconciling didn't find the same single completed cleanup",
+        );
+        return again;
+      });
     await stage("coding-session-cleanup", async () => {
       // The coding turn's session, then the repair turn's own.
       for (const session of [
@@ -1304,13 +1376,15 @@ export async function cliDeliveryAcceptance(
       }
     });
     report.outcome = through
-      ? through.sync
-        ? syncPassingOutcome
-        : through.main
-          ? mainPassingOutcome
-          : through.merge
-            ? mergePassingOutcome
-            : reviewPassingOutcome
+      ? through.cleanup
+        ? cleanupPassingOutcome
+        : through.sync
+          ? syncPassingOutcome
+          : through.main
+            ? mainPassingOutcome
+            : through.merge
+              ? mergePassingOutcome
+              : reviewPassingOutcome
       : repair
         ? repairPassingOutcome
         : passingOutcome;
@@ -1404,6 +1478,7 @@ async function main() {
           "--through-merge",
           "--through-main",
           "--through-sync",
+          "--through-cleanup",
         ].includes(extra[0]))
     )
   ) {
@@ -1486,6 +1561,7 @@ async function main() {
       "--through-merge",
       "--through-main",
       "--through-sync",
+      "--through-cleanup",
     ].includes(extra[0])
   ) {
     const { readPublicationIdentity } = await import(
@@ -1501,11 +1577,17 @@ async function main() {
       productionAdmission: ownerProductionAdmission(extra[2]),
       github: ghApi(),
       factoryCommit: source.sourceRevision,
-      merge: ["--through-merge", "--through-main", "--through-sync"].includes(
+      merge: [
+        "--through-merge",
+        "--through-main",
+        "--through-sync",
+        "--through-cleanup",
+      ].includes(extra[0]),
+      main: ["--through-main", "--through-sync", "--through-cleanup"].includes(
         extra[0],
       ),
-      main: ["--through-main", "--through-sync"].includes(extra[0]),
-      sync: extra[0] === "--through-sync",
+      sync: ["--through-sync", "--through-cleanup"].includes(extra[0]),
+      cleanup: extra[0] === "--through-cleanup",
     };
     through.productionAdmission.admitted();
   }

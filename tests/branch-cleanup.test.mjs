@@ -150,6 +150,6 @@ test("CLI refuses native cleanup authority", async (t) => {
     { encoding: "utf8" },
   );
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /native cleanup remains disabled/);
+  assert.match(r.stderr, /branch cleanup the owner policy installs/);
   assert.equal(f.deletions.length, 0);
 });

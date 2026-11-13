@@ -210,8 +210,8 @@ const commands: Record<string, CliCommand> = {
   // main sync and, since sync re-checks main first, the main observer.
   "sync-main": idAction("syncMain", ownerPolicyOptions),
   "reconcile-main-sync": idAction("reconcileMainSync", ownerPolicyOptions),
-  "cleanup-branches": idAction("cleanupBranches"),
-  "reconcile-cleanup": idAction("reconcileCleanup"),
+  "cleanup-branches": idAction("cleanupBranches", ownerPolicyOptions),
+  "reconcile-cleanup": idAction("reconcileCleanup", ownerPolicyOptions),
   "rerun-pr-check": {
     kind: "delivery",
     required: ["id", "check-id"],

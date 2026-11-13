@@ -57,19 +57,78 @@ outcomes and next action. `cleanup.mode` is `controlled` and `productionEnabled`
 remains false. A completed stopped delivery permits explicit ownership release;
 cleanup does not manufacture approval, repeat a merge or create another PR.
 
+## Native branch cleanup (#273)
+
+`src/native-branch-cleanup.ts` works in the delivery's own checkout, with the
+same isolated Git as the native main sync (`src/native-git.ts`): no system or
+global configuration, an empty hooks folder, fsmonitor off, one allowed
+protocol, and your `gh` login as the only credential helper. A checkout whose
+configuration names filters or includes, or whose origin is another
+repository, gets no inventory.
+
+**Inventory.** It fetches every remote branch into the origin tracking refs,
+then lists the remote branches through GitHub. Each tip must match the fetch;
+a branch that moved in between makes the inventory incomplete. For every local
+and remote branch it records:
+- **protected:** GitHub's classic branch protection, or an active ruleset
+  deletion rule for that name. A local branch shares its remote name's;
+- **replay-retained:** the Software Factory's event branches,
+  `feat/factory-remediation-<32 hex>`, which it keeps for durable replay;
+- **active worktree:** a local branch checked out in any worktree;
+- **ancestry** into main's exact tip;
+- **PR history**, for a branch not in main's history: its merged PRs into
+  main by branch name. The PR for exactly this tip counts, or else the latest,
+  whose different head makes the branch a newer tip. Its merge commit must be
+  in main's history. A full page of history, or any unavailable answer, makes
+  the linkage ambiguous, which blocks cleanup.
+
+It is quiescent only when none of its own deletions is running and the
+checkout's index, HEAD, packed-refs and branch locks are free.
+
+**Removal.** It takes the whole inventory again, and requires the same main,
+the same owner policy digest and the same tip. It re-applies the cleanup
+decision, and checks the controller fence once more. Only then does it delete,
+conditioned on the evaluated tip:
+- locally, with `update-ref -d` and the old value;
+- remotely, with a push that deletes the branch under a lease on that tip,
+  through your `gh` login and under GitHub's own branch rules. Then it drops
+  the stale tracking ref, only while that still names the tip.
+
+Protected, replay, worktree, unmerged and newer branches are never deleted,
+and neither is main.
+
+Cleanup deletes **every** branch merged into the verified main, not only the
+delivery's own, as the specification requires. A completed cleanup completes
+the delivery. `phase: completed`, with the cleanup round, is the completion
+report: the verified and synchronized revision, each deleted and retained
+branch with its reason, and the next action.
+
+### Native cleanup acceptance
+
+The real delivery run's `--through-cleanup` continues after main sync.
+`cleanup-branches` must:
+- delete the delivery's merged feature branch on GitHub;
+- keep every retained branch;
+- complete the delivery.
+
+`reconcile-cleanup` must then find the same single completed cleanup. On the
+disposable repository, every other branch already merged into main is deleted
+too. Open and unmerged PR branches are kept.
+
+```sh
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue14-cleanup-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-cleanup "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
+```
+
 ## CLI and qualification boundary
 
 The CLI recognizes `cleanup-branches --id <id>` and `reconcile-cleanup --id <id>`.
-It installs no native cleanup adapter and refuses unqualified authority. A trusted
-controller caller supplies `BranchCleanupRuntime` alongside the existing main
-observer and synchronization adapters; candidate files cannot select these ports.
+Both take `--owner-policy`. With it, the CLI installs the native branch cleanup,
+and the main observer and main sync, because cleanup re-checks main and its
+alignment first. Without it, cleanup refuses. Candidate files cannot select
+these ports.
 
 Public tests use real temporary Git working trees and bare remotes. Actual local
 expected-old reference deletion and remote lease-conditioned deletion are exercised,
-including races introduced after inspection. Linked-worktree exclusions are real;
-GitHub PR linkage, effective protections and operation quiescence remain controlled
-observations. These tests do not qualify native credential-bearing transports,
-remote protection/worktree races, exclusive authority or process shutdown.
-
-Parent 04, native integration acceptance in 05–14, independent complete-controller
-macOS qualification (15–16), and the observed pilot (17) remain open.
+including races introduced after inspection. Linked-worktree exclusions are real.
+The native adapter's tests use a GitHub stand-in for protection, rulesets and
+PR history. Production remains disabled; the observed pilot (#275) remains.

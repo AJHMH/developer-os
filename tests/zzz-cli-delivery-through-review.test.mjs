@@ -25,6 +25,8 @@ import {
   mainStageNames,
   syncPassingOutcome,
   syncStageNames,
+  cleanupPassingOutcome,
+  cleanupStageNames,
   mergePassingOutcome,
   mergeStageNames,
   reviewPassingOutcome,
@@ -565,6 +567,48 @@ function simulatedCli(faults = {}) {
     "reconcile-main-sync"() {
       return ok(delivery);
     },
+    "cleanup-branches"() {
+      const fact = (name, location) => ({ name, location, tip: head });
+      delivery.phase = faults.cleanupBlocked ? "blocked" : "completed";
+      delivery.blocker = {
+        nextAction: faults.cleanupBlocked
+          ? "Cleanup incomplete"
+          : "Delivery complete",
+      };
+      delivery.cleanup = {
+        mode: "controlled",
+        productionEnabled: false,
+        rounds: [
+          {
+            state: faults.cleanupBlocked ? "blocked" : "completed",
+            target: { revision: head },
+            entries: [
+              {
+                fact: fact(delivery.feature.branch, "remote"),
+                state: "deleted",
+                reason: "deleted",
+              },
+              {
+                fact: fact(delivery.feature.branch, "local"),
+                state: "deleted",
+                reason: "deleted",
+              },
+              {
+                fact: fact("aios/open", "remote"),
+                state: faults.cleanupBlocked ? "uncertain" : "retained",
+                reason: faults.cleanupBlocked
+                  ? "acceptance-unavailable"
+                  : "unmerged",
+              },
+            ],
+          },
+        ],
+      };
+      return ok(delivery);
+    },
+    "reconcile-cleanup"() {
+      return ok(delivery);
+    },
     "reconcile-merge"() {
       if (faults.reconcileTwice)
         delivery.merge.attempts.push({ state: "merged" });
@@ -1021,4 +1065,122 @@ test("through sync, the clone's main is fast-forwarded to the verified revision 
   );
   assert.equal(blocked.outcome, "blocked");
   assert.match(blocked.error, /Sync left the delivery blocked/);
+});
+
+test("through cleanup, the merged feature branch is deleted on GitHub and the delivery completes", async (t) => {
+  const remote = await signedRemote(t);
+  const work = join(remote.url, "..", "work");
+  writeFileSync(join(work, "index.html"), "<h1>Contact</h1>\n<p>Next</p>\n");
+  const git = (...args) => {
+    const r = spawnSync("git", ["-C", work, ...args], { encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  git(
+    "-c",
+    "user.name=O",
+    "-c",
+    "user.email=o@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-qam",
+    "next",
+  );
+  const next = git("rev-parse", "HEAD");
+  const onMerge = () => git("push", "-q", remote.url, "main");
+  const host = (sim, changes = {}) => ({
+    cli: sim.cli,
+    pins: {
+      coding: { admitted: codingPins, fresh: async () => codingPins },
+      validation: {
+        admitted: validationPins,
+        fresh: async () => validationPins,
+      },
+    },
+    machine: "aios-test",
+    codingAdmission: "/owner/coding-admission.json",
+    validationAdmission: "/owner/validation-admission.json",
+    authDirectory: "/owner/auth",
+    imageSha256,
+    cleanupCodingSession: async () => ({ cleaned: 1 }),
+    through: {
+      identityPath: "/owner/identity.json",
+      identity: { ...identity, signingKey: remote.key },
+      productionAdmission: {
+        path: "/owner/production.json",
+        admitted: () => ({
+          coding: codingPins,
+          validationBindingSha256: "6".repeat(64),
+          productionSha256,
+        }),
+      },
+      github: factsGitHub(remote, {
+        [`repos/${repository}/git/ref/heads/main`]: { object: { sha: next } },
+        [`repos/${repository}/pulls/9`]: { merged: true },
+        ...changes,
+      }),
+      factoryCommit: "f".repeat(40),
+      cloneUrl: remote.url,
+      merge: true,
+      main: true,
+      sync: true,
+      cleanup: true,
+    },
+  });
+  const options = { sleep: async () => {}, now: () => 0 };
+  const sim = simulatedCli({
+    base: remote.commit,
+    head: next,
+    mainRevision: next,
+    onMerge,
+  });
+  const report = await cliDeliveryAcceptance(host(sim), options);
+  assert.equal(report.outcome, cleanupPassingOutcome, report.error);
+  assert.equal(report.scope, "native-delivery-through-cleanup");
+  assert.deepEqual(
+    report.stages.map((s) => s.name),
+    cleanupStageNames,
+  );
+  assert.equal(report.cleanup.state, "completed");
+  assert.equal(report.cleanup.phase, "completed");
+  assert.equal(report.cleanup.revision, next);
+  assert.equal(report.cleanup.deleted.length, 2);
+  assert.deepEqual(report.cleanup.retained, [
+    { branch: "remote:aios/open", reason: "unmerged" },
+  ]);
+  assert.deepEqual(report.cleanup.blocked, []);
+  assert.equal(report.cleanup.nextAction, "Delivery complete");
+  assert.deepEqual(sim.calls.map((a) => a[0]).slice(-3), [
+    "cleanup-branches",
+    "reconcile-cleanup",
+    "status",
+  ]);
+  // A blocked cleanup, or a feature branch GitHub still has, never passes.
+  const blocked = await cliDeliveryAcceptance(
+    host(
+      simulatedCli({
+        base: next,
+        head: next,
+        mainRevision: next,
+        cleanupBlocked: true,
+      }),
+    ),
+    options,
+  );
+  assert.equal(blocked.outcome, "blocked");
+  assert.match(blocked.error, /Cleanup left the delivery blocked/);
+  assert.equal(blocked.cleanup.blocked[0].state, "uncertain");
+  // GitHub still has the feature branch: the deletion didn't happen.
+  const lingering = host(
+    simulatedCli({ base: next, head: next, mainRevision: next }),
+  );
+  const facts = lingering.through.github;
+  lingering.through.github = async (path) =>
+    path.startsWith(`repos/${repository}/branches/`)
+      ? { status: 200, body: { name: "feature" } }
+      : facts(path);
+  const stillThere = await cliDeliveryAcceptance(lingering, options);
+  assert.equal(stillThere.outcome, "blocked");
+  assert.match(stillThere.error, /GitHub still has the feature branch/);
 });

@@ -581,10 +581,10 @@ export class DeliveryController {
       this.change(id, (d) => {
         if (!["paused", "cancelled"].includes(d.phase)) d.phase = "blocked";
         d.blocker.nextAction =
-          "Cleanup requires verified synchronized main and qualified conditional branch authority. Preserve all branches and evidence; reconcile uncertain deletions. Native cleanup remains disabled.";
+          "Cleanup requires verified synchronized main and the branch cleanup the owner policy installs. Preserve all branches and evidence; reconcile uncertain deletions. Production remains disabled.";
       });
       throw new DeliveryError(
-        "Branch cleanup requires verified alignment and a qualified adapter; native cleanup remains disabled.",
+        "Branch cleanup requires verified, synchronized main and the branch cleanup the owner policy installs.",
       );
     }
   }
