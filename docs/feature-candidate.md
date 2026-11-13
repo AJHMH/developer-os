@@ -131,6 +131,21 @@ Then, with your signing key in ssh-agent:
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue04-real-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-review "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
 ```
 
+### Real delivery results (12 November 2026)
+
+The Mac passed with outcome `observed-native-delivery-through-review`, from
+`main` at `82da95f`, on its third run
+([receipt](../.scratch/aios-v1-implementation/first-real-delivery-receipt.md)).
+Claude Code added the contact hint for $0.060, and the candidate passed 6 of 6
+checks. The delivery published
+[AJHMH/aios-publication-acceptance#11](https://github.com/AJHMH/aios-publication-acceptance/pull/11)
+with your Verified signed commit. Its `pr-ci` passed, and review classified
+it ungated, so it reached `ready-to-merge`.
+
+Reaching this pass needed #304, which gives the PR check and review commands
+the validation runtime, and #305, which waits through a check GitHub hasn't
+started yet.
+
 ### Native results (9 November 2026)
 
 The Mac passed with outcome `observed-metered-cli-delivery-acceptance`, from `main` at `13a88c9` with this change applied:
