@@ -149,6 +149,9 @@ tool exists, so a missing tool fails instead of passing. It checks:
 - **Mounts and network:** no host-share mounts, loopback-only networking, and
   no outbound connection, the npm registry included. The registry check uses
   plain HTTP, so a missing TLS client can't make it pass.
+- **Proxy** (`proxy`, #274): no proxy variable is set, and a fetch that uses
+  the VM's gateway addresses (gvproxy's `192.168.127.1` and slirp's
+  `10.0.2.2`) as an HTTP proxy fails.
 - **Hardening:** the root mount is read-only by its own mount options, and the
   user is 65534.
 - **Escapes:** `unshare`, `chroot` and cgroup escapes are refused.
@@ -157,7 +160,7 @@ Adding the probe changed the coding guest program, so its `policySha256`
 changed. The owner coding admission therefore needs one re-approval before
 this runs.
 
-The coding worker runs the **coding probe**: the shared probes, then five of
+The coding worker runs the **coding probe**: the shared probes, then six of
 its own. Its third argument is the session's mode, `routed` or `offline`,
 which the guest takes from the session's own record and the caller never
 chooses.
@@ -174,6 +177,12 @@ chooses.
 - **`read-only-binaries`:** `/claude` is mounted read-only, according to `/proc/self/mountinfo`, and refuse writes. The mount
   is the real check: a running executable refuses writes anyway, and the
   container user owns the files.
+- **`cross-delivery`** (#274): another delivery's session is out of reach.
+  - The `/workspace` bind's source names this session's operation folder, and
+    `/session` comes from the same folder.
+  - No bind comes from a sibling operation folder.
+  - No guest or host process (`systemd`, `conmon`, `podman`, `crun`, `sshd`)
+    is visible, so the PID namespace is private.
 - **`hardened-process`:** the process has no effective capabilities, has
   `NoNewPrivs` set, and runs under a seccomp filter.
 - **`writable-only-work`:** a file can be created, then removed, in

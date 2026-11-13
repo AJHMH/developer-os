@@ -16,7 +16,7 @@ import { modelRoutePort } from "./feature-candidate.js";
 const probes = [
   [
     "tools",
-    'for t in cat grep id ls wget unshare busybox; do command -v "$t" || exit 1; done; for a in chroot unshare; do busybox --list | grep -qx "$a" || exit 1; done',
+    'for t in cat cut grep id ls wget unshare busybox; do command -v "$t" || exit 1; done; for a in chroot unshare; do busybox --list | grep -qx "$a" || exit 1; done',
   ],
   ["admitted-visible", 'test -f "$admitted" && cat "$admitted"'],
   ["only-admitted", 'test "$(ls -A /workspace)" = "${admitted##*/}"'],
@@ -50,6 +50,12 @@ const probes = [
     'test "$(grep -c : /proc/net/dev)" = 1 && grep -q " lo:" /proc/net/dev',
   ],
   ["network", "! wget -q -T 2 -O /dev/null http://example.com"],
+  // No proxy reaches out either: none is configured, and the VM's gateway
+  // addresses (gvproxy and slirp) don't relay as one.
+  [
+    "proxy",
+    'test -z "${http_proxy+x}${https_proxy+x}${all_proxy+x}${HTTP_PROXY+x}${HTTPS_PROXY+x}${ALL_PROXY+x}" && for g in 192.168.127.1 10.0.2.2; do ! http_proxy=http://$g:3128 wget -q -T 2 -O /dev/null http://example.com || exit 1; done',
+  ],
   // Plain HTTP, so a missing TLS client cannot pass the denial for free.
   ["npm-registry", "! wget -q -T 2 -O /dev/null http://registry.npmjs.org/"],
   [
@@ -91,6 +97,13 @@ const codingProbes = [
     // The mount itself must be read-only: a running executable refuses writes
     // anyway, and the container user owns the files.
     'for p in /claude; do test -f $p && grep -Eq "^[0-9]+ [0-9]+ [0-9:]+ [^ ]+ $p ro[, ]" /proc/self/mountinfo && ! ( : >> $p ) || exit 1; done',
+  ],
+  [
+    "cross-delivery",
+    // Another delivery's session is out of reach: every bind comes from this
+    // session's own operation folder, none from a sibling's, and no guest or
+    // host process is visible (a private PID namespace).
+    'w=$(grep " /workspace " /proc/self/mountinfo | cut -d" " -f4); op=${w%/*}; test -n "$op" && test -n "${op%/*}" && grep -q " $op/home /session " /proc/self/mountinfo && test "$(grep -c " ${op%/*}/" /proc/self/mountinfo)" = "$(grep -c " $op/" /proc/self/mountinfo)" && ! grep -qsxE "systemd|conmon|podman|crun|sshd" /proc/[0-9]*/comm',
   ],
   [
     "hardened-process",
