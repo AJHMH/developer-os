@@ -80,6 +80,17 @@ observes and takes the owner policy alone. `refresh-merge-base` also takes
 The real delivery run accepts it natively with `--through-merge`; see
 [the first real delivery](feature-candidate.md#the-first-real-delivery---through-review).
 
+### Native results (12 November 2026)
+
+The Mac passed with outcome `observed-native-delivery-through-merge`, from
+`main` at `4468309`, on its first run
+([receipt](../.scratch/aios-v1-implementation/ticket11-macos-merge-delivery-receipt.md)).
+A real delivery published
+[AJHMH/aios-publication-acceptance#12](https://github.com/AJHMH/aios-publication-acceptance/pull/12),
+passed `pr-ci` and review (ungated), and `merge-feature` fast-forwarded
+`main` to its exact head `37be509b…`. GitHub shows the PR merged by you, with
+that head as its merge commit. `reconcile-merge` found the same single merge.
+
 `merged` is intermediate status. It records the merge commit and observed main,
 not successful main checks, synchronization, cleanup or completed delivery.
 Ticket 12 now implements controlled main-check verification; synchronization and

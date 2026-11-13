@@ -40,7 +40,7 @@ There are 25 tickets, 01 to 25.
 | 08 Signed App publication        | Open, [#267](https://github.com/AJHMH/developer-os/issues/267) | Native: the owner's key signs through ssh-agent, the owner pushes, GitHub verifies, the App opens the PR ([11 November receipt](ticket08-macos-publication-acceptance-receipt.md)), and the [first real delivery](first-real-delivery-receipt.md) published through `publish-feature` (12 November). |
 | 09 Trusted PR checks             | Open, [#268](https://github.com/AJHMH/developer-os/issues/268) | Native monitor: a passing and a failing `pr-ci` run, and a receipted rerun that keeps the failure ([12 November receipt](ticket09-macos-pr-checks-acceptance-receipt.md)); the [first real delivery](first-real-delivery-receipt.md) passed `monitor-pr-checks`. |
 | 10 Review and owner approval     | Open, [#269](https://github.com/AJHMH/developer-os/issues/269) | Native adapter: ungated, gated, the owner's 👍 finding resolved, then exact-head approval ([12 November receipt](ticket10-macos-review-acceptance-receipt.md)); the [first real delivery](first-real-delivery-receipt.md) reached `ready-to-merge` through `monitor-review`, ungated. |
-| 11 Conditional merge             | Open, [#270](https://github.com/AJHMH/developer-os/issues/270) | Controlled; no native merge adapter.                                                                                                                    |
+| 11 Conditional merge             | Open, [#270](https://github.com/AJHMH/developer-os/issues/270) | Native fast-forward merge: a real delivery merged through `merge-feature`, main fast-forwarded to its exact head with a lease on the base, PR merged, reconciled once ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)). |
 | 12 Merged main verification      | Open, [#271](https://github.com/AJHMH/developer-os/issues/271) | Controlled; no native main observer.                                                                                                                    |
 | 13 Safe main sync                | Open, [#272](https://github.com/AJHMH/developer-os/issues/272) | Controlled; no native Git adapter.                                                                                                                      |
 | 14 Cleanup and completion        | Open, [#273](https://github.com/AJHMH/developer-os/issues/273) | Controlled; no native cleanup adapter.                                                                                                                  |
@@ -97,7 +97,7 @@ There are 56 stories. Their status:
 | 24  | App authors PRs, owner signs commits                      | 08, 17             | Partial: done on the [first real delivery](first-real-delivery-receipt.md) (App-authored PR 11, owner-signed Verified commit); the pilot (#275) remains |
 | 25  | Straightforward review findings repaired                  | 10                 | Partial: the owner's 👍 finding is assessed and resolved natively ([receipt](ticket10-macos-review-acceptance-receipt.md)); no native review repair yet |
 | 26  | Disputed review requests escalated                        | 10                 | Controlled only (#269)                                                                                                                              |
-| 27  | Current-head approval authorizes merge                    | 10, 11, 17         | Partial: natively, the owner's exact-head approval authorizes a gated head and an ungated head needs none (ADR 0005); no native merge (#270) |
+| 27  | Current-head approval authorizes merge                    | 10, 11, 17         | Partial: natively an ungated head merged on its exact-head authorization ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)), and the owner's exact-head approval authorizes a gated head; no gated delivery merged yet |
 | 28  | New commits invalidate approval                           | 10, 11             | Controlled only; changed as story 27                                                                                                                |
 | 29  | Agent never submits the owner's approval                  | 08, 10             | Done: the adapter has no way to submit a review; the owner approved in GitHub, and the [first real delivery](first-real-delivery-receipt.md) submitted none |
 | 30  | Bounded implementation and repair allowances              | 05, 07             | Done: coding and repair natively ([repair receipt](ticket07-macos-repair-acceptance-receipt.md)); owner-set repair allowance at `start` (#287) |
@@ -108,7 +108,7 @@ There are 56 stories. Their status:
 | 35  | Cancel stops without deleting work                        | 03, 23             | Done                                                                                                                                                |
 | 36  | Restart reconciles uncertain effects                      | 03, 23             | Partial: done for coding sessions; later stages are controlled only                                                                                 |
 | 37  | Budget and session identity survive restart               | 03, 05, 23         | Done                                                                                                                                                |
-| 38  | Approval, checks and head revalidated at merge            | 11                 | Controlled only (#270)                                                                                                                              |
+| 38  | Approval, checks and head revalidated at merge            | 11                 | Done: `merge-feature` re-checked checks, review and production, then merged only the exact head onto the expected main ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)) |
 | 39  | Main checks verified after merge                          | 12, 17             | Controlled only (#271)                                                                                                                              |
 | 40  | Post-merge fixes use a new signed PR                      | 12                 | Controlled only                                                                                                                                     |
 | 41  | Clean main fast-forwarded                                 | 13                 | Controlled only (#272)                                                                                                                              |
@@ -132,10 +132,10 @@ In total:
 
 | Status          | Count | Stories                                                                   |
 | --------------- | ----- | ------------------------------------------------------------------------- |
-| Done            | 25    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 23, 29, 30, 31, 33, 34, 35, 37, 50, 52, 56 |
+| Done            | 26    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 23, 29, 30, 31, 33, 34, 35, 37, 38, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
 | Partial         | 12    | 5, 7, 21, 22, 24, 25, 27, 36, 49, 51, 53, 54                              |
-| Controlled only | 15    | 8, 26, 28, 32, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48                 |
+| Controlled only | 14    | 8, 26, 28, 32, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48                     |
 | Not done        | 0     |                                                                           |
 
 No story is complete end to end until tickets 08 to 14 have native adapters and
