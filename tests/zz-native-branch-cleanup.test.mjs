@@ -16,6 +16,7 @@ import {
   nativeBranchCleanupRuntime,
   ownerPolicyBranchCleanupRuntime,
 } from "../dist/native-branch-cleanup.js";
+import { defaultRunner } from "../dist/native-publication.js";
 
 const repository = "AJHMH/acceptance";
 const sh = (cwd, ...args) => {
@@ -219,6 +220,7 @@ function setup(t) {
     author,
     checkout,
     api,
+    github,
     runtime,
     target,
     remove,
@@ -474,4 +476,116 @@ test("cleanup-branches and reconcile-cleanup take the owner policy", (t) => {
       name,
     );
   }
+});
+
+test("an unreadable policy, a vanished checkout or a branch list that never ends gives no inventory", async (t) => {
+  const s = setup(t);
+  const policyPath = join(s.root, "policy.json");
+  // The policy missing, a folder, or too large.
+  for (const path of [
+    join(s.root, "none.json"),
+    s.root,
+    (() => {
+      const big = join(s.root, "big.json");
+      writeFileSync(big, "x".repeat(70000));
+      return big;
+    })(),
+  ])
+    assert.equal(
+      (await s.runtime({ policyPath: path }).observe(s.target)).complete,
+      false,
+      path,
+    );
+  assert.equal(
+    (
+      await s
+        .runtime({ policyPath })
+        .observe({ ...s.target, checkout: join(s.root, "gone") })
+    ).complete,
+    false,
+  );
+  // Full pages forever: more branches than it will read.
+  const endless = async (path) =>
+    path.includes("/branches?")
+      ? {
+          status: 200,
+          body: Array.from({ length: 100 }, (_, i) => ({
+            name: `b${i}`,
+            commit: { sha: s.main },
+            protected: false,
+          })),
+        }
+      : { status: 404, body: null };
+  assert.equal(
+    (await s.runtime({ github: endless }).observe(s.target)).complete,
+    false,
+  );
+  // A malformed branch entry.
+  const malformed = async (path) =>
+    path.includes("/branches?")
+      ? { status: 200, body: [{ name: "main", commit: { sha: "x" } }] }
+      : { status: 404, body: null };
+  assert.equal(
+    (await s.runtime({ github: malformed }).observe(s.target)).complete,
+    false,
+  );
+});
+
+test("malformed PR history is ambiguous, a failed ancestry check is unknown, and a refused deletion throws", async (t) => {
+  const s = setup(t);
+  // A merged PR whose head names another branch.
+  s.api.pulls.set("aios/squashed", [
+    { head: s.squashedTip, merge: s.main, merged_at: "2026-11-13T10:00Z" },
+  ]);
+  const wrongRef = async (path, method) =>
+    path.includes("/pulls?")
+      ? {
+          status: 200,
+          body: [
+            {
+              merged_at: "2026-11-13T10:00Z",
+              merge_commit_sha: s.main,
+              head: { sha: s.squashedTip, ref: "elsewhere" },
+              base: { ref: "main", repo: { full_name: repository } },
+            },
+          ],
+        }
+      : s.github(path, method);
+  assert.equal(
+    decisions(
+      await s.runtime({ github: wrongRef }).observe(s.target),
+      s.target,
+    )["remote:aios/squashed"].reason,
+    "ambiguous-merge-linkage",
+  );
+  // Git can't answer whether a tip is in main's history.
+  const failing = (executable, args, options) =>
+    args.includes("merge-base") && args.includes(s.squashedTip)
+      ? { status: 128, stdout: "", stderr: "" }
+      : defaultRunner(executable, args, options);
+  assert.equal(
+    decisions(await s.runtime({ run: failing }).observe(s.target), s.target)[
+      "remote:aios/squashed"
+    ].reason,
+    "integration-unknown",
+  );
+  // The remote refuses every update: the deletion throws, the branch stays.
+  writeFileSync(join(s.bare, "hooks", "pre-receive"), "#!/bin/sh\nexit 1\n", {
+    mode: 0o755,
+  });
+  await assert.rejects(
+    s.remove(s.runtime(), "aios/merged", "remote", s.merged),
+    /refused/,
+  );
+  assert.equal(s.remoteHas("aios/merged"), true);
+});
+
+test("an owner policy that is too large or names no valid repository installs nothing", (t) => {
+  const s = setup(t);
+  const big = join(s.root, "big-policy.json");
+  writeFileSync(big, JSON.stringify({ repository, pad: "x".repeat(70000) }));
+  assert.equal(ownerPolicyBranchCleanupRuntime(big), undefined);
+  const bad = join(s.root, "bad-slug.json");
+  writeFileSync(bad, JSON.stringify({ repository: "not a slug" }));
+  assert.equal(ownerPolicyBranchCleanupRuntime(bad), undefined);
 });
