@@ -71,7 +71,7 @@ import { freshBuild } from "./fresh-build.mjs";
 import { acceptanceContract } from "./run-native-validation-admission-acceptance.mjs";
 
 const usage =
-  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --through-review|--through-merge|--through-main|--through-sync|--through-cleanup <owner-publication-identity.json> <owner-production-admission.json>]";
+  "Usage: node scripts/run-native-cli-delivery-acceptance.mjs <aios-machine> <owner-coding-admission.json> <owner-validation-admission.json> <owner-auth-directory> <new-report.json> --approve-metered-native-run [--with-repair | --lifecycle | --through-review|--through-merge|--through-main|--through-sync|--through-cleanup <owner-publication-identity.json> <owner-production-admission.json>]";
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const passingOutcome = "observed-metered-cli-delivery-acceptance";
@@ -81,6 +81,17 @@ export const mergePassingOutcome = "observed-native-delivery-through-merge";
 export const mainPassingOutcome = "observed-native-delivery-through-main";
 export const syncPassingOutcome = "observed-native-delivery-through-sync";
 export const cleanupPassingOutcome = "observed-native-delivery-through-cleanup";
+/** Every mode's passing outcome; any other outcome exits 1. */
+export const passingOutcomes = Object.freeze([
+  passingOutcome,
+  repairPassingOutcome,
+  reviewPassingOutcome,
+  mergePassingOutcome,
+  mainPassingOutcome,
+  syncPassingOutcome,
+  cleanupPassingOutcome,
+  "observed-native-lifecycle-controls",
+]);
 /** How long the delivery waits for its PR checks, and how often it looks. */
 export const prChecksWaitMs = 15 * 60000;
 export const prChecksIntervalMs = 20000;
@@ -1471,7 +1482,8 @@ async function main() {
     approval !== "--approve-metered-native-run" ||
     !(
       extra.length === 0 ||
-      (extra.length === 1 && extra[0] === "--with-repair") ||
+      (extra.length === 1 &&
+        ["--with-repair", "--lifecycle"].includes(extra[0])) ||
       (extra.length === 3 &&
         [
           "--through-review",
@@ -1612,31 +1624,78 @@ async function main() {
   const interrupt = () => (interrupted = true);
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", interrupt);
-  const report = await cliDeliveryAcceptance(
-    {
-      cli: cliRunner(state),
-      pins,
-      machine,
-      codingAdmission,
-      validationAdmission,
-      authDirectory,
-      imageSha256,
-      cleanupCodingSession: (session) =>
-        codingTransport().transport.cleanupSupersededLineage(session),
-      repair: extra[0] === "--with-repair",
-      ...(through ? { through } : {}),
-    },
-    {
-      interrupted: () => interrupted,
-      persist: (r) =>
-        writeFileSync(
-          reportPath,
-          JSON.stringify({ ...context, ...r, interrupted }, null, 2),
-        ),
-    },
+  const { lifecycleAcceptance, cliProcessRunner, writeCriteria } = await import(
+    "./native-lifecycle-acceptance.mjs"
   );
+  const { offlineValidationEnvironment } = await import(
+    "../dist/native-validation.js"
+  );
+  const lifecycle = extra[0] === "--lifecycle";
+  const runOptions = {
+    interrupted: () => interrupted,
+    persist: (r) =>
+      writeFileSync(
+        reportPath,
+        JSON.stringify({ ...context, ...r, interrupted }, null, 2),
+      ),
+  };
+  const report = lifecycle
+    ? await lifecycleAcceptance(
+        {
+          cli: cliRunner(state),
+          spawnCli: cliProcessRunner(state),
+          pins,
+          pinFields,
+          machine,
+          codingAdmission,
+          validationAdmission,
+          authDirectory,
+          cleanupCodingSession: (session) =>
+            codingTransport().transport.cleanupSupersededLineage(session),
+          root: await privateRoot("aios-lifecycle-acceptance-"),
+          request,
+          codingMinutes,
+          budgetDollars,
+          // A synthetic repository with the owner's records, and criteria
+          // for each delivery's exact request.
+          ownerInputs: (folder) => {
+            mkdirSync(folder, { mode: 0o700 });
+            const inputs = ownerInputs(
+              folder,
+              offlineValidationEnvironment(imageSha256),
+            );
+            return {
+              ...inputs,
+              criteria: (deliveryId, text) =>
+                writeCriteria(
+                  join(folder, "owner", "criteria.json"),
+                  deliveryId,
+                  text,
+                ),
+            };
+          },
+        },
+        runOptions,
+      )
+    : await cliDeliveryAcceptance(
+        {
+          cli: cliRunner(state),
+          pins,
+          machine,
+          codingAdmission,
+          validationAdmission,
+          authDirectory,
+          imageSha256,
+          cleanupCodingSession: (session) =>
+            codingTransport().transport.cleanupSupersededLineage(session),
+          repair: extra[0] === "--with-repair",
+          ...(through ? { through } : {}),
+        },
+        runOptions,
+      );
   process.off("SIGINT", interrupt);
   process.off("SIGTERM", interrupt);
+  const passed = passingOutcomes.includes(report.outcome);
   console.log(
     JSON.stringify({
       outcome: report.outcome,
@@ -1646,25 +1705,10 @@ async function main() {
       ...(report.publication?.number
         ? { pullRequest: report.publication.number }
         : {}),
-      ...(report.outcome === passingOutcome ||
-      report.outcome === repairPassingOutcome ||
-      report.outcome === reviewPassingOutcome ||
-      report.outcome === mergePassingOutcome ||
-      report.outcome === mainPassingOutcome ||
-      report.outcome === syncPassingOutcome
-        ? {}
-        : { freshPins: report.freshPins ?? null }),
+      ...(passed ? {} : { freshPins: report.freshPins ?? null }),
     }),
   );
-  if (
-    report.outcome !== passingOutcome &&
-    report.outcome !== repairPassingOutcome &&
-    report.outcome !== reviewPassingOutcome &&
-    report.outcome !== mergePassingOutcome &&
-    report.outcome !== mainPassingOutcome &&
-    report.outcome !== syncPassingOutcome
-  )
-    process.exitCode = 1;
+  if (!passed) process.exitCode = 1;
 }
 
 // Compare real paths, so a symlinked checkout still runs.
