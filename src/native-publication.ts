@@ -87,6 +87,31 @@ const slug = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 /** How long a dispatched push may still be accepted after its process. */
 export const pushSettleMs = 120000;
 
+/** Whether ssh-agent holds the owner's signing key, named by its public key
+ * file. False for an unreadable or unrecognized key. */
+export function signingKeyLoaded(
+  publicKeyPath: string,
+  run: CommandRunner = defaultRunner,
+): boolean {
+  let blob: string | undefined;
+  try {
+    const [type, b] = readFileSync(publicKeyPath, "utf8").trim().split(/\s+/);
+    if (!/^ssh-ed25519$|^ecdsa-sha2-|^ssh-rsa$/.test(type ?? "")) return false;
+    blob = b;
+  } catch {
+    return false;
+  }
+  if (!blob) return false;
+  const agent = run("ssh-add", ["-L"], {
+    env: cleanEnvironment(),
+    timeoutMs: 10000,
+  });
+  return (
+    agent.status === 0 &&
+    agent.stdout.split("\n").some((line) => line.split(/\s+/)[1] === blob)
+  );
+}
+
 export interface NativeGitOptions {
   /** The onboarded repository, `owner/name`. */
   repository: string;
@@ -275,16 +300,7 @@ export function nativeGitPublicationPort(
       prepare();
       const user = await github("user");
       const repo = await github(`repos/${options.repository}`);
-      const agent = run("ssh-add", ["-L"], {
-        env: cleanEnvironment(),
-        timeoutMs: 10000,
-      });
-      const key = publicKey();
-      const held =
-        agent.status === 0 &&
-        agent.stdout
-          .split("\n")
-          .some((line) => line.split(/\s+/)[1] === key.blob);
+      const held = signingKeyLoaded(options.signingKey, run);
       const body = repo.body as {
         full_name?: string;
         permissions?: { push?: boolean };

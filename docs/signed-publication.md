@@ -196,6 +196,15 @@ the delivery is blocked with "Nothing to publish": cancel it, or start one
 whose request main doesn't already meet. The third real delivery
 (12 November, #271) published and merged an empty commit before this check.
 
+### Signing key not loaded
+
+The owner's key signs through ssh-agent, which drops it on a restart or a long
+sleep. When publication is blocked and the publisher reports the key isn't
+held, `publish-feature` says so: "your signing key isn't loaded in ssh-agent".
+Load it with `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (your private
+key), then publish again. The real delivery run checks the same thing before
+it spends anything on the model.
+
 ## Validation and qualification limits
 
 Public fixtures cover exact-tree/signature/identity refusal, durable dispatch,
