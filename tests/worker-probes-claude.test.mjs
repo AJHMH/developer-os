@@ -19,6 +19,7 @@ const codingOnly = [
   "relay-listener",
   "relay-answers",
   "read-only-binaries",
+  "cross-delivery",
   "hardened-process",
   "writable-only-work",
 ];

@@ -54,7 +54,7 @@ guest is Claude Code's (`claude-coding-admission.json`, ADR 0008):
 
 | Guest      | `policySha256`                                                     |
 | ---------- | ------------------------------------------------------------------ |
-| Coding     | `c5a7a034ecb603461c99846f68a5b0d5d7c3c75c5b8389a5ac617ba5280b4d8d` |
+| Coding     | `c8efc6b2fcb0c08debaac0e0fbf55e10f7e18fa2612a21cab67a2ec9c5d45eee` |
 | Validation | `53c75c74b0372b6d297969f441a1070865b54a096c6e72e98d806d1f5d3e8fa7` |
 
 `tests/zzz-docs-commands.test.mjs` fails when a guest program

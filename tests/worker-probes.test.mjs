@@ -127,6 +127,12 @@ function coding(
     binaryMounts = "ro",
     readOnly = writable ? [] : ["workspace", "session"],
     status = "CapEff:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\n",
+    // The binds, as the guest lays them out: one operation folder per session.
+    binds = [
+      ["/sessions/op1/workspace", "workspace"],
+      ["/sessions/op1/home", "session"],
+    ],
+    processes = ["sh", "claude"],
   } = {},
 ) {
   const root = mkdtempSync(join(tmpdir(), "aios-coding-probe-"));
@@ -160,14 +166,26 @@ function coding(
     ["claude"]
       .map(
         (file, i) =>
-          `${40 + i} 30 0:${50 + i} /${file} ${join(root, file)} ${binaryMounts},relatime - ext4 /dev/vda4 rw\n`,
+          `${40 + i} 30 0:${50 + i} /sessions/op1/${file} ${join(root, file)} ${binaryMounts},relatime - ext4 /dev/vda4 rw\n`,
+      )
+      .concat(
+        binds.map(
+          ([source, target], i) =>
+            `${60 + i} 30 0:${70 + i} ${source} ${target.startsWith("/") ? target : join(root, target)} rw,relatime - ext4 /dev/vda4 rw\n`,
+        ),
       )
       .join(""),
+  );
+  // The visible processes' names, as /proc/<pid>/comm gives them.
+  mkdirSync(join(root, "proc"));
+  processes.forEach((name, i) =>
+    writeFileSync(join(root, "proc", `${i + 1}comm`), name + "\n"),
   );
   writeFileSync(join(root, "status"), "Name:\tsh\n" + status);
   const script = codingBoundaryProbe
     .replaceAll("/proc/self/mountinfo", join(root, "mountinfo"))
     .replaceAll("/proc/self/status", join(root, "status"))
+    .replaceAll("/proc/[0-9]*/comm", join(root, "proc", "[0-9]*comm"))
     .replaceAll("/proc/net/tcp6", join(root, "tcp6"))
     .replaceAll("/proc/net/tcp", join(root, "tcp"))
     .replaceAll("/claude;", join(root, "claude") + ";")
@@ -335,3 +353,69 @@ test(
     assert.equal(answers("", refusing), "failed");
   },
 );
+
+test("another delivery's session is out of reach: only this session's binds, and no guest or host process", (t) => {
+  assert.equal(coding(t, "offline").outcomes["cross-delivery"], "passed");
+  for (const [label, options] of [
+    [
+      "a sibling session's workspace",
+      {
+        binds: [
+          ["/sessions/op1/workspace", "workspace"],
+          ["/sessions/op1/home", "session"],
+          ["/sessions/op2/workspace", "/other"],
+        ],
+      },
+    ],
+    [
+      "the session from another operation",
+      {
+        binds: [
+          ["/sessions/op1/workspace", "workspace"],
+          ["/sessions/op2/home", "session"],
+        ],
+      },
+    ],
+    ["no workspace bind", { binds: [["/sessions/op1/home", "session"]] }],
+    [
+      "a workspace at the filesystem root",
+      { binds: [["/workspace", "workspace"]] },
+    ],
+    ["a guest process", { processes: ["sh", "conmon"] }],
+    ["the guest's init", { processes: ["systemd", "sh"] }],
+  ])
+    assert.equal(
+      coding(t, "offline", options).outcomes["cross-delivery"],
+      "failed",
+      label,
+    );
+});
+
+test("no proxy is configured or reachable", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "aios-worker-probe-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const outcome = (env) =>
+    boundaryProbeOutcomes(
+      spawnSync(
+        "/bin/sh",
+        ["-c", boundaryProbe, "--", "/nonexistent", "/nonexistent"],
+        { encoding: "utf8", env: { PATH: process.env.PATH, ...env } },
+      ).stdout,
+    ).find((p) => p.name === "proxy").outcome;
+  for (const name of ["http_proxy", "HTTPS_PROXY", "all_proxy"])
+    assert.equal(
+      outcome({ [name]: "http://proxy.invalid:3128" }),
+      "failed",
+      name,
+    );
+  // A proxy that answers at a gateway address is a failure, as a fetch
+  // through it succeeding would be.
+  const bin = join(root, "bin");
+  mkdirSync(bin);
+  writeFileSync(
+    join(bin, "wget"),
+    '#!/bin/sh\ncase "${http_proxy-}" in *192.168.127.1*) exit 0;; esac\nexit 1\n',
+    { mode: 0o755 },
+  );
+  assert.equal(outcome({ PATH: `${bin}:${process.env.PATH}` }), "failed");
+});
