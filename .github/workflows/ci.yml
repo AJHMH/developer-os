@@ -29,7 +29,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # macOS runners vary: the suite took 3 to 9.5 minutes there in
+    # November 2026, and a slow runner cancelled PR 310 at 10.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 20 || 10 }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
