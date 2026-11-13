@@ -17,9 +17,9 @@ and each keeps its v1 number.
 - **Metered CLI delivery acceptance**, `observed-metered-cli-delivery-acceptance`:
   the candidate validated 6 of 6 for $0.069
   ([feature candidate](../../docs/feature-candidate.md)).
-- **The CLI's own statement:** `publish-feature`, the PR-check, review, merge,
-  and cleanup commands each say that no native adapter is
-  installed, and production delivery stays disabled (`src/cli.ts`).
+- **The CLI's own statement:** every stage from `publish-feature` to
+  `cleanup-branches` installs its native adapter from the owner's records,
+  and production delivery stays disabled (`src/cli.ts`).
 
 "Native" below means observed on the Mac through the real CLI or runtime.
 "Controlled" means implemented and tested only against test stand-ins.
@@ -43,7 +43,7 @@ There are 25 tickets, 01 to 25.
 | 11 Conditional merge             | Open, [#270](https://github.com/AJHMH/developer-os/issues/270) | Native fast-forward merge: a real delivery merged through `merge-feature`, main fast-forwarded to its exact head with a lease on the base, PR merged, reconciled once ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)). |
 | 12 Merged main verification      | Open, [#271](https://github.com/AJHMH/developer-os/issues/271) | Native main observer: a real delivery merged, then `monitor-main-checks` verified main through its own `main-ci` push run ([12 November receipt](ticket12-macos-main-delivery-receipt.md)). That delivery's candidate changed nothing, yet published; a follow-up. |
 | 13 Safe main sync                | Open, [#272](https://github.com/AJHMH/developer-os/issues/272) | Native main sync: a real delivery merged, main was verified, then `sync-main` fast-forwarded the delivery's checkout to exactly that revision ([13 November receipt](ticket13-macos-sync-delivery-receipt.md)). |
-| 14 Cleanup and completion        | Open, [#273](https://github.com/AJHMH/developer-os/issues/273) | Controlled; no native cleanup adapter.                                                                                                                  |
+| 14 Cleanup and completion        | Open, [#273](https://github.com/AJHMH/developer-os/issues/273) | Native cleanup: a real delivery merged, verified and synchronized main, then `cleanup-branches` deleted every merged branch, kept the unmerged ones and completed the delivery ([13 November receipt](ticket14-macos-cleanup-delivery-receipt.md)). |
 | 15 Windows qualification         | Superseded                                                     | ADR 0007: the Mac is the only owner host.                                                                                                               |
 | 16 macOS qualification           | Open, [#274](https://github.com/AJHMH/developer-os/issues/274) | Never run for the complete controller.                                                                                                                  |
 | 17 Observed profile-page pilot   | Open, [#275](https://github.com/AJHMH/developer-os/issues/275) | Never run.                                                                                                                                              |
@@ -113,13 +113,13 @@ There are 56 stories. Their status:
 | 40  | Post-merge fixes use a new signed PR                      | 12                 | Controlled only                                                                                                                                     |
 | 41  | Clean main fast-forwarded                                 | 13                 | Done: `sync-main` fast-forwarded a real delivery's clean checkout to exactly the verified main ([13 November receipt](ticket13-macos-sync-delivery-receipt.md)) |
 | 42  | Dirty or divergent main blocks                            | 13                 | Controlled only                                                                                                                                     |
-| 43  | All eligible merged branches considered                   | 14                 | Controlled only (#273)                                                                                                                              |
-| 44  | Squash and rebase linkage                                 | 14                 | Controlled only                                                                                                                                     |
-| 45  | Newer and local-only work preserved                       | 14                 | Controlled only                                                                                                                                     |
-| 46  | Protected and worktree branches retained                  | 14                 | Controlled only                                                                                                                                     |
-| 47  | Deletion conditioned on the evaluated tip                 | 14                 | Controlled only                                                                                                                                     |
+| 43  | All eligible merged branches considered                   | 14                 | Done: every local and remote branch was inventoried, and four earlier deliveries' merged branches were deleted with this one's ([13 November receipt](ticket14-macos-cleanup-delivery-receipt.md)) |
+| 44  | Squash and rebase linkage                                 | 14                 | Controlled only: the native adapter reads merged PR history, tested against a GitHub stand-in; no squash-merged branch on a real delivery yet |
+| 45  | Newer and local-only work preserved                       | 14                 | Partial: 13 unmerged branches were kept natively ([13 November receipt](ticket14-macos-cleanup-delivery-receipt.md)); a newer tip only in tests |
+| 46  | Protected and worktree branches retained                  | 14                 | Controlled only: natively implemented, tested against a GitHub stand-in |
+| 47  | Deletion conditioned on the evaluated tip                 | 14                 | Done: each of 5 native deletions was conditioned on its evaluated tip, locally with the old value and remotely with a lease ([13 November receipt](ticket14-macos-cleanup-delivery-receipt.md)) |
 | 48  | Partial cleanup recorded and resumable                    | 14                 | Controlled only                                                                                                                                     |
-| 49  | Completion or blocker report                              | 01, 14, 17         | Partial: blocker reports are native; the completion report needs #273                                                                               |
+| 49  | Completion or blocker report                              | 01, 14, 17         | Done: blocker reports, and the completed delivery's report of revision, deleted and retained branches and next action ([13 November receipt](ticket14-macos-cleanup-delivery-receipt.md)) |
 | 50  | Logs and artifacts exclude credentials                    | 01, 19–21          | Done: the key never leaves the Keychain and gateway                                                                                                 |
 | 51  | Dedicated VM boundary per delivery                        | 18–20, 23          | Partial: one dedicated VM, with a container per session; decision in #264                                                                           |
 | 52  | Offline feasibility kept apart from production            | 19, 24, 25         | Done: reports say `qualified: false`, `productionEnabled: false`                                                                                    |
@@ -132,11 +132,11 @@ In total:
 
 | Status          | Count | Stories                                                                   |
 | --------------- | ----- | ------------------------------------------------------------------------- |
-| Done            | 27    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 23, 29, 30, 31, 33, 34, 35, 37, 38, 41, 50, 52, 56 |
+| Done            | 30    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 23, 29, 30, 31, 33, 34, 35, 37, 38, 41, 43, 47, 49, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
-| Partial         | 13    | 5, 7, 21, 22, 24, 25, 27, 36, 39, 49, 51, 53, 54                          |
-| Controlled only | 12    | 8, 26, 28, 32, 40, 42, 43, 44, 45, 46, 47, 48                             |
+| Partial         | 13    | 5, 7, 21, 22, 24, 25, 27, 36, 39, 45, 51, 53, 54                          |
+| Controlled only | 9     | 8, 26, 28, 32, 40, 42, 44, 46, 48                                         |
 | Not done        | 0     |                                                                           |
 
-No story is complete end to end until tickets 08 to 14 have native adapters and
-16 and 17 have run.
+Tickets 08 to 14 now have native adapters, each run on a real delivery. No
+story is complete end to end until 16 and 17 have run.

@@ -119,6 +119,20 @@ too. Open and unmerged PR branches are kept.
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-cli-delivery-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" "$HOME/.developer-os-auth" "$HOME/.developer-os/issue14-cleanup-delivery-$(date +%Y%m%d-%H%M%S).json" --approve-metered-native-run --through-cleanup "$HOME/.developer-os/admission/publication-identity.json" "$HOME/.developer-os/admission/production-admission.json"
 ```
 
+### Native results (13 November 2026)
+
+The Mac passed with outcome `observed-native-delivery-through-cleanup`
+([receipt](../.scratch/aios-v1-implementation/ticket14-macos-cleanup-delivery-receipt.md)).
+A real delivery merged
+[AJHMH/aios-publication-acceptance#16](https://github.com/AJHMH/aios-publication-acceptance/pull/16),
+and main was verified and synchronized at `881d6806…`. `cleanup-branches` then:
+- deleted 5 branches: this delivery's feature branch, locally and on GitHub,
+  and the merged feature branches of three earlier deliveries;
+- kept 13 unmerged branches;
+- completed the delivery.
+
+Cleanup took 215 seconds, because each removal re-takes the whole inventory.
+
 ## CLI and qualification boundary
 
 The CLI recognizes `cleanup-branches --id <id>` and `reconcile-cleanup --id <id>`.
