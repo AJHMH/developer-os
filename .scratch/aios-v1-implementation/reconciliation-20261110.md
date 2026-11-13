@@ -41,7 +41,7 @@ There are 25 tickets, 01 to 25.
 | 09 Trusted PR checks             | Open, [#268](https://github.com/AJHMH/developer-os/issues/268) | Native monitor: a passing and a failing `pr-ci` run, and a receipted rerun that keeps the failure ([12 November receipt](ticket09-macos-pr-checks-acceptance-receipt.md)); the [first real delivery](first-real-delivery-receipt.md) passed `monitor-pr-checks`. |
 | 10 Review and owner approval     | Open, [#269](https://github.com/AJHMH/developer-os/issues/269) | Native adapter: ungated, gated, the owner's 👍 finding resolved, then exact-head approval ([12 November receipt](ticket10-macos-review-acceptance-receipt.md)); the [first real delivery](first-real-delivery-receipt.md) reached `ready-to-merge` through `monitor-review`, ungated. |
 | 11 Conditional merge             | Open, [#270](https://github.com/AJHMH/developer-os/issues/270) | Native fast-forward merge: a real delivery merged through `merge-feature`, main fast-forwarded to its exact head with a lease on the base, PR merged, reconciled once ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)). |
-| 12 Merged main verification      | Open, [#271](https://github.com/AJHMH/developer-os/issues/271) | Controlled; no native main observer.                                                                                                                    |
+| 12 Merged main verification      | Open, [#271](https://github.com/AJHMH/developer-os/issues/271) | Native main observer: a real delivery merged, then `monitor-main-checks` verified main through its own `main-ci` push run ([12 November receipt](ticket12-macos-main-delivery-receipt.md)). That delivery's candidate changed nothing, yet published; a follow-up. |
 | 13 Safe main sync                | Open, [#272](https://github.com/AJHMH/developer-os/issues/272) | Controlled; no native Git adapter.                                                                                                                      |
 | 14 Cleanup and completion        | Open, [#273](https://github.com/AJHMH/developer-os/issues/273) | Controlled; no native cleanup adapter.                                                                                                                  |
 | 15 Windows qualification         | Superseded                                                     | ADR 0007: the Mac is the only owner host.                                                                                                               |
@@ -109,7 +109,7 @@ There are 56 stories. Their status:
 | 36  | Restart reconciles uncertain effects                      | 03, 23             | Partial: done for coding sessions; later stages are controlled only                                                                                 |
 | 37  | Budget and session identity survive restart               | 03, 05, 23         | Done                                                                                                                                                |
 | 38  | Approval, checks and head revalidated at merge            | 11                 | Done: `merge-feature` re-checked checks, review and production, then merged only the exact head onto the expected main ([12 November receipt](ticket11-macos-merge-delivery-receipt.md)) |
-| 39  | Main checks verified after merge                          | 12, 17             | Controlled only (#271)                                                                                                                              |
+| 39  | Main checks verified after merge                          | 12, 17             | Partial: natively on a real delivery, through the default branch's own push run ([12 November receipt](ticket12-macos-main-delivery-receipt.md)); the pilot (#275) remains |
 | 40  | Post-merge fixes use a new signed PR                      | 12                 | Controlled only                                                                                                                                     |
 | 41  | Clean main fast-forwarded                                 | 13                 | Controlled only (#272)                                                                                                                              |
 | 42  | Dirty or divergent main blocks                            | 13                 | Controlled only                                                                                                                                     |
@@ -134,8 +134,8 @@ In total:
 | --------------- | ----- | ------------------------------------------------------------------------- |
 | Done            | 26    | 1, 2, 4, 6, 9, 10, 11, 12, 15, 16, 17, 18, 19, 20, 23, 29, 30, 31, 33, 34, 35, 37, 38, 50, 52, 56 |
 | Done, changed   | 4     | 3, 13, 14, 55                                                             |
-| Partial         | 12    | 5, 7, 21, 22, 24, 25, 27, 36, 49, 51, 53, 54                              |
-| Controlled only | 14    | 8, 26, 28, 32, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48                     |
+| Partial         | 13    | 5, 7, 21, 22, 24, 25, 27, 36, 39, 49, 51, 53, 54                          |
+| Controlled only | 13    | 8, 26, 28, 32, 40, 41, 42, 43, 44, 45, 46, 47, 48                         |
 | Not done        | 0     |                                                                           |
 
 No story is complete end to end until tickets 08 to 14 have native adapters and
