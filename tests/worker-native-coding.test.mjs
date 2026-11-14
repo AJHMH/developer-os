@@ -261,8 +261,20 @@ test("unsafe native inputs and unsupported authority paths refuse before VM effe
     },
     {
       files: [
-        { path: "large", bytes: Buffer.alloc(262145), executable: false },
+        {
+          path: "large",
+          bytes: Buffer.alloc(1024 * 1024 + 1),
+          executable: false,
+        },
       ],
+    },
+    {
+      // Five files of 1 MiB: each within bounds, the total over 4 MiB.
+      files: Array.from({ length: 5 }, (_, i) => ({
+        path: `part-${i}`,
+        bytes: Buffer.alloc(1024 * 1024),
+        executable: false,
+      })),
     },
     {
       files: [

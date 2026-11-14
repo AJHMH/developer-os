@@ -56,7 +56,7 @@ test("the Claude Code guest program is unchanged and holds nothing of Codex's", 
   // The digest the Claude Code owner coding admission pins today.
   assert.equal(
     claudeManagementPolicySha256,
-    "c8efc6b2fcb0c08debaac0e0fbf55e10f7e18fa2612a21cab67a2ec9c5d45eee",
+    "73947e4756f6a57bd2f3e6566bcb5b375a5005ae89d1d2bc5cc06547d4271c3f",
   );
   // No Codex text is left in the program but two refusals that stay: a
   // `CODEX_API_KEY` in the worker's environment, and a `.codex` folder among

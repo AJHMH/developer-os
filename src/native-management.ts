@@ -9,6 +9,15 @@ const digest = (value: string | Buffer) =>
 
 /** Host facts every native management call binds: the dedicated machine's
  * configuration, the engine executable's bytes and the engine client version. */
+/** The repository tree a coding session or validation attempt receives, and
+ * a coding session returns (#275): every file crosses as base64 in one
+ * management request or response, which the 8 MiB output bound caps. */
+export const treeTransfer = Object.freeze({
+  files: 1000,
+  fileBytes: 1024 * 1024,
+  totalBytes: 4 * 1024 * 1024,
+});
+
 export function managementHost(machine: string) {
   const host = podmanMachine(machine);
   const executable = digest(readFileSync(host.executable));
