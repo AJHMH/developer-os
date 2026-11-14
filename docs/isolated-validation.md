@@ -109,8 +109,10 @@ How the tree is bound and measured:
 
 Limits:
 
-- **Transfer size:** the same as coding. At most 1,000 files, 256 KiB each and
-  1 MiB in total; larger trees are refused before any VM effect.
+- **Transfer size:** the same as coding, in both directions. At most 1,000
+  files, 1 MiB each and 4 MiB in total (`treeTransfer`); larger trees are
+  refused before any VM effect. A real repository's lockfile alone can pass
+  256 KiB, the bound before #275.
 - **One run at a time:** inspection refuses while any other container runs in
   the dedicated VM, so validation never overlaps coding or another attempt.
 
@@ -427,4 +429,3 @@ need not be admitted by the current record, so a container from an earlier
 record can still be stopped and removed. The first
 native run on 11 November found this: the guest refused the first browser
 container because of that label, and the attempt stopped as uncertain.
-

@@ -14,6 +14,7 @@ import {
 import {
   managementBindingSha256,
   managementHost,
+  treeTransfer,
   openManagementChannel,
   runManagement,
   validGuestBinding,
@@ -435,16 +436,16 @@ def collect_files():
    names.add(name.lower())
    if stat.S_ISDIR(s.st_mode): visit(entry.path,name+'/');continue
    ordinary(entry.path)
-   if s.st_size>262144 or len(files)>=1000: fail()
+   if s.st_size>${treeTransfer.fileBytes} or len(files)>=${treeTransfer.files}: fail()
    fd=os.open(entry.path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
    with os.fdopen(fd,'rb') as f:
     opened=os.fstat(f.fileno())
     if (opened.st_dev,opened.st_ino,opened.st_nlink,opened.st_size)!=(s.st_dev,s.st_ino,1,s.st_size): fail()
-    data=f.read(262145)
+    data=f.read(${treeTransfer.fileBytes + 1})
     after=os.fstat(f.fileno())
     if len(data)!=s.st_size or (after.st_mtime_ns,after.st_ctime_ns)!=(s.st_mtime_ns,s.st_ctime_ns): fail()
    total+=len(data)
-   if total>1048576: fail()
+   if total>${treeTransfer.totalBytes}: fail()
    files.append(dict(path=name,bytes=base64.b64encode(data).decode(),executable=bool(s.st_mode&0o111)))
  visit(work,'')
  return files
@@ -508,10 +509,10 @@ else:
     admission.update(threadId=thread,resumeFrom=previous,**({'baseMove':base} if base else {}))
    elif R['session']['intent']!='start' or R.get('threadId') is not None or R.get('resumeFrom') is not None or R.get('baseMove') is not None: fail()
    total=0;names=set();inputs=[];manifest=[]
-   if not isinstance(R['files'],list) or len(R['files'])>1000: fail()
+   if not isinstance(R['files'],list) or len(R['files'])>${treeTransfer.files}: fail()
    for file in R['files']:
     path=file['path'];data=base64.b64decode(file['bytes'],validate=True);total+=len(data)
-    if not path_ok(path) or path.lower() in names or len(data)>262144 or total>1048576 or type(file['executable']) is not bool: fail()
+    if not path_ok(path) or path.lower() in names or len(data)>${treeTransfer.fileBytes} or total>${treeTransfer.totalBytes} or type(file['executable']) is not bool: fail()
     names.add(path.lower());inputs.append((path,data,file['executable']))
     manifest.append(dict(path=path,sha256=h(data),executable=file['executable']))
    if h(json.dumps(manifest,ensure_ascii=False,separators=(',',':')).encode())!=R['inputSha256']: fail()
@@ -1406,7 +1407,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
     };
   }
   private files(files: CodingRequest["files"]) {
-    if (!Array.isArray(files) || files.length > 1000)
+    if (!Array.isArray(files) || files.length > treeTransfer.files)
       throw Error("Native coding file limit exceeded");
     const names = new Set<string>();
     let total = 0;
@@ -1415,8 +1416,8 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
         !admittedPath(file.path) ||
         names.has(file.path.toLowerCase()) ||
         !Buffer.isBuffer(file.bytes) ||
-        file.bytes.length > 262144 ||
-        (total += file.bytes.length) > 1048576 ||
+        file.bytes.length > treeTransfer.fileBytes ||
+        (total += file.bytes.length) > treeTransfer.totalBytes ||
         typeof file.executable !== "boolean" ||
         credentialLike(file.bytes.toString("utf8"))
       )
@@ -1814,7 +1815,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
         throw Error("Invalid native coding collection");
       return {
         path: file.path,
-        bytes: this.decode(file.bytes, 262144),
+        bytes: this.decode(file.bytes, treeTransfer.fileBytes),
         executable: file.executable,
       };
     });
