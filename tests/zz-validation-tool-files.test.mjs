@@ -3,6 +3,7 @@
 // verifies each; the guest copies them into each install and check home.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import { gzipSync } from "node:zlib";
 import {
@@ -50,6 +51,8 @@ test("tool files are plain https URLs, pinned digests and plain home paths", () 
     "https://binaries.prisma.sh/x#y",
     "https://binaries.prisma.sh/a/../x",
     "not a url",
+    `https://binaries.prisma.sh/${"x".repeat(2000)}`,
+    7,
   ])
     assert.equal(toolUrl(url), false, url);
   for (const path of [
@@ -69,6 +72,7 @@ test("tool files are plain https URLs, pinned digests and plain home paths", () 
     [{ ...declared()[0], extra: 1 }],
     [declared()[0], declared()[0]],
     Array.from({ length: 33 }, (_, i) => ({ ...declared()[0], path: `t${i}` })),
+    [declared()[0], "x"],
     "x",
   ])
     assert.equal(validToolFiles(bad), false, JSON.stringify(bad).slice(0, 80));
@@ -127,6 +131,39 @@ test("the host admits tool files only when every one matches its digest", async 
   assert.equal(toolFileLimits.totalBytes, 128 * 1024 * 1024);
 });
 
+test("the host stops a read that is cancelled while it runs", async () => {
+  for (const early of [false, true]) {
+    const cancel = new AbortController();
+    const pending = fetchToolFiles(declared(), {
+      // A read that never answers; cancelling it is the only way out.
+      reader: () => {
+        if (early) cancel.abort();
+        return new Promise(() => {});
+      },
+      signal: cancel.signal,
+    });
+    if (!early) setImmediate(() => cancel.abort());
+    await assert.rejects(pending, /cancelled/);
+  }
+});
+
+test("the host refuses tool files over the total bound", async () => {
+  // Three files each within 64 MiB, together over 128 MiB.
+  const bytes = Buffer.alloc(45 * 1024 * 1024, 1);
+  const files = ["a", "b", "c"].map((path) => ({
+    url: `https://binaries.prisma.sh/${path}`,
+    sha256: sha256(bytes),
+    path,
+  }));
+  await assert.rejects(
+    fetchToolFiles(files, {
+      reader: async () => ({ status: 200, bytes }),
+      signal: new AbortController().signal,
+    }),
+    /size/,
+  );
+});
+
 test("the https reader refuses anything but a plain https URL before connecting", async () => {
   let requested = false;
   const read = httpsFileReader(() => {
@@ -138,6 +175,106 @@ test("the https reader refuses anything but a plain https URL before connecting"
     /refused/,
   );
   assert.equal(requested, false);
+});
+
+// A stand-in for `https.request`: answers with the given status, headers and
+// chunks, or fails the request, without any network.
+function fakeRequest({ status = 200, headers = {}, chunks = [], fail } = {}) {
+  const seen = { destroyed: false };
+  const request = (url, options, onResponse) => {
+    seen.url = url;
+    seen.options = options;
+    const req = new EventEmitter();
+    req.end = () =>
+      queueMicrotask(() => {
+        if (fail) {
+          req.emit("error", fail);
+          return;
+        }
+        const res = new EventEmitter();
+        res.statusCode = status;
+        res.headers = headers;
+        res.destroy = (error) => {
+          seen.destroyed = true;
+          if (error) res.emit("error", error);
+        };
+        onResponse(res);
+        for (const chunk of chunks) {
+          if (seen.destroyed) return;
+          res.emit("data", Buffer.from(chunk));
+        }
+        if (!seen.destroyed) res.emit("end");
+      });
+    return req;
+  };
+  return { request, seen };
+}
+
+test("the https reader returns the body of a plain 200 and the status of anything else", async () => {
+  const signal = AbortSignal.timeout(1000);
+  const ok = fakeRequest({ chunks: ["schema ", "engine"] });
+  assert.deepEqual(await httpsFileReader(ok.request)(engineUrl, signal, 100), {
+    status: 200,
+    bytes: Buffer.from("schema engine"),
+  });
+  assert.equal(ok.seen.url, engineUrl);
+  assert.equal(ok.seen.options.method, "GET");
+  assert.equal(ok.seen.options.headers["accept-encoding"], "identity");
+  assert.equal(ok.seen.options.rejectUnauthorized, true);
+  assert.equal(ok.seen.options.signal, signal);
+  // `identity` is the same as no encoding.
+  assert.equal(
+    (
+      await httpsFileReader(
+        fakeRequest({
+          headers: { "content-encoding": "identity" },
+          chunks: ["x"],
+        }).request,
+      )(engineUrl, signal, 100)
+    ).bytes.toString(),
+    "x",
+  );
+  // A redirect is returned as its status, not followed.
+  const moved = fakeRequest({ status: 302, headers: { location: "x" } });
+  assert.deepEqual(
+    await httpsFileReader(moved.request)(engineUrl, signal, 100),
+    { status: 302, bytes: Buffer.alloc(0) },
+  );
+  assert.equal(moved.seen.destroyed, true);
+  // An encoded body is returned with its encoding, for the fetch to refuse.
+  assert.deepEqual(
+    await httpsFileReader(
+      fakeRequest({ headers: { "content-encoding": "gzip" }, chunks: ["x"] })
+        .request,
+    )(engineUrl, signal, 100),
+    { status: 200, bytes: Buffer.alloc(0), encoding: "gzip" },
+  );
+});
+
+test("the https reader gives up past its size bound and on a failed request", async () => {
+  const signal = AbortSignal.timeout(1000);
+  const declaredLarge = fakeRequest({ headers: { "content-length": "101" } });
+  await assert.rejects(
+    httpsFileReader(declaredLarge.request)(engineUrl, signal, 100),
+    /refused/,
+  );
+  assert.equal(declaredLarge.seen.destroyed, true);
+  const streamedLarge = fakeRequest({
+    chunks: ["x".repeat(60), "x".repeat(60)],
+  });
+  await assert.rejects(
+    httpsFileReader(streamedLarge.request)(engineUrl, signal, 100),
+    /refused/,
+  );
+  assert.equal(streamedLarge.seen.destroyed, true);
+  await assert.rejects(
+    httpsFileReader(fakeRequest({ fail: Error("ECONNRESET") }).request)(
+      engineUrl,
+      signal,
+      100,
+    ),
+    /ECONNRESET/,
+  );
 });
 
 test("the guest copies each verified tool file into the install's and every check's home", async (t) => {
