@@ -370,8 +370,23 @@ test("malformed requests refuse before any VM effect", async (t) => {
     [
       {
         files: [
-          { path: "big", bytes: Buffer.alloc(262145), executable: false },
+          {
+            path: "big",
+            bytes: Buffer.alloc(1024 * 1024 + 1),
+            executable: false,
+          },
         ],
+      },
+      {},
+    ],
+    [
+      {
+        // Five files of 1 MiB: each within bounds, the total over 4 MiB.
+        files: Array.from({ length: 5 }, (_, i) => ({
+          path: `part-${i}`,
+          bytes: Buffer.alloc(1024 * 1024),
+          executable: false,
+        })),
       },
       {},
     ],
@@ -445,4 +460,27 @@ test("the guest's start step refuses a tree other than the prepared one", async 
     }),
   );
   assert.equal(g.commands("podman", "create").length, 1);
+});
+
+test("a real repository's tree crosses whole: a 374 KiB lockfile among 2 MiB of files (#275)", async (t) => {
+  const g = validationGuest(t);
+  const files = [
+    {
+      path: "package-lock.json",
+      bytes: Buffer.alloc(382791, 1),
+      executable: false,
+    },
+    ...Array.from({ length: 6 }, (_, i) => ({
+      path: `static/projects/image-${i}.jpg`,
+      bytes: Buffer.alloc(287537, i + 2),
+      executable: false,
+    })),
+  ];
+  const result = await g.transport.run(runRequest({ files }));
+  assert.equal(result.exitCode, 0);
+  const [operation] = workspaces(g.root);
+  assert.equal(
+    statSync(`${stateRoot(g.root)}/${operation}/input/package-lock.json`).size,
+    382791,
+  );
 });

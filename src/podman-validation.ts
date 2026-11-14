@@ -3,6 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   managementBindingSha256,
   managementHost,
+  treeTransfer,
   runManagement,
   validGuestBinding,
 } from "./native-management.js";
@@ -395,10 +396,10 @@ else:
     if record['phase']!='prepared' or record['treeSha256']!=R['treeSha256'] or record['manifestSha256']!=R['manifestSha256']: fail()
    else:
     total=0;names=set();inputs=[];manifest=[]
-    if not isinstance(R.get('files'),list) or len(R['files'])>1000: fail()
+    if not isinstance(R.get('files'),list) or len(R['files'])>${treeTransfer.files}: fail()
     for file in R['files']:
      path=file['path'];data=base64.b64decode(file['bytes'],validate=True);total+=len(data)
-     if not isinstance(path,str) or not path_ok(path) or path.lower() in names or len(data)>262144 or total>1048576 or type(file['executable']) is not bool: fail()
+     if not isinstance(path,str) or not path_ok(path) or path.lower() in names or len(data)>${treeTransfer.fileBytes} or total>${treeTransfer.totalBytes} or type(file['executable']) is not bool: fail()
      names.add(path.lower());inputs.append((path,data,file['executable']))
      manifest.append(dict(path=path,sha256=h(data),executable=file['executable']))
     if manifest_digest(manifest)!=R['manifestSha256']: fail()
@@ -716,13 +717,13 @@ export class NativePodmanValidationTransport
       !sha256(request.treeSha256) ||
       typeof mayDispatch !== "function" ||
       !Array.isArray(request.files) ||
-      request.files.length > 1000 ||
+      request.files.length > treeTransfer.files ||
       !request.files.every(
         (file) =>
           admittedPath(file.path) &&
           Buffer.isBuffer(file.bytes) &&
-          file.bytes.length <= 262144 &&
-          (total += file.bytes.length) <= 1048576 &&
+          file.bytes.length <= treeTransfer.fileBytes &&
+          (total += file.bytes.length) <= treeTransfer.totalBytes &&
           typeof file.executable === "boolean",
       ) ||
       !validCheckBounds(check) ||
