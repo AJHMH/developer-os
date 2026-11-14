@@ -25,7 +25,7 @@ and once to pass with them. Follow these steps in order, on the Mac, in
    worker starts and exits with code 1:
 
    ```sh
-   node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+   node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 6d7bed6a62d9768114cce3ecaff0ac534acbda40cf7368c3f9df74cb367fb143 "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
    ```
 
    Its last line is JSON with `"outcome": "blocked"` and `freshPins`. For a
@@ -133,7 +133,7 @@ passing report.
 | 6. Retained results                               | Every stage and probe, failed ones included             | Same                                                                                                                     |
 
 The **boundary probe** (`src/worker-probes.ts`) is one fixed line of shell. It
-uses only the busybox tools of the pinned Alpine images and first proves each
+uses only busybox tools, which both pinned images carry, and first proves each
 tool exists, so a missing tool fails instead of passing. It checks:
 
 - **Positive control:** the admitted file is visible, and it is the
@@ -256,7 +256,9 @@ check that it reports that digest and `arm64`:
 /opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.RepoDigests}} {{.Architecture}}' docker.io/library/bash@sha256:826e424f395d3d1e10adc155e63f3c69090c5559c5f3914b0d4c9064e767b06a
 ```
 
-The validation worker keeps its Alpine image.
+The validation worker runs the owner-built Node 22 image
+([isolated validation](isolated-validation.md#the-validation-image-275)), which
+adds busybox for the probe.
 
 Claude Code turns are admitted by their own owner record, with scope
 `aios-claude-coding-admission-v1` and pins `cliVersion`, `cliSha256`,
@@ -317,7 +319,7 @@ to. It takes a few minutes.
 From a clean, built checkout with the VM running:
 
 ```sh
-node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
+node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-worker-qualification.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/claude-coding-admission.json" "$HOME/.developer-os/admission/validation-admission.json" 6d7bed6a62d9768114cce3ecaff0ac534acbda40cf7368c3f9df74cb367fb143 "$HOME/.developer-os/issue04-worker-qualification-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run
 ```
 
 ### Qualifying the Claude Code worker
