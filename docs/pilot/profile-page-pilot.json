@@ -1,0 +1,228 @@
+{
+  "scope": "aios-pilot-v1",
+  "repository": "AJHMH/profile-page",
+  "signedCommit": "0000000000000000000000000000000000000000",
+  "request": "Add a \"Skip to content\" link for keyboard users to every page: the first thing Tab reaches, hidden until it has focus, that moves focus to the page's main content.",
+  "criteria": [
+    "On every page, the first Tab focuses a link that reads \"Skip to content\" and points at an in-page target.",
+    "The link is visually hidden until it has focus, and visible in the viewport while focused.",
+    "Activating the link moves to the page's main element, which carries the link's target id.",
+    "The existing format, lint, type, coverage, build and E2E checks, including the axe checks, still pass."
+  ],
+  "verification": [
+    "The skip-link check reads the layout: a skip link before the navigation, targeting the main element's id.",
+    "The skip-link-browser check tabs to the link on /, /about and /contact in Chromium, and follows it to main."
+  ],
+  "requiredChecks": [
+    "Lint, Type Check, Test, Build",
+    "Semgrep Security Scan",
+    "e2e"
+  ],
+  "excludedPaths": [
+    ".agents/",
+    ".claude/",
+    ".env.example",
+    ".gitattributes",
+    ".npmrc"
+  ],
+  "libc": "glibc",
+  "database": true,
+  "browser": true,
+  "budgetDollars": 10,
+  "codingMinutes": 30,
+  "repairCycles": 2,
+  "checksWaitMinutes": 30,
+  "reviewWaitMinutes": 240,
+  "requireOwnerApproval": true,
+  "validationContract": {
+    "version": 1,
+    "mutablePaths": ["src/routes/+layout.svelte"],
+    "outputPaths": [".svelte-kit", "coverage", ".vercel", "test-results"],
+    "toolFiles": [
+      {
+        "url": "https://binaries.prisma.sh/all_commits/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-1.1.x/schema-engine.gz",
+        "sha256": "2fe4637f0d7831e6cdeab8d94b2a584f08e524a5a685e058290ba2af1b2b6854",
+        "path": ".cache/prisma/master/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-1.1.x/schema-engine",
+        "gzip": true,
+        "executable": true
+      },
+      {
+        "url": "https://binaries.prisma.sh/all_commits/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-1.1.x/schema-engine.sha256",
+        "sha256": "e0363c07027b419ceccf6a3a98156c6af98e8fdc4255342f37ab3c2b750d9632",
+        "path": ".cache/prisma/master/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-1.1.x/schema-engine.sha256"
+      },
+      {
+        "url": "https://binaries.prisma.sh/all_commits/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-1.1.x/schema-engine.gz.sha256",
+        "sha256": "b16e08cb91c12baeac201ed8516095e966bd3b4aa5d48ad7ff70f2dfecd89a16",
+        "path": ".cache/prisma/master/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-1.1.x/schema-engine.gz.sha256"
+      },
+      {
+        "url": "https://binaries.prisma.sh/all_commits/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-3.0.x/schema-engine.gz",
+        "sha256": "d9a989479930b10d81b7e2bd8027723ca455189f402d4323ed452ae3a7a793cf",
+        "path": ".cache/prisma/master/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-3.0.x/schema-engine",
+        "gzip": true,
+        "executable": true
+      },
+      {
+        "url": "https://binaries.prisma.sh/all_commits/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-3.0.x/schema-engine.sha256",
+        "sha256": "c4b01f0cb3d782784acda021d9d914a495cdc87bf992518a91b498aea7cbeec3",
+        "path": ".cache/prisma/master/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-3.0.x/schema-engine.sha256"
+      },
+      {
+        "url": "https://binaries.prisma.sh/all_commits/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-3.0.x/schema-engine.gz.sha256",
+        "sha256": "32a7afaddb7ce9a225527046d3359560a0d20581498575d1ae28165b04767f06",
+        "path": ".cache/prisma/master/e922089b7d7502aff4249d5da3420f6fa55fc6ad/linux-arm64-openssl-3.0.x/schema-engine.gz.sha256"
+      }
+    ],
+    "checks": [
+      {
+        "id": "format",
+        "kind": "format",
+        "scope": "local",
+        "stages": ["baseline", "candidate"],
+        "command": ["npx", "prettier", "--check", "."],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "lint",
+        "kind": "lint",
+        "scope": "local",
+        "stages": ["baseline", "candidate"],
+        "command": ["npx", "eslint", "."],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "type",
+        "kind": "type",
+        "scope": "local",
+        "stages": ["baseline", "candidate"],
+        "command": ["npm", "run", "-s", "check"],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "coverage",
+        "kind": "coverage",
+        "scope": "local",
+        "stages": ["baseline", "candidate"],
+        "command": [
+          "sh",
+          "-c",
+          "npx svelte-kit sync && npx vitest run --coverage"
+        ],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "build",
+        "kind": "build",
+        "scope": "local",
+        "stages": ["baseline", "candidate"],
+        "command": ["npm", "run", "-s", "build"],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "e2e",
+        "kind": "e2e",
+        "scope": "local",
+        "stages": ["baseline", "candidate"],
+        "command": [
+          "sh",
+          "-c",
+          "export CI=1 EMAIL_SERVICE=console && npx prisma db push && npx playwright test --reporter=line"
+        ],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "skip-link",
+        "kind": "acceptance",
+        "scope": "local",
+        "stages": ["candidate"],
+        "command": [
+          "node",
+          "-e",
+          "const s = require(\"fs\").readFileSync(\"src/routes/+layout.svelte\", \"utf8\"); const m = s.match(/<a\\b[^>]*\\bhref=\"#([A-Za-z][\\w-]*)\"[^>]*>\\s*Skip to (?:main )?content\\s*<\\/a>/i); if (!m) throw Error(\"No skip link to an in-page target\"); if (!new RegExp(\"<main\\\\b[^>]*\\\\bid=\\\"\" + m[1] + \"\\\"\").test(s)) throw Error(\"The main element lacks the link target id\"); if (s.indexOf(m[0]) > s.indexOf(\"<nav\")) throw Error(\"The skip link is not before the navigation\");"
+        ],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "skip-link-browser",
+        "kind": "e2e",
+        "scope": "local",
+        "stages": ["candidate"],
+        "command": [
+          "node",
+          "-e",
+          "const fs = require(\"fs\"), { spawnSync } = require(\"child_process\"); const env = { ...process.env, CI: \"1\", EMAIL_SERVICE: \"console\" }; const run = (a) => { const r = spawnSync(\"npx\", a, { stdio: \"inherit\", env }); if (r.status !== 0) process.exit(r.status || 1); }; const d = \"test-results/aios-pilot\"; fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(d + \"/skip-link.spec.ts\", \"import { test, expect } from \\\"@playwright/test\\\";\\nfor (const path of [\\\"/\\\", \\\"/about\\\", \\\"/contact\\\"]) test(\\\"skip link on \\\" + path, async ({ page }) => {\\n  await page.goto(path);\\n  const link = page.getByRole(\\\"link\\\", { name: /skip to (main )?content/i });\\n  const hidden = await link.boundingBox();\\n  expect(!hidden || hidden.width <= 1 || hidden.y + hidden.height <= 0).toBeTruthy();\\n  await page.keyboard.press(\\\"Tab\\\");\\n  await expect(link).toBeFocused();\\n  await expect(link).toBeInViewport();\\n  const href = await link.getAttribute(\\\"href\\\");\\n  await page.keyboard.press(\\\"Enter\\\");\\n  await expect(page).toHaveURL(new RegExp(href + \\\"$\\\"));\\n  await expect(page.locator(\\\"main\\\" + href)).toHaveCount(1);\\n});\\n\"); fs.writeFileSync(d + \"/playwright.config.ts\", \"import base from \\\"../../playwright.config\\\";\\nexport default { ...base, testDir: \\\".\\\", testMatch: \\\"skip-link.spec.ts\\\", outputDir: \\\"./results\\\" };\\n\"); run([\"prisma\", \"db\", \"push\"]); run([\"playwright\", \"test\", \"--config\", d + \"/playwright.config.ts\", \"--reporter=line\"]);"
+        ],
+        "publisher": "isolated-checker",
+        "timeoutMs": 120000
+      },
+      {
+        "id": "Lint, Type Check, Test, Build",
+        "kind": "build",
+        "scope": "pr",
+        "stages": ["candidate"],
+        "command": ["workflow", "ci"],
+        "publisher": "github-actions",
+        "workflow": ".github/workflows/ci.yml@main",
+        "timeoutMs": 1800000
+      },
+      {
+        "id": "Semgrep Security Scan",
+        "kind": "lint",
+        "scope": "pr",
+        "stages": ["candidate"],
+        "command": ["workflow", "ci"],
+        "publisher": "github-actions",
+        "workflow": ".github/workflows/ci.yml@main",
+        "timeoutMs": 1800000
+      },
+      {
+        "id": "e2e",
+        "kind": "e2e",
+        "scope": "pr",
+        "stages": ["candidate"],
+        "command": ["workflow", "e2e"],
+        "publisher": "github-actions",
+        "workflow": ".github/workflows/e2e.yml@main",
+        "timeoutMs": 1800000
+      },
+      {
+        "id": "main: Lint, Type Check, Test, Build",
+        "kind": "build",
+        "scope": "main",
+        "stages": ["candidate"],
+        "command": ["workflow", "ci"],
+        "publisher": "github-actions",
+        "workflow": ".github/workflows/ci.yml@main",
+        "timeoutMs": 1800000
+      },
+      {
+        "id": "main: Semgrep Security Scan",
+        "kind": "lint",
+        "scope": "main",
+        "stages": ["candidate"],
+        "command": ["workflow", "ci"],
+        "publisher": "github-actions",
+        "workflow": ".github/workflows/ci.yml@main",
+        "timeoutMs": 1800000
+      },
+      {
+        "id": "main: e2e",
+        "kind": "e2e",
+        "scope": "main",
+        "stages": ["candidate"],
+        "command": ["workflow", "e2e"],
+        "publisher": "github-actions",
+        "workflow": ".github/workflows/e2e.yml@main",
+        "timeoutMs": 1800000
+      }
+    ]
+  }
+}

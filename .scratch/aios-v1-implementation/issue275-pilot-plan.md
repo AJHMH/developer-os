@@ -75,4 +75,9 @@ both records at the end.
 - Slice 6: requalified at the `complete` level on 14 November, on an
   owner-built Node 22 image, because the boundary probe needs busybox
   ([receipt](issue275-requalification-receipt.md)).
-- Slice 7, the pilot, is next.
+- Slice 7: the pilot runner and profile-page's pilot record
+  ([pilot](../../docs/pilot.md)). The feature is a "Skip to content" link.
+  profile-page names its main-push jobs apart from its PR checks
+  ([AJHMH/profile-page#124](https://github.com/AJHMH/profile-page/pull/124)),
+  and drops its pull request rules, because the controller merges by
+  fast-forward and decides review itself (ADR 0005).
