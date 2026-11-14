@@ -466,14 +466,32 @@ export async function pilotDelivery(
       };
       return found;
     });
-    inputs = await stage("owner-inputs", () =>
-      pilotOwnerInputs(root, environment, {
+    inputs = await stage("owner-inputs", async () => {
+      const made = pilotOwnerInputs(root, environment, {
         facts,
         factoryCommit,
         pilot,
         ...(cloneUrl ? { cloneUrl } : {}),
-      }),
-    );
+      });
+      // The contract as validation will load it, so a contract it refuses
+      // stops the pilot here, naming why, before any delivery starts.
+      const { validationContract } = await import(
+        "../dist/isolated-validation.js"
+      );
+      try {
+        validationContract(
+          made.policyPath,
+          createHash("sha256")
+            .update(readFileSync(made.policyPath))
+            .digest("hex"),
+        );
+      } catch (error) {
+        throw Error(
+          `The pilot's validation contract is refused: ${bounded(error?.message)}`,
+        );
+      }
+      return made;
+    });
     report.repository.baseRevision = inputs.revision;
     const owner = [
       "--owner-policy",

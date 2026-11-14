@@ -6,10 +6,11 @@ import "./helpers/owner-host-stand-in.mjs";
 // GitHub steps are simulated.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { chmodSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { validationContract } from "../dist/isolated-validation.js";
 import { preparedNpmValidationEnvironment } from "../dist/native-validation.js";
 import {
   cliRunner,
@@ -295,6 +296,12 @@ test("the real CLI is ready to deliver the example pilot record", async (t) => {
   const policy = JSON.parse(readFileSync(inputs.policyPath, "utf8"));
   assert.deepEqual(policy.excludedPaths, pilot.excludedPaths);
   assert.deepEqual(policy.requiredChecks, pilot.requiredChecks);
+  // Validation loads the contract, so its checks are valid and distinct.
+  const contract = validationContract(
+    inputs.policyPath,
+    createHash("sha256").update(readFileSync(inputs.policyPath)).digest("hex"),
+  );
+  assert.equal(contract.checks.length, pilot.validationContract.checks.length);
   const cli = cliRunner(join(root, "state"));
   const run = async (...args) => {
     const result = await cli(args);
@@ -662,6 +669,28 @@ test("a failed candidate is repaired within the owner's allowance, and each repa
   assert.equal(spent.sim.calls.includes("publish-feature"), false);
   // A stopped pilot keeps its clone for the owner to continue.
   assert.match(spent.report.checkout, /repository$/);
+});
+
+test("a validation contract validation would refuse stops the pilot before any delivery", async (t) => {
+  const contract = example().validationContract;
+  const { report, sim } = await runPilot(t, {
+    pilotChanges: {
+      validationContract: {
+        ...contract,
+        // Two checks named e2e: the local one and the hosted PR check.
+        checks: contract.checks.map((c) =>
+          c.id === "e2e-local" ? { ...c, id: "e2e" } : c,
+        ),
+      },
+    },
+  });
+  assert.equal(report.outcome, "blocked");
+  assert.match(
+    report.error,
+    /validation contract is refused: Invalid validation check/,
+  );
+  assert.equal(report.stages.at(-1).name, "owner-inputs");
+  assert.deepEqual(sim.calls, []);
 });
 
 test("the pilot refuses before any CLI step unless production qualifies the complete controller at these pins", async (t) => {
