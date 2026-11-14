@@ -55,7 +55,7 @@ guest is Claude Code's (`claude-coding-admission.json`, ADR 0008):
 | Guest      | `policySha256`                                                     |
 | ---------- | ------------------------------------------------------------------ |
 | Coding     | `73947e4756f6a57bd2f3e6566bcb5b375a5005ae89d1d2bc5cc06547d4271c3f` |
-| Validation | `525bc04af71df047db1611a8b41e9184fabe450da1b630bbf7725d186cbcb069` |
+| Validation | `c83e42e56cfeeff1b6ea569f3c7a2120aa8a9558d20062d5281acafc1851cab9` |
 
 `tests/zzz-docs-commands.test.mjs` fails when a guest program
 (`src/podman-coding.ts`, `src/podman-validation.ts`) no longer matches this

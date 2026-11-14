@@ -6,7 +6,8 @@ import {
   type FeatureEvidence,
 } from "./feature-candidate.js";
 import { redact } from "./redaction.js";
-import { autoRunPath } from "./workspace.js";
+import { admittedPath, autoRunPath } from "./workspace.js";
+import { validToolFiles, type ToolFile } from "./tool-files.js";
 
 export type ValidationStage = "baseline" | "candidate";
 export type CheckStatus =
@@ -55,6 +56,12 @@ export interface ValidationContract {
   checks: ValidationCheck[];
   /** Exact application paths only; all validation inputs remain immutable. */
   mutablePaths: string[];
+  /** Paths a check may write, such as build and coverage output (#275); the
+   * tree measurement skips them. None may hold or lie under an input file. */
+  outputPaths?: string[];
+  /** Files the install and checks need that npm doesn't carry, pinned by
+   * SHA-256 (#275), such as Prisma's schema engines. */
+  toolFiles?: ToolFile[];
 }
 export interface ValidationResult {
   checkId: string;
@@ -127,6 +134,19 @@ const text = (v: unknown): v is string =>
   v.length <= 2000 &&
   !/[\u0000-\u001f\u007f]/.test(v) &&
   redact(v) === v;
+/** A contract's `outputPaths`: at most 32 distinct admitted relative paths,
+ * never `node_modules`, which the installed layer owns. */
+export function validOutputPaths(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= 32 &&
+    new Set(value).size === value.length &&
+    value.every(
+      (p) =>
+        text(p) && admittedPath(p) && p !== "node_modules" && !p.endsWith("/"),
+    )
+  );
+}
 export function validationDigest(value: unknown): string {
   return candidateDigest(JSON.stringify(value));
 }
@@ -161,7 +181,9 @@ export function validationContract(
     ) ||
     !Array.isArray(c.checks) ||
     !c.checks.length ||
-    c.checks.length > 64
+    c.checks.length > 64 ||
+    (c.outputPaths !== undefined && !validOutputPaths(c.outputPaths)) ||
+    (c.toolFiles !== undefined && !validToolFiles(c.toolFiles))
   )
     throw Error("Invalid owner validation contract");
   const e = c.environment;
@@ -302,6 +324,10 @@ export function validationContract(
   return {
     version: 1,
     mutablePaths: [...c.mutablePaths],
+    ...(c.outputPaths?.length ? { outputPaths: [...c.outputPaths] } : {}),
+    ...(c.toolFiles?.length
+      ? { toolFiles: c.toolFiles.map((file) => ({ ...file })) }
+      : {}),
     environment: {
       imageSha256: e.imageSha256,
       networkPolicySha256: e.networkPolicySha256,

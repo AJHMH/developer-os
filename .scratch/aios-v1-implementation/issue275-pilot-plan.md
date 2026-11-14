@@ -69,5 +69,8 @@ both records at the end.
 ## Status
 
 - Slice 1: [#325](https://github.com/AJHMH/developer-os/pull/325), merged 13 November.
-- Slice 2: [#326](https://github.com/AJHMH/developer-os/pull/326).
-- Slices 3 to 5 follow, each moving the validation digest again; the owner re-pins once, at slice 6.
+- Slice 2: [#326](https://github.com/AJHMH/developer-os/pull/326), merged 13 November.
+- Slice 3: [#328](https://github.com/AJHMH/developer-os/pull/328), merged 14 November.
+- Slices 4 and 5 go in one PR. The validation digest becomes
+  `c83e42e56cfeeff1b6ea569f3c7a2120aa8a9558d20062d5281acafc1851cab9`; the owner
+  re-pins once, at slice 6.

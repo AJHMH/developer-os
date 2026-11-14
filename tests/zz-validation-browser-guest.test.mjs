@@ -40,9 +40,10 @@ test("a browser E2E check runs in the browser image with room for Chromium", asy
   assert.ok(check.args.includes(browser));
   assert.ok(!check.args.includes(image));
   assert.equal(value(check.args, "--pids-limit"), "1024");
-  assert.equal(value(check.args, "--memory"), "2048m");
+  // Room for a real web application's E2E (#275): it peaked at 1.57 GB.
+  assert.equal(value(check.args, "--memory"), "3072m");
   assert.equal(value(check.args, "--shm-size"), "256m");
-  assert.match(value(check.args, "--tmpfs"), /size=536870912$/);
+  assert.match(value(check.args, "--tmpfs"), /size=1073741824$/);
   // Every other control stays: offline, read-only, no capabilities.
   assert.equal(value(check.args, "--network"), "none");
   assert.ok(check.args.includes("--read-only"));
@@ -67,7 +68,9 @@ test("other checks keep the check image and its limits", async (t) => {
   const [check] = created(guest);
   assert.ok(check.args.includes(image));
   assert.equal(value(check.args, "--pids-limit"), "256");
-  assert.equal(value(check.args, "--memory"), "1024m");
+  // A real web application's lint peaked at 1.13 GB (#275).
+  assert.equal(value(check.args, "--memory"), "2048m");
+  assert.match(value(check.args, "--tmpfs"), /size=536870912$/);
   assert.equal(value(check.args, "--shm-size"), undefined);
   assert.ok(!envs(check.args).some((e) => e.startsWith("PLAYWRIGHT_")));
 });
