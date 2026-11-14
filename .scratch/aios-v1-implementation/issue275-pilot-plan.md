@@ -70,3 +70,4 @@ both records at the end.
 
 - Slice 1: [#325](https://github.com/AJHMH/developer-os/pull/325), merged 13 November.
 - Slice 2: [#326](https://github.com/AJHMH/developer-os/pull/326).
+- Slices 3 to 5 follow, each moving the validation digest again; the owner re-pins once, at slice 6.
