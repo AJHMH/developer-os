@@ -11,6 +11,7 @@ unless noted.
 | VM                          | `aios-macos-noshare`                                         |
 | Coding admission record     | `$HOME/.developer-os/admission/claude-coding-admission.json` |
 | Validation admission record | `$HOME/.developer-os/admission/validation-admission.json`    |
+| Validation image            | `localhost/aios-node22-validation:1`, owner-built (#275)     |
 | Acceptance state            | `$HOME/.developer-os/ticket4-macos/state`                    |
 | Auth directory              | `$HOME/.developer-os-auth` (outside the delivery state)      |
 

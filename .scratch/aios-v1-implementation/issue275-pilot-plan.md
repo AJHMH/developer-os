@@ -71,6 +71,8 @@ both records at the end.
 - Slice 1: [#325](https://github.com/AJHMH/developer-os/pull/325), merged 13 November.
 - Slice 2: [#326](https://github.com/AJHMH/developer-os/pull/326), merged 13 November.
 - Slice 3: [#328](https://github.com/AJHMH/developer-os/pull/328), merged 14 November.
-- Slices 4 and 5 go in one PR. The validation digest becomes
-  `c83e42e56cfeeff1b6ea569f3c7a2120aa8a9558d20062d5281acafc1851cab9`; the owner
-  re-pins once, at slice 6.
+- Slices 4 and 5: [#329](https://github.com/AJHMH/developer-os/pull/329), merged 14 November.
+- Slice 6: requalified at the `complete` level on 14 November, on an
+  owner-built Node 22 image, because the boundary probe needs busybox
+  ([receipt](issue275-requalification-receipt.md)).
+- Slice 7, the pilot, is next.

@@ -163,7 +163,7 @@ only when isolation holds:
 - the user is unprivileged;
 - no engine socket is visible.
 
-Any image with `/bin/sh` works. The pinned Alpine image already in the VM is
+Any image with `/bin/sh` works. The admitted image already in the VM is
 enough, so nothing needs to be loaded. If the record is missing or names other
 pins, the run stops before any check and prints the fresh pins.
 
@@ -307,21 +307,50 @@ read-only root, no engine socket and the unprivileged user.
   section keeps them, with the tree and environment digests.
 
 The host needs HTTPS access to the registry for the fetch; the VM and the
-checks stay offline. The image must contain `node` and `npm`, for example an
-official `node` Alpine image pinned by digest. The owner record pins the image,
-so a new image needs a new validation record: run the acceptance once without
-the flag to print the fresh pins, write the record, then run it with the flag.
-The baseline probes also pass on such an image.
+checks stay offline. The image must contain `node` and `npm`. The owner record
+pins the image, so a new image needs a new validation record: run the
+acceptance once without the flag to print the fresh pins, write the record,
+then run it with the flag.
 
-Set the owner-chosen image digest, without `sha256:`, as `NODE_DIGEST`. The
-admitted image on this Mac is `node:24-alpine3.24` at the digest below.
+### The validation image (#275)
 
-In Terminal, after loading the owner-chosen image into the VM:
+The worker qualification runs its boundary probe as validation checks, and the
+probe needs busybox with `wget`, `chroot` and `unshare`. Official `node` Alpine
+images carry that, but they are musl, and a repository like profile-page needs
+Node 22 on glibc: its `.npmrc` enforces the engine, Prisma's engines are built
+per OpenSSL flavour, and its browser checks reuse the installed packages in
+Playwright's glibc image. So the admitted image is built by the owner in the
+VM, from `node:22-bookworm-slim` pinned by digest, with Debian's
+`busybox-static`:
+
+```dockerfile
+FROM docker.io/library/node@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends busybox-static \
+ && rm -rf /var/lib/apt/lists/* \
+ && ln -s /bin/busybox /usr/local/bin/wget \
+ && for a in chroot unshare wget; do busybox --list | grep -qx "$a" || exit 1; done \
+ && for t in cat cut grep id ls wget unshare busybox node npm; do command -v "$t" || exit 1; done \
+ && node --version | grep -q '^v22\.'
+```
+
+`apt-get` makes a rebuild differ, so the record pins the built image by its ID,
+not the Containerfile. The admitted image on this Mac is
+`localhost/aios-node22-validation:1`, ID `6d7bed6a…`, built on 14 November
+2026 with `busybox-static` `1:1.35.0-4+deb12u1+b1`. With the Containerfile in
+`~/.developer-os/notes/node22-validation-image`:
 
 ```sh
-NODE_DIGEST=8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
-NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
-IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
+/opt/podman/bin/podman --connection aios-macos-noshare build --pull=never -t localhost/aios-node22-validation:1 ~/.developer-os/notes/node22-validation-image
+/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' localhost/aios-node22-validation:1
+```
+
+The worker qualification proves the probe's tools on it at every run.
+
+In Terminal, with the admitted image in the VM:
+
+```sh
+IMAGE=6d7bed6a62d9768114cce3ecaff0ac534acbda40cf7368c3f9df74cb367fb143
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies
 ```
 
@@ -436,9 +465,7 @@ fresh pins, now with `databaseImageSha256`. Write them into
 `validation-admission.json` with a new `approvedAt`, then run it again:
 
 ```sh
-NODE_DIGEST=8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
-NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
-IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
+IMAGE=6d7bed6a62d9768114cce3ecaff0ac534acbda40cf7368c3f9df74cb367fb143
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-database-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies --with-database "${DATABASE_IMAGE:?}"
 ```
 

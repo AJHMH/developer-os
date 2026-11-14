@@ -114,7 +114,7 @@ the record must first admit the new coding pins at the worker level:
 4. The validation acceptance with dependencies, PostgreSQL and the browser:
 
    ```sh
-   node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" 9419aebdf4ccbf7bd0096475d0db76ca83f0db496a23592a2bfc3b769894473c "$HOME/.developer-os/issue16-validation-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies --with-database e29b5f75230807dfc40a4c8ff9e486b87a30df01cfcab04a4e99d5077d77ddfb --with-browser 2dee255e66f9985e1623c12a6f77535bb7487e7bd00a0b0ad82f98688ae60f4d 1.64.1
+   node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" 6d7bed6a62d9768114cce3ecaff0ac534acbda40cf7368c3f9df74cb367fb143 "$HOME/.developer-os/issue16-validation-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies --with-database e29b5f75230807dfc40a4c8ff9e486b87a30df01cfcab04a4e99d5077d77ddfb --with-browser 2dee255e66f9985e1623c12a6f77535bb7487e7bd00a0b0ad82f98688ae60f4d 1.64.1
    ```
 
 5. The lifecycle acceptance (above).
@@ -133,3 +133,7 @@ the record must first admit the new coding pins at the worker level:
 
 It all passed on 13 November, from `main` at `e049225` (#323); see the
 [receipt](../.scratch/aios-v1-implementation/ticket16-macos-complete-qualification-receipt.md).
+
+It passed again on 14 November, from `main` at `8e8df19` (#329), after the
+#275 guest changes and on the owner-built Node 22 validation image; see the
+[receipt](../.scratch/aios-v1-implementation/issue275-requalification-receipt.md).
