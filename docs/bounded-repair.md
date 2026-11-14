@@ -1,6 +1,6 @@
 # Bounded candidate repair
 
-Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented and tested; the native sections record what has run on the Mac. Production delivery remains disabled.
 
 Ticket 07 adds repairFeature(id, reviewFindings?) and extendRepair(id, cycles,
 minutes) to the public controller. The CLI exposes repair-feature --id ID and

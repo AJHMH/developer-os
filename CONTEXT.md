@@ -2,7 +2,7 @@
 
 ## Implementation scope
 
-This glossary defines the target delivery domain. The implementation currently reaches controlled synchronization, eligible cleanup and completion; native delivery integrations and complete-platform/pilot qualification remain unfinished. The owner's Mac is the only host; fixed Mac worker qualification does not enable production. See [current implementation status](docs/implementation-status.md), and [architecture module decisions](docs/adr/0001-architecture-module-boundaries.md).
+This glossary defines the target delivery domain. Every stage through synchronization, eligible cleanup and completion has a native adapter observed on real deliveries to a disposable repository, and the complete controller qualification passed on the Mac; the pilot delivery remains unfinished and production stays disabled. The owner's Mac is the only host. See [current implementation status](docs/implementation-status.md), the [architecture overview](docs/architecture.md) and the [decision records](docs/adr/).
 
 A developer agent system that carries delegated feature work through validation, pull request review, merge, synchronization, and branch cleanup.
 

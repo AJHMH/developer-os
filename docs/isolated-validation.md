@@ -1,12 +1,13 @@
 # Isolated baseline and candidate validation
 
-Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented and tested; the native sections record what has run on the Mac. Production delivery remains disabled.
 
 Ticket 06 adds controlled validation through DeliveryController.validateBaseline,
 validateCandidate and stopValidation. Plan criteria first, validate unchanged clean
 main, then code and validate the admitted candidate. The CLI exposes
-validate-baseline and validate-candidate, but refuses without a trusted integration.
-No native executor is installed and production delivery remains disabled.
+validate-baseline and validate-candidate; with `--podman-machine` and the owner's
+`--validation-admission` record they run on the native executor described below.
+Without them the CLI refuses. Production delivery remains disabled.
 
 The external, pinned onboarding policy supplies validationContract version 1:
 environment, checks and mutablePaths. Environment declares image and network-policy

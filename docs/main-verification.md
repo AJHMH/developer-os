@@ -1,6 +1,6 @@
 # Merged main verification
 
-Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented and tested; the native sections record what has run on the Mac. Production delivery remains disabled.
 
 `monitor-main-checks --id <delivery-id>` observes configured main checks after a
 confirmed merge. With the owner policy, the CLI installs the native read-only
