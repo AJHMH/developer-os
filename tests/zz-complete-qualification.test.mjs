@@ -5,7 +5,13 @@ import "./helpers/owner-host-stand-in.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -258,9 +264,7 @@ function record(directory, reportPath, pins = { coding, validation }) {
       scope: "aios-production-admission-v1",
       approvedAt: "2026-11-10T00:00:00.000Z",
       qualificationReport: reportPath,
-      qualificationSha256: sha256(
-        spawnSync("cat", [reportPath], { encoding: "utf8" }).stdout,
-      ),
+      qualificationSha256: sha256(readFileSync(reportPath, "utf8")),
       pins,
     }),
     { mode: 0o600 },
