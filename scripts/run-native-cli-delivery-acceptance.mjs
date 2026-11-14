@@ -163,7 +163,7 @@ export const repairStageNames = Object.freeze([
   ...stageNames.slice(7),
 ]);
 
-const pinFields = {
+export const pinFields = {
   coding: ["cliVersion", "cliSha256", "policySha256", "bindingSha256"],
   validation: ["imageSha256", "policySha256", "bindingSha256"],
 };
@@ -394,15 +394,14 @@ export async function repositoryFacts(github, identity) {
   };
 }
 
-/** The owner inputs for the real repository: a clone of it, read through the
- * owner's `gh` login, and a policy and attestation of `facts`, which
- * `repositoryFacts` read live. */
-function realOwnerInputs(
+/** A clone of the real repository under `root`, read through the owner's
+ * `gh` login, with the owner-signed commit `facts.signedCommit` fetched and
+ * verified against the owner's public key. It returns the clone, its
+ * revision, a `git` runner and the private `owner` folder for the records. */
+export function cloneSignedRepository(
   root,
-  environment,
   {
     facts,
-    factoryCommit,
     // Tests stand in a local repository for GitHub.
     cloneUrl = `https://github.com/${facts.repository}.git`,
   },
@@ -439,11 +438,6 @@ function realOwnerInputs(
   );
   const git = (...args) => run(["-C", repository, ...args], root);
   const revision = git("rev-parse", "HEAD");
-  // A request main doesn't already meet: one line unique to this run. The
-  // third real delivery asked for a hint main already had, and published an
-  // empty commit (12 November).
-  const line = `Delivery check ${randomUUID().slice(0, 8)}`;
-  const realRequest = `Add a visible line to the contact page that reads "${line}".`;
   const owner = join(root, "owner");
   mkdirSync(owner, { mode: 0o700 });
   // The signed commit verifies here too, against the owner's public key.
@@ -471,6 +465,26 @@ function realOwnerInputs(
     "verify-commit",
     facts.signedCommit,
   );
+  return { repository, revision, git, owner };
+}
+
+/** The owner inputs for the real repository: a clone of it, read through the
+ * owner's `gh` login, and a policy and attestation of `facts`, which
+ * `repositoryFacts` read live. */
+function realOwnerInputs(
+  root,
+  environment,
+  { facts, factoryCommit, cloneUrl },
+) {
+  const { repository, revision, git, owner } = cloneSignedRepository(root, {
+    facts,
+    ...(cloneUrl ? { cloneUrl } : {}),
+  });
+  // A request main doesn't already meet: one line unique to this run. The
+  // third real delivery asked for a hint main already had, and published an
+  // empty commit (12 November).
+  const line = `Delivery check ${randomUUID().slice(0, 8)}`;
+  const realRequest = `Add a visible line to the contact page that reads "${line}".`;
   const policy = {
     repository: facts.repository,
     defaultBranch: facts.defaultBranch,
@@ -1436,7 +1450,7 @@ export async function cliDeliveryAcceptance(
   return report;
 }
 
-function sourceEvidence(root) {
+export function sourceEvidence(root) {
   const git = (...args) =>
     spawnSync("git", ["-C", root, ...args], {
       encoding: "utf8",
