@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";
 import type { RegistryReader } from "./dependency-cache.js";
+import type { FileReader } from "./tool-files.js";
 import {
   PinnedValidationRuntime,
   ownerValidationAdmission,
@@ -20,16 +21,19 @@ export function nativeValidationAuthority(machine: string): string {
  * nothing when it can't be read. It only chooses which runtime the CLI
  * builds: the controller still refuses a runtime whose environment isn't
  * exactly the contract's, so a wrong answer refuses rather than runs. */
-function declaredEnvironment(path: string | undefined): unknown {
+function ownerContract(path: string | undefined): unknown {
   if (!path) return undefined;
   try {
     const stat = lstatSync(path);
     if (!stat.isFile() || stat.size > 65536) return undefined;
-    return JSON.parse(readFileSync(path, "utf8"))?.validationContract
-      ?.environment;
+    return JSON.parse(readFileSync(path, "utf8"))?.validationContract;
   } catch {
     return undefined;
   }
+}
+function declaredEnvironment(path: string | undefined): unknown {
+  return (ownerContract(path) as { environment?: unknown } | undefined)
+    ?.environment;
 }
 /** Whether the owner policy at `path` declares the prepared npm cache for its
  * validation contract (#265). */
@@ -48,6 +52,14 @@ export function ownerPolicyDeclaresDatabase(path: string | undefined) {
  * (#265). */
 export function ownerPolicyDeclaresBrowser(path: string | undefined) {
   return (declaredEnvironment(path) as { browser?: unknown })?.browser === true;
+}
+/** Whether the owner policy at `path` declares tool files for its install
+ * and checks (#275). */
+export function ownerPolicyDeclaresToolFiles(path: string | undefined) {
+  return Boolean(
+    (ownerContract(path) as { toolFiles?: unknown[] } | undefined)?.toolFiles
+      ?.length,
+  );
 }
 /** The C library the owner policy at `path` declares for its install image
  * (#275), if any. */
@@ -73,6 +85,7 @@ export function nativeValidationRuntime(
     database?: boolean;
     browser?: boolean;
     libc?: "glibc" | "musl";
+    toolReader?: FileReader;
   } = {},
 ): PinnedValidationRuntime {
   const admission = ownerValidationAdmission(admissionPath);

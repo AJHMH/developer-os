@@ -83,7 +83,8 @@ How each check runs:
 - Each local check runs in a fresh container from the owner-loaded image, by
   ID, with no network, a read-only root, a private `/tmp`, all capabilities
   dropped, no new privileges, the derived seccomp profile, user `65534`, and
-  process (256) and memory (1 GiB) limits.
+  process (256), memory (2 GiB) and `/tmp` (512 MiB) limits. A real web
+  application's lint peaked at 1.13 GB (#275).
 - Each check gets its own fresh copy of the transferred tree, so no check sees
   another's output. That copy is the only mount.
 - The argv runs as inert data after `/bin/sh -c 'exec "$@"'`, so the image
@@ -188,9 +189,22 @@ The following remain open:
 - hosted checks;
 - native qualification of this executor on the Mac.
 
-Build or coverage output written into the tree currently invalidates the tested
-tree by design. Real repositories need an owner contract whose checks leave the
-tree unchanged, until a later slice defines declared output paths.
+Build or coverage output written into the tree invalidates the tested tree by
+design, unless the owner contract declares it (#275):
+
+```json
+"outputPaths": [".svelte-kit", "coverage", ".vercel", "test-results"]
+```
+
+- **What a check may write:** each declared path and anything under it. The
+  tree measurement skips them, at each check and at stop.
+- **Input files:** none may be a declared path or lie under one, and no
+  declared path may lie under an input file. The host and the guest both
+  refuse that.
+- **The form:** at most 32 distinct admitted relative paths, never
+  `node_modules`, which the installed layer owns.
+
+Any other write still changes the tree.
 
 ## Prepared dependency cache (Issue 04)
 
@@ -257,8 +271,13 @@ The transport then, before the attempt's first check:
   workspace, the upload and npm's cache, so anything an install script wrote
   elsewhere never reaches a check.
 
-Each check then sees the layer read-only at `/workspace/node_modules`, beside
-its fresh copy of the candidate files; the tested tree is unchanged in
+Each check then gets its own copy of the layer (#275). The layer is mounted
+read-only at `/layer`, and before the check's command the container copies it
+into `/workspace/node_modules`, as a reflink where the filesystem allows. Tools
+that write into `node_modules`, such as Prisma's generated client and Vite's
+temporary config, write into that copy. The copy goes with the check's
+workspace, the tree measurement skips it, and the layer never changes. The copy
+counts against the check's own timeout. The tested tree is unchanged in
 meaning. A failed or timed-out install ends the check unrun as a failure
 or timeout, whatever npm exited with. The result carries the plan's and the layer's
 digests as artifacts. Stop also ends an install still running.
@@ -305,6 +324,49 @@ NODE_IMAGE="docker.io/library/node@sha256:${NODE_DIGEST:?}"
 IMAGE="$(/opt/podman/bin/podman --connection aios-macos-noshare image inspect --format '{{.Id}}' "${NODE_IMAGE:?}")"
 node scripts/run-native-acceptance.mjs "$HOME/.developer-os/ticket4-macos/state" scripts/run-native-validation-admission-acceptance.mjs -- aios-macos-noshare "$HOME/.developer-os/admission/validation-admission.json" "${IMAGE:?}" "$HOME/.developer-os/issue04-dependency-acceptance-$(date +%Y%m%d-%H%M%S).json" --approve-offline-native-run --with-npm-dependencies
 ```
+
+## Owner-pinned tool files (#275)
+
+Some installs download more than npm carries. Prisma's `postinstall` runs
+`prisma generate`, which needs Prisma's schema engine, and `prisma db push`
+needs it too. Offline, both fail. The owner contract may pin such files:
+
+```json
+"toolFiles": [
+  {
+    "url": "https://binaries.prisma.sh/all_commits/<hash>/linux-arm64-openssl-1.1.x/schema-engine.gz",
+    "sha256": "<the uncompressed file's SHA-256>",
+    "path": ".cache/prisma/master/<hash>/linux-arm64-openssl-1.1.x/schema-engine",
+    "gzip": true,
+    "executable": true
+  }
+]
+```
+
+- **The declaration:**
+  - an https URL with no credentials, port, query or fragment;
+  - the SHA-256 of the file's bytes, after gunzip when `gzip` is set;
+  - a path under the container's home, made only of plain names.
+
+  At most 32 files, each within 64 MiB, and 128 MiB in all.
+
+- **The host:** with the contract's tool files, the CLI gives the runtime an
+  https reader. It fetches each file once per attempt, never following a
+  redirect, and admits them only if every one matches its digest. A runtime
+  without a reader fails the check unrun; a fetch that fails leaves it
+  `cancelled`.
+- **The guest:** the transport uploads them in chunks before any install or
+  check (`tools-status`, `tool-put`). Each is kept only once its bytes match
+  the SHA-256 it is named by. The install container and every check container
+  mount them read-only at `/tools`. Before anything else runs, each copies them
+  into its own writable home, `$HOME`, which is the container's `/tmp`. Prisma
+  updates the engine's timestamp, so the engine can't be read-only. The list
+  is fixed per attempt. A copy that fails ends the container with exit
+  code 97.
+
+`profile-page` needs the schema engine for each image's OpenSSL: the Node 22
+install image's (`linux-arm64-openssl-1.1.x`) and the Playwright image's
+(`linux-arm64-openssl-3.0.x`).
 
 ## Disposable databases for E2E checks (#265)
 
@@ -392,8 +454,9 @@ Microsoft's Playwright image instead of the check image:
   `browserImageSha256`. It is checked like the database image and is part of
   the validation binding. A record without it admits no browser checks.
 - **Room for Chromium.** A browser check gets 1024 processes and threads,
-  2 GiB of memory, a 256 MiB `/dev/shm` and a 512 MiB `/tmp`. Every other
-  check keeps 256, 1 GiB, the default `/dev/shm` and 256 MiB.
+  3 GiB of memory, a 256 MiB `/dev/shm` and a 1 GiB `/tmp`. Every other
+  check keeps 256, 2 GiB, the default `/dev/shm` and 512 MiB. A real web
+  application's browser E2E peaked at 1.57 GB (#275).
 - **The container is the sandbox.** Chromium's own sandbox needs user
   namespaces, which the derived seccomp profile removes, so it runs with its
   sandbox off, as Playwright does by default in containers. The check keeps

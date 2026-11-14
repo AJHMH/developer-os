@@ -16,10 +16,12 @@ import {
   nativeValidationRuntime,
   ownerPolicyDeclaresBrowser,
   ownerPolicyDeclaredLibc,
+  ownerPolicyDeclaresToolFiles,
   ownerPolicyDeclaresDatabase,
   ownerPolicyDeclaresPreparedNpm,
 } from "./native-validation-runtime.js";
 import { httpsRegistryReader } from "./dependency-cache.js";
+import { httpsFileReader } from "./tool-files.js";
 import { ownerCriteriaPlanner } from "./feature-criteria.js";
 import { ownerProductionAdmission } from "./production-admission.js";
 import { nativePublicationRuntime } from "./publication-identity.js";
@@ -119,6 +121,9 @@ try {
             database: ownerPolicyDeclaresDatabase(values["owner-policy"]),
             browser: ownerPolicyDeclaresBrowser(values["owner-policy"]),
             ...libcOption(ownerPolicyDeclaredLibc(values["owner-policy"])),
+            ...(ownerPolicyDeclaresToolFiles(values["owner-policy"])
+              ? { toolReader: httpsFileReader() }
+              : {}),
           },
         );
       } catch {

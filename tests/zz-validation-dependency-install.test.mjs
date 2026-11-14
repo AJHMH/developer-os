@@ -44,7 +44,7 @@ function lockedRequest(overrides = {}, check = {}) {
 const actions = (guest) =>
   guest.requests.map((r) => r.action).filter((a) => a !== "inspect");
 
-test("the cache crosses in chunks, installs once, and each check sees it read-only", async (t) => {
+test("the cache crosses in chunks, installs once, and each check copies the read-only layer into its own workspace", async (t) => {
   const guest = validationGuest(t);
   // Larger than one chunk, so it crosses in two.
   const big = cacheFile(tarball("b", dependencyTransfer.chunkBytes + 7));
@@ -78,9 +78,14 @@ test("the cache crosses in chunks, installs once, and each check sees it read-on
     .map((arg, i) => (arg === "--volume" ? check[i + 1] : null))
     .filter(Boolean);
   assert.equal(volumes.length, 2);
-  assert.match(
-    volumes[1] ?? volumes[0],
-    /\/deps:\/workspace\/node_modules:ro,/,
+  // The layer is mounted read-only beside the workspace, and the check first
+  // copies it into its own node_modules, which goes with the workspace
+  // (#275): Prisma and Vite write there.
+  assert.match(volumes[1] ?? volumes[0], /\/deps:\/layer:ro,/);
+  const at = check.indexOf("-c");
+  assert.equal(
+    check[at + 1],
+    'mkdir /workspace/node_modules && cp -a /layer/. /workspace/node_modules/ && exec "$@"',
   );
   const install = guest
     .commands("podman", "create")

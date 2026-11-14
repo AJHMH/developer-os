@@ -17,6 +17,8 @@ import {
   type ValidationRunResult,
 } from "./native-validation.js";
 import { admittedPath } from "./workspace.js";
+import { validOutputPaths } from "./isolated-validation.js";
+import { toolFileLimits, toolPath } from "./tool-files.js";
 
 const digest = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
@@ -32,6 +34,8 @@ type ValidationAction =
   | "prepare"
   | "deps-status"
   | "cache-put"
+  | "tools-status"
+  | "tool-put"
   | "install-start"
   | "install-poll"
   | "start"
@@ -49,6 +53,13 @@ export const dependencyTransfer = Object.freeze({
   tarballs: 2048,
   installTimeoutMs: 600000,
   layerBytes: 2 * 1024 * 1024 * 1024,
+});
+/** Bounds of the owner-pinned tool files in the guest (#275), which cross
+ * in chunks like the npm cache. */
+export const toolTransfer = Object.freeze({
+  files: toolFileLimits.files,
+  fileBytes: toolFileLimits.fileBytes,
+  totalBytes: toolFileLimits.totalBytes,
 });
 
 /** Trusted VM management source for offline validation. Requests are JSON
@@ -200,10 +211,12 @@ def path_ok(path):
  return bool(path) and '\\' not in path and ':' not in path and all(p and p not in ['.','..'] and not re.search(r'[\x00-\x1f\x7f]',p) and not re.search(r'[. ]$',p) and not re.match(r'^(\.git|\.env(\..*)?|\.ssh|\.gnupg|\.aws|\.codex|\.agents|\.claude|\.npmrc|\.mcp\.json|sbxenv\.ya?ml)$',p,re.I) and not re.search(r'\.(pem|key|p12|pfx)$',p,re.I) and not re.match(r'^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)',p,re.I) for p in parts)
 def manifest_digest(entries): return h(json.dumps(entries,ensure_ascii=False,separators=(',',':')).encode())
 CHANGED=h(b'changed-workspace')
-def measure(folder,order):
+def skipped(name,skip): return any(name==s or name.startswith(s+'/') for s in skip)
+def measure(folder,order,skip=()):
  # A workspace as the same manifest the input was bound to. Links, special
  # files, unreadable entries, odd names and oversized trees are changes,
- # never failures: a check must not be able to wedge its own shutdown.
+ # never failures: a check must not be able to wedge its own shutdown. The
+ # owner's declared outputs and the check's own node_modules copy are skipped.
  try:
   found={};count=0;total=0
   pending=[(folder,'')]
@@ -214,6 +227,7 @@ def measure(folder,order):
      count+=1
      if count>100000: return CHANGED
      name=prefix+entry.name
+     if skipped(name,skip): continue
      s=entry.stat(follow_symlinks=False)
      if stat.S_ISDIR(s.st_mode): pending.append((entry.path,name+'/'));continue
      if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_size>67108864: return CHANGED
@@ -258,8 +272,30 @@ POSTGRES='set -e; initdb -D /tmp/pgdata -U aios --auth=trust --no-sync >/dev/nul
 # browsers there, with room for Chromium. Its own sandbox needs user
 # namespaces the seccomp profile removes, so the container is its sandbox.
 BROWSER_ENV={'PLAYWRIGHT_BROWSERS_PATH':'/ms-playwright'}
-CHECK_LIMITS=dict(pids=256,memory=1073741824,shm=None,tmp=268435456)
-BROWSER_LIMITS=dict(pids=1024,memory=2147483648,shm=268435456,tmp=536870912)
+CHECK_LIMITS=dict(pids=256,memory=2147483648,shm=None,tmp=536870912)
+BROWSER_LIMITS=dict(pids=1024,memory=3221225472,shm=268435456,tmp=1073741824)
+# A check with dependencies copies the read-only installed layer into its
+# own workspace first (a reflink where the filesystem allows), so tools that
+# write into node_modules can, and the layer itself never changes. The copy
+# goes with the workspace.
+WITH_LAYER='mkdir /workspace/node_modules && cp -a /layer/. /workspace/node_modules/ && exec "$@"'
+def tool_prefix(tools):
+ # The owner's tool files (#275), each uploaded and verified by its sha256,
+ # copied into the container's writable home before anything runs. Paths are
+ # plain names, so the command built from them needs no quoting beyond the
+ # double quotes around $HOME. The manifest is fixed per attempt.
+ tools=tools or []
+ if not isinstance(tools,list) or len(tools)>${toolTransfer.files}: fail()
+ uploaded=(record.get('tools') or {}).get('files',{})
+ seen=set();parts=[]
+ for x in tools:
+  if not isinstance(x,dict) or set(x)!={'sha256','path','executable'} or not isinstance(x['sha256'],str) or not re.fullmatch('[a-f0-9]{64}',x['sha256']) or not isinstance(x['path'],str) or len(x['path'])>200 or not re.fullmatch(r'[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*',x['path']) or any(p in ['.','..'] for p in x['path'].split('/')) or x['path'] in seen or type(x['executable']) is not bool: fail()
+  if not uploaded.get(x['sha256'],{}).get('done'): fail()
+  seen.add(x['path']);folder=os.path.dirname(x['path'])
+  parts.append(('mkdir -p "$HOME/'+folder+'" && ' if folder else '')+'cp /tools/'+x['sha256']+' "$HOME/'+x['path']+'" && chmod '+('755' if x['executable'] else '644')+' "$HOME/'+x['path']+'"')
+ if record.get('toolManifest',tools)!=tools: fail()
+ record['toolManifest']=tools
+ return ('( '+' && '.join(parts)+' ) || exit 97; ' if parts else '',[(operation+'/tools','/tools',False)] if parts else [])
 def effective(c,cmd,binds,image,network,env,workdir,limits=CHECK_LIMITS):
  # binds: the exact (source, destination, writable) bind mounts expected.
  if c.get('Image')!=image or c['Config'].get('Entrypoint') not in [['/bin/sh'],'/bin/sh'] or c['Config'].get('Cmd')!=cmd: fail()
@@ -389,14 +425,17 @@ else:
   record=read(recordPath) if os.path.lexists(recordPath) else None
   if record and record['identity']!=identity: fail()
   operation=root+'/'+R['name']
-  if R['action'] in ['prepare','deps-status','cache-put','install-start','install-poll','start','poll']:
+  if R['action'] in ['prepare','deps-status','cache-put','tools-status','tool-put','install-start','install-poll','start','poll']:
    binding=snapshot()
    if binding!=R['expectedBinding']: fail()
   if R['action']=='prepare':
    if not re.fullmatch('[a-f0-9]{64}',R.get('treeSha256','')) or not re.fullmatch('[a-f0-9]{64}',R.get('manifestSha256','')): fail()
+   # The owner's declared outputs: paths a check may write, never input.
+   outputs=R.get('outputs',[])
+   if not isinstance(outputs,list) or len(outputs)>32 or len(set(outputs))!=len(outputs) or not all(isinstance(o,str) and path_ok(o) and o!='node_modules' for o in outputs): fail()
    if record:
     # Idempotent per attempt: the same tree, never a replacement.
-    if record['phase']!='prepared' or record['treeSha256']!=R['treeSha256'] or record['manifestSha256']!=R['manifestSha256']: fail()
+    if record['phase']!='prepared' or record['treeSha256']!=R['treeSha256'] or record['manifestSha256']!=R['manifestSha256'] or record.get('outputs',[])!=outputs: fail()
    else:
     total=0;names=set();inputs=[];manifest=[]
     if not isinstance(R.get('files'),list) or len(R['files'])>${treeTransfer.files}: fail()
@@ -406,7 +445,8 @@ else:
      names.add(path.lower());inputs.append((path,data,file['executable']))
      manifest.append(dict(path=path,sha256=h(data),executable=file['executable']))
     if manifest_digest(manifest)!=R['manifestSha256']: fail()
-    record=dict(identity=identity,binding=binding,treeSha256=R['treeSha256'],manifestSha256=R['manifestSha256'],order=[m['path'] for m in manifest],phase='preparing',checks=[])
+    if any(skipped(m['path'],outputs) or any(o.startswith(m['path']+'/') for o in outputs) for m in manifest): fail()
+    record=dict(identity=identity,binding=binding,treeSha256=R['treeSha256'],manifestSha256=R['manifestSha256'],order=[m['path'] for m in manifest],outputs=outputs,phase='preparing',checks=[])
     save(recordPath,record)
     directory(operation);directory(operation+'/input')
     for path,data,executable in inputs:
@@ -452,6 +492,35 @@ else:
     os.rename(part,operation+'/cache/'+name);item['done']=True
    record['deps']=d;save(recordPath,record)
    result=dict(received=item['received'])
+  elif R['action']=='tools-status':
+   if not record: fail()
+   result=dict(done=sorted(k for k,v in (record.get('tools') or {}).get('files',{}).items() if v['done']))
+  elif R['action']=='tool-put':
+   # The owner's tool files arrive in ordered chunks before any install or
+   # check; each is kept only once its bytes match the sha256 it is named by.
+   name=R.get('file','')
+   if not record or record['phase']!='prepared' or record['checks'] or (record.get('deps') or {}).get('state','uploading')!='uploading' or not isinstance(name,str) or not re.fullmatch('[a-f0-9]{64}',name): fail()
+   size=R.get('size');offset=R.get('offset');data=base64.b64decode(R.get('data',''),validate=True)
+   if type(size) is not int or type(offset) is not int or not 0<len(data)<=${dependencyTransfer.chunkBytes} or not 0<size<=${toolTransfer.fileBytes} or offset+len(data)>size: fail()
+   t=record.get('tools') or dict(files={},bytes=0)
+   item=t['files'].get(name)
+   if item is None:
+    if offset!=0 or len(t['files'])>=${toolTransfer.files} or t['bytes']+size>${toolTransfer.totalBytes}: fail()
+    item=dict(size=size,received=0,done=False);t['files'][name]=item;t['bytes']+=size
+   if item['done'] or item['size']!=size or offset!=item['received']: fail()
+   directory(operation+'/tools')
+   part=operation+'/tools/'+name+'.part'
+   fd=os.open(part,os.O_WRONLY|os.O_CREAT|os.O_APPEND|os.O_NOFOLLOW,0o600)
+   with os.fdopen(fd,'ab') as f:
+    if os.fstat(f.fileno()).st_size!=offset: fail()
+    f.write(data)
+   item['received']+=len(data)
+   if item['received']==size:
+    ordinary(part)
+    if hashlib.sha256(pathlib.Path(part).read_bytes()).hexdigest()!=name: fail()
+    os.rename(part,operation+'/tools/'+name);item['done']=True
+   record['tools']=t;save(recordPath,record)
+   result=dict(received=item['received'])
   elif R['action']=='install-start':
    # Install once, before any check, from the complete uploaded cache.
    d=record.get('deps') if record else None
@@ -465,8 +534,9 @@ else:
    directory(operation+'/cache')
    work=operation+'/install';fresh_workspace(work)
    directory(operation+'/npm-cache')
+   prefix,toolMounts=tool_prefix(R.get('tools'))
    d.update(state='installing',container=R['name']+'-install',workspace=work,group='',pids={},exitCode=None,timedOut=False);save(recordPath,record)
-   create(d['container'],['-c',INSTALL],[(work,'/workspace',True),(operation+'/cache','/cache',False),(operation+'/npm-cache','/npm-cache',True)])
+   create(d['container'],['-c',prefix+INSTALL],[(work,'/workspace',True),(operation+'/cache','/cache',False),(operation+'/npm-cache','/npm-cache',True)]+toolMounts)
    launch(d,timeout)
    save(recordPath,record)
    result=dict(container=d['container'])
@@ -502,8 +572,9 @@ else:
    database=R.get('database');browser=R.get('browser')
    if database not in [None,True] or (database and 'databaseImageSha256' not in R): fail()
    if browser not in [None,True] or (browser and 'browserImageSha256' not in R): fail()
+   prefix,toolMounts=tool_prefix(R.get('tools'))
    index=len(record['checks']);name=R['name']+'-c'+str(index);work=operation+'/check-'+str(index)
-   entry=dict(checkId=check['id'],container=name,workspace=work,argv=argv,group='',pids={},exitCode=None,timedOut=False,treeSha256=None)
+   entry=dict(checkId=check['id'],container=name,workspace=work,argv=argv,group='',pids={},exitCode=None,timedOut=False,treeSha256=None,skip=record.get('outputs',[])+(['node_modules'] if deps else []))
    if database: entry['database']=dict(container=R['name']+'-d'+str(index),group='',pids={},exitCode=None,timedOut=False,state='starting')
    record['checks'].append(entry);record['phase']='running';save(recordPath,record)
    fresh_workspace(work)
@@ -522,7 +593,7 @@ else:
     entry['treeSha256']=record['manifestSha256'];record['phase']='prepared';save(recordPath,record)
     result=dict(database='unready',**({'browser':True} if browser else {}))
    else:
-    create(name,['-c','exec "$@"','--',*argv],[(work,'/workspace',True)]+([(operation+'/deps','/workspace/node_modules',False)] if deps else []),image=R['browserImageSha256'] if browser else None,network=network,env={**(DATABASE_ENV if database else {}),**(BROWSER_ENV if browser else {})},limits=BROWSER_LIMITS if browser else CHECK_LIMITS)
+    create(name,['-c',prefix+(WITH_LAYER if deps else 'exec "$@"'),'--',*argv],[(work,'/workspace',True)]+([(operation+'/deps','/layer',False)] if deps else [])+toolMounts,image=R['browserImageSha256'] if browser else None,network=network,env={**(DATABASE_ENV if database else {}),**(BROWSER_ENV if browser else {})},limits=BROWSER_LIMITS if browser else CHECK_LIMITS)
     launch(entry,check['timeoutMs'])
     save(recordPath,record)
     result=dict(container=name,**({'database':'ready'} if database else {}),**({'browser':True} if browser else {}))
@@ -535,7 +606,7 @@ else:
    else:
     # The check's database goes with it.
     if entry.get('database'): kill_check(entry['database'])
-    entry['treeSha256']=measure(entry['workspace'],record['order'])
+    entry['treeSha256']=measure(entry['workspace'],record['order'],entry.get('skip',[]))
     discard(entry['workspace'])
     record['phase']='prepared';save(recordPath,record)
     result=dict(running=False,exitCode=code,timedOut=entry['timedOut'])
@@ -549,7 +620,7 @@ else:
     for entry in record['checks']:
      kill_check(entry)
      if entry.get('database'): kill_check(entry['database'])
-     if entry.get('treeSha256') is None and os.path.lexists(entry.get('workspace','')): entry['treeSha256']=measure(entry['workspace'],record['order'])
+     if entry.get('treeSha256') is None and os.path.lexists(entry.get('workspace','')): entry['treeSha256']=measure(entry['workspace'],record['order'],entry.get('skip',[]))
     changed=[e['treeSha256'] for e in record['checks'] if e.get('treeSha256') not in [None,record['manifestSha256']]]
     final=changed[0] if changed else record['treeSha256'] if record['manifestSha256'] else h(b'never-prepared')
     discard(operation)
@@ -586,6 +657,30 @@ function validDependencies(deps: ValidationDependencies): boolean {
         (total += file.bytes.length) <= dependencyTransfer.cacheBytes &&
         file.path ===
           createHash("sha512").update(file.bytes).digest("hex") + ".tgz",
+    )
+  );
+}
+
+/** The owner's tool files within the guest's bounds, each named by the
+ * sha256 of its bytes, at distinct plain home-relative paths (#275). */
+function validTools(tools: ValidationRunRequest["tools"]): boolean {
+  let total = 0;
+  const paths = new Set<string>();
+  return (
+    Array.isArray(tools) &&
+    tools.length <= toolTransfer.files &&
+    tools.every(
+      (tool) =>
+        record(tool) &&
+        toolPath(tool.path) &&
+        !paths.has(tool.path) &&
+        paths.add(tool.path) &&
+        typeof tool.executable === "boolean" &&
+        Buffer.isBuffer(tool.bytes) &&
+        tool.bytes.length > 0 &&
+        tool.bytes.length <= toolTransfer.fileBytes &&
+        (total += tool.bytes.length) <= toolTransfer.totalBytes &&
+        tool.sha256 === digest(tool.bytes),
     )
   );
 }
@@ -735,7 +830,18 @@ export class NativePodmanValidationTransport
       (request.database !== undefined &&
         (request.database !== true || !this.databaseImageSha256)) ||
       (request.browser !== undefined &&
-        (request.browser !== true || !this.browserImageSha256))
+        (request.browser !== true || !this.browserImageSha256)) ||
+      (request.tools !== undefined && !validTools(request.tools)) ||
+      (request.outputPaths !== undefined &&
+        (!validOutputPaths(request.outputPaths) ||
+          request.files.some((file) =>
+            request.outputPaths!.some(
+              (output) =>
+                file.path === output ||
+                file.path.startsWith(output + "/") ||
+                output.startsWith(file.path + "/"),
+            ),
+          )))
     )
       throw Error("Unsupported native validation request");
     const attempt = { operationId: request.operationId, fence: request.fence };
@@ -753,6 +859,7 @@ export class NativePodmanValidationTransport
         expectedBinding,
         treeSha256: request.treeSha256,
         manifestSha256: digest(JSON.stringify(manifest)),
+        outputs: request.outputPaths ?? [],
         files: request.files.map((file) => ({
           path: file.path,
           bytes: file.bytes.toString("base64"),
@@ -761,9 +868,17 @@ export class NativePodmanValidationTransport
       },
       mayDispatch,
     );
+    const tools = request.tools?.length
+      ? await this.uploadTools(
+          attempt,
+          expectedBinding,
+          request.tools,
+          mayDispatch,
+        )
+      : null;
     const deps = request.dependencies;
     const install = deps
-      ? await this.install(attempt, expectedBinding, deps, mayDispatch)
+      ? await this.install(attempt, expectedBinding, deps, mayDispatch, tools)
       : undefined;
     if (install?.state === "failed")
       return {
@@ -781,6 +896,7 @@ export class NativePodmanValidationTransport
       {
         expectedBinding,
         dependencies: deps?.planSha256 ?? null,
+        tools,
         database: request.database ?? null,
         browser: request.browser ?? null,
         treeSha256: request.treeSha256,
@@ -851,6 +967,51 @@ export class NativePodmanValidationTransport
         throw Error("Native validation check outlived its deadline");
     }
   }
+  /** Upload the owner's tool files in chunks, once per attempt, before any
+   * install or check (#275); returns the manifest the guest copies from. */
+  private async uploadTools(
+    attempt: { operationId: string; fence: number },
+    expectedBinding: unknown,
+    tools: NonNullable<ValidationRunRequest["tools"]>,
+    mayDispatch: () => boolean,
+  ) {
+    const status = await this.invoke(
+      "tools-status",
+      attempt,
+      { expectedBinding },
+      mayDispatch,
+    );
+    const done = status.result.done;
+    if (!Array.isArray(done)) throw Error("Native validation binding changed");
+    for (const tool of tools) {
+      if (done.includes(tool.sha256)) continue;
+      for (
+        let offset = 0;
+        offset < tool.bytes.length;
+        offset += dependencyTransfer.chunkBytes
+      )
+        await this.invoke(
+          "tool-put",
+          attempt,
+          {
+            expectedBinding,
+            file: tool.sha256,
+            size: tool.bytes.length,
+            offset,
+            data: tool.bytes
+              .subarray(offset, offset + dependencyTransfer.chunkBytes)
+              .toString("base64"),
+          },
+          mayDispatch,
+        );
+      done.push(tool.sha256);
+    }
+    return tools.map((tool) => ({
+      sha256: tool.sha256,
+      path: tool.path,
+      executable: tool.executable,
+    }));
+  }
   /** Upload the attempt's cache in chunks and install it once, before the
    * first check; later checks find it installed. An upload cut short is not
    * resumed: the attempt fails and stops. */
@@ -859,6 +1020,7 @@ export class NativePodmanValidationTransport
     expectedBinding: unknown,
     deps: ValidationDependencies,
     mayDispatch: () => boolean,
+    tools: { sha256: string; path: string; executable: boolean }[] | null,
   ): Promise<ValidationInstall> {
     const planSha256 = deps.planSha256;
     const status = await this.invoke(
@@ -897,6 +1059,7 @@ export class NativePodmanValidationTransport
           planSha256,
           files: deps.files.map((file) => file.path),
           timeoutMs: deps.installTimeoutMs,
+          tools,
         },
         mayDispatch,
       );

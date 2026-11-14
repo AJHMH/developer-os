@@ -1,6 +1,11 @@
 import { ownerAdmission, type OwnerAdmission } from "./coding-admission.js";
 import { hostTargets } from "./host-target.js";
 import {
+  fetchToolFiles,
+  type FetchedToolFile,
+  type FileReader,
+} from "./tool-files.js";
+import {
   fetchNpmCache,
   npmCachePlan,
   npmRegistry,
@@ -178,6 +183,17 @@ export interface ValidationRunRequest {
   /** The check runs in the admitted browser image, with a browser check's
    * limits. */
   browser?: true;
+  /** The owner's tool files (#275), verified on the host, which the guest
+   * copies into the install's and each check's home. */
+  tools?: {
+    sha256: string;
+    path: string;
+    executable: boolean;
+    bytes: Buffer;
+  }[];
+  /** The owner's declared outputs (#275): paths a check may write, which
+   * the tree measurement skips. None may hold or lie under an input file. */
+  outputPaths?: string[];
   /** Checked before every effect; false stops dispatch and polling. */
   mayDispatch(): boolean;
 }
@@ -273,6 +289,9 @@ export class PinnedValidationRuntime implements ValidationRuntime {
   /** Each attempt's prepared cache, fetched once on the host. */
   private readonly caches = new Map<string, Promise<NpmCache>>();
   private readonly dependencies: { reader: RegistryReader } | undefined;
+  private readonly toolReader: FileReader | undefined;
+  /** Each attempt's tool files, fetched once on the host. */
+  private readonly toolCaches = new Map<string, Promise<FetchedToolFile[]>>();
   constructor(
     pins: ValidationPins,
     private readonly transport: IsolatedValidationTransport,
@@ -289,6 +308,8 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       /** The install image's C library, for the prepared cache's platform
        * (#275). */
       libc?: "glibc" | "musl";
+      /** Fetches the owner contract's tool files on the host (#275). */
+      toolReader?: FileReader;
     } = {},
   ) {
     this.pins = Object.freeze({
@@ -312,6 +333,7 @@ export class PinnedValidationRuntime implements ValidationRuntime {
     )
       throw Error("Unqualified validation transport");
     this.dependencies = options.reader ? { reader: options.reader } : undefined;
+    this.toolReader = options.toolReader;
     this.environment = {
       ...(this.dependencies
         ? preparedNpmValidationEnvironment(this.pins.imageSha256)
@@ -411,6 +433,28 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       if (!this.admitted() || !mayDispatch())
         throw Error("Validation execution refused");
     }
+    // The owner's tool files (#275): fetched once per attempt; a contract
+    // that declares them on a runtime that can't fetch them fails the check,
+    // and a fetch that fails leaves it unrun.
+    let tools: FetchedToolFile[] | undefined;
+    const declared = request.contract?.toolFiles;
+    if (declared?.length) {
+      if (!this.toolReader) return unrun("failure");
+      const key = request.operationId + ":" + validationDigest(declared);
+      if (!this.toolCaches.has(key))
+        this.toolCaches.set(
+          key,
+          fetchToolFiles(declared, { reader: this.toolReader }),
+        );
+      try {
+        tools = await this.toolCaches.get(key)!;
+      } catch {
+        this.toolCaches.delete(key);
+        return unrun("cancelled");
+      }
+      if (!this.admitted() || !mayDispatch())
+        throw Error("Validation execution refused");
+    }
     // Only E2E checks get a database or a browser, and only where the
     // contract declares one.
     const database = this.environment.database && check.kind === "e2e";
@@ -447,6 +491,17 @@ export class PinnedValidationRuntime implements ValidationRuntime {
         : {}),
       ...(database ? { database: true as const } : {}),
       ...(browser ? { browser: true as const } : {}),
+      ...(request.contract?.outputPaths?.length
+        ? { outputPaths: [...request.contract.outputPaths] }
+        : {}),
+      ...(tools
+        ? {
+            tools: tools.map((tool) => ({
+              ...tool,
+              bytes: Buffer.from(tool.bytes),
+            })),
+          }
+        : {}),
     });
     const result = await this.transport.run(run);
     if (

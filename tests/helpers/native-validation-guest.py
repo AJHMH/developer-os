@@ -18,7 +18,7 @@ exits 0 only while its database runs. The browser image (browserImageMissing,
 browserArch) is inspected like the database's; the check verb `browser` exits
 0 only in the browser image with the Playwright browsers path set.
 """
-import sys, os, json, pathlib, subprocess, time, types, re, signal, errno
+import sys, os, json, pathlib, subprocess, time, types, re, signal, errno, shutil
 from hashlib import sha256
 
 root = pathlib.Path(sys.argv[1])
@@ -100,6 +100,11 @@ def run_check(name, c):
     work = pathlib.Path(c['Mounts'][0]['Source'])
     # Like the engine, a missing bind source fails the start.
     if not work.is_dir(): raise LookupError('bind source missing')
+    # A check with dependencies first copies the read-only layer into its
+    # own workspace (#275).
+    if 'mkdir /workspace/node_modules' in c['Config']['Cmd'][1]:
+        layer = next(pathlib.Path(m['Source']) for m in c['Mounts'] if m['Destination'] == '/layer')
+        shutil.copytree(layer, work / 'node_modules', symlinks=True)
     verb = argv[0]
     if verb == 'hang':
         # Optionally advance the guest clock past the check's deadline.
