@@ -575,3 +575,72 @@ test("a transport result without the attempt's install is untrusted", async () =
     /Untrusted validation result/,
   );
 });
+
+test("a runtime given the install image's libc fetches only that platform's packages (#275)", async () => {
+  const { npmCachePlan } = await import("../dist/dependency-cache.js");
+  const pad = integrityOf(leftPad);
+  const platformLock = Buffer.from(
+    JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        "": {},
+        "node_modules/left-pad": {
+          version: "1.0.0",
+          resolved: `${registry}/left-pad/-/left-pad-1.0.0.tgz`,
+          integrity: pad,
+        },
+        "node_modules/@esbuild/darwin-arm64": {
+          version: "1.0.0",
+          resolved: `${registry}/@esbuild/darwin-arm64/-/darwin-arm64-1.0.0.tgz`,
+          integrity: pad,
+          optional: true,
+          os: ["darwin"],
+        },
+        "node_modules/@x/linux-arm64-musl": {
+          version: "1.0.0",
+          resolved: `${registry}/@x/linux-arm64-musl/-/linux-arm64-musl-1.0.0.tgz`,
+          integrity: pad,
+          optional: true,
+          os: ["linux"],
+          cpu: ["arm64"],
+          libc: ["musl"],
+        },
+      },
+    }),
+  );
+  const { transport, runs } = controlled();
+  const { reader, reads } = registryReader();
+  const runtime = new PinnedValidationRuntime(
+    runtimePins,
+    transport,
+    undefined,
+    {
+      reader,
+      libc: "glibc",
+    },
+  );
+  const { environment } = await runtime.inspect();
+  assert.equal(environment.libc, "glibc");
+  const request = executeRequest(runtime, [
+    { path: "package-lock.json", bytes: platformLock, executable: false },
+  ]);
+  request.environmentSha256 = validationDigest(environment);
+  await runtime.execute(request);
+  assert.deepEqual(reads, [`${registry}/left-pad/-/left-pad-1.0.0.tgz`]);
+  assert.equal(
+    runs[0].dependencies.planSha256,
+    npmCachePlan(platformLock, { os: "linux", cpu: "arm64", libc: "glibc" })
+      .planSha256,
+  );
+  assert.throws(
+    () =>
+      new PinnedValidationRuntime(runtimePins, transport, undefined, {
+        reader,
+        libc: "bionic",
+      }),
+    /Unqualified validation transport/,
+  );
+});
+function integrityOf(bytes) {
+  return "sha512-" + createHash("sha512").update(bytes).digest("base64");
+}

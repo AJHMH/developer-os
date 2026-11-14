@@ -204,8 +204,18 @@ running anything from it:
   refused, and bundled packages arrive inside their parent. One tarball under
   two integrities is refused. The plan is sorted, bounded (16 MiB lockfile,
   2048 tarballs) and carries its own digest and the lockfile's.
+- `npmCachePlan(lockfile, platform)` leaves out every optional package built
+  for another platform, as npm leaves it out of the install (#275). Its `os`,
+  `cpu` and `libc` lists are read as npm reads them: no list admits
+  everything, `!name` refuses that name, and any plain name must include the
+  platform's. The runtime plans for the guest, `linux` on `arm64`, plus the
+  install image's `libc` when the owner contract's environment declares one
+  (`"libc": "glibc"` or `"musl"`). Without a `libc`, every libc's packages are
+  kept. The platform is part of the plan's digest. A required package is kept
+  whatever it names, and npm then refuses it. For `profile-page`, this keeps
+  658 of the lockfile's 790 tarballs: exactly the ones npm fetched on the VM.
 - `fetchNpmCache(plan, { reader })` fetches exactly those tarballs, each
-  within 64 MiB and 60 s and all within 128 MiB, without compression, and
+  within 64 MiB and 60 s and all within 512 MiB, without compression, and
   admits the cache only if every tarball matches its sha512. The reader gets
   the byte bound, and each read is raced against cancellation. A changed or
   unsafe plan is refused before any request; any refusal or cancellation
@@ -234,7 +244,7 @@ The transport then, before the attempt's first check:
 
 - uploads the cache in chunks of at most 4 MiB (`cache-put`), each appended
   at its expected offset, each tarball kept only once its bytes match the
-  sha512 it is named by, within 2048 tarballs, 64 MiB each and 128 MiB in
+  sha512 it is named by, within 2048 tarballs, 64 MiB each and 512 MiB in
   all; an upload cut short is never resumed;
 - installs it (`install-start`, `install-poll`) in its own hardened, offline
   container from the owner image, with a fixed command: `npm cache add` of
@@ -243,7 +253,7 @@ The transport then, before the attempt's first check:
   timeout. The attempt's input must carry `package-lock.json` and neither
   `npm-shrinkwrap.json` (which npm would prefer) nor `node_modules`;
 - keeps only a clean install's `node_modules` as the installed dependency
-  layer, measured with its links (`.bin`), and discards the install's
+  layer, measured with its links (`.bin`) within 2 GiB, and discards the install's
   workspace, the upload and npm's cache, so anything an install script wrote
   elsewhere never reaches a check.
 

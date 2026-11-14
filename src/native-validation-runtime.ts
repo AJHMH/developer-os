@@ -49,6 +49,14 @@ export function ownerPolicyDeclaresDatabase(path: string | undefined) {
 export function ownerPolicyDeclaresBrowser(path: string | undefined) {
   return (declaredEnvironment(path) as { browser?: unknown })?.browser === true;
 }
+/** The C library the owner policy at `path` declares for its install image
+ * (#275), if any. */
+export function ownerPolicyDeclaredLibc(
+  path: string | undefined,
+): "glibc" | "musl" | undefined {
+  const libc = (declaredEnvironment(path) as { libc?: unknown })?.libc;
+  return libc === "glibc" || libc === "musl" ? libc : undefined;
+}
 
 /** The owner-admitted native validation runtime for `machine`, at the
  * record's pins and its images. Checks run offline. With a registry `reader`,
@@ -64,6 +72,7 @@ export function nativeValidationRuntime(
     reader?: RegistryReader;
     database?: boolean;
     browser?: boolean;
+    libc?: "glibc" | "musl";
   } = {},
 ): PinnedValidationRuntime {
   const admission = ownerValidationAdmission(admissionPath);

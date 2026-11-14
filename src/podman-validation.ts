@@ -39,13 +39,16 @@ type ValidationAction =
   | "stop";
 
 /** Bounds of the prepared npm dependency cache in the guest (owner decisions,
- * 29 October): each chunk crosses as one management request. */
+ * 29 October): each chunk crosses as one management request. A real web
+ * application's Linux arm64 cache is about 253 MiB and installs to about
+ * 950 MiB (#275). */
 export const dependencyTransfer = Object.freeze({
   chunkBytes: 4 * 1024 * 1024,
   tarballBytes: 64 * 1024 * 1024,
-  cacheBytes: 128 * 1024 * 1024,
+  cacheBytes: 512 * 1024 * 1024,
   tarballs: 2048,
   installTimeoutMs: 600000,
+  layerBytes: 2 * 1024 * 1024 * 1024,
 });
 
 /** Trusted VM management source for offline validation. Requests are JSON
@@ -338,7 +341,7 @@ def measure_layer(folder):
      if stat.S_ISLNK(s.st_mode): found.append(dict(path=name,kind='link',target=os.readlink(entry.path)));continue
      if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_size>67108864: return CHANGED
      total+=s.st_size
-     if total>1073741824: return CHANGED
+     if total>${dependencyTransfer.layerBytes}: return CHANGED
      fd=os.open(entry.path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
      digest=hashlib.sha256()
      with os.fdopen(fd,'rb') as f:

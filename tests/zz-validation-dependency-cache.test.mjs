@@ -413,9 +413,124 @@ test("a cancelled fetch stops and admits nothing", async () => {
   assert.equal(calls, 1);
 });
 
-test("v1 bounds a cache at 2048 tarballs and 128 MiB", () => {
+test("the cache is bounded at 2048 tarballs and 512 MiB, room for a real web application's (#275)", () => {
   assert.equal(dependencyCacheLimits.artifacts, 2048);
-  assert.equal(dependencyCacheLimits.totalBytes, 128 * 1024 * 1024);
+  assert.equal(dependencyCacheLimits.totalBytes, 512 * 1024 * 1024);
+});
+
+test("a platform keeps only that platform's optional packages, as npm installs them (#275)", () => {
+  const platformLock = lockfile({
+    "node_modules/esbuild": entry("esbuild"),
+    "node_modules/@esbuild/linux-arm64": entry(
+      "@esbuild/linux-arm64",
+      "1.0.0",
+      {
+        optional: true,
+        os: ["linux"],
+        cpu: ["arm64"],
+      },
+    ),
+    "node_modules/@esbuild/darwin-arm64": entry(
+      "@esbuild/darwin-arm64",
+      "1.0.0",
+      {
+        optional: true,
+        os: ["darwin"],
+        cpu: ["arm64"],
+      },
+    ),
+    "node_modules/@esbuild/linux-x64": entry("@esbuild/linux-x64", "1.0.0", {
+      optional: true,
+      os: ["linux"],
+      cpu: ["x64"],
+    }),
+    "node_modules/@x/linux-arm64-musl": entry("@x/linux-arm64-musl", "1.0.0", {
+      optional: true,
+      os: ["linux"],
+      cpu: ["arm64"],
+      libc: ["musl"],
+    }),
+    "node_modules/not-windows": entry("not-windows", "1.0.0", {
+      optional: true,
+      os: ["!win32"],
+    }),
+    // A required package is kept whatever it names: npm would refuse it.
+    "node_modules/required-darwin": entry("required-darwin", "1.0.0", {
+      os: ["darwin"],
+    }),
+  });
+  const names = (plan) =>
+    plan.artifacts.map((a) => a.path.split("/-/")[0].slice(1));
+  const linux = { os: "linux", cpu: "arm64", libc: "glibc" };
+  const glibc = npmCachePlan(platformLock, linux);
+  assert.deepEqual(names(glibc), [
+    "@esbuild/linux-arm64",
+    "esbuild",
+    "not-windows",
+    "required-darwin",
+  ]);
+  assert.deepEqual(glibc.platform, linux);
+  // Without a libc, every libc is kept.
+  assert.deepEqual(
+    names(npmCachePlan(platformLock, { os: "linux", cpu: "arm64" })),
+    [
+      "@esbuild/linux-arm64",
+      "@x/linux-arm64-musl",
+      "esbuild",
+      "not-windows",
+      "required-darwin",
+    ],
+  );
+  // Without a platform, nothing is left out, and the plan names none.
+  const all = npmCachePlan(platformLock);
+  assert.equal(all.artifacts.length, 7);
+  assert.equal(all.platform, undefined);
+  // The platform is part of the plan's digest.
+  assert.notEqual(glibc.planSha256, all.planSha256);
+  for (const bad of [
+    { os: "linux" },
+    { os: "Linux", cpu: "arm64" },
+    { os: "linux", cpu: "arm64", libc: "bionic" },
+    { os: "linux", cpu: "arm64", extra: 1 },
+  ])
+    assert.throws(
+      () => npmCachePlan(platformLock, bad),
+      /Unsupported dependency lockfile/,
+    );
+  assert.throws(
+    () =>
+      npmCachePlan(
+        lockfile({
+          "node_modules/odd": entry("odd", "1.0.0", {
+            optional: true,
+            os: "linux",
+          }),
+        }),
+        linux,
+      ),
+    /Unsupported dependency lockfile/,
+  );
+});
+
+test("a fetch refuses a plan whose platform was tampered with", async () => {
+  const plan = npmCachePlan(ordinary(), { os: "linux", cpu: "arm64" });
+  const reader = async () => {
+    throw Error("never read");
+  };
+  await assert.rejects(
+    fetchNpmCache(
+      { ...plan, platform: { os: "linux", cpu: "x64" } },
+      { reader },
+    ),
+    /Dependency cache refused: plan/,
+  );
+  await assert.rejects(
+    fetchNpmCache(
+      { ...plan, platform: { os: "LINUX", cpu: "arm64" } },
+      { reader },
+    ),
+    /Dependency cache refused: plan/,
+  );
 });
 
 /** A local stand-in for the registry, reached through the reader's injected

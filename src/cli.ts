@@ -15,6 +15,7 @@ import { nativeCodingRuntime } from "./native-coding-runtime.js";
 import {
   nativeValidationRuntime,
   ownerPolicyDeclaresBrowser,
+  ownerPolicyDeclaredLibc,
   ownerPolicyDeclaresDatabase,
   ownerPolicyDeclaresPreparedNpm,
 } from "./native-validation-runtime.js";
@@ -117,6 +118,7 @@ try {
               : {}),
             database: ownerPolicyDeclaresDatabase(values["owner-policy"]),
             browser: ownerPolicyDeclaresBrowser(values["owner-policy"]),
+            ...libcOption(ownerPolicyDeclaredLibc(values["owner-policy"])),
           },
         );
       } catch {
@@ -251,4 +253,9 @@ try {
     `${JSON.stringify({ error: error instanceof DeliveryError ? error.message : "Unable to access the repository or delivery state. Check local paths and permissions." })}\n`,
   );
   process.exitCode = 1;
+}
+
+/** The runtime's `libc` option, when the owner policy declares one. */
+function libcOption(libc: "glibc" | "musl" | undefined) {
+  return libc ? { libc } : {};
 }

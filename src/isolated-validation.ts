@@ -25,6 +25,9 @@ export interface ValidationEnvironment {
   caches: string[];
   browser: boolean;
   database: boolean;
+  /** The C library the install image uses (#275), so the prepared cache
+   * keeps only its platform's optional packages; absent keeps every libc. */
+  libc?: "glibc" | "musl";
   synthetic: true;
 }
 export interface ValidationCheck {
@@ -168,6 +171,7 @@ export function validationContract(
     e.synthetic !== true ||
     typeof e.browser !== "boolean" ||
     typeof e.database !== "boolean" ||
+    (e.libc !== undefined && e.libc !== "glibc" && e.libc !== "musl") ||
     !Array.isArray(e.registries) ||
     !Array.isArray(e.caches) ||
     e.registries.length > 16 ||
@@ -305,6 +309,7 @@ export function validationContract(
       caches: [...e.caches],
       browser: e.browser,
       database: e.database,
+      ...(e.libc ? { libc: e.libc } : {}),
       synthetic: true,
     },
     checks,
