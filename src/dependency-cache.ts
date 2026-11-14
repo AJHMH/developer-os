@@ -12,7 +12,7 @@ export const dependencyCacheLimits = Object.freeze({
   lockfileBytes: 16 * 1024 * 1024,
   artifacts: 2048,
   artifactBytes: 64 * 1024 * 1024,
-  totalBytes: 128 * 1024 * 1024,
+  totalBytes: 512 * 1024 * 1024,
   artifactMs: 60_000,
 });
 
@@ -22,9 +22,18 @@ export interface NpmCacheArtifact {
   /** Hex sha512 of the tarball, from the lockfile's integrity. */
   sha512: string;
 }
+/** The platform the install runs on (#275): optional packages built for
+ * another one are left out of the plan, as npm leaves them out of the
+ * install. Without a `libc`, packages are kept whatever libc they name. */
+export interface NpmPlatform {
+  os: string;
+  cpu: string;
+  libc?: "glibc" | "musl";
+}
 export interface NpmCachePlan {
   registry: typeof npmRegistry;
   lockfileSha256: string;
+  platform?: NpmPlatform;
   /** Sorted by path, one entry per tarball. */
   artifacts: NpmCacheArtifact[];
   planSha256: string;
@@ -75,6 +84,15 @@ const planDigest = (plan: Omit<NpmCachePlan, "planSha256">) =>
     JSON.stringify({
       registry: plan.registry,
       lockfileSha256: plan.lockfileSha256,
+      ...(plan.platform
+        ? {
+            platform: {
+              os: plan.platform.os,
+              cpu: plan.platform.cpu,
+              ...(plan.platform.libc ? { libc: plan.platform.libc } : {}),
+            },
+          }
+        : {}),
       artifacts: plan.artifacts.map(({ path, sha512 }) => ({ path, sha512 })),
     }),
   );
@@ -107,11 +125,41 @@ function sha512Of(integrity: unknown): string | undefined {
   return undefined;
 }
 
+/** Whether a package's `os`, `cpu` or `libc` list admits `value`, as npm
+ * reads it: no list admits everything, a `!name` refuses that name, and any
+ * plain name must include it. A malformed list refuses the lockfile. */
+function admits(list: unknown, value: string | undefined): boolean {
+  if (list === undefined || value === undefined) return true;
+  if (
+    !Array.isArray(list) ||
+    list.length > 64 ||
+    !list.every((x) => typeof x === "string" && /^!?[a-z0-9_-]{1,32}$/.test(x))
+  )
+    refuseLockfile();
+  const names = list as string[];
+  if (names.includes("!" + value)) return false;
+  const plain = names.filter((x) => !x.startsWith("!"));
+  return !plain.length || plain.includes(value);
+}
+const validPlatform = (p: unknown): p is NpmPlatform =>
+  object(p) &&
+  typeof p.os === "string" &&
+  /^[a-z0-9_-]{1,32}$/.test(p.os) &&
+  typeof p.cpu === "string" &&
+  /^[a-z0-9_-]{1,32}$/.test(p.cpu) &&
+  (p.libc === undefined || p.libc === "glibc" || p.libc === "musl") &&
+  Object.keys(p).every((k) => ["os", "cpu", "libc"].includes(k));
+
 /** The bounded fetch plan for a candidate's `package-lock.json` (version 2
  * or 3). Every installed package must resolve to a registry tarball with
  * sha512 integrity; bundled packages arrive inside their parent. Workspace
- * links, git, file and other-registry sources are refused. */
-export function npmCachePlan(lockfile: Buffer): NpmCachePlan {
+ * links, git, file and other-registry sources are refused. With a
+ * `platform`, optional packages for another platform are left out. */
+export function npmCachePlan(
+  lockfile: Buffer,
+  platform?: NpmPlatform,
+): NpmCachePlan {
+  if (platform !== undefined && !validPlatform(platform)) refuseLockfile();
   if (
     !Buffer.isBuffer(lockfile) ||
     lockfile.length > dependencyCacheLimits.lockfileBytes
@@ -138,6 +186,16 @@ export function npmCachePlan(lockfile: Buffer): NpmCachePlan {
     // tarball, so the resolved check below refuses them.
     if (!key.startsWith("node_modules/") || !object(value)) refuseLockfile();
     if (value.inBundle === true) continue;
+    if (
+      platform &&
+      value.optional === true &&
+      !(
+        admits(value.os, platform.os) &&
+        admits(value.cpu, platform.cpu) &&
+        admits(value.libc, platform.libc)
+      )
+    )
+      continue;
     const path = registryPath(value.resolved),
       sha512 = sha512Of(value.integrity);
     if (!path || !sha512 || (byPath.get(path) ?? sha512) !== sha512)
@@ -152,6 +210,15 @@ export function npmCachePlan(lockfile: Buffer): NpmCachePlan {
   const plan = {
     registry: npmRegistry,
     lockfileSha256: sha("sha256", lockfile),
+    ...(platform
+      ? {
+          platform: {
+            os: platform.os,
+            cpu: platform.cpu,
+            ...(platform.libc ? { libc: platform.libc } : {}),
+          },
+        }
+      : {}),
     artifacts,
   };
   return { ...plan, planSha256: planDigest(plan) };
@@ -172,6 +239,7 @@ export async function fetchNpmCache(
     !object(plan) ||
     plan.registry !== npmRegistry ||
     !/^[a-f0-9]{64}$/.test(plan.lockfileSha256) ||
+    (plan.platform !== undefined && !validPlatform(plan.platform)) ||
     !Array.isArray(plan.artifacts) ||
     plan.artifacts.length > dependencyCacheLimits.artifacts ||
     plan.artifacts.some(

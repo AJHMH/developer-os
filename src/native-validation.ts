@@ -1,4 +1,5 @@
 import { ownerAdmission, type OwnerAdmission } from "./coding-admission.js";
+import { hostTargets } from "./host-target.js";
 import {
   fetchNpmCache,
   npmCachePlan,
@@ -285,6 +286,9 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       database?: boolean;
       /** Each E2E check runs in the admitted browser image. */
       browser?: boolean;
+      /** The install image's C library, for the prepared cache's platform
+       * (#275). */
+      libc?: "glibc" | "musl";
     } = {},
   ) {
     this.pins = Object.freeze({
@@ -301,6 +305,9 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       !validValidationPins(this.pins) ||
       (options.database && !this.pins.databaseImageSha256) ||
       (options.browser && !this.pins.browserImageSha256) ||
+      (options.libc !== undefined &&
+        options.libc !== "glibc" &&
+        options.libc !== "musl") ||
       !this.admitted()
     )
       throw Error("Unqualified validation transport");
@@ -311,6 +318,7 @@ export class PinnedValidationRuntime implements ValidationRuntime {
         : offlineValidationEnvironment(this.pins.imageSha256)),
       database: options.database === true,
       browser: options.browser === true,
+      ...(options.libc ? { libc: options.libc } : {}),
     };
     this.bindingSha256 = validationBindingSha256(this.pins);
     Object.freeze(this.environment);
@@ -379,7 +387,12 @@ export class PinnedValidationRuntime implements ValidationRuntime {
       if (!lockfile) return unrun("failure");
       let plan;
       try {
-        plan = npmCachePlan(Buffer.from(lockfile.bytes));
+        // Only the guest's own platform's optional packages (#275).
+        plan = npmCachePlan(Buffer.from(lockfile.bytes), {
+          os: "linux",
+          cpu: hostTargets.darwin.guestArch,
+          ...(this.environment.libc ? { libc: this.environment.libc } : {}),
+        });
       } catch {
         return unrun("failure");
       }
