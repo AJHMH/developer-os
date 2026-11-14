@@ -130,3 +130,6 @@ the record must first admit the new coding pins at the worker level:
 
 8. A production admission record naming the combined report. Then
    `check-production` prints `"level": "complete"`.
+
+It all passed on 13 November, from `main` at `e049225` (#323); see the
+[receipt](../.scratch/aios-v1-implementation/ticket16-macos-complete-qualification-receipt.md).

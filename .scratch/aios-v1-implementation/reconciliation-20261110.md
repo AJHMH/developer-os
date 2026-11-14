@@ -45,7 +45,7 @@ There are 25 tickets, 01 to 25.
 | 13 Safe main sync                | Open, [#272](https://github.com/AJHMH/developer-os/issues/272) | Native main sync: a real delivery merged, main was verified, then `sync-main` fast-forwarded the delivery's checkout to exactly that revision ([13 November receipt](ticket13-macos-sync-delivery-receipt.md)). |
 | 14 Cleanup and completion        | Open, [#273](https://github.com/AJHMH/developer-os/issues/273) | Native cleanup: a real delivery merged, verified and synchronized main, then `cleanup-branches` deleted every merged branch, kept the unmerged ones and completed the delivery ([13 November receipt](ticket14-macos-cleanup-delivery-receipt.md)). |
 | 15 Windows qualification         | Superseded                                                     | ADR 0007: the Mac is the only owner host.                                                                                                               |
-| 16 macOS qualification           | Open, [#274](https://github.com/AJHMH/developer-os/issues/274) | Never run for the complete controller.                                                                                                                  |
+| 16 macOS qualification           | Open, [#274](https://github.com/AJHMH/developer-os/issues/274) | Native: the complete qualification combined the worker, session, validation, lifecycle and delivery-through-cleanup runs from one revision, and all ten boundaries passed; the production admission is at the `complete` level ([13 November receipt](ticket16-macos-complete-qualification-receipt.md)). |
 | 17 Observed profile-page pilot   | Open, [#275](https://github.com/AJHMH/developer-os/issues/275) | Never run.                                                                                                                                              |
 | 18 Pinned Windows VM             | Completed, then removed                                        | Windows support was removed in #226 (ADR 0007).                                                                                                         |
 | 19 Offline delivery canary       | Completed, then removed                                        | The fixed worker was removed in #256.                                                                                                                   |
@@ -126,7 +126,7 @@ There are 56 stories. Their status:
 | 53  | Network denial tested against reachable services          | 20                 | Partial: denial is probed natively, and the relay is the positive control; reachable synthetic denial targets were only on the removed fixed worker |
 | 54  | Online model and dependency access constrained separately | 21, 22             | Partial: model access is relay only; dependency access is #265                                                                                      |
 | 55  | Exhaustion preserves work without paid fallback           | 21, 22             | Done, changed: a budget interruption preserves the work (ADR 0008)                                                                                  |
-| 56  | Runtime and policy changes invalidate qualification       | 18, 24, 25         | Done: shown again by the 10 November re-pin                                                                                                         |
+| 56  | Runtime and policy changes invalidate qualification       | 18, 24, 25         | Done: shown again by the 10 and 13 November re-pins                                                                                                         |
 
 In total:
 
@@ -138,5 +138,6 @@ In total:
 | Controlled only | 9     | 8, 26, 28, 32, 40, 42, 44, 46, 48                                         |
 | Not done        | 0     |                                                                           |
 
-Tickets 08 to 14 now have native adapters, each run on a real delivery. No
-story is complete end to end until 16 and 17 have run.
+Tickets 08 to 14 now have native adapters, each run on a real delivery, and
+16's complete qualification passed natively. No story is complete end to end
+until 17, the pilot, has run.
