@@ -87,7 +87,8 @@ test("ordinary code passes the repository credential check, and real credentials
     "github_pat_" + "B".repeat(40),
     "key = sk-proj-" + "c".repeat(40),
     "sk-ant-api03-" + "d".repeat(40),
-    "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N",
+    // A JWT-shaped sample, built here so secret scanners see no token.
+    ["eyJ" + "a".repeat(12), "eyJ" + "b".repeat(12), "c".repeat(12)].join("."),
   ])
     assert.equal(credentialLike(credential), true, credential);
 });
