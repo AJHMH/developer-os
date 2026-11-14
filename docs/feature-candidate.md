@@ -34,6 +34,45 @@ Output collection is possible only after matching shutdown evidence reports zero
 
 The admitted candidate records a SHA-256 of its complete manifest, original input identity, source revision, feature branch and policy/CLI/host pins in durable state. Its validation status is explicitly `not-run`. The [isolated validation slice](isolated-validation.md) must validate the exact candidate before signing or publication. Production delivery remains disabled.
 
+## Repository files (#275)
+
+A real repository may hold files the controller never sends to coding or
+validation: agent configuration such as `.agents/` or `.claude/`, environment
+templates such as `.env.example`, `.npmrc` and `.gitattributes`. Without an
+exclusion, any of these refuses the whole repository. The owner policy may list
+them:
+
+```json
+"excludedPaths": [".agents/", ".claude/", ".env.example", ".gitattributes", ".npmrc"]
+```
+
+- **The form:** each entry is an exact file path, or a directory prefix ending
+  in `/`, relative to the repository root. There are at most 64, and none may
+  be absolute or contain `.` or `..`.
+- **What it does:** every read of the repository leaves those paths out:
+  - the coding source;
+  - the validation baseline;
+  - the base refresh;
+  - the check that a candidate changed something.
+- **Candidates:** a candidate that writes an excluded path is refused.
+- **Publication:** each excluded file is carried byte for byte from the base
+  commit, so the published tree keeps it unchanged. An excluded symbolic link
+  is refused.
+- **Binding:** the list is read from the policy at each use, bound to the
+  policy digest the delivery pinned at `start`.
+
+Repository file contents, in both directions, are refused only for an
+unambiguous credential:
+
+- a private key block;
+- a GitHub token;
+- an `sk-` API key;
+- a JWT.
+
+Ordinary code, such as `const apiKey = env.RESEND_API_KEY` or an example
+`postgresql://user:password@localhost` URL, passes. Requests, logs and reports
+keep the broader redaction.
+
 ## Owner-run CLI acceptance (ADR 0004)
 
 `scripts/run-native-cli-delivery-acceptance.mjs` runs one metered delivery through the real CLI on Claude Code (ADR 0008). Each step is its own `dist/cli.js` process, given only the owner inputs that command names:

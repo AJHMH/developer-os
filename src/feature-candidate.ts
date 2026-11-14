@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { redact } from "./redaction.js";
+import { credentialLike, redact } from "./redaction.js";
 import type { CodingAdmission } from "./coding-admission.js";
 import {
   claudeAgent,
@@ -351,7 +351,7 @@ const admissionStreamMaxAgeMs = 1000;
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { admitFiles, admittedPath } from "./workspace.js";
+import { admitFiles, admittedPath, excludedPath } from "./workspace.js";
 import { hostGitCwd } from "./host-git.js";
 import type { SessionGateway } from "./session-relay.js";
 export const candidateDigest = (value: string | Buffer) =>
@@ -423,8 +423,12 @@ function candidateGit(repository: string, args: string[]): Buffer {
     throw Error("Candidate repository observation failed");
   return result.stdout;
 }
-export function candidateSource(repository: string, expected?: string) {
-  return observedSource(repository, expected);
+export function candidateSource(
+  repository: string,
+  expected?: string,
+  excluded: readonly string[] = [],
+) {
+  return observedSource(repository, expected, undefined, excluded);
 }
 /** One observation of a clean checkout. With `mainBranch`, the same rev-parse
  * that reads HEAD also reads that branch, which must name the same commit. */
@@ -432,6 +436,7 @@ function observedSource(
   repository: string,
   expected?: string,
   mainBranch?: string,
+  excluded: readonly string[] = [],
 ) {
   // status may run clean/process filters. Reject helper/include declarations
   // before any working-tree observation can start a helper.
@@ -487,10 +492,13 @@ function observedSource(
     ]).length
   )
     throw Error("Preserve changed repository work before coding");
-  const entries = candidateGit(repository, ["ls-tree", "-r", "-z", revision])
-    .toString()
-    .split("\0")
-    .filter(Boolean);
+  const entries = withoutExcluded(
+    candidateGit(repository, ["ls-tree", "-r", "-z", revision])
+      .toString()
+      .split("\0")
+      .filter(Boolean),
+    excluded,
+  );
   const manifest = entries.map((entry) => {
     const match = entry.match(/^(100644|100755) blob [a-f0-9]{40}\t(.+)$/s);
     if (
@@ -517,13 +525,20 @@ function observedSource(
   return { revision, files, digest: candidateDigest(JSON.stringify(manifest)) };
 }
 /** Read an immutable previous baseline after a clean current source was verified. */
-export function candidateRevisionFiles(repository: string, revision: string) {
+export function candidateRevisionFiles(
+  repository: string,
+  revision: string,
+  excluded: readonly string[] = [],
+) {
   if (!/^[a-f0-9]{40}$/.test(revision))
     throw Error("Invalid baseline revision");
-  const entries = candidateGit(repository, ["ls-tree", "-r", "-z", revision])
-    .toString()
-    .split("\0")
-    .filter(Boolean);
+  const entries = withoutExcluded(
+    candidateGit(repository, ["ls-tree", "-r", "-z", revision])
+      .toString()
+      .split("\0")
+      .filter(Boolean),
+    excluded,
+  );
   let total = 0;
   const paths = new Set<string>();
   if (entries.length > 10000) throw Error("Oversized baseline");
@@ -616,7 +631,10 @@ export function advanceFeatureBranch(
       previous,
     ]);
 }
-export function candidateOutput(receipt: CodingCollection): string {
+export function candidateOutput(
+  receipt: CodingCollection,
+  excluded: readonly string[] = [],
+): string {
   if (
     receipt.complete !== true ||
     !Array.isArray(receipt.files) ||
@@ -629,6 +647,7 @@ export function candidateOutput(receipt: CodingCollection): string {
   const files = receipt.files.map((file) => {
     if (
       !admittedPath(file.path) ||
+      excludedPath(file.path, excluded) ||
       /(?:^|\/)\.git(?:config|modules|attributes)$/i.test(file.path) ||
       paths.has(file.path.normalize("NFC").toLowerCase()) ||
       file.ordinary !== true ||
@@ -644,7 +663,7 @@ export function candidateOutput(receipt: CodingCollection): string {
     if (
       hash !== file.beforeSha256 ||
       hash !== file.afterSha256 ||
-      redact(bytes.toString()) !== bytes.toString()
+      credentialLike(bytes.toString())
     )
       throw Error("Changed output");
     return {
@@ -1055,6 +1074,55 @@ export class PinnedCodingRuntime implements FeatureRuntime {
   }
 }
 
-export function candidateMainSource(repository: string, defaultBranch: string) {
-  return observedSource(repository, undefined, defaultBranch);
+export function candidateMainSource(
+  repository: string,
+  defaultBranch: string,
+  excluded: readonly string[] = [],
+) {
+  return observedSource(repository, undefined, defaultBranch, excluded);
+}
+/** `ls-tree -r -z` entries without the owner's excluded paths. */
+function withoutExcluded(entries: string[], excluded: readonly string[]) {
+  return excluded.length
+    ? entries.filter((entry) => {
+        const tab = entry.indexOf("\t");
+        return tab < 0 || !excludedPath(entry.slice(tab + 1), excluded);
+      })
+    : entries;
+}
+/** The owner's excluded files at `revision`, byte for byte, which publication
+ * carries unchanged (#275). Each must be an ordinary file; their paths need
+ * not be admitted, since they never reach coding or validation. */
+export function excludedRevisionFiles(
+  repository: string,
+  revision: string,
+  excluded: readonly string[],
+) {
+  if (!/^[a-f0-9]{40}$/.test(revision))
+    throw Error("Invalid baseline revision");
+  if (!excluded.length) return [];
+  let total = 0;
+  return candidateGit(repository, ["ls-tree", "-r", "-z", revision])
+    .toString()
+    .split("\0")
+    .filter(Boolean)
+    .flatMap((entry) => {
+      const match = entry.match(/^(\d{6}) (\w+) [a-f0-9]{40}\t(.+)$/s);
+      if (!match) throw Error("Unsafe excluded entry");
+      const path = match[3]!;
+      if (!excludedPath(path, excluded)) return [];
+      if (!/^100(?:644|755)$/.test(match[1]!) || match[2] !== "blob")
+        throw Error("Unsafe excluded entry");
+      const bytes = candidateGit(repository, [
+        "cat-file",
+        "blob",
+        revision + ":" + path,
+      ]);
+      if (
+        bytes.length > 16 * 1024 * 1024 ||
+        (total += bytes.length) > 128 * 1024 * 1024
+      )
+        throw Error("Oversized excluded files");
+      return [{ path, bytes, executable: match[1] === "100755" }];
+    });
 }
