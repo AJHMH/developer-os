@@ -1,6 +1,6 @@
 # Signed candidate publication
 
-Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented and tested; the native sections record what has run on the Mac. Production delivery remains disabled.
 
 Ticket 08 adds publishFeature and reconcilePublication to the public controller.
 The CLI exposes publish-feature and reconcile-publication with --id. With the

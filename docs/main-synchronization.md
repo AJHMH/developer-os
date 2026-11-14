@@ -107,10 +107,9 @@ Tests exercise real temporary Git repositories and local bare remotes through a
 controlled trusted adapter. GitHub identity, checks and exclusive-authority
 observations remain fixtures. These tests establish the controller contract;
 they do not qualify credential-bearing transports or prove native cross-process
-locking on macOS. The Mac still needs independent evidence for
-transport/configuration isolation, fetch/ref/worktree races, bounded descendant
-shutdown, interrupted effects and the full integrated delivery path.
+locking on macOS. Native evidence comes from the native sync results above and
+the [complete controller qualification](macos-controller-qualification.md),
+whose delivery ran through sync and cleanup.
 
-Parent 04 and tickets 14–17 remain open. Prior fixed worker qualification and
-manual agent Git operations do not supply this native acceptance or authorize
-new inference.
+Tickets 13, 14 and 16 are closed; the pilot (17) remains open. Manual agent Git
+operations do not supply this native acceptance or authorize new inference.

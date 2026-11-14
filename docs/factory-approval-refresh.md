@@ -1,6 +1,6 @@
 # Automatic Factory human-approval refresh
 
-Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented and tested; the native sections record what has run on the Mac. Production delivery remains disabled.
 
 Developer OS observes owner reviews submitted, edited or dismissed on an open
 same-repository PR targeting main. After bootstrap, the trusted default-branch

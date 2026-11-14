@@ -1,6 +1,6 @@
 # Conditional merge
 
-Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented; native production acceptance remains separate from the fixed-worker evidence.
+Implementation reference: [current scope and qualification gates](implementation-status.md). Controlled delivery contracts below are implemented and tested; the native sections record what has run on the Mac. Production delivery remains disabled.
 
 Ticket #11 adds `mergeFeature`, `reconcileMerge` and `refreshMergeBase` to the
 public delivery controller. CLI aliases are `merge-feature`, `reconcile-merge`
