@@ -1,6 +1,6 @@
 # Developer OS
 
-A local TypeScript controller for owner-approved feature delivery. It implements durable intake and controls, an independently demonstrated fixed Podman worker on Apple-silicon macOS, and controlled delivery orchestration through synchronization, eligible branch cleanup and completion. **Production feature delivery remains disabled.** Native delivery integrations (including synchronization and cleanup) and full-platform/pilot qualification are unfinished.
+A local TypeScript controller for owner-approved feature delivery. It implements durable intake and controls, Claude Code coding sessions and isolated validation in per-session containers on one dedicated Podman VM on Apple-silicon macOS, and delivery orchestration from planning through signed publication, PR checks, review, merge, main synchronization, eligible branch cleanup and completion. Every stage's native adapter has run on real deliveries to a disposable repository, and the complete controller qualification passed on the Mac on 13 November 2026. **Production feature delivery remains disabled.** The observed pilot delivery is unfinished.
 
 The owner's Mac is the only owner host ([ADR 0007](docs/adr/0007-macos-only-owner-host.md)): the CLI refuses to start on any other operating system.
 
@@ -19,7 +19,7 @@ npm run build
 npm run test:cli
 ```
 
-Host fixtures use `python3`; set `AIOS_TEST_PYTHON` to use another interpreter. Off macOS (for example on Linux CI), `npm test` sets `AIOS_TEST_HOST_PLATFORM=darwin` so the suite's CLI runs stand in for the Mac. Tests need permission for temporary Git repositories and synthetic localhost services. The tests do not authorize live subscription inference. The latest retained ticket 12 local run records 497 tests: 495 passed and two platform skips; it is historical validation, not a fresh run or current hosted certification.
+Host fixtures use `python3`; set `AIOS_TEST_PYTHON` to use another interpreter. Off macOS (for example on Linux CI), `npm test` sets `AIOS_TEST_HOST_PLATFORM=darwin` so the suite's CLI runs stand in for the Mac. Tests need permission for temporary Git repositories and synthetic localhost services. The tests make no metered model requests and need no Anthropic key. A passing local run is not a native qualification or hosted certification.
 
 ## Submit and inspect a request
 
@@ -71,18 +71,19 @@ The public `DeliveryController` accepts explicit trusted host adapters. They are
 | Repair      | `repair-feature`, `extend-repair`                                  | [Bounded repair](docs/bounded-repair.md)                |
 | Publication | `publish-feature`, `reconcile-publication`                         | [Signed publication](docs/signed-publication.md)        |
 | PR checks   | `monitor-pr-checks`, `repair-pr-checks`, `rerun-pr-check`          | [Trusted checks](docs/trusted-pr-checks.md)             |
-| Review      | `monitor-review`, `repair-review`, `resolve-review-thread`         | [Owner approval](docs/review-owner-approval.md)         |
+| Review      | `monitor-review`, `repair-review`, `resolve-review-thread`         | [Review and change gate](docs/review-owner-approval.md) |
 | Merge       | `merge-feature`, `reconcile-merge`, `refresh-merge-base`           | [Conditional merge](docs/conditional-merge.md)          |
 | Main checks | `monitor-main-checks`                                              | [Main verification](docs/main-verification.md)          |
 | Main sync   | `sync-main`, `reconcile-main-sync`                                 | [Main synchronization](docs/main-synchronization.md)    |
 | Cleanup     | `cleanup-branches`, `reconcile-cleanup`                            | [Branch cleanup and completion](docs/branch-cleanup.md) |
 
-Commands address an explicit `--id`; extensions and individual check/thread actions also require their documented arguments. Controlled tests exercise real temporary Git and persisted ledger state with external observations supplied by test adapters. They do not establish native publication or complete delivery. Main verification alone does not synchronize branches or perform cleanup. Controlled `sync-main` and `reconcile-main-sync` require fresh main evidence and a trusted conditional Git adapter; no native synchronization adapter is installed. See [safe main synchronization](docs/main-synchronization.md).
+Commands address an explicit `--id`; extensions and individual check/thread actions also require their documented arguments. With the owner's records, each command installs its native adapter: publication signs through the owner's key and opens the PR as the Software Factory App, and every later stage acts through the owner's `gh` login. Each contract document records its native acceptance. Merge approval is required only for a change the [change gate](docs/adr/0005-change-gate-replaces-universal-merge-approval.md) classifies as gated. Tests exercise real temporary Git and persisted ledger state with external observations supplied by test adapters; they do not establish native delivery. Main verification alone does not synchronize branches or perform cleanup.
 
 ## Factory and project documents
 
 Factory consumer workflows and automatic approval refresh are implemented. [Hosted evidence](.scratch/factory-approval-refresh/hosted-validation-20261014.md) records original-job reruns and stale-approval rejection. The immutable revision in `factory.lock.yaml` and workflow calls is authoritative for local configuration. No successful Factory certification receipt was found; CI adoption does not certify autonomous delivery.
 
+- [Architecture](docs/architecture.md), [contributor onboarding](docs/contributor-onboarding.md) and the [operations playbook](docs/playbook.md)
 - [Factory onboarding](docs/factory-onboarding.md) and [approval refresh](docs/factory-approval-refresh.md)
 - [Domain vocabulary](CONTEXT.md) and [target specification](.scratch/aios-feature-delivery/spec.md)
 - [Implementation status and ADR audit](docs/implementation-status.md)
