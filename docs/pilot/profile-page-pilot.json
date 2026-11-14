@@ -125,7 +125,7 @@
         "timeoutMs": 120000
       },
       {
-        "id": "e2e",
+        "id": "e2e-local",
         "kind": "e2e",
         "scope": "local",
         "stages": ["baseline", "candidate"],
