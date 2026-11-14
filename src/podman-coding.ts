@@ -19,7 +19,7 @@ import {
   validGuestBinding,
 } from "./native-management.js";
 import { admittedPath } from "./workspace.js";
-import { redact } from "./redaction.js";
+import { credentialLike } from "./redaction.js";
 import {
   claudeCodePin,
   claudeCodeTemplate,
@@ -1418,7 +1418,7 @@ export class NativePodmanCodingTransport implements IsolatedCodingTransport {
         file.bytes.length > 262144 ||
         (total += file.bytes.length) > 1048576 ||
         typeof file.executable !== "boolean" ||
-        redact(file.bytes.toString("utf8")) !== file.bytes.toString("utf8")
+        credentialLike(file.bytes.toString("utf8"))
       )
         throw Error("Unsafe native coding file");
       names.add(file.path.toLowerCase());

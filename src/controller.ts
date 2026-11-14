@@ -39,6 +39,7 @@ import {
   candidateOutput,
   candidateRevisionFiles,
   candidateSource,
+  excludedRevisionFiles,
   codingBinding,
   claudeAgent,
   featureBranchName,
@@ -94,6 +95,7 @@ import {
   type OnboardingOptions,
   type OnboardingReport,
   ownerChangeGate,
+  ownerExcludedPaths,
 } from "./onboarding.js";
 import { pathContains } from "./path-containment.js";
 import { samePins, type ProductionAdmission } from "./production-admission.js";
@@ -778,7 +780,11 @@ export class DeliveryController {
       throw new DeliveryError(
         "Base refresh requires remaining repair allowance; preserve work and request an owner extension.",
       );
-    const source = candidateMainSource(snapshot.repository, p.defaultBranch);
+    const source = candidateMainSource(
+      snapshot.repository,
+      p.defaultBranch,
+      this.excluded(snapshot),
+    );
     if (source.revision !== a.advancedBase)
       throw new DeliveryError(
         "Fetch and verify clean local main at the observed revision before refresh; never discard local work.",
@@ -1217,6 +1223,7 @@ export class DeliveryController {
     const source = candidateMainSource(
       d.repository,
       onboarding.canonicalRepository!.defaultBranch,
+      this.excluded(d),
     );
     if (
       source.revision !== v.sourceRevision ||
@@ -1233,6 +1240,7 @@ export class DeliveryController {
       throw new DeliveryError("Publication source or check contract changed.");
     const candidate = validationCandidate(f, this.stateDirectory);
     protectValidationInputs(v.contract, source.files, candidate.files);
+    const excluded = this.excluded(d);
     const production = this.productionSha256(d);
     const previous = d.publicationHistory?.at(-1);
     if (
@@ -1268,8 +1276,21 @@ export class DeliveryController {
       publicationLogin: policy.publicationLogin,
       appLogin: policy.appLogin,
       approver: policy.approver,
-      files: candidate.files,
+      // The owner's excluded files never reached coding, so publication
+      // carries them unchanged from the base commit (#275).
+      files: [
+        ...candidate.files,
+        ...excludedRevisionFiles(d.repository, source.revision, excluded),
+      ],
     };
+  }
+
+  /** The owner's excluded paths under `d`'s pinned policy (#275). */
+  private excluded(d: { authorityPolicySha256: string | null }): string[] {
+    return ownerExcludedPaths(
+      this.onboardingOptions.policyPath,
+      d.authorityPolicySha256,
+    );
   }
 
   /** Whether a first publication would carry exactly its base revision's
@@ -1282,9 +1303,18 @@ export class DeliveryController {
       const input = this.publicationInput(id, d);
       return (
         publicationTree(input.files) ===
-        publicationTree(
-          candidateRevisionFiles(d.repository, input.sourceRevision),
-        )
+        publicationTree([
+          ...candidateRevisionFiles(
+            d.repository,
+            input.sourceRevision,
+            this.excluded(d),
+          ),
+          ...excludedRevisionFiles(
+            d.repository,
+            input.sourceRevision,
+            this.excluded(d),
+          ),
+        ])
       );
     } catch {
       return false;
@@ -1462,6 +1492,7 @@ export class DeliveryController {
     const source = candidateMainSource(
       snapshot.repository,
       onboarding.canonicalRepository!.defaultBranch,
+      this.excluded(snapshot),
     );
     // After coding started, a new baseline is only for a moved main before any
     // candidate exists; an admitted candidate refreshes through repair.
@@ -1691,6 +1722,7 @@ export class DeliveryController {
       const tree = candidateMainSource(
         snapshot.repository,
         onboarding.canonicalRepository!.defaultBranch,
+        this.excluded(snapshot),
       );
       current =
         !!fresh.ready &&
@@ -2123,6 +2155,7 @@ export class DeliveryController {
         const source = candidateMainSource(
           snapshot.repository,
           snapshot.publicationHistory!.at(-1)!.defaultBranch,
+          this.excluded(snapshot),
         );
         if (
           !passedBaseline(
@@ -2307,6 +2340,7 @@ export class DeliveryController {
       source = candidateSource(
         snapshot.repository,
         mayMove ? undefined : feature.sourceRevision,
+        this.excluded(snapshot),
       );
     } catch {
       throw new DeliveryError(
@@ -2347,6 +2381,7 @@ export class DeliveryController {
     const currentMain = candidateMainSource(
       snapshot.repository,
       onboarding.canonicalRepository!.defaultBranch,
+      this.excluded(snapshot),
     );
     if (
       currentMain.revision !== source.revision ||
@@ -2724,6 +2759,7 @@ export class DeliveryController {
                       files: candidateRevisionFiles(
                         snapshot.repository,
                         attempt.baseRefresh.from,
+                        this.excluded(snapshot),
                       ),
                     },
                     to: { revision: source.revision, files: source.files },
@@ -2818,7 +2854,7 @@ export class DeliveryController {
           `interrupted-${session.operationId}.json`,
         );
         this.ledger.assertArtifacts();
-        writeFileSync(path, candidateOutput(output), {
+        writeFileSync(path, candidateOutput(output, this.excluded(snapshot)), {
           flag: "wx",
           mode: 0o600,
           flush: true,
@@ -2849,7 +2885,11 @@ export class DeliveryController {
         JSON.stringify(runtime.pins) !== pins
       )
         throw Error();
-      candidateSource(snapshot.repository, source.revision);
+      candidateSource(
+        snapshot.repository,
+        source.revision,
+        this.excluded(snapshot),
+      );
       featureBranch(
         snapshot.repository,
         prepared.feature!.branch!,
@@ -2874,7 +2914,11 @@ export class DeliveryController {
         JSON.stringify(runtime.pins) !== pins
       )
         throw Error();
-      candidateSource(snapshot.repository, source.revision);
+      candidateSource(
+        snapshot.repository,
+        source.revision,
+        this.excluded(snapshot),
+      );
       featureBranch(
         snapshot.repository,
         prepared.feature!.branch!,
@@ -2893,7 +2937,7 @@ export class DeliveryController {
             executable: f.executable ?? false,
           })),
         );
-      const payload = candidateOutput(output),
+      const payload = candidateOutput(output, this.excluded(snapshot)),
         path = join(
           this.stateDirectory,
           "artifacts",

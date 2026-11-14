@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { pathContains } from "./path-containment.js";
+import { validExcludedPaths } from "./workspace.js";
 import { redact } from "./redaction.js";
 import { readOwnerRecord } from "./coding-admission.js";
 import {
@@ -42,6 +43,9 @@ interface OwnerPolicy {
   validation: string[];
   /** The repository's change gate rules (ADR 0005); absent means the default. */
   changeGate?: ChangeGateContract;
+  /** Paths that never reach coding or validation, and that publication
+   * carries unchanged from the base commit (#275). */
+  excludedPaths?: string[];
 }
 interface Signature {
   commit: string;
@@ -266,8 +270,10 @@ function loadPolicy(
       throw new Error("Invalid policy");
   }
   if (
-    policy.changeGate !== undefined &&
-    !validChangeGateContract(policy.changeGate)
+    (policy.changeGate !== undefined &&
+      !validChangeGateContract(policy.changeGate)) ||
+    (policy.excludedPaths !== undefined &&
+      !validExcludedPaths(policy.excludedPaths))
   )
     throw new Error("Invalid policy");
   return {
@@ -488,6 +494,31 @@ export function inspectOnboarding(
     }));
   report.ready = report.checklist.length === 0;
   return report;
+}
+
+/** The owner policy's excluded paths at `path`, read at use and bound to the
+ * policy digest pinned at onboarding (#275). No policy, or one without the
+ * field, excludes nothing; a changed or invalid policy throws. */
+export function ownerExcludedPaths(
+  path: string | undefined,
+  expected: string | null | undefined,
+): string[] {
+  if (!path || !expected) return [];
+  const entry = lstatSync(path);
+  if (
+    !entry.isFile() ||
+    entry.isSymbolicLink() ||
+    entry.nlink !== 1 ||
+    entry.size > 65536
+  )
+    throw Error("Unsafe owner policy");
+  const document = readFileSync(path, "utf8");
+  if (createHash("sha256").update(document).digest("hex") !== expected)
+    throw Error("Changed owner policy");
+  const declared = (JSON.parse(document) as OwnerPolicy).excludedPaths;
+  if (declared === undefined) return [];
+  if (!validExcludedPaths(declared)) throw Error("Invalid excluded paths");
+  return [...declared];
 }
 
 /** The change gate contract in the owner policy at `path`, read at use and

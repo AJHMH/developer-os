@@ -9,7 +9,7 @@ import {
   realpathSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
-import { redact } from "./redaction.js";
+import { credentialLike } from "./redaction.js";
 
 export function admittedPath(path: string): boolean {
   return Boolean(
@@ -31,6 +31,39 @@ export function admittedPath(path: string): boolean {
             !/\.(?:pem|key|p12|pfx)$/i.test(part) &&
             !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part),
         ),
+  );
+}
+/** An owner policy's `excludedPaths` (#275): exact file paths, or directory
+ * prefixes ending in `/`, relative to the repository root. */
+export function validExcludedPaths(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= 64 &&
+    new Set(value).size === value.length &&
+    value.every(
+      (entry) =>
+        typeof entry === "string" &&
+        entry.length <= 200 &&
+        !entry.startsWith("/") &&
+        !entry.includes("\\") &&
+        entry
+          .replace(/\/$/, "")
+          .split("/")
+          .every(
+            (part) =>
+              part &&
+              part !== "." &&
+              part !== ".." &&
+              !/[\u0000-\u001f\u007f]/.test(part),
+          ),
+    )
+  );
+}
+/** Whether the owner excluded `path`: never sent to coding or validation,
+ * never changed by a candidate, and carried unchanged by publication. */
+export function excludedPath(path: string, excluded: readonly string[]) {
+  return excluded.some((entry) =>
+    entry.endsWith("/") ? path.startsWith(entry) : path === entry,
   );
 }
 /** Files that CI, Git hooks or an editor run without review once published or
@@ -103,7 +136,7 @@ export function admitFiles(
     }
     if (
       createHash("sha256").update(bytes).digest("hex") !== file.sha256 ||
-      redact(bytes.toString("utf8")) !== bytes.toString("utf8")
+      credentialLike(bytes.toString("utf8"))
     )
       throw Error(
         "Source digest changed or credential-like content is present",
